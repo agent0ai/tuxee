@@ -28,6 +28,11 @@ func TestDownloadZIPSelection(t *testing.T) {
 	if err := os.Chmod(filepath.Join(dir, ".config"), 0500); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := os.Chmod(filepath.Join(dir, ".config"), 0700); err != nil {
+			t.Errorf("restore fixture permissions: %v", err)
+		}
+	})
 	var output bytes.Buffer
 	request := Request{Path: dir, Paths: []string{filepath.Join(dir, ".config"), filepath.Join(dir, "literal*.txt")}}
 	if err := downloadZIP(context.Background(), request, &output); err != nil {
