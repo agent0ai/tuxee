@@ -30,30 +30,41 @@ export class Updates {
         }
     }
     view(signal: AbortSignal) {
-        const content = el('section', 'about-update'), message = el('p'), detail = el('p', 'muted');
+        const content = el('tr', 'about-update'), cell = el('td'), summary = el('div', 'update-summary');
+        content.setAttribute('aria-label', 'Updates'); cell.colSpan = 2;
+        const message = el('span', 'update-status'), checked = el('span', 'update-checked muted'), detail = el('p', 'update-error');
         const command = el('code', 'update-command'), restart = el('p', 'muted', 'The update takes effect on restart. Restarting ends all terminal sessions.');
-        const check = button('Check for updates', 'RefreshCw', async () => {
-            check.disabled = true; detail.textContent = 'Checking…';
+        const checkLabel = el('span', '', 'Check now');
+        const check = button('Check now', 'RefreshCw', async () => {
+            check.disabled = true; checkLabel.textContent = 'Checking…'; detail.hidden = true;
+            content.setAttribute('aria-busy', 'true');
             try {
                 const status = await api<Status>('/update', 'POST', undefined, signal);
                 if (!signal.aborted) this.publish(status);
             } catch (error) {
-                if (!signal.aborted) detail.textContent = error instanceof Error ? error.message : 'Unable to check for updates';
-            } finally { check.disabled = false; }
+                if (!signal.aborted) {
+                    detail.textContent = error instanceof Error ? error.message : 'Unable to check for updates';
+                    detail.hidden = false;
+                }
+            } finally { check.disabled = false; checkLabel.textContent = 'Check now'; content.removeAttribute('aria-busy'); }
         });
-        check.append(el('span', '', 'Check for updates'));
+        check.append(checkLabel);
         message.setAttribute('role', 'status'); detail.setAttribute('role', 'status');
-        content.append(message, check, detail, command, restart);
+        summary.append(message, checked, check);
+        cell.append(summary, detail, command, restart); content.append(cell);
+        const dateFormat = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         const paint = () => {
             const status = this.status;
+            content.classList.toggle('update-available', !!status?.available);
             message.replaceChildren();
             if (status?.available) {
                 const badge = el('span', 'menu-warning'); badge.append(icon('TriangleAlert'));
-                message.append(badge, document.createTextNode(` Tuxee ${status.latest} is available`));
-            } else message.textContent = status?.latest ? 'No newer stable release' : 'Update status unavailable';
-            detail.textContent = status?.error
-                ? `Check failed: ${status.error}`
-                : status && !status.checkedAt.startsWith('0001-') ? `Last checked: ${new Date(status.checkedAt).toLocaleString()}` : '';
+                message.append(badge, document.createTextNode(`${status.latest} available`));
+            } else message.textContent = status?.error ? 'Check failed' : status?.latest ? 'Up to date' : 'Not checked';
+            checked.hidden = !status || status.checkedAt.startsWith('0001-');
+            checked.textContent = checked.hidden ? '' : `checked ${dateFormat.format(new Date(status!.checkedAt)).replace(',', '')}`;
+            detail.hidden = !status?.error;
+            detail.textContent = status?.error ? `Check failed: ${status.error}` : '';
             command.hidden = restart.hidden = !status?.available;
             command.textContent = status?.command || '';
         };

@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"tuxee/internal/files"
@@ -47,6 +48,7 @@ type Server struct {
 	Updates    *update.Checker
 	Assets     fs.FS
 	mu         sync.Mutex
+	closed     atomic.Bool
 	logins     map[[32]byte]*login
 	archives   map[string]*archiveDownload
 	fileSlots  chan struct{}
@@ -111,6 +113,7 @@ func (s *Server) allowedOrigin(r *http.Request) bool {
 	return origin == "" || origin == s.origin(r)
 }
 func (s *Server) Close() {
+	s.closed.Store(true)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for key, session := range s.logins {
@@ -143,7 +146,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "same-origin")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+s.scriptHash+"; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'none'; frame-src 'self'; object-src 'self'; media-src 'self'; base-uri 'self'")
+	if s.closed.Load() {
+		w.Header().Set("Cache-Control", "no-store")
+		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		return
+	}
 	if r.URL.Path == "/health" {
+		w.Header().Set("Cache-Control", "no-store")
 		w.Write([]byte("ok"))
 		return
 	}
@@ -198,7 +207,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	if session == nil {
-		failure(w, 401, errors.New("session expired; sign in again"))
+		if s.closed.Load() {
+			failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		} else {
+			failure(w, 401, errors.New("session expired; sign in again"))
+		}
 		return
 	}
 	if r.Method != "GET" && r.Method != "HEAD" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Tuxee-CSRF")), []byte(session.csrf)) != 1 {
@@ -346,13 +359,23 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	input.Password = ""
 	user, err := s.Gate.Authenticate(r.Context(), peer, input.Username, password)
 	if err != nil {
-		failure(w, 401, err)
+		if s.closed.Load() {
+			failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		} else {
+			failure(w, 401, err)
+		}
 		return
 	}
 	token := randomToken()
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &login{user: user, csrf: randomToken(), expires: time.Now().Add(24 * time.Hour), ctx: ctx, cancel: cancel}
 	s.mu.Lock()
+	if s.closed.Load() {
+		s.mu.Unlock()
+		cancel()
+		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		return
+	}
 	if len(s.logins) >= 1024 {
 		s.mu.Unlock()
 		cancel()

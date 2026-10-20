@@ -32,19 +32,24 @@ export class APIError extends Error {
 export function setCSRF(value: string) { csrf = value; }
 export function requestHeaders() { return { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' }; }
 export async function api<T = any>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
+    const token = csrf;
     try {
-        const response = await fetch(`/api${path}`, { method, headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
+        const response = await fetch(`/api${path}`, { method, cache: 'no-store', headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
         if (response.status >= 500) window.dispatchEvent(new Event('tuxee-connection-check'));
+        if (!response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) throw new Error('Unexpected API response');
         const data = await response.json();
         if (!response.ok) {
-            if (response.status === 401 && csrf)
+            if (typeof data?.error !== 'string') throw new Error('Unexpected API response');
+            if (response.status === 401 && token && token === csrf)
                 window.dispatchEvent(new Event('tuxee-unauthorized'));
             throw new APIError(data.error || `Request failed (${response.status})`, response.status);
         }
         return data;
     } catch (error) {
-        if (!signal?.aborted && !(error instanceof APIError))
-            window.dispatchEvent(new Event('tuxee-connection-check'));
+        if (!signal?.aborted && !(error instanceof APIError)) {
+            window.dispatchEvent(new Event('tuxee-connection-lost'));
+            throw new Error('Connection lost. Try again when reconnected.');
+        }
         throw error;
     }
 }
@@ -205,4 +210,4 @@ export function confirmAction(title: string, message: string, action = 'Continue
         dialog.addEventListener('close', () => resolve(false), { once: true });
     });
 }
-export const size = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+export const size = (bytes: number) => bytes < 1024 ? `${Math.round(bytes)} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(1)} GB`;

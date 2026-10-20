@@ -602,6 +602,11 @@ export function onSynchronizedOutputEnd(
 // origin in a view: keyboard, paste, focus, and mouse events outside parsing keep
 // their ordinary xterm encoding. The canonical headless owner answers queries.
 export function installTerminalView(terminal: any): void {
+  const theme = terminal._core._themeService;
+  // Whole rows leave spare pixels; paint the entire surface with the active palette.
+  const paintBackground = () => terminal.element.style.backgroundColor = theme.colors.background.css;
+  paintBackground();
+  terminal._core._register(theme.onChangeColors(paintBackground));
   onSynchronizedOutputEnd(terminal, () => {
     const render = terminal._core._renderService;
     if (!render || render._isPaused) return;

@@ -566,10 +566,13 @@ h3 {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 2px 5px 0;
 }
 .terminal-host > .xterm {
   height: 100%;
+  padding: 2px 5px 0;
+}
+.terminal-host .xterm .xterm-viewport {
+  background-color: inherit;
 }
 .terminal-view.session-lost {
   background: var(--surface);
@@ -649,6 +652,7 @@ h3 {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.about-modal { width: min(580px, calc(100vw - 24px)); }
 .about-modal .modal-head { position: absolute; top: 12px; right: 12px; margin: 0; }
 .about-content {
   display: flex;
@@ -690,10 +694,16 @@ h3 {
 .about-details tr:last-child th, .about-details tr:last-child td {
   border-bottom: 0;
 }
-.about-update { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.about-update p { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
-.about-update > button { display: inline-flex; align-items: center; gap: 8px; }
-.update-command { display: block; width: 100%; padding: 10px; background: var(--raised); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+.about-details .about-update.update-available { background: #e9a93318; box-shadow: inset 3px 0 #d59a31; }
+.update-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.update-status { display: inline-flex; align-items: center; gap: 6px; }
+.update-available .update-status { font-weight: 600; }
+.update-checked { white-space: nowrap; }
+.update-summary > .update-checked, .update-summary > button { border-left: 1px solid var(--line); padding-left: 8px; }
+.update-summary > button { min-height: 26px; padding-block: 3px; padding-right: 0; border-radius: 0; gap: 5px; }
+.about-update p { margin-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.update-error { color: var(--danger); }
+.update-command { display: block; width: 100%; margin-top: 8px; padding: 10px; background: var(--raised); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
 .update-command[hidden] { display: none; }
 .menu-actions {
   display: flex;
@@ -902,7 +912,7 @@ progress {
 .compact-board .file-nav {
   padding-top: 7px;
 }
-.compact-board .terminal-host {
+.compact-board .terminal-host > .xterm {
   padding: 4px;
 }
 .compact-board .file-footer {
@@ -1007,7 +1017,7 @@ progress {
 .compact .file-footer button { min-width: 28px; min-height: 32px; }
 .compact .file-filter { font-size: 16px; }
 .compact .file-entry { border-radius: 0; }
-.compact .terminal-host { padding: 2px 0 0; }
+.compact .terminal-host > .xterm { padding: 2px 0 0; }
 .panel-header, .add-panel { touch-action: none; }
 .panel-dragging, .panel-settling { z-index: 100 !important; }
 .panel-dragging { pointer-events: none; opacity: .8; will-change: transform; }

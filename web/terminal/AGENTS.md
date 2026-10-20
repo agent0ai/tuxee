@@ -14,6 +14,8 @@ Pin browser and headless xterm to 6.0.0. Preserve parser continuation, both buff
 
 state.ts's installTerminalMetrics replaces the pinned DOM renderer's integer offsetWidth measurement with computed CSS width for its 32-character measurement run. Preserve fractional precision, zero-width handling and font-variant caches; use untransformed layout dimensions so workspace motion does not corrupt measurements. Install after terminal.open and refresh the renderer's spacing cache. Reassess this adaptation when upgrading xterm.
 
+Install installTerminalView after terminal.open. Its theme-service subscription paints the entire xterm element with the canonical background, including padding and incomplete-row space. Follow live palette changes and snapshot restoration without resetting application colors; dispose the subscription with xterm.
+
 interaction.ts uses public terminal APIs and screen touch events. One-finger movement scrolls normal-buffer history by measured row height unless an application owns wheel reports. Application mouse modes and alternate-screen cursor keys use xterm's existing wheel encoder. Preserve taps, mouse selection and multi-touch zoom; cancel gesture state on touch cancellation/end and remove listeners on view disposal. This bridges the pinned xterm 6.0 touch regression; reassess when upgrading the matched engines.
 
 # Work Guidance

@@ -47,6 +47,42 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 		t.Fatalf("revoked cookie: %d", got)
 	}
 }
+func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
+	s := New(nil, nil, nil, "", fstest.MapFS{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.logins[sha256.Sum256([]byte("token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
+	health := httptest.NewRecorder()
+	s.ServeHTTP(health, httptest.NewRequest("GET", "/health", nil))
+	if health.Code != 200 || health.Body.String() != "ok" || health.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("ready health: %d %q", health.Code, health.Body.String())
+	}
+	s.Close()
+	if ctx.Err() == nil {
+		t.Fatal("shutdown did not cancel the session")
+	}
+	for _, path := range []string{"/health", "/api/me", "/api/terminals", "/api/login", "/"} {
+		for _, cookie := range []bool{false, true} {
+			r := httptest.NewRequest("GET", path, nil)
+			if path == "/api/login" {
+				r.Method = "POST"
+			}
+			if cookie {
+				r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+			}
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			var body map[string]string
+			if w.Code != 503 || json.Unmarshal(w.Body.Bytes(), &body) != nil || body["error"] != "server restarting" || w.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("shutdown %s (cookie=%v): %d %q", path, cookie, w.Code, w.Body.String())
+			}
+			if len(w.Result().Cookies()) != 0 {
+				t.Fatal("shutdown issued a login cookie")
+			}
+		}
+	}
+	s.Close()
+}
 func TestSettingsWholeGridValidation(t *testing.T) {
 	if validateSettings(Settings{Theme: "dark"}) == nil {
 		t.Fatal("accepted null workspace list")

@@ -247,7 +247,7 @@ function automaticWidthCap(ws: Workspace, panel: Panel, width: number, priority?
     return Math.min(panel.kind === 'files' ? 2 : ws.columns,
         panel.kind === priority ? ws.columns : Math.max(1, Math.floor((panel.kind === 'terminal' ? 1440 : 640) / (width / ws.columns))));
 }
-export function expandAfterClose(ws: Workspace, closed: Rect, width: number, candidates = ws.panels) {
+export function expandAfterClose(ws: Workspace, closed: Rect, candidates = ws.panels) {
     for (const panel of [...candidates].sort((a, b) => a.w * a.h - b.w * b.h)) {
         let axis: 'x' | 'y';
         if (panel.y < closed.y + closed.h && panel.y + panel.h > closed.y
@@ -256,7 +256,7 @@ export function expandAfterClose(ws: Workspace, closed: Rect, width: number, can
             && (panel.y + panel.h === closed.y || panel.y === closed.y + closed.h)) axis = 'y';
         else continue;
         const size = axis === 'x' ? 'w' : 'h', backwards = panel[axis] === closed[axis] + closed[size];
-        const maxWidth = Math.max(panel.w, automaticWidthCap(ws, panel, width));
+        const maxWidth = Math.max(panel.w, panel.kind === 'files' ? 2 : ws.columns);
         for (let step = 0; step < closed[size]; step++) {
             const rect = { x: panel.x, y: panel.y, w: panel.w, h: panel.h };
             rect[size]++;

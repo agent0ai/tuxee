@@ -114,41 +114,72 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
 console.log('PASS double-click expands into free space in all directions or shrinks, without moving neighbors');
 
 const closeCases = [
-    ['left only', 8, 2, 2560, [1, 0, 1, 1], [['terminal', 2, 0, 1, 1]], [[1, 0, 2, 1]]],
-    ['right only', 8, 2, 2560, [2, 0, 1, 1], [['terminal', 1, 0, 1, 1]], [[1, 0, 2, 1]]],
-    ['up only', 2, 4, 900, [0, 1, 1, 1], [['terminal', 0, 2, 1, 1]], [[0, 1, 1, 2]]],
-    ['down only', 2, 4, 900, [0, 2, 1, 1], [['terminal', 0, 1, 1, 1]], [[0, 1, 1, 2]]],
-    ['smallest first despite input order', 8, 2, 2560, [1, 0, 2, 2], [['terminal', 3, 0, 2, 2], ['terminal', 0, 0, 1, 1]], [[3, 0, 2, 2], [0, 0, 3, 1]]],
-    ['stacked neighbors share the hole', 8, 2, 2560, [1, 0, 2, 2], [['terminal', 0, 0, 1, 1], ['terminal', 0, 1, 1, 1]], [[0, 0, 3, 1], [0, 1, 3, 1]]],
-    ['skip a capped smaller neighbor', 8, 2, 2560, [2, 0, 2, 2], [['files', 0, 0, 2, 1], ['terminal', 4, 0, 2, 2]], [[0, 0, 2, 1], [2, 0, 4, 2]]],
-    ['skip a blocked smaller neighbor', 8, 2, 2560, [1, 0, 2, 1], [['terminal', 0, 0, 1, 2], ['terminal', 1, 1, 3, 1]], [[0, 0, 1, 2], [1, 0, 3, 2]]],
-    ['file two-cell cap', 8, 2, 2048, [1, 0, 3, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
-    ['file pixel cap', 8, 2, 3440, [1, 0, 2, 2], [['files', 0, 0, 1, 2]], [[0, 0, 1, 2]]],
-    ['terminal pixel cap', 8, 2, 3440, [1, 0, 5, 2], [['terminal', 0, 0, 1, 2]], [[0, 0, 3, 2]]],
-    ['oversized manual widths may grow vertically', 8, 2, 3440, [0, 1, 5, 1], [['files', 0, 0, 5, 1]], [[0, 0, 5, 2]]],
-    ['corners and separated windows stay put', 8, 2, 2560, [1, 0, 1, 1], [['terminal', 2, 1, 1, 1], ['terminal', 4, 0, 1, 2]], [[2, 1, 1, 1], [4, 0, 1, 2]]],
-    ['standard desktop closes into its other file browser', 4, 2, 1440, [0, 1, 2, 1], [['files', 0, 0, 2, 1], ['terminal', 2, 0, 2, 2]], [[0, 0, 2, 2], [2, 0, 2, 2]]],
-    ['last panel', 4, 2, 1440, [0, 0, 4, 2], [], []],
+    ['left only', 8, 2, [1, 0, 1, 1], [['terminal', 2, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['right only', 8, 2, [2, 0, 1, 1], [['terminal', 1, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['up only', 2, 4, [0, 1, 1, 1], [['terminal', 0, 2, 1, 1]], [[0, 1, 1, 2]]],
+    ['down only', 2, 4, [0, 2, 1, 1], [['terminal', 0, 1, 1, 1]], [[0, 1, 1, 2]]],
+    ['smallest first despite input order', 8, 2, [1, 0, 2, 2], [['terminal', 3, 0, 2, 2], ['terminal', 0, 0, 1, 1]], [[3, 0, 2, 2], [0, 0, 3, 1]]],
+    ['stacked neighbors share the hole', 8, 2, [1, 0, 2, 2], [['terminal', 0, 0, 1, 1], ['terminal', 0, 1, 1, 1]], [[0, 0, 3, 1], [0, 1, 3, 1]]],
+    ['skip a capped smaller neighbor', 8, 2, [2, 0, 2, 2], [['files', 0, 0, 2, 1], ['terminal', 4, 0, 2, 2]], [[0, 0, 2, 1], [2, 0, 4, 2]]],
+    ['skip a blocked smaller neighbor', 8, 2, [1, 0, 2, 1], [['terminal', 0, 0, 1, 2], ['terminal', 1, 1, 3, 1]], [[0, 0, 1, 2], [1, 0, 3, 2]]],
+    ['file two-cell cap', 8, 2, [1, 0, 3, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
+    ['file growth ignores arranger pixel preference', 8, 2, [1, 0, 2, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
+    ['terminal growth ignores arranger pixel preference', 8, 2, [1, 0, 5, 2], [['terminal', 0, 0, 1, 2]], [[0, 0, 6, 2]]],
+    ['oversized manual widths may grow vertically', 8, 2, [0, 1, 5, 1], [['files', 0, 0, 5, 1]], [[0, 0, 5, 2]]],
+    ['corners and separated windows stay put', 8, 2, [1, 0, 1, 1], [['terminal', 2, 1, 1, 1], ['terminal', 4, 0, 1, 2]], [[2, 1, 1, 1], [4, 0, 1, 2]]],
+    ['standard desktop closes into its other file browser', 4, 2, [0, 1, 2, 1], [['files', 0, 0, 2, 1], ['terminal', 2, 0, 2, 2]], [[0, 0, 2, 2], [2, 0, 2, 2]]],
+    ['last panel', 4, 2, [0, 0, 4, 2], [], []],
 ];
-for (const [name, columns, rows, width, removed, shapes, expected] of closeCases) {
+for (const [name, columns, rows, removed, shapes, expected] of closeCases) {
     const [x, y, w, h] = removed, closed = { x, y, w, h };
     const panels = shapes.map(([kind, x, y, w, h], i) => ({ ...newPanel(kind, '/'), id: String(i), x, y, w, h }));
     const ws = { id: 'close', name, columns, rows, panels, active: panels[0]?.id || '' };
     assert.ok(validGrid({ ...ws, panels: [...panels, { ...newPanel('files', '/'), ...closed }] }), name);
-    expandAfterClose(ws, closed, width);
+    expandAfterClose(ws, closed);
     assert.ok(validGrid(ws), name);
     assert.deepEqual(ws.panels.map(({ x, y, w, h }) => [x, y, w, h]), expected, name);
     assert.ok(ws.panels.every((panel, i) => panel === panels[i]), 'keep original panel identities');
 }
 console.log('PASS close expansion: four directions, smallest-first, shared holes, caps, portrait, unrelated gaps and stable identities');
+let closeChecks = 0;
+for (const [columns, rows] of [[4, 2], [8, 2], [2, 4]]) {
+    const layouts = [];
+    for (let x = 1; x < columns; x++) {
+        layouts.push([[0, 0, x, rows], [x, 0, columns - x, rows]]);
+        for (let y = 1; y < rows; y++) {
+            const tl = [0, 0, x, y], bl = [0, y, x, rows - y];
+            const tr = [x, 0, columns - x, y], br = [x, y, columns - x, rows - y];
+            layouts.push([tl, bl, [x, 0, columns - x, rows]], [[0, 0, x, rows], tr, br],
+                [tl, tr, [0, y, columns, rows - y]], [[0, 0, columns, y], bl, br], [tl, bl, tr, br]);
+        }
+    }
+    for (let y = 1; y < rows; y++) layouts.push([[0, 0, columns, y], [0, y, columns, rows - y]]);
+    for (const shapes of layouts) for (let removed = 0; removed < shapes.length; removed++) {
+        const original = shapes.map(([x, y, w, h], i) => ({ ...newPanel('terminal', '/'), id: String(i), x, y, w, h }));
+        const closed = original[removed], panels = original.filter(p => p !== closed).map(p => ({ ...p }));
+        const ws = { id: 'sweep', name: 'Terminals', columns, rows, panels, active: panels[0].id };
+        expandAfterClose(ws, closed);
+        const label = `${columns}x${rows} close ${removed} in ${JSON.stringify(shapes)}`;
+        assert.ok(validGrid(ws), label);
+        assert.equal(panels.reduce((sum, p) => sum + p.w * p.h, 0), columns * rows, label);
+        for (const p of panels) {
+            const before = original.find(old => old.id === p.id);
+            const edges = rect => [rect.x, rect.y, rect.x + rect.w, rect.y + rect.h];
+            assert.ok(edges(p).filter((edge, i) => edge !== edges(before)[i]).length <= 1, label);
+            assert.ok(p.x <= before.x && p.y <= before.y && p.x + p.w >= before.x + before.w && p.y + p.h >= before.y + before.h, label);
+        }
+        closeChecks++;
+    }
+}
+console.log(`PASS ${closeChecks} terminal closures: every side of pairs, T layouts and four-panel grids, including unequal splits and portrait`);
 {
     const ws = newWorkspace('closing', '/', 1440, 1000), [first, second, terminal] = ws.panels;
     ws.panels = ws.panels.filter(p => p !== first);
-    expandAfterClose(ws, first, 1440, [terminal]);
+    expandAfterClose(ws, first, [terminal]);
     assert.deepEqual([second.x, second.y, second.w, second.h], [0, 1, 2, 1], 'another closing window cannot grow');
     assert.equal(terminal.x, 2, 'another closing window still blocks expansion');
     ws.panels = [terminal];
-    expandAfterClose(ws, second, 1440);
+    expandAfterClose(ws, second);
     assert.deepEqual([terminal.x, terminal.y, terminal.w, terminal.h], [0, 0, 4, 2]);
 }
 

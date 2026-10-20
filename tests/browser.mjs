@@ -88,14 +88,16 @@ async function checkAbout(source, screenshot) {
     } else await page.getByRole('menuitem', { name: 'About', exact: true }).click();
     const info = await (await response).json();
     const dialog = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
-    await dialog.getByRole('table', { name: 'System information' }).waitFor();
+    await dialog.getByRole('rowheader', { name: 'Shell', exact: true }).waitFor();
     assert.equal(info.version, run('./bin/tuxee', ['version']).replace(/^Tuxee /, ''));
     assert.equal(info.username, a.name); assert.equal(info.uid, a.uid); assert.equal(info.home, a.home);
-    assert.deepEqual(await dialog.locator('tr').evaluateAll(rows => rows.map(row => [...row.children].map(cell => cell.textContent))), [
+    assert.deepEqual(await dialog.locator('tr:not(.about-update)').evaluateAll(rows => rows.map(row => [...row.children].map(cell => cell.textContent))), [
         ['Tuxee version', info.version], ['Operating system', info.os], ['Kernel', info.kernel],
         ['Architecture', info.architecture], ['Server name', info.hostname],
         ['User', `${a.name} (UID ${a.uid})`], ['Home directory', a.home], ['Shell', info.shell],
+        ['GitHub', 'agent0ai/tuxee'],
     ]);
+    assert.ok(await dialog.locator('tr.about-update').evaluate(row => row.previousElementSibling?.querySelector('th')?.textContent === 'Tuxee version'));
     assert.ok(await dialog.locator('img').evaluate(image => image.complete && image.naturalWidth > 0));
     const box = await dialog.boundingBox(), viewport = page.viewportSize();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height);

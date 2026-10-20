@@ -12,6 +12,8 @@ Own HTTP routing and session revocation. Delegate filesystem syscalls to files, 
 
 Cookies contain random revocable tokens; login passwords never leave the isolated authentication path. Archive passwords are transient filesystem-worker input. Mutations require same-origin admission and a session CSRF token. Logout cancels all requests/WebSockets associated with that login, but never closes retained PTYs. Every terminal operation verifies its Linux owner. User settings validate whole-layout bounds and overlap before an atomic user-owned save. File transfers stream under the user's credentials.
 
+Close marks the service unavailable before revoking logins. While shutting down, return no-store JSON 503 responses, including health, assets and login; never report revoked shutdown sessions as expired credentials or admit a login after Close. Healthy `/health` is also uncached.
+
 Terminal lifetime has no timeout setting. Ignore legacy `idleHours` when loading settings and accept/drop it on save, so existing clients and saved layouts remain usable. Never include it in returned or newly persisted settings.
 
 `POST /api/upload?path=…&unique=true` streams a size-declared file through the credential-dropped worker and returns its actual `path`. The worker owns collision naming; the HTTP layer must not pre-check or retry destinations. Omitted/false unique keeps explicit no-overwrite behavior for New file. Directory upload preparation uses the existing files API's mkdir with unique or parents flags.
@@ -40,7 +42,7 @@ Keep frontend protocol and real-system tests in sync. Do not weaken shared owner
 
 # Verification
 
-Run `go test ./internal/server` for origin/CSRF/logout admission, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
+Run `go test ./internal/server` for origin/CSRF/logout admission, shutdown unavailability/session cancellation, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. Run with `-race` for lifecycle changes. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
 
 HTTPS redirect checks cover preserved URLs, invalid/oversized headers, plaintext isolation, idle clients, HTTP/2, TLS-ALPN certificate challenges and shutdown. The real-system test follows the redirect through the built binary.
 

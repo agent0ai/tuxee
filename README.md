@@ -7,6 +7,8 @@
 A tiny Debian Linux container with a superb web interface for files and <b>(persistent!)</b>
 terminals. Also available as a standalone web interface for existing Linux servers.
 
+<h4>Great for admins, perfect for AI agents.</h3>
+
 ## Highlights
 
 <table>

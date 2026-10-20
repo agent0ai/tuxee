@@ -217,10 +217,12 @@ Build and validate a working proof-of-concept of Tuxee in /workspace/tuxee: a Li
   unnecessarily elaborate custom layout engine.
 
   Backend connection loss shows a blocking blur overlay with a centered, theme-aware loading
-  indicator and "Connection lost, reconnecting...". Automatically remove it when the backend
-  becomes reachable, preserving mounted views and drafts. Detect outages even without terminals
-  or resource monitoring; ordinary operation errors must not trigger a global outage. Respect
-  reduced motion and clear connection monitoring on logout/session expiry.
+  indicator and "Connection lost, reconnecting...". Keep it through restart/proxy failures until
+  health and the session endpoint respond correctly. Only then show login if the session is
+  confirmed expired; otherwise preserve mounted views and drafts. Startup API failures also
+  show recovery instead of login. Detect outages even without terminals or resource monitoring,
+  including on the login screen; ordinary operation errors must not trigger a global outage.
+  Respect reduced motion, never replay credentials or mutations, and stop monitoring on page exit.
 
   9. Top bar and mobile navigation
 
@@ -361,4 +363,4 @@ Push stable vMAJOR.MINOR.PATCH tags to build Linux x86-64 and ARM64 binaries and
 
 Provide a small curl/sh installer selecting latest or an explicit version, verifying downloads and installing a PATH command. Print foreground and available systemd startup instructions. `tuxee update` checks semantic versions and safely replaces its installation without restarting or changing state. Support writable Docker containers and native installations; explain that container recreation uses the image version. Restarting may end all terminals; live restart survival is outside this scope.
 
-About has a manual version-check button, an available-update warning shared with the hamburger notification icon, and a terminal command to perform the update. The UI never installs updates. Check automatically on the server after midnight each day, and on startup, so notices work without an open browser.
+About links to the GitHub repository and places the version-check row directly below the version row. Show status, local check time in DD.MM.YYYY HH:mm format, and a refresh-icon Check now button together on one desktop line, wrapping on mobile. Highlight available updates with a tinted row, accent edge and notification icon so the reason for the About/hamburger alert is immediately visible. Retain the terminal command to perform the update and restart warning when an update is available. The UI never installs updates. Check automatically on the server after midnight each day, and on startup, so notices work without an open browser.

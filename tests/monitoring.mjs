@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import './monitor-values.mjs';
 
-const user='tuxee-poc-a',fields=spawnSync('getent',['passwd',user],{encoding:'utf8'}).stdout.trim().split(':');
+const user=process.env.TUXEE_TEST_USER||'tuxee-poc-a',fields=spawnSync('getent',['passwd',user],{encoding:'utf8'}).stdout.trim().split(':');
 assert.equal(fields[4],'Tuxee prototype test','refusing unrelated account');
 const password=randomBytes(24).toString('base64url');assert.equal(spawnSync('chpasswd',[],{input:`${user}:${password}\n`}).status,0);
 const base=process.env.TUXEE_TEST_URL||'https://127.0.0.1:9443';
@@ -114,6 +114,13 @@ try {
   assert.equal(await summary.locator('.monitor-upload').textContent(),`↑${label}`);
   assert.deepEqual(await summary.locator('.monitor-chip').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width)),widths);
  }
+ await networkSample(528.5390883183117,910.6452389215688,'529B','911B');
+ const networkDetail=dialog.locator('.monitor-card').filter({has:page.getByRole('heading',{name:network,exact:true})}).locator('p');
+ assert.equal(await networkDetail.textContent(),'Download 529 B/s · Upload 911 B/s');
+ assert.equal(await summary.locator('.monitor-network-value').getAttribute('aria-label'),'Download 529 B/s · Upload 911 B/s');
+ await networkSample(1536.123456,0,'1.5K','0.0B');
+ assert.equal(await networkDetail.textContent(),'Download 1.5 KB/s · Upload 0 B/s');
+ check('network details and accessible readings round fractional byte rates without changing larger-unit precision');
  await networkSample(1e6,10000,'1.0M','10K ');
  for(let i=0;i<3;i++)await networkSample(1e6,10000,'1.0M','10K ',false);
  for(let i=0;i<99;i++)await networkSample(100,100,'100B','100B');

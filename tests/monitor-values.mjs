@@ -5,6 +5,13 @@ import { mkdir } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/monitor-values.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/monitor-values.mjs' });
 const { compactSize, networkFill } = await import('../.test-state/monitor-values.mjs');
+await build({ entryPoints: ['web/ui.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/ui-values.mjs' });
+const { size } = await import('../.test-state/ui-values.mjs');
+for (const [value, expected] of [
+    [528.5390883183117, '529 B'], [910.6452389215688, '911 B'],
+    [0, '0 B'], [0.24, '0 B'], [0.5, '1 B'], [42, '42 B'], [1023, '1023 B'],
+    [1024, '1.0 KB'], [1536.123456, '1.5 KB'], [1.5 * 1024 ** 2, '1.5 MB'], [1.5 * 1024 ** 3, '1.5 GB'],
+]) assert.equal(size(value), expected);
 for (const [value, expected] of [
     [2500, '2.5K'], [12000, '12K '], [999000, '999K'], [999, '999B'],
     [16e6, '16M '], [7.8e6, '7.8M'], [999e6, '999M'], [1e9, '1.0G'],
@@ -40,4 +47,4 @@ for (let i = 0; i < 100; i++) assert.equal(networkFill(0, upload), 0);
 assert.equal(upload.length, 100);
 assert.ok(upload.every(value => value === 0), 'idle samples age old peaks out of the window');
 assert.equal(networkFill(1, upload), 1);
-console.log('PASS fixed-width sizes, independent 100-sample peaks, peak eviction, resets, zero and minimum visible network arcs');
+console.log('PASS rounded byte sizes, fixed-width sizes, independent 100-sample peaks, peak eviction, resets, zero and minimum visible network arcs');

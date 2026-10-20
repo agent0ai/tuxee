@@ -39,7 +39,6 @@ export class TerminalView implements View {
         root.classList.add('terminal-view');
         this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
         this.term.loadAddon(this.fit);
-        installTerminalView(this.term);
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);
@@ -57,6 +56,7 @@ export class TerminalView implements View {
             upload: (sources, point) => { void this.uploadFiles(sources, point); }
         }, this.events.signal);
         this.term.open(this.host);
+        installTerminalView(this.term);
         installTerminalMetrics(this.term);
         installTerminalTouch(this.term, this.events.signal);
         this.term.onData(data => this.input(data));

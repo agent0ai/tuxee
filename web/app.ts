@@ -8,7 +8,7 @@ import verticalLogo from './tuxee-logo-vertical.webp';
 import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
-import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
+import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
 import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
@@ -92,7 +92,6 @@ function disposeViews() {
 }
 function showLogin() {
     updates?.dispose(); updates = undefined;
-    connection?.dispose(); connection = undefined;
     monitoring?.dispose(); monitoring = undefined;
     stopTerminalPolling();
     terminalSessions = []; terminalError = '';
@@ -146,17 +145,17 @@ function showLogin() {
     root.append(page);
     if (username.autofocus) username.focus();
 }
-async function load() {
+async function load(signal?: AbortSignal) {
     const value = await api<{
         user: User;
         csrf: string;
         settings: Settings;
-    }>('/me');
+    }>('/me', 'GET', undefined, signal);
+    if (signal?.aborted) return;
     user = value.user;
     settings = value.settings;
     setCSRF(value.csrf);
     loggedIn = true;
-    connection?.dispose(); connection = new BackendConnection();
     monitoring?.dispose();
     monitoring = new Monitoring(settings.monitoring, async preferences => {
         const previous = settings.monitoring;
@@ -659,14 +658,13 @@ async function closePanel(panel: Panel) {
     const value = mounted, item = value?.items.get(panel.id);
     if (!value || !item || item.node.dataset.closing) return;
     if (item.view.canClose && !await item.view.canClose()) return;
-    const width = value.gridEl.clientWidth;
     item.node.dataset.closing = 'true';
     const animation = item.node.animate([{ opacity: 1, transform: 'scale(1)', transformOrigin: 'center' }, { opacity: 0, transform: 'scale(.96)', transformOrigin: 'center' }], { duration: duration(160), fill: 'forwards' });
     try {
         stopPanel(panel, value);
         await animation.finished;
         value.ws.panels = value.ws.panels.filter(p => p.id !== panel.id);
-        if (!value.compact) expandAfterClose(value.ws, panel, value.gridEl.clientWidth || width,
+        if (!value.compact) expandAfterClose(value.ws, panel,
             value.ws.panels.filter(p => !value.items.get(p.id)?.node.dataset.closing));
         layoutChanged(value.ws);
         if (mounted === value) render();
@@ -814,27 +812,36 @@ async function openAbout() {
     logo.width = logo.height = 192; logo.draggable = false;
     const status = el('p', 'muted', 'Loading…');
     status.setAttribute('role', 'status');
-    content.append(logo, el('p', 'about-tagline muted', 'Tuxee - the most convenient linux for servers and agents.'), status);
+    const table = el('table', 'about-details'), body = el('tbody');
+    table.setAttribute('aria-label', 'System information');
+    const versionRow = el('tr'), versionHeading = el('th', '', 'Tuxee version'), version = el('td', '', '—');
+    versionHeading.scope = 'row'; versionRow.append(versionHeading, version); body.append(versionRow);
+    const githubRow = el('tr'), githubHeading = el('th', '', 'GitHub'), githubCell = el('td');
+    const github = el('a', '', 'agent0ai/tuxee');
+    github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
+    githubHeading.scope = 'row'; githubCell.append(github); githubRow.append(githubHeading, githubCell);
+    table.append(body);
+    content.append(logo, el('p', 'about-tagline muted', 'Tuxee - the most convenient linux for servers and agents.'), table, status);
     const { dialog } = modal('About Tuxee', content);
     dialog.classList.add('about-modal');
     dialog.querySelector('h2')!.remove();
     const controller = new AbortController();
     dialog.addEventListener('close', () => controller.abort(), { once: true });
-    if (updates) content.append(updates.view(controller.signal));
+    if (updates) body.append(updates.view(controller.signal));
+    body.append(githubRow);
     try {
         const info = await api<{ version: string; os: string; kernel: string; architecture: string; hostname: string; username: string; uid: number; home: string; shell: string }>('/system', 'GET', undefined, controller.signal);
-        const table = el('table', 'about-details'), body = el('tbody');
-        table.setAttribute('aria-label', 'System information');
+        version.textContent = info.version || 'Unavailable';
         for (const [label, value] of [
-            ['Tuxee version', info.version], ['Operating system', info.os], ['Kernel', info.kernel],
+            ['Operating system', info.os], ['Kernel', info.kernel],
             ['Architecture', info.architecture], ['Server name', info.hostname],
             ['User', `${info.username} (UID ${info.uid})`], ['Home directory', info.home], ['Shell', info.shell],
         ]) {
             const row = el('tr'), heading = el('th', '', label);
             heading.scope = 'row';
-            row.append(heading, el('td', '', value || 'Unavailable')); body.append(row);
+            row.append(heading, el('td', '', value || 'Unavailable')); body.insertBefore(row, githubRow);
         }
-        table.append(body); status.replaceWith(table);
+        status.remove();
     } catch (error) {
         if (!controller.signal.aborted) {
             status.setAttribute('role', 'alert');
@@ -896,11 +903,17 @@ function viewport() {
 window.addEventListener('resize', viewport);
 visualViewport?.addEventListener('resize', viewport);
 viewport();
-window.addEventListener('tuxee-unauthorized', () => { if (loggedIn) {
-    showLogin();
-    notify('Your session ended. Sign in to reconnect.');
-} });
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
 window.addEventListener('pagehide', () => { updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
-load().catch(() => showLogin());
+connection = new BackendConnection(async signal => {
+    try {
+        if (loggedIn) await api('/me', 'GET', undefined, signal);
+        else await load(signal);
+    } catch (error) {
+        if (!(error instanceof APIError) || error.status !== 401) throw error;
+        const ended = loggedIn;
+        if (!root.querySelector('.login-page')) showLogin();
+        if (ended) notify('Your session ended. Sign in to reconnect.');
+    }
+});
