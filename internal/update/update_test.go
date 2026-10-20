@@ -1,6 +1,7 @@
 package update
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -214,6 +215,34 @@ func TestBootstrapReinstallsRealExecutable(t *testing.T) {
 		if got, err := InstalledVersion(context.Background(), command); err != nil || got != version {
 			t.Fatal(got, err)
 		}
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, location := range []string{"lib/tuxee", "bin/tuxee"} {
+		t.Run(location, func(t *testing.T) {
+			dir := t.TempDir()
+			legacy := filepath.Join(dir, location)
+			if err := os.MkdirAll(filepath.Dir(legacy), 0755); err != nil {
+				t.Fatal(err)
+			}
+			// Retain valid Go build metadata, but distinguish the old file's bytes.
+			if err := os.WriteFile(legacy, append(data, 0), 0755); err != nil {
+				t.Fatal(err)
+			}
+			target, command := filepath.Join(dir, "lib/tuxee"), filepath.Join(dir, "bin/tuxee")
+			if err := bootstrap(context.Background(), source, target, command, version); err != nil {
+				t.Fatal(err)
+			}
+			got, err := os.ReadFile(target)
+			if err != nil || !bytes.Equal(got, data) {
+				t.Fatal("did not replace the existing executable", err)
+			}
+			if link, err := os.Readlink(command); err != nil || link != target {
+				t.Fatal("command does not use the updated executable", link, err)
+			}
+		})
 	}
 }
 

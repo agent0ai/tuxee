@@ -7,7 +7,7 @@ to run them. For the container, see [Docker setup](guide.md#docker).
 
 ## Install script
 
-Install the latest stable release:
+Install or update to the latest stable release:
 
 ```sh
 curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
@@ -28,6 +28,27 @@ export PATH="/usr/local/bin:$PATH"
 ```
 
 Add that line to your shell profile if needed.
+
+### Update an older installation
+
+Rerun the same install command, even if the installed version has no
+`tuxee update` command. The script runs the downloaded binary's installer.
+It replaces an existing Tuxee binary at `/usr/local/lib/tuxee/tuxee` (the default
+systemd service location) or `/usr/local/bin/tuxee`, preserving configuration,
+state and the service unit. Repeating the command is safe; unrelated files
+are refused.
+
+The running server keeps its old version until restarted. When ready, restart
+the default service:
+
+```sh
+sudo /usr/local/bin/tuxee restart
+```
+
+Restarting ends all terminal sessions. For a foreground server, stop it and run
+`/usr/local/bin/tuxee serve` with its original options. Custom executable paths
+and custom-named service copies are separate installations; this command updates
+only the default installation.
 
 ## Manual binary installation
 

@@ -18,6 +18,11 @@ not create that first release.
 
 ## Update
 
+For versions without `tuxee update`, rerun the
+[install script](install.md#update-an-older-installation). It upgrades the default
+installation using the downloaded binary, preserving configuration and state.
+Restart the server explicitly when ready.
+
 ```sh
 tuxee update --check
 sudo tuxee update

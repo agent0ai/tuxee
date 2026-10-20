@@ -21,31 +21,38 @@ if(!url.startsWith('https://github.com/agent0ai/tuxee/releases/download/v1.2.3/'
 if(process.env.FAIL_DOWNLOAD==='yes')process.exit(22);
 fs.copyFileSync(root+(url.endsWith('checksums.txt')?'/checksums.txt':'/binary'),target);
 `, { mode: 0o755 });
-async function run(args = [], extra = {}, good = true) {
+async function run(args = [], extra = {}, good = true, previous = null) {
     const stage = join(root, 'temp'), result = join(root, 'installed');
     await mkdir(stage, { recursive: true });
-    await rm(result, { force: true });
+    if (previous === null) await rm(result, { force: true });
+    else await writeFile(result, previous);
     const proc = spawnSync('/bin/sh', ['-s', '--', ...args], {
         input: script, encoding: 'utf8',
         env: { ...process.env, PATH: `${tools}:${process.env.PATH}`, TMPDIR: stage, FIXTURES: root, INSTALL_RESULT: result, ...extra },
     });
     assert.equal(proc.status === 0, good, proc.stdout + proc.stderr);
     if (good) assert.equal(await readFile(result, 'utf8'), 'installed');
+    else if (previous !== null) assert.equal(await readFile(result, 'utf8'), previous);
     else await assert.rejects(readFile(result), { code: 'ENOENT' });
     assert.deepEqual(await readdir(stage), [], 'installer left partial downloads');
 }
 try {
     await writeFile(join(root, 'checksums.txt'), `${sum}  tuxee-linux-amd64\n${sum}  tuxee-linux-arm64\n`);
     await run(); await run(['v1.2.3']); await run(['1.2.3'], { TEST_ARCH: 'aarch64' });
-    await run(['v1.2.3'], { FAIL_DOWNLOAD: 'yes' }, false);
+    // Old installations need neither update nor __install: only the download runs.
+    await writeFile(join(tools, 'tuxee'), '#!/bin/sh\nprintf called > "$FIXTURES/legacy-called"\nexit 99\n', { mode: 0o755 });
+    await run([], {}, true, 'old installation');
+    await run(['v1.2.3'], {}, true, 'installed');
+    await assert.rejects(readFile(join(root, 'legacy-called')), { code: 'ENOENT' });
+    await run(['v1.2.3'], { FAIL_DOWNLOAD: 'yes' }, false, 'old installation');
     await run(['v1.2.3'], { TEST_ARCH: 'armv7l' }, false);
     await run(['v1.2.3;echo bad'], {}, false);
     await writeFile(join(root, 'checksums.txt'), `${'0'.repeat(64)}  tuxee-linux-amd64\n`);
-    await run([], {}, false);
+    await run([], {}, false, 'old installation');
     await writeFile(join(root, 'checksums.txt'), '');
     await run([], {}, false);
     // A truncated piped script must not start installation.
     const truncated = spawnSync('/bin/sh', { input: script.slice(0, script.indexOf('main "$@"')), encoding: 'utf8', env: { ...process.env, PATH: `${tools}:${process.env.PATH}` } });
     assert.equal(truncated.status, 0);
-    console.log('PASS installer: latest/pinned versions, both architectures, checksum/download failures, cleanup and truncated input');
+    console.log('PASS installer: fresh install, legacy upgrade, repeat install, latest/pinned versions, both architectures, checksum/download failures, cleanup and truncated input');
 } finally { await rm(root, { recursive: true, force: true }); }

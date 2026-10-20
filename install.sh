@@ -1,4 +1,5 @@
 #!/bin/sh
+# Install or update Tuxee; the installed version need not support updates.
 # curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh -s -- [v1.2.3]
 set -eu
 
@@ -7,7 +8,11 @@ main() {
         echo 'Usage: install.sh [vMAJOR.MINOR.PATCH]' >&2
         exit 2
     fi
-    case "${1:-}" in --help|-h) echo 'Usage: install.sh [vMAJOR.MINOR.PATCH]'; return ;; esac
+    case "${1:-}" in --help|-h)
+        echo 'Usage: install.sh [vMAJOR.MINOR.PATCH]'
+        echo 'Install or update Tuxee (latest stable by default). Does not restart it.'
+        return ;;
+    esac
     [ "$(id -u)" = 0 ] || { echo 'Run with sudo sh, or as root.' >&2; exit 1; }
     [ "$(uname -s)" = Linux ] || { echo 'Tuxee requires Linux.' >&2; exit 1; }
     case "$(uname -m)" in

@@ -19,6 +19,8 @@ commands/restart guidance; server and browser expose checks, never installation.
   Never restart services, change state, or silently downgrade.
 - Default installation is `/usr/local/lib/tuxee/tuxee`, exposed through a symlink
   in `/usr/local/bin`. Named managed services retain their own installation.
+  Bootstrap replaces recognized Tuxee binaries at either default path, including
+  pre-updater builds, without invoking the old executable's installation commands.
 - Check at startup and at 00:01 in the server's local timezone. Coalesce checks,
   rate-limit manual requests and preserve the last successful result on failure.
   GitHub failures must not interrupt Tuxee.
@@ -34,6 +36,8 @@ checksums, replacement, scheduling and check concurrency without public requests
 With bin/tuxee built, also verify native bootstrap/reinstallation in temporary paths.
 Verify that writable command directories are rejected before installation and
 that securing their permissions allows installation and reinstallation.
+Cover replacement of regular Tuxee binaries at both legacy default locations
+and the resulting PATH symlink to the new executable.
 
 # Child DOX Index
 

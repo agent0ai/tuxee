@@ -18,7 +18,7 @@ Keep implementation and checks small, complete, and aligned with [the specificat
 
 # Verification
 
-- `npm run test:installer`: isolated curl fixtures test latest/pinned selection, both architectures, checksum/download failure preservation, truncated input and cleanup without installing on the host.
+- `npm run test:installer`: isolated curl fixtures test fresh installs, legacy upgrades without invoking the old CLI, repeat installs, latest/pinned selection, both architectures, checksum/download failure preservation, truncated input and cleanup without installing on the host.
 - `npm run test:updates`: start an isolated real server and use the marked account; cover manual checks, cached polling, About/hamburger badges, command-only guidance, retained warnings on errors, desktop/mobile light/dark bounds, no external browser requests and logout cleanup. Restore settings. Run sequentially with other account tests.
 - `TUXEE_SYSTEM_TEST=1 go test ./tests -run TestRunningServerKeepsHelpersAfterBinaryReplacement`: atomically replace a disposable running executable with an incompatible fixture; verify real PAM, file helpers and the retained PTY identity continue.
 

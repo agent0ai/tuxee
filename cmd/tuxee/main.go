@@ -103,6 +103,7 @@ func run(args []string) error {
 		fmt.Printf("Installed Tuxee %s: %s\nRun: sudo tuxee serve\n", version, update.CommandPath)
 		if service.Available() == nil {
 			fmt.Println("Start at boot: sudo tuxee service install\nStart now: sudo tuxee start")
+			fmt.Println("Apply an update to the existing default service: sudo tuxee restart")
 		} else {
 			fmt.Println("No running systemd manager; use tuxee serve with your existing supervisor.")
 		}
@@ -110,6 +111,7 @@ func run(args []string) error {
 			fmt.Println("Add the command to this shell: export PATH=\"/usr/local/bin:$PATH\"")
 		}
 		fmt.Println("Omit sudo when already root. Installation does not restart Tuxee.")
+		fmt.Println("Running processes use the new version after you restart them. Restarting ends all terminal sessions.")
 		return nil
 	case "update":
 		return runUpdate(args[1:])
