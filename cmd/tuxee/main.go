@@ -27,7 +27,7 @@ import (
 	"tuxee/web"
 )
 
-var version = "0.1.0-poc"
+var version = "0.0.0"
 
 type config struct {
 	Bind          string `json:"bind"`

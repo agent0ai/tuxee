@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 COPY --from=frontend /build/web/dist ./web/dist
 COPY --from=frontend /build/internal/terminal/engine.js ./internal/terminal/engine.js
-ARG VERSION=0.1.0-poc
+ARG VERSION=0.0.0
 RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v}" -o /tuxee ./cmd/tuxee
 
 FROM scratch AS binary
