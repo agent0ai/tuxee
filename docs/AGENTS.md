@@ -10,8 +10,8 @@ Detailed product, deployment and development documentation.
 manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits.
 `releases.md` owns updates, GitHub/Docker Hub setup and publication limits.
-Root `README.md` contains only the logo, title, short container/standalone
-description, one installer-command block and documentation links.
+Root `README.md` owns the logo/title, short container/standalone introduction,
+Quick start, illustrated Highlights, Resources links and Agent Zero credits.
 
 # Local Contracts
 

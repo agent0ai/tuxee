@@ -2,12 +2,13 @@ Parent DOX: [project](../AGENTS.md).
 
 # Purpose
 
-Tag-triggered binary and Docker Hub releases.
+Tag-triggered binary and Docker Hub releases, and repository presentation assets.
 
 # Ownership
 
 Own Actions workflows and release-note generation. Root owns Dockerfile and
 installer; internal/update owns the release-asset contract.
+`resources/` owns optimized README screenshots and their thumbnails.
 
 # Local Contracts
 
@@ -42,4 +43,4 @@ actionlint. Native CI builds/tests and registry publication require GitHub Actio
 
 # Child DOX Index
 
-No children.
+- [resources/AGENTS.md](resources/AGENTS.md): Full-size WebP screenshots and thumbnails linked from the README.
