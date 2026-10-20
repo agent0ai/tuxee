@@ -29,6 +29,8 @@ so it shares the account database's container lifecycle. Restarts preserve later
 password changes; new containers initialize again. Unset the password before jobs
 inherit the environment. Do not bake custom passwords into image layers.
 
+The image exposes `/usr/local/lib/tuxee/tuxee` through `/usr/local/bin/tuxee`. The updater replaces that file without restarting. Updates in the writable layer survive same-container restarts, but recreation uses the image version. Compose defaults to the published multi-platform image; root release automation owns image tags.
+
 # Work Guidance
 
 Keep runtime files here and keep the root Docker/Compose entry points usable.

@@ -1,6 +1,6 @@
 services:
   tuxee:
-    build: .
+    image: agent0ai/tuxee:latest
     ports:
       - "443:443"
     environment:

@@ -15,15 +15,20 @@ RUN go mod download
 COPY . .
 COPY --from=frontend /build/web/dist ./web/dist
 COPY --from=frontend /build/internal/terminal/engine.js ./internal/terminal/engine.js
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /tuxee ./cmd/tuxee
+ARG VERSION=0.1.0-poc
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v}" -o /tuxee ./cmd/tuxee
 
-FROM debian:bookworm-slim
+FROM scratch AS binary
+COPY --from=backend /tuxee /tuxee
+
+FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
     && chmod 0700 /var/lib/tuxee \
     && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
-COPY --from=backend /tuxee /usr/local/bin/tuxee
+COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
+RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee
 COPY docker/tuxee.profile.sh /etc/profile.d/tuxee.sh
 # Initialize ROOT_PASSWORD (default: toor) on the first container start.
 COPY --chmod=0755 docker/entrypoint.sh /opt/tuxee/entrypoint.sh

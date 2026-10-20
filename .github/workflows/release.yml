@@ -1,0 +1,198 @@
+name: Release Tuxee
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tuxee-release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ${{ vars.DOCKERHUB_IMAGE || 'agent0ai/tuxee' }}
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate release inputs
+        env:
+          DOCKERHUB_ORG: ${{ secrets.DOCKERHUB_ORG }}
+          DOCKERHUB_OAT_TOKEN: ${{ secrets.DOCKERHUB_OAT_TOKEN }}
+        run: |
+          python3 .github/release-notes.py "$TAG" > /tmp/release-notes.md
+          test -n "$DOCKERHUB_ORG" && test -n "$DOCKERHUB_OAT_TOKEN" || {
+            echo "::error::Set DOCKERHUB_ORG and DOCKERHUB_OAT_TOKEN repository secrets."
+            exit 1
+          }
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libpam0g-dev
+          npm ci
+          npm run build
+          mkdir -p bin
+          go build -o bin/tuxee ./cmd/tuxee
+          go test ./internal/... ./cmd/... ./tests
+          sudo env TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 "$(command -v go)" test -p 2 ./internal/identity ./tests
+          go vet ./internal/... ./cmd/... ./tests
+          python3 .github/release-notes.py --self-test
+          npm run test:installer
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_ORG }}
+          password: ${{ secrets.DOCKERHUB_OAT_TOKEN }}
+      - name: Build and push native image by digest
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          build-args: VERSION=${{ github.ref_name }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.arch }}
+      - name: Export the matching release binary
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: binary
+          platforms: linux/${{ matrix.arch }}
+          build-args: VERSION=${{ github.ref_name }}
+          outputs: type=local,dest=release
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+      - name: Verify image and binary
+        env:
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          mv release/tuxee "release/tuxee-linux-$ARCH"
+          chmod +x "release/tuxee-linux-$ARCH"
+          test "$("release/tuxee-linux-$ARCH" version)" = "Tuxee ${TAG#v}"
+          sudo "release/tuxee-linux-$ARCH" __install
+          sudo "release/tuxee-linux-$ARCH" __install
+          test "$(/usr/local/bin/tuxee version)" = "Tuxee ${TAG#v}"
+          docker pull "$IMAGE@$DIGEST"
+          test "$(docker run --rm --entrypoint /usr/local/bin/tuxee "$IMAGE@$DIGEST" version)" = "Tuxee ${TAG#v}"
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.arch }}
+          path: release/tuxee-linux-*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: release
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - name: Prepare release assets and notes
+        run: |
+          test -f release/tuxee-linux-amd64
+          test -f release/tuxee-linux-arm64
+          (cd release && sha256sum tuxee-linux-* > checksums.txt)
+          python3 .github/release-notes.py "$TAG" > release-notes.md
+      - name: Prepare draft
+        id: release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const {owner, repo} = context.repo;
+            const tag = process.env.TAG;
+            const version = s => {
+              if (!/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(s)) throw new Error('Invalid stable tag');
+              return s.slice(1).split('.').map(BigInt);
+            };
+            let latest = true;
+            try {
+              const current = version((await github.rest.repos.getLatestRelease({owner, repo})).data.tag_name);
+              const next = version(tag);
+              latest = next.some((n, i) => n > current[i] && next.slice(0, i).every((v, j) => v === current[j]));
+            } catch (error) { if (error.status !== 404) throw error; }
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({owner, repo, tag})).data;
+              if (!release.draft) throw new Error('Refusing to overwrite a published release');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              release = (await github.rest.repos.createRelease({
+                owner, repo, tag_name: tag, name: `Tuxee ${tag}`, draft: true,
+                body: fs.readFileSync('release-notes.md', 'utf8')
+              })).data;
+            }
+            core.setOutput('id', release.id);
+            core.setOutput('latest', String(latest));
+      - name: Upload verified binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" release/* --clobber
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_ORG }}
+          password: ${{ secrets.DOCKERHUB_OAT_TOKEN }}
+      - name: Publish both image platforms
+        env:
+          MAKE_LATEST: ${{ steps.release.outputs.latest }}
+        run: |
+          tags=(-t "$IMAGE:$TAG" -t "$IMAGE:${TAG#v}")
+          if [ "$MAKE_LATEST" = true ]; then tags+=(-t "$IMAGE:latest"); fi
+          sources=()
+          for digest in digests/*; do sources+=("$IMAGE@sha256:${digest##*/}"); done
+          test "${#sources[@]}" -eq 2
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+      - name: Publish complete GitHub release
+        uses: actions/github-script@v8
+        env:
+          RELEASE_ID: ${{ steps.release.outputs.id }}
+          MAKE_LATEST: ${{ steps.release.outputs.latest }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              ...context.repo, release_id: Number(process.env.RELEASE_ID),
+              draft: false, make_latest: process.env.MAKE_LATEST
+            });
