@@ -84,11 +84,13 @@ When the user requests a durable behavior change, record it here or in the relev
 - Attribute repository commits to `Jan Tomášek <tomasekhonza@gmail.com>` as both author and committer.
 - The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker assets separate.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
-- Keep the UI free of promotional/descriptive microcopy. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
+- Keep the UI free of promotional/descriptive microcopy except the About tagline. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
+- Use the exact tagline `Tuxee - the most convenient linux for servers and agents.` in the README title, CLI help banner and About subtitle below the logo.
 - Keep the root README to the centered vertical logo, project title, one short paragraph covering container/standalone use, one installer-command block, a manual-install/source-build link and other documentation links. No internal explanations, microcopy or screenshot placeholders; screenshots can be added later with simple titles. Put detailed documentation in `docs/`, Docker support files in `docker/`, and original artwork in `assets/`. Keep generated outputs, dependencies, local state and editor/OS clutter out of Git.
 
 - Stable version tags publish Linux amd64/arm64 binaries and matching Docker Hub images, with version-named GitHub releases and commit-based notes. Use a checksum-verified installer and explicit `tuxee update`; never restart automatically. About checks versions and shows a terminal command, with update warnings on About and the hamburger. Check at startup and daily at 00:01 in the server timezone.
 - The install script also upgrades existing default installations, including releases without `tuxee update`. Use the downloaded binary's installer, preserve configuration/state, and leave restarts explicit.
+- `tuxee upgrade` is an alias for `tuxee update`, using the same handler and options.
 
 ## Child DOX Index
 

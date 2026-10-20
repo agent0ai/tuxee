@@ -814,7 +814,7 @@ async function openAbout() {
     logo.width = logo.height = 192; logo.draggable = false;
     const status = el('p', 'muted', 'Loading…');
     status.setAttribute('role', 'status');
-    content.append(logo, status);
+    content.append(logo, el('p', 'about-tagline muted', 'Tuxee - the most convenient linux for servers and agents.'), status);
     const { dialog } = modal('About Tuxee', content);
     dialog.classList.add('about-modal');
     dialog.querySelector('h2')!.remove();

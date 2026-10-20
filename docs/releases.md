@@ -31,6 +31,8 @@ sudo tuxee update --name tuxee
 sudo tuxee update --name my-tuxee
 ```
 
+`tuxee upgrade` is an alias for `tuxee update` and accepts the same options.
+
 By default the command updates the executable it was invoked from, resolving
 symlinks. `--name` selects that managed service's executable instead. The default
 installer and Docker image share one binary between PATH and the server; named

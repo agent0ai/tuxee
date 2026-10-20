@@ -66,7 +66,7 @@ func main() {
 	}
 }
 func help() {
-	fmt.Println(`Tuxee — Linux files and retained terminals
+	fmt.Println(`Tuxee - the most convenient linux for servers and agents.
 
   tuxee serve [options]                   Run in the foreground
   tuxee service install [--name tuxee] [serve options]
@@ -76,6 +76,7 @@ func help() {
                                          Use the system service manager
   tuxee version                          Print version
   tuxee update [--check] [--name tuxee]    Check/install the latest stable release
+  tuxee upgrade [--check] [--name tuxee]   Alias for update
 
 Run tuxee serve --help for listener, TLS and configuration options.
 Native operation requires root and Linux PAM. Docker manages container users.
@@ -113,7 +114,7 @@ func run(args []string) error {
 		fmt.Println("Omit sudo when already root. Installation does not restart Tuxee.")
 		fmt.Println("Running processes use the new version after you restart them. Restarting ends all terminal sessions.")
 		return nil
-	case "update":
+	case "update", "upgrade":
 		return runUpdate(args[1:])
 	case "serve":
 		value, _, err := parseConfig(args[1:], false)

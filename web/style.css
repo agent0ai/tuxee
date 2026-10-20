@@ -665,6 +665,7 @@ h3 {
   background: #0c1017;
 }
 :root[data-theme=light] .about-logo { background: transparent; }
+.about-tagline { margin: 0; text-align: center; line-height: 1.5; }
 .about-details {
   width: 100%;
   border-collapse: collapse;
