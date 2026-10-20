@@ -4,29 +4,8 @@
 
 # Tuxee - the most convenient linux for servers and agents.
 
-A tiny Debian Linux container with a superb web interface for files and persistent
+A tiny Debian Linux container with a superb web interface for files and <b>(persistent!)</b>
 terminals. Also available as a standalone web interface for existing Linux servers.
-
-## Quick start
-
-**Recommended: run the tiny Docker image with zero configuration.**
-
-```sh
-docker run -p 443:443 agent0ai/tuxee
-```
-
-Open `https://localhost` (or `https://<server-ip>`) in your browser. Log in as
-**root** with password **toor**, then run `passwd` in a terminal to change it.
-Or preset the password by adding `-e ROOT_PASSWORD='your-password'` before the
-image name.
-
-**Or install directly on an existing Linux server:**
-
-```sh
-curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
-```
-
-[Manual installation and building from source](docs/install.md)
 
 ## Highlights
 
@@ -106,6 +85,27 @@ curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
     </td>
   </tr>
 </table>
+
+## Quick start
+
+**Recommended: run the tiny Docker image with zero configuration.**
+
+```sh
+docker run -p 443:443 agent0ai/tuxee
+```
+
+Open `https://localhost` (or `https://<server-ip>`) in your browser. Log in as
+**root** with password **toor**, then run `passwd` in a terminal to change it.
+Or preset the password by adding `-e ROOT_PASSWORD='your-password'` before the
+image name.
+
+**Or install directly on an existing Linux server:**
+
+```sh
+curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
+```
+
+[Manual installation and building from source](docs/install.md)
 
 ## Resources
 

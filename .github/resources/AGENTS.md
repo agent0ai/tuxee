@@ -7,8 +7,8 @@ Optimized images for the root README.
 # Ownership
 
 `screenshots/` owns full-size WebP screenshots, a JPG metrics infographic and
-matching `-thumb` previews. Original JPGs and PNGs stay in `../../assets/`
-under the same descriptive names.
+matching `-thumb` previews. Keep these optimized copies only; do not retain
+duplicate screenshot or infographic originals in `../../assets/`.
 
 # Local Contracts
 
