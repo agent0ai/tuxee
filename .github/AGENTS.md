@@ -18,6 +18,9 @@ installer; internal/update owns the release-asset contract.
   and SHA-256 sums to a draft, then publish Docker manifests and the release.
   Publication across GitHub and Docker Hub is not transactional; failed drafts
   can be retried. Never overwrite a published GitHub release.
+- Native installer smoke tests prepare `/usr/local/bin` as root:root with mode
+  0755 on disposable runners; hosted images make it world-writable. Keep the
+  installer's unsafe-directory rejection intact.
 - Release title is `Tuxee <tag>`. Notes include every commit subject/body since
   the previous reachable stable version tag, or all commits for the first tag.
 - Docker tags are `<tag>`, `<version>` and `latest` only for the newest stable

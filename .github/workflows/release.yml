@@ -92,6 +92,8 @@ jobs:
           mv release/tuxee "release/tuxee-linux-$ARCH"
           chmod +x "release/tuxee-linux-$ARCH"
           test "$("release/tuxee-linux-$ARCH" version)" = "Tuxee ${TAG#v}"
+          # Hosted runners make /usr/local/bin world-writable for tool installation.
+          sudo install -d -o root -g root -m 0755 /usr/local/bin
           sudo "release/tuxee-linux-$ARCH" __install
           sudo "release/tuxee-linux-$ARCH" __install
           test "$(/usr/local/bin/tuxee version)" = "Tuxee ${TAG#v}"

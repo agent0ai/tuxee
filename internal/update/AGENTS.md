@@ -32,6 +32,8 @@ Use the standard library and the existing x/mod semantic-version package.
 `go test ./internal/update` covers release validation, failure preservation,
 checksums, replacement, scheduling and check concurrency without public requests.
 With bin/tuxee built, also verify native bootstrap/reinstallation in temporary paths.
+Verify that writable command directories are rejected before installation and
+that securing their permissions allows installation and reinstallation.
 
 # Child DOX Index
 

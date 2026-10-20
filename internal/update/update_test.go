@@ -191,6 +191,22 @@ func TestBootstrapReinstallsRealExecutable(t *testing.T) {
 	}
 	dir := t.TempDir()
 	target, command := filepath.Join(dir, "lib/tuxee"), filepath.Join(dir, "bin/tuxee")
+	binDir := filepath.Dir(command)
+	if err := os.Mkdir(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(binDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := bootstrap(context.Background(), source, target, command, version); err == nil || err.Error() != "unsafe installation directory "+binDir {
+		t.Fatalf("expected unsafe directory rejection, got %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatal("installed despite unsafe command directory")
+	}
+	if err := os.Chmod(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		if err := bootstrap(context.Background(), source, target, command, version); err != nil {
 			t.Fatal(err)
