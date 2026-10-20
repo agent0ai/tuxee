@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -244,6 +245,46 @@ func TestBootstrapReinstallsRealExecutable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckResetsAtClockMinute(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := NewChecker("1.0.0")
+		calls := 0
+		c.fetch = func(context.Context) (Release, error) {
+			calls++
+			if calls == 3 {
+				return Release{}, errors.New("offline")
+			}
+			return Release{Tag: "v1.1.0"}, nil
+		}
+		time.Sleep(59 * time.Second)
+		first := c.Check(t.Context())
+		if calls != 1 || !first.Available || !first.CheckedAt.Equal(time.Now()) {
+			t.Fatal("initial check", calls, first)
+		}
+		time.Sleep(time.Second - time.Nanosecond)
+		if cached := c.Check(t.Context()); calls != 1 || cached != first {
+			t.Fatal("repeated check within the same minute", calls, cached)
+		}
+		time.Sleep(time.Nanosecond)
+		second := c.Check(t.Context())
+		if calls != 2 || !second.CheckedAt.Equal(time.Now()) {
+			t.Fatal("check did not refresh at the minute boundary", calls, second)
+		}
+		time.Sleep(time.Minute)
+		failed := c.Check(t.Context())
+		if calls != 3 || failed.Error != "offline" || !failed.Available || failed.Latest != first.Latest || !failed.CheckedAt.Equal(time.Now()) {
+			t.Fatal("failed check lost its timestamp or known update", calls, failed)
+		}
+		if cached := c.Check(t.Context()); calls != 3 || cached != failed {
+			t.Fatal("failed check bypassed the minute limit", calls, cached)
+		}
+		time.Sleep(time.Minute)
+		if recovered := c.Check(t.Context()); calls != 4 || recovered.Error != "" || !recovered.CheckedAt.Equal(time.Now()) {
+			t.Fatal("failed check did not reset at the next minute", calls, recovered)
+		}
+	})
 }
 
 func TestCheckCoalescingFailureAndDailySchedule(t *testing.T) {

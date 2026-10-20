@@ -864,7 +864,7 @@ async function openAbout() {
     const controller = new AbortController();
     dialog.addEventListener('close', () => controller.abort(), { once: true });
     if (updates) body.append(updates.view(controller.signal));
-    body.append(githubRow);
+    body.prepend(githubRow);
     try {
         const info = await api<{ version: string; os: string; kernel: string; architecture: string; hostname: string; username: string; uid: number; home: string; shell: string }>('/system', 'GET', undefined, controller.signal);
         version.textContent = info.version || 'Unavailable';
@@ -875,7 +875,7 @@ async function openAbout() {
         ]) {
             const row = el('tr'), heading = el('th', '', label);
             heading.scope = 'row';
-            row.append(heading, el('td', '', value || 'Unavailable')); body.insertBefore(row, githubRow);
+            row.append(heading, el('td', '', value || 'Unavailable')); body.append(row);
         }
         status.remove();
     } catch (error) {

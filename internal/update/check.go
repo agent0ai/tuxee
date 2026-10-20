@@ -38,13 +38,14 @@ func (c *Checker) Check(ctx context.Context) Status {
 		}
 		return c.Status()
 	}
-	// All browser sessions share this limit, including failed checks.
-	if time.Since(c.attempt) < time.Minute {
+	// All sessions share one attempt per clock minute, including failed checks.
+	now := time.Now()
+	if now.Truncate(time.Minute).Equal(c.attempt.Truncate(time.Minute)) {
 		result := c.status
 		c.mu.Unlock()
 		return result
 	}
-	c.attempt = time.Now()
+	c.attempt = now
 	c.pending = make(chan struct{})
 	c.mu.Unlock()
 	release, err := c.fetch(ctx)

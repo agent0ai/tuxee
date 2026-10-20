@@ -31,7 +31,7 @@ const page = await context.newPage(), errors = [], external = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:')) external.push(request.url()); });
 let polls = 0, checks = 0;
-let status = { ...real, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:00Z', error: '' };
+let status = { ...real, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:59Z', error: '' };
 await page.route(base + '/api/update', async route => {
     if (route.request().method() === 'POST') checks++; else polls++;
     await route.fulfill({ json: status });
@@ -44,12 +44,15 @@ async function openAbout() {
     await menu.click();
     await page.getByRole('menuitem', { name: 'About', exact: true }).click();
     await checkNow.waitFor();
+    assert.deepEqual(await dialog.locator('tr th').evaluateAll(headers => headers.slice(0, 2).map(header => header.textContent)), ['GitHub', 'Tuxee version']);
 }
 async function checkSummaryLine() {
     const centers = await updateRow.locator('.update-summary > *').evaluateAll(nodes => nodes.map(node => {
         const box = node.getBoundingClientRect(); return box.y + box.height / 2;
     }));
     assert.ok(Math.max(...centers) - Math.min(...centers) < 1, 'desktop status, check time and refresh action share one line');
+    const summaryBox = await updateRow.locator('.update-summary').boundingBox(), buttonBox = await checkNow.boundingBox();
+    assert.ok(Math.abs(summaryBox.x + summaryBox.width - buttonBox.x - buttonBox.width) < 1, 'Check now aligns with the right edge of the row');
 }
 async function checkNotice() {
     await updateRow.locator('.menu-warning').waitFor();
@@ -83,9 +86,10 @@ try {
     await mkdir('test-results', { recursive: true });
     await page.screenshot({ path: 'test-results/updates-current.png' });
     assert.equal(await dialog.locator('.update-command:visible').count(), 0);
-    status = { ...status, latest: 'v99.0.0', available: true };
+    status = { ...status, latest: 'v99.0.0', available: true, checkedAt: '2026-10-20T19:13:00Z' };
     await checkNow.click();
     await dialog.getByText('v99.0.0 available', { exact: true }).waitFor();
+    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:13');
     await checkSummaryLine(); await checkNotice();
     assert.equal(await dialog.locator('.update-command').textContent(), real.command);
     assert.equal(checks, 1);
@@ -104,11 +108,11 @@ try {
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await openAbout();
     await checkNotice();
-    status = { ...status, error: 'GitHub download returned HTTP 503' };
+    status = { ...status, checkedAt: '2026-10-20T19:14:00Z', error: 'GitHub download returned HTTP 503' };
     await checkNow.click();
     await dialog.getByText('Check failed: GitHub download returned HTTP 503', { exact: true }).waitFor();
     assert.equal(await dialog.locator('.update-command').textContent(), real.command);
-    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:12');
+    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:14');
     await checkNotice();
     const box = await dialog.boundingBox();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= 390 && box.y + box.height <= 844);

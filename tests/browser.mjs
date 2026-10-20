@@ -92,10 +92,10 @@ async function checkAbout(source, screenshot) {
     assert.equal(info.version, run('./bin/tuxee', ['version']).replace(/^Tuxee /, ''));
     assert.equal(info.username, a.name); assert.equal(info.uid, a.uid); assert.equal(info.home, a.home);
     assert.deepEqual(await dialog.locator('tr:not(.about-update)').evaluateAll(rows => rows.map(row => [...row.children].map(cell => cell.textContent))), [
+        ['GitHub', 'agent0ai/tuxee'],
         ['Tuxee version', info.version], ['Operating system', info.os], ['Kernel', info.kernel],
         ['Architecture', info.architecture], ['Server name', info.hostname],
         ['User', `${a.name} (UID ${a.uid})`], ['Home directory', a.home], ['Shell', info.shell],
-        ['GitHub', 'agent0ai/tuxee'],
     ]);
     assert.ok(await dialog.locator('tr.about-update').evaluate(row => row.previousElementSibling?.querySelector('th')?.textContent === 'Tuxee version'));
     assert.ok(await dialog.locator('img').evaluate(image => image.complete && image.naturalWidth > 0));

@@ -700,7 +700,7 @@ h3 {
 .update-available .update-status { font-weight: 600; }
 .update-checked { white-space: nowrap; }
 .update-summary > .update-checked, .update-summary > button { border-left: 1px solid var(--line); padding-left: 8px; }
-.update-summary > button { min-height: 26px; padding-block: 3px; padding-right: 0; border-radius: 0; gap: 5px; }
+.update-summary > button { margin-left: auto; min-height: 26px; padding-block: 3px; padding-right: 0; border-radius: 0; gap: 5px; }
 .about-update p { margin-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
 .update-error { color: var(--danger); }
 .update-command { display: block; width: 100%; margin-top: 8px; padding: 10px; background: var(--raised); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }

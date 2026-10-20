@@ -87,8 +87,10 @@ No binary-override volume or Docker socket access is needed.
 
 The server checks GitHub on startup and daily at **00:01 in its local timezone**
 (normally UTC in the image). A manual About → Check now uses the same
-checker, with overlapping requests coalesced and at most one attempt per minute
-across all users. Failed checks retain the last known release and show an error.
+checker, with overlapping requests coalesced and at most one attempt per clock
+minute across all users. The limit resets when the minute changes, so a check at
+23:16:59 permits another at 23:17:00. Failed checks retain the last known release
+and show an error. The displayed time records the last completed attempt.
 The server keeps working when GitHub is unavailable.
 
 Signed-in visible browsers read cached status once a minute and on focus/visibility
@@ -96,7 +98,7 @@ return. Available updates show the existing warning icon on About and the hambur
 button. Directly below the version, About shows the status, local check time and
 refresh-icon Check now action in one table row. Available updates highlight that
 row and display the notification icon and a selectable terminal command. The table
-also links to the GitHub repository.
+starts with a link to the GitHub repository above the version.
 It cannot install updates or restart the server. Logout/page closure stops polling.
 
 ## GitHub repository setup

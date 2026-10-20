@@ -21,9 +21,11 @@ commands/restart guidance; server and browser expose checks, never installation.
   in `/usr/local/bin`. Named managed services retain their own installation.
   Bootstrap replaces recognized Tuxee binaries at either default path, including
   pre-updater builds, without invoking the old executable's installation commands.
-- Check at startup and at 00:01 in the server's local timezone. Coalesce checks,
-  rate-limit manual requests and preserve the last successful result on failure.
-  GitHub failures must not interrupt Tuxee.
+- Check at startup and at 00:01 in the server's local timezone. Coalesce checks
+  and allow one attempt per clock minute across all sessions, including failures;
+  the limit resets at the next minute boundary. Preserve the last successful
+  release on failure and timestamp completed attempts. GitHub failures must not
+  interrupt Tuxee.
 
 # Work Guidance
 
@@ -32,7 +34,8 @@ Use the standard library and the existing x/mod semantic-version package.
 # Verification
 
 `go test ./internal/update` covers release validation, failure preservation,
-checksums, replacement, scheduling and check concurrency without public requests.
+checksums, replacement, scheduling, clock-minute boundaries and check concurrency
+without public requests.
 With bin/tuxee built, also verify native bootstrap/reinstallation in temporary paths.
 Verify that writable command directories are rejected before installation and
 that securing their permissions allows installation and reinstallation.
