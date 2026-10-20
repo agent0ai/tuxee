@@ -8,8 +8,8 @@ The CodeMirror 6 vendor chunks and language/highlighting integration come from t
 
 # Third-party notices
 
-The embedded terminal uses `@xterm/xterm` 6.0.0, `@xterm/addon-fit`
-0.11.0, and the matching `@xterm/headless` 6.0.0 engine. Its browser bundle and
+The embedded terminal uses `@xterm/xterm` 6.0.0, `@xterm/addon-unicode11`
+0.9.0, and the matching `@xterm/headless` 6.0.0 engine. Its browser bundle and
 copied styles are distributed under the MIT license.
 
 Copyright (c) 2017-2019, The xterm.js authors

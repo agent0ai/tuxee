@@ -24,7 +24,7 @@ do not edit or commit it.
 
 # Verification
 
-Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. The root-only real PTY check covers PID retention, takeover, indefinite detachment and explicit termination.
+Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. The root-only real PTY check covers PID retention, takeover, indefinite detachment and explicit termination.
 
 # Child DOX Index
 

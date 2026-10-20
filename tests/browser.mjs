@@ -541,7 +541,7 @@ try {
     check('ultrawide four-column default');
     const widget = page.locator('.grid-stack-item').first(), oldBox = await widget.boundingBox();
     await widget.hover();
-    const handle = widget.locator('.ui-resizable-se');
+    const handle = widget.locator('.panel-resize-se');
     const hb = await handle.boundingBox();
     await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
     await page.mouse.down();

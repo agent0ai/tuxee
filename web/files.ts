@@ -26,6 +26,7 @@ export class FileView implements View {
     private disposed = false;
     private events = new AbortController();
     private request?: AbortController;
+    private uploadedDirectories = new Set<string>();
     private focusedPath = '';
     private selectionAnchor = '';
     private filter = '';
@@ -37,6 +38,10 @@ export class FileView implements View {
     private uploadInput = el('input');
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         instances.add(this);
+        window.addEventListener('tuxee-files-uploaded', event => {
+            for (const path of (event as CustomEvent<Set<string>>).detail) this.uploadedDirectories.add(path);
+            if (!this.request) this.refreshUploaded();
+        }, { signal: this.events.signal });
         root.classList.add('file-view');
         const nav = el('form', 'file-nav');
         this.pathInput.value = panel.path || hooks.user.home;
@@ -146,9 +151,17 @@ export class FileView implements View {
             }
         }
         finally {
-            if (!request.signal.aborted)
+            if (!request.signal.aborted) {
+                this.request = undefined;
                 this.list.classList.remove('loading');
+                this.refreshUploaded();
+            }
         }
+    }
+    private refreshUploaded() {
+        const affected = this.uploadedDirectories.has(this.panel.path);
+        this.uploadedDirectories.clear();
+        if (affected && !this.disposed) this.refresh().catch(this.notice);
     }
     refresh = () => this.navigate(this.panel.path);
     private get title() { return this.panel.name || this.panel.path.split('/').filter(Boolean).at(-1) || 'Files'; }
@@ -478,7 +491,6 @@ export class FileView implements View {
         }
         catch { /* The batch indicator owns upload errors and cancellation. */ }
         this.uploadInput.value = '';
-        if (!this.disposed) await this.refresh().catch(this.notice);
     }
     dispose() { this.cancelSelection?.(); this.inspector?.dispose(); this.disposed = true; this.events.abort(); instances.delete(this); this.request?.abort(); }
 }

@@ -2,6 +2,12 @@
 // are confined here; browser and headless continuation tests qualify this format.
 // Snapshots transfer data and never replay historical VT commands.
 // deno-lint-ignore-file no-explicit-any
+import { Unicode11Addon } from '@xterm/addon-unicode11';
+
+export function installTerminalUnicode(terminal: any): void {
+  terminal.loadAddon(new Unicode11Addon());
+  terminal.unicode.activeVersion = '11';
+}
 
 type Palette = { colors: number[]; defaults: number[] };
 export const terminalTheme = Object.freeze({
@@ -271,7 +277,7 @@ export function captureTerminal(terminal: any) {
   }
   const charset = c._charsetService;
   const snapshot = {
-    version: "the8020.xterm-6.0.0.1",
+    version: "the8020.xterm-6.0.0.2",
     cols: terminal.cols,
     rows: terminal.rows,
     scrollback: terminal.options.scrollback,
@@ -334,7 +340,7 @@ export function captureTerminal(terminal: any) {
 
 export function restoreTerminal(terminal: any, snapshot: any) {
   validateSnapshot(snapshot);
-  if (snapshot.version !== "the8020.xterm-6.0.0.1") {
+  if (snapshot.version !== "the8020.xterm-6.0.0.2") {
     throw new Error("unknown state version");
   }
   terminal.options.scrollback = snapshot.scrollback;
@@ -452,7 +458,7 @@ export function validateSnapshot(snapshot: any): void {
   const integer = (n: any, min: number, max: number): boolean =>
     Number.isSafeInteger(n) && n >= min && n <= max;
   if (
-    snapshot?.version !== "the8020.xterm-6.0.0.1" ||
+    snapshot?.version !== "the8020.xterm-6.0.0.2" ||
     !integer(snapshot.cols, 2, 500) || !integer(snapshot.rows, 1, 200) ||
     !integer(
       snapshot.scrollback,
@@ -561,7 +567,7 @@ export function installTerminalStyles(terminal: any, nonce: string): void {
   };
 }
 
-/** Keep the pinned DOM renderer's width measurements at subpixel precision. */
+/** Keep the pinned DOM renderer's text and block geometry on the cell grid. */
 export function installTerminalMetrics(terminal: any): void {
   const renderer = terminal._core._renderService._renderer.value;
   const cache = renderer._widthCache;
@@ -572,6 +578,58 @@ export function installTerminalMetrics(terminal: any): void {
     return (parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).width) || 0) / 32;
   };
   renderer.handleCharSizeChanged();
+  const factory = renderer._rowFactory;
+  const createRow = factory.createRow;
+  factory.createRow = function (...args: any[]): HTMLSpanElement[] {
+    const cellWidth = args[7];
+    return createRow.apply(this, args).flatMap((span: HTMLSpanElement) => {
+      const text = span.textContent || '';
+      if (!/[\u2580-\u259f]/u.test(text)) return [span];
+      return text.match(/([\u2580-\u259f])\1*|[^\u2580-\u259f]+/gu)!.map(part => {
+        const node = span.cloneNode(false) as HTMLSpanElement;
+        node.textContent = part;
+        const code = part.charCodeAt(0);
+        if (code >= 0x2580 && code <= 0x259f) {
+          node.style.width = `${part.length * cellWidth}px`;
+          node.style.letterSpacing = '0';
+          // Keep selectable text and its foreground; draw geometry independently of font ink bounds.
+          node.style.webkitTextFillColor = 'transparent';
+          if (code === 0x2588) node.style.backgroundColor = 'currentColor';
+          else node.style.backgroundImage = blockBackground(code);
+          node.style.backgroundSize = code >= 0x2591 && code <= 0x2593 ? '2px 2px' : `${cellWidth}px 100%`;
+          node.style.backgroundRepeat = 'repeat';
+        }
+        return node;
+      });
+    });
+  };
+}
+
+function blockBackground(code: number): string {
+  const band = (direction: string, percent: number) =>
+    `linear-gradient(to ${direction}, currentColor ${percent}%, transparent ${percent}%)`;
+  if (code === 0x2580) return band('bottom', 50);
+  if (code <= 0x2588) return band('top', (code - 0x2580) * 12.5);
+  if (code <= 0x258f) return band('right', (0x2590 - code) * 12.5);
+  if (code === 0x2590) return band('left', 50);
+  if (code <= 0x2593) return `conic-gradient(currentColor ${(code - 0x2590) * 25}%, transparent 0)`;
+  if (code === 0x2594) return band('bottom', 12.5);
+  if (code === 0x2595) return band('left', 12.5);
+  const quadrants = [4, 8, 1, 13, 9, 7, 11, 2, 6, 14][code - 0x2596];
+  return `conic-gradient(${[2, 8, 4, 1].map((bit, i) => `${quadrants & bit ? 'currentColor' : 'transparent'} ${i * 25}% ${(i + 1) * 25}%`).join(',')})`;
+}
+
+/** Use the full content box: xterm's scrollbar overlays the terminal grid. */
+export function terminalDimensions(terminal: any): { cols: number; rows: number } | undefined {
+  const element = terminal.element as HTMLElement | undefined;
+  if (!element) return;
+  const { width, height } = terminal._core._renderService.dimensions.css.cell;
+  if (!width || !height) return;
+  const style = element.ownerDocument.defaultView!.getComputedStyle(element);
+  return {
+    cols: Math.max(2, Math.floor((element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) / width)),
+    rows: Math.max(1, Math.floor((element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)) / height)),
+  };
 }
 
 /** Match xterm's renderer timeout: subsequent writes no longer defer painting. */

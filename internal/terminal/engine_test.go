@@ -88,3 +88,20 @@ func TestSynchronizedFrames(t *testing.T) {
 		t.Fatalf("flush lost final frame: %v", err)
 	}
 }
+
+func TestEmojiColumnWidths(t *testing.T) {
+	e, err := NewEngine(96, 25)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	for _, emoji := range []string{"👋", "👍"} {
+		update, err := e.Apply([]byte("\r"+emoji+"A\x1b[6n"), 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(update.Reply) != "\x1b[1;4R" {
+			t.Fatalf("%s must occupy two columns; cursor reply %q", emoji, update.Reply)
+		}
+	}
+}

@@ -8,7 +8,7 @@ import verticalLogo from './tuxee-logo-vertical.webp';
 import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
-import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
+import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
 import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
@@ -353,6 +353,11 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             tools.onpointerdown = event => event.stopPropagation();
             const body = el('div', 'panel-body');
             content.append(head, body); node.append(content); gridEl.append(node);
+            for (const edge of ['e', 's', 'w', 'se', 'sw']) {
+                const grip = el('div', `panel-resize panel-resize-${edge}`);
+                grip.onpointerdown = event => beginPanelResize(value, panel, edge, event);
+                node.append(grip);
+            }
             const hooks = { user, changed, close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks);
             item = { node, view, tools, title }; items.set(panel.id, item);
@@ -363,25 +368,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
     }
     if (!compact) {
         if (!value.grid) {
-            value.grid = GridStack.init({ column: ws.columns, maxRow: ws.rows, cellHeight: cellHeight(value), margin: 5, float: true, disableDrag: true, resizable: { handles: 'e, s, w, se, sw' }, animate: false }, gridEl);
-            let resizeRects: Map<string, DOMRect> | undefined;
-            value.grid.on('resizestart', (_event, node) => {
-                board.classList.add('resizing-panel');
-                // Grid resize events skip pixels within a cell; the drag driver reports every live rectangle.
-                GridStack.getDD().on(node, 'resize', () => { resizeRects = new Map([...items].map(([id, item]) => [id, item.node.getBoundingClientRect()])); });
-            });
-            value.grid.on('resizestop', () => {
-                board.classList.remove('resizing-panel');
-                const next = ws.panels.map(panel => {
-                    const node = value.grid!.engine.nodes.find(n => n.id === panel.id)!;
-                    return { ...panel, x: node.x!, y: node.y!, w: node.w!, h: node.h! };
-                });
-                if (validGrid({ ...ws, panels: next })) {
-                    const before = ws.panels.map(p => ({ ...p }));
-                    next.forEach(rect => Object.assign(ws.panels.find(p => p.id === rect.id)!, rect)); layoutChanged(ws, before);
-                }
-                syncWorkspace(value, resizeRects); resizeRects = undefined;
-            });
+            value.grid = GridStack.init({ column: ws.columns, maxRow: ws.rows, cellHeight: cellHeight(value), margin: 5, float: true, disableDrag: true, disableResize: true, animate: false }, gridEl);
         } else {
             value.grid.load(ws.panels.map(panel => ({ ...panel, minW: 1, minH: 1, noMove: true })), false);
             for (const panel of ws.panels) {
@@ -399,6 +386,55 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             animateGeometry(item.node, previous, next);
         item.view.resize?.();
     }
+}
+function beginPanelResize(value: Mounted, panel: Panel, edge: string, event: PointerEvent) {
+    if (event.button !== 0 || dragging || value.compact) return;
+    event.preventDefault(); event.stopPropagation(); cancelDrag(); finishSlide();
+    const { ws, gridEl, items } = value, trigger = event.currentTarget as HTMLElement;
+    const node = items.get(panel.id)!.node, snapshot = { ...ws, panels: ws.panels.map(p => ({ ...p })) };
+    const origin = snapshot.panels.find(p => p.id === panel.id)!;
+    const cellW = gridEl.clientWidth / ws.columns, cellH = cellHeight(value);
+    const events = new AbortController(), cursor = document.body.style.cursor;
+    let active = false, plan: Panel[] | undefined;
+    trigger.setPointerCapture(event.pointerId);
+    function finish(cancelled = false) {
+        events.abort(); cancelDrag = () => {};
+        if (trigger.hasPointerCapture(event.pointerId)) trigger.releasePointerCapture(event.pointerId);
+        if (!active) return;
+        const released = new Map([...items].map(([id, item]) => [id, item.node.getBoundingClientRect()]));
+        dragging = false; hidePreview(); value.board.classList.remove('resizing-panel');
+        node.classList.remove('panel-dragging'); document.body.style.cursor = cursor;
+        if (!cancelled && plan) {
+            for (const { id, x, y, w, h } of plan) Object.assign(ws.panels.find(p => p.id === id)!, { x, y, w, h });
+            layoutChanged(ws, snapshot.panels);
+        }
+        for (const property of ['left', 'top', 'width', 'height']) node.style.removeProperty(property);
+        syncWorkspace(value, released);
+    }
+    cancelDrag = () => finish(true);
+    trigger.addEventListener('pointermove', move => {
+        const dx = (move.clientX - event.clientX) / cellW, dy = (move.clientY - event.clientY) / cellH;
+        if (!active && Math.hypot(move.clientX - event.clientX, move.clientY - event.clientY) < 3) return;
+        if (!active) {
+            items.forEach(item => item.node.getAnimations().forEach(animation => animation.cancel()));
+            active = dragging = true; value.board.classList.add('resizing-panel'); node.classList.add('panel-dragging');
+            document.body.style.cursor = getComputedStyle(trigger).cursor;
+        }
+        const x = edge.includes('w') ? Math.max(0, Math.min(origin.x + origin.w - 1, origin.x + dx)) : origin.x;
+        const right = edge.includes('e') ? Math.max(origin.x + 1, Math.min(ws.columns, origin.x + origin.w + dx)) : origin.x + origin.w;
+        const bottom = edge.includes('s') ? Math.max(origin.y + 1, Math.min(ws.rows, origin.y + origin.h + dy)) : origin.y + origin.h;
+        const rect = { x: Math.round(x), y: origin.y, w: Math.round(right) - Math.round(x), h: Math.round(bottom) - origin.y };
+        plan = dropLayout(snapshot, origin, rect);
+        Object.assign(node.style, { left: `${x * cellW}px`, top: `${origin.y * cellH}px`, width: `${(right - x) * cellW}px`, height: `${(bottom - origin.y) * cellH}px` });
+        items.get(panel.id)!.view.resize?.();
+        showPreview(gridEl, { x: rect.x * cellW, y: rect.y * cellH, w: rect.w * cellW, h: rect.h * cellH }, 'resize', !plan);
+    }, { signal: events.signal });
+    trigger.addEventListener('pointerup', () => finish(), { signal: events.signal });
+    trigger.addEventListener('pointercancel', () => finish(true), { signal: events.signal });
+    trigger.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
+    window.addEventListener('blur', () => finish(true), { signal: events.signal });
+    window.addEventListener('resize', () => finish(true), { signal: events.signal });
+    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { signal: events.signal });
 }
 function renderDividers(value: Mounted) {
     const { ws, gridEl } = value;
@@ -907,13 +943,9 @@ document.addEventListener('visibilitychange', () => { void refreshTerminals(); }
 window.addEventListener('focus', () => { void refreshTerminals(); });
 window.addEventListener('pagehide', () => { updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async signal => {
-    try {
-        if (loggedIn) await api('/me', 'GET', undefined, signal);
-        else await load(signal);
-    } catch (error) {
-        if (!(error instanceof APIError) || error.status !== 401) throw error;
-        const ended = loggedIn;
-        if (!root.querySelector('.login-page')) showLogin();
-        if (ended) notify('Your session ended. Sign in to reconnect.');
-    }
+    if (!loggedIn) await load(signal);
+}, () => {
+    const ended = loggedIn;
+    if (!root.querySelector('.login-page')) showLogin();
+    if (ended) notify('Your session ended. Sign in to reconnect.');
 });

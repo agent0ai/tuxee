@@ -82,7 +82,7 @@ for (const [columns, rows] of [[2, 2], [4, 2], [2, 4], [8, 2]]) for (let sample 
     const ws = { columns, rows, panels }, before = structuredClone(ws);
     const source = random(3) ? panels[random(panels.length)] : moving;
     for (let y = 0; y < rows; y++) for (let x = 0; x < columns; x++)
-        for (let h = 1; h <= 2 && y + h <= rows; h++) for (let w = 1; w <= 2 && x + w <= columns; w++) {
+        for (let h = 1; y + h <= rows; h++) for (let w = 1; x + w <= columns; w++) {
             const target = { x, y, w, h }, others = panels.filter(p => p.id !== source.id), fixed = others.filter(p => !intersects(p, target));
             const possible = columns * rows - w * h - fixed.reduce((sum, p) => sum + p.w * p.h, 0) >= others.length - fixed.length;
             const start = performance.now(), result = dropLayout(ws, source, target);
@@ -101,4 +101,4 @@ for (const [columns, rows] of [[2, 2], [4, 2], [2, 4], [8, 2]]) for (let sample 
         }
     assert.deepEqual(ws, before, 'preview planning never changes saved layout');
 }
-console.log(`PASS ${checked} generated grid-drop cases across four grids; slowest planning call ${slowest.toFixed(1)}ms`);
+console.log(`PASS ${checked} generated drop/resize cases across four grids; slowest planning call ${slowest.toFixed(1)}ms`);

@@ -63,6 +63,7 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
     lifetime.throwIfAborted();
     const id = newID(), controller = new AbortController(), abort = () => controller.abort();
     const signal = controller.signal, view = create(id, 'Reading files…', abort, owner);
+    const directories = new Set<string>();
     lifetime.addEventListener('abort', abort, { once: true });
     view.progress.removeAttribute('value');
     let total = 0, bytes = 0, completed = 0, sent = 0;
@@ -93,9 +94,11 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
         let path = join(parent, item.name);
         if (item.children) {
             ({ path } = await api<{ path: string }>('/files', 'POST', { operation: 'mkdir', path, unique: true }, signal));
+            directories.add(path.slice(0, path.lastIndexOf('/')) || '/');
             for (const child of item.children) await send(path, child);
         } else {
             path = await upload(path, item.file!, signal, true, update);
+            directories.add(path.slice(0, path.lastIndexOf('/')) || '/');
             sent += item.file!.size; completed++; update();
         }
         return { path, name: path.slice(path.lastIndexOf('/') + 1), directory: !!item.children };
@@ -112,7 +115,10 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
     } catch (error) {
         finish(id, signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Upload failed');
         throw error;
-    } finally { lifetime.removeEventListener('abort', abort); }
+    } finally {
+        lifetime.removeEventListener('abort', abort);
+        if (directories.size) window.dispatchEvent(new CustomEvent('tuxee-files-uploaded', { detail: directories }));
+    }
 }
 let workerReady: Promise<boolean> | undefined;
 export function prepareDownloads() {

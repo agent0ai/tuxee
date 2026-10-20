@@ -7,6 +7,7 @@ import {
   captureTerminal,
   checkEngineTextBounds,
   installHeadlessColors,
+  installTerminalUnicode,
   retainedScrollback,
   terminalTheme,
 } from "./state.ts";
@@ -31,6 +32,7 @@ export class TerminalEngine {
       allowProposedApi: true,
       theme: terminalTheme,
     });
+    installTerminalUnicode(this.terminal);
     installHeadlessColors(this.terminal);
     this.terminal.onData((data) => {
       this.#replyBytes += data.length;

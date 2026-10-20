@@ -1,19 +1,18 @@
-import { el } from './ui';
+import { api, el, requestHeaders } from './ui';
 
 export class BackendConnection {
     private events = new AbortController();
     private request?: AbortController;
     private timer?: ReturnType<typeof setTimeout>;
     private dialog?: HTMLDialogElement;
-    private verifySession = true;
 
-    constructor(private verify: (signal: AbortSignal) => Promise<void>) {
+    constructor(private restore: (signal: AbortSignal) => Promise<void>, private expired: () => void) {
         const signal = this.events.signal;
         window.addEventListener('tuxee-connection-check', this.check, { signal });
-        window.addEventListener('tuxee-connection-lost', () => { this.show(); this.check(); }, { signal });
-        window.addEventListener('tuxee-unauthorized', () => { this.verifySession = true; this.check(); }, { signal });
+        window.addEventListener('tuxee-connection-lost', this.lost, { signal });
+        window.addEventListener('tuxee-unauthorized', this.check, { signal });
         window.addEventListener('online', this.check, { signal });
-        window.addEventListener('offline', () => { this.show(); this.check(); }, { signal });
+        window.addEventListener('offline', this.lost, { signal });
         window.addEventListener('focus', this.check, { signal });
         document.addEventListener('visibilitychange', () => {
             clearTimeout(this.timer);
@@ -21,22 +20,27 @@ export class BackendConnection {
         }, { signal });
         this.check();
     }
+    private lost = () => {
+        this.show();
+        this.request?.abort();
+        this.check();
+    };
     private check = async () => {
         if (this.events.signal.aborted || document.hidden || this.request) return;
         clearTimeout(this.timer);
         const request = this.request = new AbortController();
+        const token = requestHeaders()['X-Tuxee-CSRF'];
         const timeout = setTimeout(() => request.abort(), 4000);
         try {
-            const response = await fetch('/health', { cache: 'no-store', signal: request.signal });
-            if (!response.ok || await response.text() !== 'ok') throw new Error('Backend unavailable');
-            if (this.verifySession) {
-                await this.verify(request.signal);
-                request.signal.throwIfAborted();
-                this.verifySession = false;
-            }
-            if (!this.events.signal.aborted) this.hide();
+            const state = await api<{ authenticated: boolean }>('/connection', 'GET', undefined, request.signal);
+            if (typeof state?.authenticated !== 'boolean') throw new Error('Invalid connection state');
+            if (token !== requestHeaders()['X-Tuxee-CSRF']) return;
+            if (state.authenticated) await this.restore(request.signal);
+            request.signal.throwIfAborted();
+            if (this.events.signal.aborted) return;
+            if (!state.authenticated) this.expired();
+            this.hide();
         } catch {
-            this.verifySession = true;
             if (!this.events.signal.aborted && !document.hidden) this.show();
         } finally {
             clearTimeout(timeout);
@@ -46,7 +50,6 @@ export class BackendConnection {
         }
     };
     private show() {
-        this.verifySession = true;
         if (this.dialog || this.events.signal.aborted) return;
         const message = 'Connection lost, reconnecting...';
         const dialog = this.dialog = el('dialog', 'modal connection-overlay');

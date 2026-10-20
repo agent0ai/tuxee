@@ -35,10 +35,11 @@ let me = await (await context.request.get(base + '/api/me')).json();
 const originalSettings = me.settings;
 const api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const page = await context.newPage(), errors = [];
-let healthRequests = 0;
-let releaseHealth = () => {};
+let connectionRequests = 0;
+let releaseConnection = () => {};
+let releaseSession = () => {};
 page.on('pageerror', error => errors.push(error.message));
-page.on('request', request => { if (request.url() === base + '/health') healthRequests++; });
+page.on('request', request => { if (request.url() === base + '/api/connection') connectionRequests++; });
 const overlay = page.getByRole('dialog', { name: 'Connection lost, reconnecting...', exact: true });
 async function about() {
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
@@ -57,7 +58,7 @@ try {
     await editor.waitFor(); await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('draft');
     const originalEditor = await editor.elementHandle(), draft = await editor.textContent();
     await page.route(base + '/api/system', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Unavailable operation"}' }), { times: 1 });
-    const healthy = page.waitForResponse(base + '/health');
+    const healthy = page.waitForResponse(base + '/api/connection');
     await about(); await healthy; await page.getByText('Unavailable operation', { exact: true }).waitFor();
     assert.equal(await overlay.count(), 0, 'an operation error with a healthy backend must not block the app');
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -76,21 +77,21 @@ try {
         assert.ok(await originalEditor.evaluate(node => node.isConnected), 'recovery must preserve mounted drafts');
         await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     }
-    const stalled = new Promise(resolve => { releaseHealth = resolve; });
-    await page.route(base + '/health', async route => { await stalled; await route.continue().catch(() => {}); });
+    const stalled = new Promise(resolve => { releaseConnection = resolve; });
+    await page.route(base + '/api/connection', async route => { await stalled; await route.continue().catch(() => {}); });
     await overlay.waitFor({ timeout: 12000 });
-    releaseHealth(); await page.unroute(base + '/health'); await overlay.waitFor({ state: 'detached' });
+    releaseConnection(); await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.route(base + '/health', route => route.fulfill({ status: 502, body: 'Bad Gateway' }));
+    await page.route(base + '/api/connection', route => route.fulfill({ status: 502, body: 'Bad Gateway' }));
     await overlay.waitFor({ timeout: 12000 });
     assert.ok(await page.evaluate(() => navigator.onLine), 'server outages also occur while the browser is online');
     assert.equal(await overlay.locator('.connection-spinner').evaluate(node => getComputedStyle(node).animationName), 'none');
     assert.ok(await overlay.evaluate(node => node.getBoundingClientRect().right <= innerWidth));
     await page.screenshot({ path: 'test-results/connection-mobile.png' });
-    await page.unroute(base + '/health'); await overlay.waitFor({ state: 'detached' });
+    await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
     await page.route(base + '/api/terminals', route => route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Session ended"}' }), { times: 1 });
-    const confirmed = page.waitForResponse(base + '/api/me');
+    const confirmed = page.waitForResponse(base + '/api/connection');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     assert.equal((await confirmed).status(), 200);
     assert.ok(await originalEditor.evaluate(node => node.isConnected), 'an unrelated 401 must first confirm session expiry');
@@ -99,52 +100,78 @@ try {
         { status: 404, contentType: 'text/plain', body: '404 page not found' },
         { status: 200, contentType: 'application/json', body: '404 page not found' },
         { status: 401, contentType: 'text/html', body: '<h1>Proxy unavailable</h1>' },
+        { status: 401, contentType: 'application/json', body: '{"error":"Session ended"}' },
+        { status: 200, contentType: 'application/json', body: '{}' },
     ]) {
-        await page.route(base + '/api/me', route => route.fulfill(response));
+        await page.route(base + '/api/connection', route => route.fulfill(response));
         await context.setOffline(true); await overlay.waitFor();
-        const unavailable = page.waitForResponse(base + '/api/me');
+        const unavailable = page.waitForResponse(base + '/api/connection');
         await context.setOffline(false); await unavailable;
-        const retry = page.waitForResponse(base + '/api/me');
+        const retry = page.waitForResponse(base + '/api/connection');
         await retry;
-        assert.ok(await overlay.isVisible(), 'healthy health alone cannot dismiss API recovery');
+        assert.ok(await overlay.isVisible(), 'an invalid readiness response must not dismiss recovery');
         assert.equal(await page.locator('[name=username]').count(), 0);
         assert.ok(await originalEditor.evaluate(node => node.isConnected));
         assert.equal(await editor.textContent(), draft);
-        await page.unroute(base + '/api/me'); await overlay.waitFor({ state: 'detached' });
+        await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
     }
+    // A response from a check interrupted by a newer disconnect cannot revoke the UI.
+    const delayedSession = new Promise(resolve => { releaseSession = resolve; });
+    await page.route(base + '/api/connection', async route => {
+        await delayedSession;
+        await route.fulfill({ json: { authenticated: false } }).catch(() => {});
+    });
+    await context.setOffline(true); await overlay.waitFor();
+    const checkingSession = page.waitForRequest(base + '/api/connection');
+    await context.setOffline(false); await checkingSession;
+    await context.setOffline(true);
+    releaseSession(); await page.waitForTimeout(100);
+    assert.ok(await originalEditor.evaluate(node => node.isConnected), 'an interrupted session check must not destroy the dashboard');
+    assert.ok(await overlay.isVisible());
+    assert.equal(await page.locator('[name=username]').count(), 0);
+    await page.unroute(base + '/api/connection');
+    await context.setOffline(false); await overlay.waitFor({ state: 'detached' });
     // A real SIGTERM revokes the cookie; simulate the proxy's gap before the replacement is ready.
     service.kill('SIGTERM'); await stopped; await overlay.waitFor({ timeout: 12000 });
-    await page.route(base + '/health', route => route.fulfill({ status: 404, body: '404 page not found' }));
-    const restarting = page.waitForResponse(base + '/health');
+    await page.route(base + '/api/connection', route => route.fulfill({ status: 404, contentType: 'text/plain', body: '404 page not found' }));
+    const restarting = page.waitForResponse(base + '/api/connection');
     await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await restarting;
     assert.ok(await originalEditor.evaluate(node => node.isConnected));
     assert.equal(await page.locator('[name=username]').count(), 0);
     await startService();
-    await page.route(base + '/api/me', route => route.fulfill({ status: 404, contentType: 'text/plain', body: '404 page not found' }));
-    const warming = page.waitForResponse(base + '/api/me');
-    await page.unroute(base + '/health'); await warming;
+    const warming = page.waitForResponse(base + '/api/connection');
+    await warming;
     assert.ok(await overlay.isVisible());
     assert.equal(await page.locator('[name=username]').count(), 0);
-    await page.unroute(base + '/api/me');
+    await page.unroute(base + '/api/connection');
     await page.locator('[name=username]').waitFor();
     await overlay.waitFor({ state: 'detached' });
+    const beforeLogin = new Promise(resolve => { releaseSession = resolve; });
+    await page.route(base + '/api/connection', async route => {
+        await beforeLogin;
+        await route.fulfill({ json: { authenticated: false } }).catch(() => {});
+    });
+    const anonymousProbe = page.waitForRequest(base + '/api/connection');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await anonymousProbe;
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('button', { name: 'User menu', exact: true }).waitFor();
+    releaseSession(); await page.unroute(base + '/api/connection'); await page.waitForTimeout(100);
+    assert.ok(await page.getByRole('button', { name: 'User menu', exact: true }).isVisible(), 'a pre-login probe cannot undo successful login');
     assert.equal(await page.locator('.login-error').count(), 0, 'first sign-in after readiness must work');
-    // Reload while /me is unavailable must not turn a temporary bootstrap failure into login.
-    await page.route(base + '/api/me', route => route.fulfill({ status: 404, contentType: 'text/plain', body: '404 page not found' }));
+    // Reload while readiness is unavailable must not turn a temporary bootstrap failure into login.
+    await page.route(base + '/api/connection', route => route.fulfill({ status: 404, contentType: 'text/plain', body: '404 page not found' }));
     await page.reload(); await overlay.waitFor();
     assert.equal(await page.locator('[name=username]').count(), 0);
-    await page.unroute(base + '/api/me'); await overlay.waitFor({ state: 'detached' });
+    await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'User menu', exact: true }).waitFor();
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('[name=username]').waitFor();
-    const checked = healthRequests;
+    const checked = connectionRequests;
     await context.setOffline(true); await overlay.waitFor();
     await context.setOffline(false); await overlay.waitFor({ state: 'detached' });
-    assert.ok(healthRequests > checked, 'login screen must keep monitoring readiness');
+    assert.ok(connectionRequests > checked, 'login screen must keep monitoring readiness');
     let attempts = 0;
     await page.route(base + '/api/login', async route => {
         attempts++;
@@ -158,16 +185,21 @@ try {
     assert.equal(await page.locator('[name=password]').inputValue(), '');
     assert.equal(await overlay.count(), 0);
     assert.deepEqual(errors, []);
-    console.log('PASS connection overlay: outage/draft recovery, themes/modal blocking, shutdown/proxy/JSON errors, confirmed expiry, first login after restart and login monitoring');
+    console.log('PASS connection overlay: outage/draft recovery, themes/modal blocking, invalid readiness, interrupted session checks, shutdown/proxy/JSON errors, confirmed expiry and first login after restart');
 } finally {
-    releaseHealth();
-    await context.setOffline(false);
-    await page.close();
-    await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
-    me = await (await context.request.get(base + '/api/me')).json();
-    await api('/settings', 'PUT', originalSettings);
-    await browser.close();
-    service.kill('SIGTERM'); await stopped;
-    await rm(state, { recursive: true, force: true });
-    await rm(dir, { recursive: true, force: true });
+    releaseConnection();
+    releaseSession();
+    try {
+        await context.setOffline(false);
+        await page.close();
+        if (service.exitCode !== null) await startService();
+        await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
+        me = await (await context.request.get(base + '/api/me')).json();
+        await api('/settings', 'PUT', originalSettings);
+    } finally {
+        await browser.close();
+        service.kill('SIGTERM'); await stopped;
+        await rm(state, { recursive: true, force: true });
+        await rm(dir, { recursive: true, force: true });
+    }
 }

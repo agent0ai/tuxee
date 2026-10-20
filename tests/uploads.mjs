@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, writeFile, readFile, readdir, rm, stat, chown } from 'n
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright';
 
-const user = 'tuxee-poc-a';
+const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
 const fields = spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':');
 assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const home = fields[5], uid = Number(fields[2]), gid = Number(fields[3]);
@@ -18,17 +18,23 @@ const base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
-const { csrf } = await (await context.request.get(base + '/api/me')).json();
+const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
+assert.equal((await api('/files', 'POST', { operation: 'mkdir', path: home + '/uploads', parents: true })).status(), 200);
 const settings = { theme: 'dark', current: 'uploads', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 5 }, workspaces: [
     { id: 'uploads', name: 'Uploads', columns: 4, rows: 2, active: 'files', panels: [
-        { id: 'files', kind: 'files', path: fixture, x: 0, y: 0, w: 2, h: 2 },
-        { id: 'term', kind: 'terminal', path: fixture, x: 2, y: 0, w: 2, h: 2 },
+        { id: 'files', kind: 'files', path: fixture, x: 0, y: 0, w: 2, h: 1 },
+        { id: 'term', kind: 'terminal', path: fixture, x: 2, y: 0, w: 2, h: 1 },
+        { id: 'uploads-a', kind: 'files', path: home + '/uploads', x: 0, y: 1, w: 2, h: 1 },
+        { id: 'uploads-b', kind: 'files', path: home + '/uploads/', x: 2, y: 1, w: 2, h: 1 },
     ] },
 ] };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
-const page = await context.newPage(), errors = [], external = [], published = [];
+const page = await context.newPage(), errors = [], external = [], published = [], lists = [];
 page.on('pageerror', error => errors.push(error.message));
+page.on('request', request => {
+    if (request.url() === base + '/api/files' && request.postDataJSON()?.operation === 'list') lists.push(request.postDataJSON().path);
+});
 page.on('request', request => { if (!request.url().startsWith(base + '/') && !/^(data|blob):/.test(request.url())) external.push(request.url()); });
 const cdp = await context.newCDPSession(page);
 const file = page.locator('[data-panel=files]'), terminal = page.locator('[data-panel=term]');
@@ -81,7 +87,13 @@ async function navigate(path) {
     const response = page.waitForResponse(r => r.url().endsWith('/api/files') && r.request().postDataJSON()?.operation === 'list');
     await file.getByRole('textbox', { name: 'Directory path' }).press('Enter'); await response;
 }
-let session;
+async function uploadedRows(path) {
+    for (const id of ['uploads-a', 'uploads-b'])
+        await page.locator(`[data-panel="${id}"] .file-entry`).filter({ hasText: path.split('/').at(-1) }).waitFor();
+    assert.deepEqual(lists, [home + '/uploads', home + '/uploads'], 'refresh each matching browser once and leave unrelated folders alone');
+    assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => document.activeElement === node), 'automatic refresh preserves terminal focus');
+}
+let session, releaseList = () => {};
 try {
     await page.goto(base); await terminal.locator('[data-state=connected]').waitFor();
     session = await terminal.locator('[data-terminal]').getAttribute('data-terminal');
@@ -131,10 +143,26 @@ try {
     await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
     const quoted = `${source}/host's file.txt`; await writeFile(quoted, 'terminal bytes');
     const previousUploads = new Set(await readdir(home + '/uploads').catch(() => []));
+    let listRead, interceptList = true;
+    const oldListReady = new Promise(resolve => { listRead = resolve; });
+    const releaseOldList = new Promise(resolve => { releaseList = resolve; });
+    await page.route(base + '/api/files', async route => {
+        const data = route.request().postDataJSON();
+        if (!interceptList || data?.operation !== 'list' || data.path !== home + '/uploads') return route.continue();
+        interceptList = false;
+        const response = await route.fetch(); listRead();
+        await releaseOldList; await route.fulfill({ response });
+    });
+    await page.locator('[data-panel=uploads-a]').getByRole('button', { name: 'Refresh files' }).click();
+    await oldListReady;
+    lists.length = 0;
     await drop(terminal.locator('.terminal-host'), [quoted]); await done(terminal);
     const added = (await readdir(home + '/uploads')).filter(name => !previousUploads.has(name));
     assert.equal(added.length, 1);
     const terminalPath = home + '/uploads/' + added[0]; published.push(terminalPath); assert.equal(await readFile(terminalPath, 'utf8'), 'terminal bytes');
+    releaseList();
+    await uploadedRows(terminalPath);
+    await page.unroute(base + '/api/files');
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes("host'\\''s file"));
     await input.focus();
     await page.keyboard.type(`> '${fixture}/terminal-paths'`);
@@ -142,15 +170,17 @@ try {
     await page.keyboard.press('Enter');
     await page.waitForFunction(path => document.querySelector('.xterm-rows')?.textContent.includes(path), 'terminal-paths');
     await expectFile(fixture + '/terminal-paths', terminalPath + '\n');
-    check('native terminal drop uploads into user ~/uploads and pastes quoted actual path without Enter');
+    check('native terminal drop uploads into ~/uploads, refreshes even after a delayed stale listing, and pastes quoted paths without Enter');
 
     await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
+    lists.length = 0;
     const terminalImage = await pasteImage(input); published.push(terminalImage); await done(terminal);
     assert.ok(terminalImage.startsWith(home + '/uploads/clipboard-image'));
     assert.deepEqual(await readFile(terminalImage), png);
+    await uploadedRows(terminalImage);
     await page.keyboard.type(`> '${fixture}/clipboard-path'`); await page.keyboard.press('Enter');
     await expectFile(fixture + '/clipboard-path', terminalImage + '\n');
-    check('clipboard image on xterm uploads once and pastes its shell path');
+    check('terminal drops and clipboard images refresh both uploads browsers once, preserve terminal focus and paste actual paths');
 
     await page.evaluate(() => navigator.clipboard.writeText('printf text-paste-ok'));
     await input.focus(); await page.keyboard.press('Control+Shift+V'); await page.keyboard.type(` > '${fixture}/plain-paste'`); await page.keyboard.press('Enter');
@@ -183,10 +213,12 @@ try {
     await writeFile(terminalFolder + '/inside.txt', 'folder to terminal');
     const previousFolders = new Set(await readdir(home + '/uploads'));
     await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
+    lists.length = 0;
     await drop(terminal.locator('.panel-header'), [terminalFolder]); await done(terminal);
     const addedFolders = (await readdir(home + '/uploads')).filter(name => !previousFolders.has(name));
     assert.equal(addedFolders.length, 1);
     const folderPath = home + '/uploads/' + addedFolders[0]; published.push(folderPath);
+    await uploadedRows(folderPath);
     assert.equal(await readFile(folderPath + '/inside.txt', 'utf8'), 'folder to terminal');
     assert.ok((await stat(folderPath + '/empty')).isDirectory());
     await input.focus(); await page.keyboard.type(`> '${fixture}/folder-path'`); await page.keyboard.press('Enter');
@@ -206,6 +238,7 @@ try {
     const slowTerminalFile = source + '/slow-terminal.bin';
     await writeFile(slowTerminalFile, Buffer.alloc(256 * 1024, 4));
     const beforeSlowUpload = new Set(await readdir(home + '/uploads'));
+    await navigate(home + '/uploads');
     await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
     await drop(terminal.locator('.terminal-host'), [slowTerminalFile]);
@@ -222,6 +255,7 @@ try {
     await input.focus(); await page.keyboard.type(`> '${fixture}/slow-path'`); await page.keyboard.press('Enter');
     await expectFile(fixture + '/slow-path', slowPath + '\n');
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await navigate(fixture);
     check('terminal upload completion pastes into its target without stealing focus from another field');
 
     await mkdir(fixture + '/other'); await chown(fixture + '/other', uid, gid);
@@ -243,21 +277,24 @@ try {
     await cdp.send('Network.enable');
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
     await file.locator('input[type=file]').setInputFiles([
+        { name: 'kept.txt', mimeType: 'text/plain', buffer: Buffer.from('completed before cancellation') },
         { name: 'cancel.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(8 * 1024 * 1024, 7) },
         { name: 'never.txt', mimeType: 'text/plain', buffer: Buffer.from('must not upload') },
     ]);
-    await transfer(file).filter({ hasText: '0/2 files' }).waitFor();
+    await transfer(file).filter({ hasText: '1/3 files' }).waitFor();
     await transfer(file).getByRole('button', { name: 'Cancel transfer' }).click();
     await transfer(file).filter({ hasText: 'Cancelled' }).waitFor();
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await page.waitForTimeout(300);
     await assert.rejects(stat(fixture + '/cancel.bin')); await assert.rejects(stat(fixture + '/never.txt'));
+    await file.locator('.file-entry').filter({ hasText: 'kept.txt' }).waitFor();
+    assert.equal(await readFile(fixture + '/kept.txt', 'utf8'), 'completed before cancellation');
     assert.ok(!(await readdir(fixture)).some(name => name.startsWith('.tuxee-upload-')));
     check('cancelling a bundle removes active staging and stops queued files');
     await api(`/terminals/${session}`, 'DELETE');
     await terminal.locator('[data-state=ended]').waitFor();
     const beforeRejected = await page.evaluate(() => window.batchCount);
-    await drop(terminal.locator('.terminal-host'), [loose]);
+    await drop(terminal.locator('.panel-header'), [loose]);
     assert.equal(await page.evaluate(() => window.batchCount), beforeRejected);
     check('ended terminal rejects external uploads');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -272,7 +309,10 @@ try {
     await mkdir('test-results', { recursive: true }); await page.screenshot({ path: 'test-results/uploads-mobile.png' });
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
 } finally {
+    releaseList();
+    await page.waitForTimeout(350);
     await page.goto('about:blank');
+    await api('/settings', 'PUT', original);
     if (session) await api(`/terminals/${session}`, 'DELETE');
     await browser.close();
     for (const path of published) await rm(path, { force: true, recursive: true });

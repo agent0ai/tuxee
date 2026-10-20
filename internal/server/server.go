@@ -193,11 +193,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cookie, err := r.Cookie("tuxee_session")
-	if err != nil {
-		failure(w, 401, errors.New("sign in to continue"))
-		return
+	var key [32]byte
+	if err == nil {
+		key = sha256.Sum256([]byte(cookie.Value))
 	}
-	key := sha256.Sum256([]byte(cookie.Value))
 	s.mu.Lock()
 	session := s.logins[key]
 	if session != nil && time.Now().After(session.expires) {
@@ -206,9 +205,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		session = nil
 	}
 	s.mu.Unlock()
+	if s.closed.Load() {
+		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		return
+	}
+	if r.URL.Path == "/api/connection" && r.Method == "GET" {
+		jsonResponse(w, 200, map[string]bool{"authenticated": session != nil})
+		return
+	}
 	if session == nil {
-		if s.closed.Load() {
-			failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		if err != nil {
+			failure(w, 401, errors.New("sign in to continue"))
 		} else {
 			failure(w, 401, errors.New("session expired; sign in again"))
 		}

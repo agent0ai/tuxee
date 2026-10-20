@@ -47,6 +47,31 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 		t.Fatalf("revoked cookie: %d", got)
 	}
 }
+func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
+	s := New(nil, nil, nil, "", fstest.MapFS{})
+	defer s.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.logins[sha256.Sum256([]byte("token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
+	expired, expire := context.WithCancel(context.Background())
+	s.logins[sha256.Sum256([]byte("expired"))] = &login{ctx: expired, cancel: expire, expires: time.Now().Add(-time.Hour)}
+	for _, token := range []string{"", "invalid", "token", "expired"} {
+		r := httptest.NewRequest("GET", "/api/connection", nil)
+		if token != "" {
+			r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: token})
+		}
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		var state struct {
+			Authenticated bool `json:"authenticated"`
+		}
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &state) != nil || state.Authenticated != (token == "token") || w.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("connection with cookie %q: %d %s", token, w.Code, w.Body.String())
+		}
+	}
+	if expired.Err() == nil {
+		t.Fatal("expired login was not revoked")
+	}
+}
 func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
 	s := New(nil, nil, nil, "", fstest.MapFS{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -61,7 +86,7 @@ func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
 	if ctx.Err() == nil {
 		t.Fatal("shutdown did not cancel the session")
 	}
-	for _, path := range []string{"/health", "/api/me", "/api/terminals", "/api/login", "/"} {
+	for _, path := range []string{"/health", "/api/connection", "/api/me", "/api/terminals", "/api/login", "/"} {
 		for _, cookie := range []bool{false, true} {
 			r := httptest.NewRequest("GET", path, nil)
 			if path == "/api/login" {

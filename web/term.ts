@@ -1,6 +1,5 @@
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { installTerminalView, installTerminalMetrics, restoreTerminal, terminalTheme } from './terminal/state';
+import { installTerminalView, installTerminalMetrics, installTerminalUnicode, terminalDimensions, restoreTerminal, terminalTheme } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
@@ -16,7 +15,6 @@ export async function terminateTerminal(panel: Panel) {
 
 export class TerminalView implements View {
     readonly term: Terminal;
-    private fit = new FitAddon();
     private socket?: WebSocket;
     private disposed = false;
     private controller = false;
@@ -38,7 +36,7 @@ export class TerminalView implements View {
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         root.classList.add('terminal-view');
         this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
-        this.term.loadAddon(this.fit);
+        installTerminalUnicode(this.term);
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);
@@ -249,7 +247,7 @@ export class TerminalView implements View {
         this.term.refresh(0, this.term.rows - 1);
         if (!this.ready || !this.controller)
             return;
-        const proposed = this.fit.proposeDimensions();
+        const proposed = terminalDimensions(this.term);
         if (proposed) {
             const columns = Math.max(2, Math.min(500, proposed.cols)), rows = Math.max(1, Math.min(200, proposed.rows));
             if (this.term.cols !== columns || this.term.rows !== rows)
