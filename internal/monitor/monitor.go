@@ -14,6 +14,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// AllNetworks cannot collide with a Linux interface name.
+const AllNetworks = "/all"
+
 type Capacity struct {
 	Total     uint64   `json:"total"`
 	Used      uint64   `json:"used"`
@@ -216,7 +219,10 @@ func (c *Collector) disks(result *Snapshot, mounts []mount) {
 	sort.Slice(result.Disks, func(i, j int) bool { return result.Disks[i].Path < result.Disks[j].Path })
 }
 func (c *Collector) networks(result *Snapshot) {
-	text, _ := c.read("/proc/net/dev")
+	text, err := c.read("/proc/net/dev")
+	if err != nil {
+		return
+	}
 	previous := map[string]Network{}
 	if c.last != nil {
 		for _, item := range c.last.Networks {
@@ -227,7 +233,7 @@ func (c *Collector) networks(result *Snapshot) {
 		name, values, ok := strings.Cut(line, ":")
 		name = strings.TrimSpace(name)
 		parts := strings.Fields(values)
-		if !ok || len(parts) < 16 || strings.ContainsAny(name, "/\x00") || len(result.Networks) >= 128 {
+		if !ok || name == "" || len(parts) < 16 || strings.ContainsAny(name, "/\x00") {
 			continue
 		}
 		rx, rxErr := strconv.ParseUint(parts[0], 10, 64)
@@ -251,6 +257,30 @@ func (c *Collector) networks(result *Snapshot) {
 		result.Networks = append(result.Networks, value)
 	}
 	sort.Slice(result.Networks, func(i, j int) bool { return result.Networks[i].Name < result.Networks[j].Name })
+	result.Networks = append([]Network{aggregateNetworks(result.Networks)}, result.Networks...)
+}
+func aggregateNetworks(networks []Network) Network {
+	all := Network{Name: AllNetworks, State: "down", ReceiveRate: new(float64), SendRate: new(float64)}
+	for _, network := range networks {
+		if network.State != "up" && network.State != "unknown" {
+			continue
+		}
+		all.State = "up"
+		all.Received += network.Received
+		all.Sent += network.Sent
+		// Sum measured rates, since membership changes invalidate aggregate counter deltas.
+		if network.ReceiveRate == nil {
+			all.ReceiveRate = nil
+		} else if all.ReceiveRate != nil {
+			*all.ReceiveRate += *network.ReceiveRate
+		}
+		if network.SendRate == nil {
+			all.SendRate = nil
+		} else if all.SendRate != nil {
+			*all.SendRate += *network.SendRate
+		}
+	}
+	return all
 }
 func (c *Collector) number(path string) (uint64, error) {
 	data, err := c.read(path)

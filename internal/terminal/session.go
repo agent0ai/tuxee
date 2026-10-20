@@ -59,9 +59,6 @@ type Session struct {
 	done        chan struct{}
 	exited      chan struct{}
 	closed      bool
-	idle        time.Duration
-	idleSince   time.Time
-	timer       *time.Timer
 	redrawTimer *time.Timer
 }
 
@@ -87,12 +84,9 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, idle time.Duration, command string) (*Session, error) {
+func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command string) (*Session, error) {
 	if !validSize(columns, rows) {
 		return nil, errors.New("invalid terminal dimensions")
-	}
-	if idle <= 0 {
-		return nil, errors.New("terminal idle timeout must be positive")
 	}
 	if directory == "" {
 		directory = user.Home
@@ -150,14 +144,11 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		return failed(err)
 	}
 	slave.Close()
-	s := &Session{manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{}), idle: idle}
+	s := &Session{manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
 	if s.info.Name == "" {
 		s.info.Name = "Terminal"
 	}
 	m.sessions[s.info.ID] = s
-	s.mu.Lock()
-	s.updateIdleLocked()
-	s.mu.Unlock()
 	go s.readOutput()
 	go s.writeInput()
 	go func() {
@@ -193,18 +184,6 @@ func (m *Manager) List(user identity.User) []Info {
 		}
 	}
 	return out
-}
-func (m *Manager) SetIdle(user identity.User, idle time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, s := range m.sessions {
-		if s.user.UID == user.UID {
-			s.mu.Lock()
-			s.idle = idle
-			s.updateIdleLocked()
-			s.mu.Unlock()
-		}
-	}
 }
 func (m *Manager) Close() {
 	m.mu.Lock()
@@ -259,7 +238,6 @@ func (s *Session) Attach() (*Attachment, error) {
 	if s.info.Exited {
 		a.Events <- Event{Type: "exit", Message: "Process exited"}
 	}
-	s.updateIdleLocked()
 	return a, nil
 }
 
@@ -297,7 +275,6 @@ func (s *Session) detachLocked(a *Attachment) {
 		s.controller = ""
 	}
 	close(a.Events)
-	s.updateIdleLocked()
 }
 func (a *Attachment) Write(data []byte) error {
 	s := a.session
@@ -461,34 +438,6 @@ func (s *Session) writeInput() {
 	}
 }
 
-// Adapted from the8020/kernel/console/idle.go: output never resets detachment.
-func (s *Session) updateIdleLocked() {
-	if s.timer != nil {
-		s.timer.Stop()
-		s.timer = nil
-	}
-	if s.closed {
-		return
-	}
-	if len(s.views) > 0 {
-		s.idleSince = time.Time{}
-		return
-	}
-	if s.idleSince.IsZero() {
-		s.idleSince = time.Now()
-	}
-	s.timer = time.AfterFunc(time.Until(s.idleSince.Add(s.idle)), func() {
-		s.mu.Lock()
-		expired := !s.closed && len(s.views) == 0 && !time.Now().Before(s.idleSince.Add(s.idle))
-		if expired {
-			s.closed = true
-		}
-		s.mu.Unlock()
-		if expired {
-			s.destroy()
-		}
-	})
-}
 func (s *Session) Close() {
 	s.mu.Lock()
 	if s.closed {
@@ -504,9 +453,6 @@ func (s *Session) destroy() {
 	delete(s.manager.sessions, s.info.ID)
 	s.manager.mu.Unlock()
 	s.mu.Lock()
-	if s.timer != nil {
-		s.timer.Stop()
-	}
 	if s.redrawTimer != nil {
 		s.redrawTimer.Stop()
 	}

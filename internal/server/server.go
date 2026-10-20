@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"tuxee/internal/monitor"
 	"tuxee/internal/terminal"
 	"tuxee/internal/tlsmanager"
+	"tuxee/internal/update"
 )
 
 type login struct {
@@ -42,6 +44,7 @@ type Server struct {
 	TLS        *tlsmanager.Manager
 	Origin     string
 	Version    string
+	Updates    *update.Checker
 	Assets     fs.FS
 	mu         sync.Mutex
 	logins     map[[32]byte]*login
@@ -208,6 +211,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"):
+		if s.Updates == nil {
+			failure(w, 503, errors.New("update checks unavailable"))
+			return
+		}
+		status := s.Updates.Status()
+		if r.Method == "POST" {
+			status = s.Updates.Check(ctx)
+		}
+		path, err := os.Executable()
+		if err != nil {
+			failure(w, 500, err)
+			return
+		}
+		command := "'" + strings.ReplaceAll(path, "'", "'\\''") + "' update"
+		if session.user.UID != 0 {
+			command = "sudo " + command
+		}
+		jsonResponse(w, 200, struct {
+			update.Status
+			Command string `json:"command"`
+		}{status, command})
 	case r.URL.Path == "/api/metrics" && r.Method == "GET":
 		jsonResponse(w, 200, s.monitor.Sample())
 	case r.URL.Path == "/api/system" && r.Method == "GET":
@@ -232,8 +257,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: "tuxee_session", Path: "/", MaxAge: -1, HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode})
 		jsonResponse(w, 200, map[string]bool{"ok": true})
 	case r.URL.Path == "/api/settings" && r.Method == "PUT":
-		var value Settings
-		if err = decode(w, r, &value); err == nil {
+		// Accept old clients' timeout field without retaining or applying it.
+		var input struct {
+			Settings
+			IdleHours json.RawMessage `json:"idleHours"`
+		}
+		err = decode(w, r, &input)
+		value := input.Settings
+		if err == nil {
 			err = validateSettings(value)
 		}
 		if err != nil {
@@ -245,7 +276,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, err)
 			return
 		}
-		s.Terminals.SetIdle(session.user, time.Duration(value.IdleHours*float64(time.Hour)))
 		jsonResponse(w, 200, value)
 	case r.URL.Path == "/api/files" && r.Method == "POST":
 		s.fileOperation(w, r, session)
@@ -271,12 +301,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, err)
 			return
 		}
-		idle, err := IdleTimeout(ctx, session.user)
-		if err != nil {
-			failure(w, 400, err)
-			return
-		}
-		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, idle, input.Command)
+		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command)
 		if err != nil {
 			failure(w, 400, err)
 			return

@@ -21,7 +21,7 @@ func TestDetachedPTYAndController(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(u, t.TempDir(), "test", 80, 24, 500*time.Millisecond, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done")
+	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,14 +68,17 @@ func TestDetachedPTYAndController(t *testing.T) {
 		t.Fatal("attached terminal expired")
 	}
 	c.Close()
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, err = m.Get(u, s.info.ID); err != nil {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
+	time.Sleep(600 * time.Millisecond)
+	if info := s.Info(); info.Exited || info.Attached != 0 || info.PID != pid {
+		t.Fatalf("detachment changed the running process: %#v", info)
 	}
-	t.Fatal("detached terminal survived expiry despite having no viewers")
+	if _, err = m.Get(u, s.info.ID); err != nil {
+		t.Fatal("detached terminal disappeared")
+	}
+	s.Close()
+	if _, err = m.Get(u, s.info.ID); err == nil {
+		t.Fatal("explicitly closed terminal remains listed")
+	}
 }
 
 func TestReattachEndedProcessReportsExit(t *testing.T) {
@@ -88,7 +91,7 @@ func TestReattachEndedProcessReportsExit(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, time.Minute, "printf 'DONE'")
+	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'")
 	if err != nil {
 		t.Fatal(err)
 	}

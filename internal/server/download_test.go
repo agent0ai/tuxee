@@ -32,6 +32,31 @@ func TestArchiveDownloadOwnershipAndCancellation(t *testing.T) {
 		s.ServeHTTP(w, r)
 		return w
 	}
+	for _, tc := range []struct {
+		path, name string
+		paths      []string
+	}{
+		{"/home/owner/", "owner.zip", []string{"/home/owner/file.txt", "/home/owner/folder"}},
+		{"/", "sys-root.zip", []string{"/etc", "/var"}},
+		{"/var/..//", "sys-root.zip", []string{"/etc", "/var"}},
+		{"/home/Å work", "Å work.zip", []string{"/home/Å work/a", "/home/Å work/b"}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			body, err := json.Marshal(map[string]any{"path": tc.path, "paths": tc.paths})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := request("POST", "/api/download-archive", "owner", "csrf", string(body))
+			var prepared struct{ Token, Name string }
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &prepared) != nil || prepared.Name != tc.name {
+				t.Fatalf("archive name: want %q, response %s", tc.name, w.Body.String())
+			}
+			if s.archives[prepared.Token].name != tc.name {
+				t.Fatal("stream filename differs from registration")
+			}
+			s.removeArchive(prepared.Token)
+		})
+	}
 	body := `{"path":"/home/owner","paths":["/home/owner/.config"]}`
 	if w := request("POST", "/api/download-archive", "owner", "", body); w.Code != 403 {
 		t.Fatal("registration did not require CSRF")

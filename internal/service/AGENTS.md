@@ -14,6 +14,11 @@ Require a running systemd manager before installation or lifecycle changes. Use 
 
 Keep a protected installation marker beside the installed executable so unregistering and reinstalling remains safe without discarding preserved files.
 
+The release installer places the default executable at `/usr/local/lib/tuxee/tuxee` and exposes it on PATH by symlink. Registration may adopt that same executing inode without a prior marker; unrelated files remain protected. Named services retain separate copies. `Executable(name)` validates a managed unit before the updater selects its installation.
+
+Serialize executable writes with the updater's `LockDirectory`; service
+registration must not race bootstrap or version replacement.
+
 # Work Guidance
 
 Use a dedicated service name for tests. Never alter host sshd or unrelated services.

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
@@ -21,6 +20,9 @@ type User struct {
 	GID    uint32   `json:"gid"`
 	Groups []uint32 `json:"-"`
 }
+
+// Self keeps authentication and file helpers on the running binary after updates.
+const Self = "/proc/self/exe"
 
 func Lookup(name string) (User, error) {
 	var result User
@@ -54,10 +56,6 @@ func Lookup(name string) (User, error) {
 
 func Authenticate(ctx context.Context, service, name string, password []byte) (User, error) {
 	defer clear(password)
-	executable, err := os.Executable()
-	if err != nil {
-		return User{}, err
-	}
 	request, err := json.Marshal(authRequest{Service: service, Username: name, Password: password})
 	if err != nil {
 		return User{}, err
@@ -65,7 +63,7 @@ func Authenticate(ctx context.Context, service, name string, password []byte) (U
 	defer clear(request)
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, executable, "__auth")
+	cmd := exec.CommandContext(ctx, Self, "__auth")
 	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C.UTF-8"}
 	cmd.Stdin = bytes.NewReader(request)
 	if err = cmd.Run(); err != nil {

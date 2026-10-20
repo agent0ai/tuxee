@@ -22,7 +22,7 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 
 # Child DOX Index
 
-- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, display interpreter, attachments, and idle expiry.
+- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, display interpreter, attachments, and explicit termination.
 
 - [identity/AGENTS.md](identity/AGENTS.md): PAM authentication and Linux process credentials.
 - [files/AGENTS.md](files/AGENTS.md): Credential-dropped filesystem workers and settings.
@@ -30,3 +30,4 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 - [monitor/AGENTS.md](monitor/AGENTS.md): Cached Linux CPU, memory, swap, filesystem and network metrics with container accounting.
 - [server/AGENTS.md](server/AGENTS.md): HTTP sessions, APIs, and browser terminal transport.
 - [service/AGENTS.md](service/AGENTS.md): Native systemd registration and lifecycle commands.
+- [update/AGENTS.md](update/AGENTS.md): Official release discovery, verified replacement and daily update status.

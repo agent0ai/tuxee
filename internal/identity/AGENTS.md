@@ -12,6 +12,8 @@ Own the authentication helper and the sole process-credential constructor used b
 
 Passwords travel only through transient stdin to a short-lived PAM helper. Perform both PAM authentication and account checks. Never change the shared server's identity. Child environments contain a fixed safe PATH and the account's HOME/USER/LOGNAME/SHELL, not server environment secrets. Include supplementary groups. PAM policy defaults to the host's login service.
 
+`identity.Self` is `/proc/self/exe`. Authentication and file-worker launches use this running inode, never the mutable installation pathname, so binary updates cannot mix helper versions before restart.
+
 # Work Guidance
 
 Use libc/NSS and PAM instead of parsing password hashes. Reject non-login shells. Bound concurrent authentication at the server boundary.

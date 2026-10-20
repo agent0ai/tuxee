@@ -92,7 +92,7 @@ func testPassword(t *testing.T, name string) string {
 	return value
 }
 
-func TestRealHTTPAndExpiry(t *testing.T) {
+func TestRealHTTPAndRetention(t *testing.T) {
 	if os.Geteuid() != 0 || os.Getenv("TUXEE_SYSTEM_TEST") != "1" {
 		t.Skip("requires root and TUXEE_SYSTEM_TEST=1")
 	}
@@ -476,9 +476,18 @@ func TestRealHTTPAndExpiry(t *testing.T) {
 	}
 	reconnected.CloseNow()
 	request("/terminals/"+info.ID, "DELETE", nil, 200, nil)
-	settings := server.Settings{Theme: "dark", IdleHours: 1.0 / 3600, Workspaces: []server.Workspace{}}
+	settings := map[string]any{"theme": "dark", "idleHours": 1.0 / 3600, "workspaces": []server.Workspace{}}
 	request("/settings", "PUT", settings, 200, nil)
-	request("/terminals", "POST", map[string]any{"name": "Output must not extend expiry", "columns": 80, "rows": 24, "command": "while :; do printf '.'; sleep 0.1; done"}, 201, &info)
+	request("/terminals", "POST", map[string]any{"name": "Legacy timeout must not kill services", "columns": 80, "rows": 24, "command": "while :; do printf '.'; sleep 0.1; done"}, 201, &info)
 	time.Sleep(1500 * time.Millisecond)
-	request("/terminals/"+info.ID, "GET", nil, 404, nil)
+	request("/terminals/"+info.ID, "GET", nil, 200, &retained)
+	if retained.Exited || retained.PID != info.PID {
+		t.Fatal("legacy timeout stopped the detached service")
+	}
+	var saved map[string]any
+	request("/settings", "PUT", settings, 200, &saved)
+	if _, exists := saved["idleHours"]; exists {
+		t.Fatal("obsolete timeout remains in saved settings")
+	}
+	request("/terminals/"+info.ID, "DELETE", nil, 200, nil)
 }

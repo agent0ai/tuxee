@@ -12,6 +12,8 @@ Own worker requests, streaming file transfer, collision policy, atomic configura
 
 The server must execute the worker through identity.User.Command. All filesystem syscalls then use that user's credentials, including supplementary groups. Paths may access any location allowed by Linux; the home is a default, not an artificial jail. Stream data and reject explicit destination collisions. Copying a path onto itself creates a sibling named `name (copy).ext`, then numbered variants; allocate and publish this in the user worker with atomic no-replace semantics. Same-path moves/renames are no-ops. Copy/move/rename responses return the resulting destination path. Uploads and mkdir with unique=true allocate `name (1).ext` / `folder (1)` and further numbered siblings in the worker using atomic no-replace creation/publication, including collisions with symlinks. Return the actual path. Default explicit creation still rejects collisions. mkdir parents=true ensures an existing directory or creates missing parents; reject combining parents and unique. Upload cancellation removes only its own temporary file. Copy failures preserve sources; cross-filesystem move removes the source only after a successful copy.
 
+Launch file workers from `identity.Self` so an on-disk binary update cannot change the helper protocol of a running server.
+
 # Work Guidance
 
 Never pre-check permissions as root and then perform the operation as root. Do not follow directory symlinks during recursive copy/delete. Configuration is user-owned and replaced atomically.

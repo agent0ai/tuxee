@@ -56,10 +56,14 @@ func (s *Server) archiveOperation(w http.ResponseWriter, r *http.Request, sessio
 			failure(w, 400, err)
 			return
 		}
-		name := "Archive.zip"
-		if len(input.Paths) == 1 {
-			name = filepath.Base(filepath.Clean(input.Paths[0])) + ".zip"
+		name := filepath.Base(filepath.Clean(input.Path))
+		if name == "/" {
+			name = "sys-root"
 		}
+		if len(input.Paths) == 1 {
+			name = filepath.Base(filepath.Clean(input.Paths[0]))
+		}
+		name += ".zip"
 		token := randomToken()
 		ctx, cancel := context.WithCancel(session.ctx)
 		job := &archiveDownload{request: request, session: session, ctx: ctx, cancel: cancel, name: name}

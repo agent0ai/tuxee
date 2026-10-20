@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"tuxee/internal/update"
 )
 
 const marker = "# Managed by Tuxee service install; format 1\n"
@@ -58,6 +60,22 @@ type paths struct{ unit, binary, config string }
 
 func locations(name string) paths {
 	return paths{filepath.Join("/etc/systemd/system", name+".service"), filepath.Join("/usr/local/lib", name, "tuxee"), filepath.Join("/etc", name, "config.json")}
+}
+
+// Executable selects a named service's managed installation, including older copies.
+func Executable(name string) (string, error) {
+	if err := ValidateName(name); err != nil {
+		return "", err
+	}
+	p := locations(name)
+	owned, err := managedUnit(p.unit)
+	if err != nil {
+		return "", err
+	}
+	if !owned {
+		return "", errors.New("no managed service installation with that name")
+	}
+	return p.binary, nil
 }
 
 func Install(name, state string, config []byte) error {
@@ -138,7 +156,10 @@ func installFiles(p paths, executable, state string, config []byte) error {
 	if !owned {
 		if _, err := os.Lstat(p.binary); !errors.Is(err, os.ErrNotExist) {
 			previous, readErr := os.ReadFile(filepath.Join(filepath.Dir(p.binary), ".tuxee-install"))
-			if readErr != nil || string(previous) != marker {
+			sourceInfo, sourceErr := os.Stat(executable)
+			targetInfo, targetErr := os.Stat(p.binary)
+			same := sourceErr == nil && targetErr == nil && os.SameFile(sourceInfo, targetInfo)
+			if !same && (readErr != nil || string(previous) != marker) {
 				return errors.New("refusing to replace an executable without a managed installation")
 			}
 		}
@@ -152,6 +173,11 @@ func installFiles(p paths, executable, state string, config []byte) error {
 			return err
 		}
 	}
+	lock, err := update.LockDirectory(filepath.Dir(p.binary))
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
 	if info, err := os.Lstat(p.config); errors.Is(err, os.ErrNotExist) {
 		if err = atomicWrite(p.config, bytes.NewReader(config), 0600); err != nil {
 			return err

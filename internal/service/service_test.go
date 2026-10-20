@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"tuxee/internal/update"
 )
 
 func TestInstallRepeatPreservesConfigAndRefusesUnrelated(t *testing.T) {
@@ -42,6 +44,35 @@ func TestInstallRepeatPreservesConfigAndRefusesUnrelated(t *testing.T) {
 	data, _ := os.ReadFile(p.unit)
 	if string(data) != "unrelated" {
 		t.Fatal("modified unrelated unit")
+	}
+}
+
+func TestRegisterBootstrappedBinary(t *testing.T) {
+	dir := t.TempDir()
+	p := paths{filepath.Join(dir, "units/tuxee.service"), filepath.Join(dir, "lib/tuxee"), filepath.Join(dir, "etc/config.json")}
+	if err := os.MkdirAll(filepath.Dir(p.binary), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p.binary, []byte("bootstrapped executable"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFiles(p, p.binary, filepath.Join(dir, "state"), []byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(p.binary)
+	if string(data) != "bootstrapped executable" {
+		t.Fatal("registration changed executable")
+	}
+	if owned, err := managedUnit(p.unit); !owned || err != nil {
+		t.Fatal(owned, err)
+	}
+	lock, err := update.LockDirectory(filepath.Dir(p.binary))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if err := installFiles(p, p.binary, filepath.Join(dir, "state"), []byte("{}")); err == nil {
+		t.Fatal("service registration ignored the updater's installation lock")
 	}
 }
 

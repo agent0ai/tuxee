@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -29,17 +28,13 @@ type Process struct {
 }
 
 func Start(ctx context.Context, user identity.User, request Request, body io.Reader) (*Process, error) {
-	executable, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
 	header, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 	header = append(header, '\n')
 	ctx, cancel := context.WithCancel(ctx)
-	cmd := user.Command(ctx, executable, "__files")
+	cmd := user.Command(ctx, identity.Self, "__files")
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.WaitDelay = 3 * time.Second
 	cmd.Stdin = bytes.NewReader(header)

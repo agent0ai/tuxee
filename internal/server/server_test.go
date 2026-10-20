@@ -48,10 +48,10 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 	}
 }
 func TestSettingsWholeGridValidation(t *testing.T) {
-	if validateSettings(Settings{Theme: "dark", IdleHours: 36}) == nil {
+	if validateSettings(Settings{Theme: "dark"}) == nil {
 		t.Fatal("accepted null workspace list")
 	}
-	value := Settings{Theme: "dark", IdleHours: 36, Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "a", Kind: "files", W: 2, H: 2}, {ID: "b", Kind: "terminal", X: 2, W: 2, H: 2}}}}}
+	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "a", Kind: "files", W: 2, H: 2}, {ID: "b", Kind: "terminal", X: 2, W: 2, H: 2}}}}}
 	if err := validateSettings(value); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestSettingsWholeGridValidation(t *testing.T) {
 	}
 }
 func TestSettingsLayoutCycle(t *testing.T) {
-	value := Settings{Theme: "dark", IdleHours: 36, Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "a", Kind: "files", W: 1, H: 2}, {ID: "b", Kind: "terminal", X: 1, W: 3, H: 2}}}}}
+	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "a", Kind: "files", W: 1, H: 2}, {ID: "b", Kind: "terminal", X: 1, W: 3, H: 2}}}}}
 	valid := []PanelPosition{{ID: "a", W: 2, H: 2}, {ID: "b", X: 2, W: 2, H: 2}}
 	for mode := 1; mode <= 3; mode++ {
 		value.Workspaces[0].Layout = &Layout{Mode: mode, Custom: valid}
@@ -105,7 +105,7 @@ func TestSettingsLayoutCycle(t *testing.T) {
 	}
 }
 func TestFileBrowserNames(t *testing.T) {
-	value := Settings{Theme: "dark", IdleHours: 36, Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "files", Kind: "files", W: 1, H: 1}}}}}
+	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "files", Kind: "files", W: 1, H: 1}}}}}
 	panel := &value.Workspaces[0].Panels[0]
 	for _, name := range []string{"", "Projects — server", strings.Repeat("x", 80)} {
 		panel.Name = name

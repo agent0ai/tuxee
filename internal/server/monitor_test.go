@@ -32,6 +32,9 @@ func TestMetricsAdmission(t *testing.T) {
 	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &value) != nil || value.Time.IsZero() || value.Memory == nil || response.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("metrics: %d %s", response.Code, response.Body.String())
 	}
+	if len(value.Networks) == 0 || value.Networks[0].Name != monitor.AllNetworks {
+		t.Fatalf("missing aggregate network: %+v", value.Networks)
+	}
 	request.Header.Set("Origin", "http://other.test")
 	response = httptest.NewRecorder()
 	s.ServeHTTP(response, request)
@@ -41,9 +44,9 @@ func TestMetricsAdmission(t *testing.T) {
 }
 func TestMonitoringPreferences(t *testing.T) {
 	valid := func() *Monitoring {
-		return &Monitoring{CPU: true, Memory: true, Disks: []string{"/"}, Networks: []string{"eth0"}, Interval: 2}
+		return &Monitoring{CPU: true, Memory: true, Disks: []string{"/"}, Networks: []string{monitor.AllNetworks, "eth0", "all"}, Interval: 2}
 	}
-	settings := Settings{Theme: "dark", IdleHours: 36, Workspaces: []Workspace{}, Monitoring: valid()}
+	settings := Settings{Theme: "dark", Workspaces: []Workspace{}, Monitoring: valid()}
 	if err := validateSettings(settings); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +55,7 @@ func TestMonitoringPreferences(t *testing.T) {
 		func(m *Monitoring) { m.Disks = []string{"relative"} }, func(m *Monitoring) { m.Disks = []string{"/a/../b"} },
 		func(m *Monitoring) { m.Disks = []string{"/", "/"} }, func(m *Monitoring) { m.Disks = make([]string, 9) },
 		func(m *Monitoring) { m.Networks = []string{"eth0", "eth0"} }, func(m *Monitoring) { m.Networks = []string{"../net"} },
+		func(m *Monitoring) { m.Networks = []string{monitor.AllNetworks, monitor.AllNetworks} }, func(m *Monitoring) { m.Networks = []string{"/other"} },
 		func(m *Monitoring) { m.Networks = []string{strings.Repeat("a", 16)} }, func(m *Monitoring) { m.Networks = []string{"bad\x00"} },
 	} {
 		settings.Monitoring = valid()

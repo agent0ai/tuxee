@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
+	"tuxee/internal/monitor"
 )
 
 type Panel struct {
@@ -46,7 +45,6 @@ type Layout struct {
 }
 type Settings struct {
 	Theme      string      `json:"theme"`
-	IdleHours  float64     `json:"idleHours"`
 	Current    string      `json:"current"`
 	Workspaces []Workspace `json:"workspaces"`
 	Monitoring *Monitoring `json:"monitoring,omitempty"`
@@ -62,7 +60,7 @@ type Monitoring struct {
 }
 
 func LoadSettings(ctx context.Context, user identity.User) (Settings, error) {
-	value := Settings{Theme: "dark", IdleHours: 168, Workspaces: []Workspace{}}
+	value := Settings{Theme: "dark", Workspaces: []Workspace{}}
 	response, err := files.Run(ctx, user, files.Request{Operation: "settings-load"})
 	if err != nil {
 		return value, err
@@ -71,10 +69,6 @@ func LoadSettings(ctx context.Context, user identity.User) (Settings, error) {
 		return value, err
 	}
 	return value, validateSettings(value)
-}
-func IdleTimeout(ctx context.Context, user identity.User) (time.Duration, error) {
-	config, err := LoadSettings(ctx, user)
-	return time.Duration(config.IdleHours * float64(time.Hour)), err
 }
 func validateSettings(value Settings) error {
 	if m := value.Monitoring; m != nil {
@@ -90,7 +84,7 @@ func validateSettings(value Settings) error {
 		}
 		seen = map[string]bool{}
 		for _, name := range m.Networks {
-			if name == "" || len(name) > 15 || strings.ContainsAny(name, "/\x00 \t\n") || seen[name] {
+			if seen[name] || name != monitor.AllNetworks && (name == "" || len(name) > 15 || strings.ContainsAny(name, "/\x00 \t\n")) {
 				return errors.New("invalid monitoring interface")
 			}
 			seen[name] = true
@@ -101,9 +95,6 @@ func validateSettings(value Settings) error {
 	}
 	if value.Theme != "dark" && value.Theme != "light" {
 		return errors.New("theme must be dark or light")
-	}
-	if math.IsNaN(value.IdleHours) || math.IsInf(value.IdleHours, 0) || value.IdleHours < 1.0/3600 || value.IdleHours > 24*365 {
-		return errors.New("idle timeout must be between one second and one year")
 	}
 	if len(value.Workspaces) > 12 {
 		return errors.New("at most 12 workspaces are supported")

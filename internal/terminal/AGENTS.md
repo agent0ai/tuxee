@@ -6,13 +6,13 @@ Retained Linux PTYs and canonical display recovery.
 
 # Ownership
 
-Own session identity, process groups, bounded output, browser controller leases, and detached expiry. Shells use local PTYs without an SSH transport.
+Own session identity, process groups, bounded output, browser controller leases, and explicit termination. Shells use local PTYs without an SSH transport.
 
 # Local Contracts
 
-Attachment loss never kills a shell. Only explicit termination, detached expiry, process exit, and server shutdown end it. User ownership is checked before attachment and control. Output never resets the detached deadline.
+Attachment loss never kills a shell. There is no idle or detached timeout. Explicit termination, process exit, unrecoverable terminal failure, and server shutdown end it. User ownership is checked before attachment and control.
 
-Ended processes retain a display until their session is closed/expired; a new attachment receives its snapshot followed by an exit event. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
+Ended processes retain a display until their session is explicitly closed; a new attachment receives its snapshot followed by an exit event. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
 
 Serialize process-group signals with child reaping. Never signal a retained terminal's numeric PID after it has exited and been reaped.
 
@@ -24,7 +24,7 @@ do not edit or commit it.
 
 # Verification
 
-Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. The root-only real PTY check covers PID retention, takeover and expiry despite ongoing output.
+Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. The root-only real PTY check covers PID retention, takeover, indefinite detachment and explicit termination.
 
 # Child DOX Index
 

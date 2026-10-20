@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -46,7 +47,10 @@ func TestHostDeltasResetAndCache(t *testing.T) {
 	c := fixture(t, nil, false)
 	now := time.Now()
 	first := c.sampleAt(now)
-	if first.CPU.Percent != nil || first.Networks[0].ReceiveRate != nil {
+	if len(first.Networks) != 2 || first.Networks[0].Name != AllNetworks || first.Networks[1].Name != "eth0" {
+		t.Fatalf("network choices: %+v", first.Networks)
+	}
+	if first.CPU.Percent != nil || first.Networks[1].ReceiveRate != nil {
 		t.Fatal("initial rates must be unavailable")
 	}
 	if first.Memory.Used != 24576*1024 || first.Swap.Used != 8192*1024 {
@@ -62,13 +66,13 @@ func TestHostDeltasResetAndCache(t *testing.T) {
 	}
 	second := c.sampleAt(now.Add(2 * time.Second))
 	wantPercent(t, second.CPU.Percent, 50)
-	if *second.Networks[0].ReceiveRate != 500 || *second.Networks[0].SendRate != 1000 {
-		t.Fatalf("network deltas: %+v", second.Networks[0])
+	if *second.Networks[1].ReceiveRate != 500 || *second.Networks[1].SendRate != 1000 {
+		t.Fatalf("network deltas: %+v", second.Networks[1])
 	}
 	put(t, c, "/proc/net/dev", "eth0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n")
 	put(t, c, "/proc/stat", "cpu 1 0 0 3 0 0 0 0\ncpu0 1\n")
 	reset := c.sampleAt(now.Add(4 * time.Second))
-	if reset.CPU.Percent != nil || reset.Networks[0].ReceiveRate != nil || reset.Networks[0].SendRate != nil {
+	if reset.CPU.Percent != nil || reset.Networks[1].ReceiveRate != nil || reset.Networks[1].SendRate != nil {
 		t.Fatal("counter reset caused false rates")
 	}
 	var wg sync.WaitGroup
@@ -80,6 +84,84 @@ func TestHostDeltasResetAndCache(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+func TestAllNetworks(t *testing.T) {
+	c := fixture(t, nil, false)
+	now := time.Now()
+	for i, step := range []struct {
+		name     string
+		networks []Network
+		rx, tx   float64 // Negative means unavailable.
+	}{
+		{"first sample", []Network{
+			{Name: "eth0", State: "up", Received: 100, Sent: 200},
+			{Name: "lo", State: "unknown", Received: 1000, Sent: 2000},
+			{Name: "wlan0", State: "down", Received: 100000, Sent: 200000},
+		}, -1, -1},
+		{"active sum", []Network{
+			{Name: "eth0", State: "up", Received: 1100, Sent: 2200},
+			{Name: "lo", State: "unknown", Received: 1400, Sent: 2800},
+			{Name: "wlan0", State: "dormant", Received: 300000, Sent: 400000},
+		}, 700, 1400},
+		{"removed interface", []Network{
+			{Name: "lo", State: "unknown", Received: 1800, Sent: 3600},
+		}, 200, 400},
+		{"new interface named all", []Network{
+			{Name: "all", State: "up", Received: 1000000, Sent: 2000000},
+			{Name: "lo", State: "unknown", Received: 2200, Sent: 4400},
+		}, -1, -1},
+		{"new interface measured", []Network{
+			{Name: "all", State: "up", Received: 1001000, Sent: 2002000},
+			{Name: "lo", State: "unknown", Received: 2600, Sent: 5200},
+		}, 700, 1400},
+		{"receive counter reset", []Network{
+			{Name: "all", State: "up", Received: 0, Sent: 2004000},
+			{Name: "lo", State: "unknown", Received: 3000, Sent: 6000},
+		}, -1, 1400},
+		{"no active interfaces", []Network{
+			{Name: "all", State: "down", Received: 0, Sent: 2004000},
+			{Name: "lo", State: "lowerlayerdown", Received: 3000, Sent: 6000},
+		}, 0, 0},
+		{"no interfaces", nil, 0, 0},
+	} {
+		t.Run(step.name, func(t *testing.T) {
+			text, state := "", "down"
+			var received, sent uint64
+			for _, network := range step.networks {
+				text += fmt.Sprintf("%s: %d 0 0 0 0 0 0 0 %d 0 0 0 0 0 0 0\n", network.Name, network.Received, network.Sent)
+				put(t, c, "/sys/class/net/"+network.Name+"/operstate", network.State)
+				if network.State == "up" || network.State == "unknown" {
+					state = "up"
+					received += network.Received
+					sent += network.Sent
+				}
+			}
+			put(t, c, "/proc/net/dev", text)
+			networks := c.sampleAt(now.Add(time.Duration(i) * 2 * time.Second)).Networks
+			all := networks[0]
+			if len(networks) != len(step.networks)+1 || all.Name != AllNetworks || all.State != state || all.Received != received || all.Sent != sent {
+				t.Fatalf("aggregate: %+v", networks)
+			}
+			for _, direction := range []struct {
+				rate *float64
+				want float64
+			}{{all.ReceiveRate, step.rx}, {all.SendRate, step.tx}} {
+				if direction.want < 0 {
+					if direction.rate != nil {
+						t.Fatalf("unavailable rate became %v", *direction.rate)
+					}
+				} else {
+					wantPercent(t, direction.rate, direction.want)
+				}
+			}
+		})
+	}
+	if err := os.Remove(filepath.Join(c.root, "/proc/net/dev")); err != nil {
+		t.Fatal(err)
+	}
+	if networks := c.sampleAt(now.Add(time.Minute)).Networks; len(networks) != 0 {
+		t.Fatalf("failed read produced healthy aggregate: %+v", networks)
+	}
 }
 func TestCgroupV2AncestorLimitsAndNamespace(t *testing.T) {
 	c := fixture(t, map[string]string{
