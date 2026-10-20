@@ -760,7 +760,8 @@ try {
         await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('DROP_RESULT=42'));
         const smallBox = await movingPanel.boundingBox();
         await dragTo(movingPanel.locator('.panel-header'), vertical ? hx + 8 / cw : hx + .5, vertical ? hy + .5 : hy + 8 / ch);
-        await page.locator('.dock-preview[data-edge=empty].invalid').waitFor();
+        await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor();
+        await page.keyboard.press('Escape');
         await page.mouse.up(); await page.waitForTimeout(220);
         assert.deepEqual(await movingPanel.boundingBox(), smallBox);
         assert.deepEqual(await neighbors(), neighborsBefore);
@@ -775,7 +776,7 @@ try {
         assert.deepEqual(await movingPanel.evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute(`gs-${key}`) || (key === 'w' || key === 'h' ? 1 : 0)))), [hx, hy, 1, 1]);
         assert.deepEqual(await added.evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute(`gs-${key}`) || (key === 'w' || key === 'h' ? 1 : 0)))), [0, 0, 2, 2]);
         await page.waitForTimeout(400); await page.goto('about:blank'); await api(`/terminals/${session}`, 'DELETE');
-        check(`${columns}x${rows} grid: large terminal fits one-cell hole, blocked pair rejects without moving neighbors, add icon fills four cells, sizes persist`);
+        check(`${columns}x${rows} grid: large terminal fits one-cell hole, relocation preview cancels without moving neighbors, add icon fills four cells, sizes persist`);
     }
     assert.deepEqual(errors, []);
     check('no browser exceptions or unexpected console errors');

@@ -1029,7 +1029,7 @@ progress {
 
 .workspace-controls { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; gap: 4px; }
 .workspace-controls > button { flex-shrink: 0; }
-.panel-additions { display: flex; gap: 2px; margin-inline: 2em; padding-inline: 8px; border-inline: 1px solid var(--line); }
+.panel-additions { display: flex; gap: 2px; margin-inline: 2em 0; padding-inline: 3px; border-inline: 1px solid var(--line); }
 .compact .panel-additions { flex-shrink: 0; margin: 0; padding-inline: 4px 0; border-right: 0; gap: 0; }
 .compact .topbar-right { gap: 0; }
 .compact .workspace-tabs { margin-left: 0; }
@@ -1072,7 +1072,7 @@ progress {
 .file-entry { user-select: none; }
 .file-drag-group.invalid { opacity: .5; }
 
-.monitor-controls { padding-inline-end: 8px; margin-inline-end: 2em; border-inline-end: 1px solid var(--line); }
+.monitor-controls { padding-inline-end: 3px; border-inline-end: 1px solid var(--line); }
 .monitor-controls:has(> .monitor-summary[hidden]) { display: none; }
 .monitor-summary { padding: 3px 6px; min-width: 0; border-radius: 8px; }
 .monitor-strip { display: flex; align-items: center; gap: 12px; min-width: 0; }

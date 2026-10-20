@@ -2,6 +2,7 @@ import './shared-layout.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
 assert.equal(spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':')[4], 'Tuxee prototype test');
@@ -13,7 +14,12 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const terminal = await (await api('/terminals', 'POST', { directory: '/tmp', name: 'Divider test' })).json();
+const terminalResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Divider test', columns: 80, rows: 24 });
+assert.equal(terminalResponse.status(), 201);
+const terminal = await terminalResponse.json();
+const neighborResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Neighbor test', columns: 80, rows: 24 });
+assert.equal(neighborResponse.status(), 201);
+const neighbor = await neighborResponse.json();
 const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
@@ -32,7 +38,7 @@ async function fixture(panels, portrait = false, mode = 0) {
     await page.setViewportSize(portrait ? { width: 900, height: 1200 } : { width: 1440, height: 1000 });
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'work', workspaces: [{ id: 'work', name: 'Work', columns: portrait ? 2 : 4, rows: portrait ? 4 : 2, active: 'a', panels, ...(mode ? { layout: { mode, custom: panels.map(({ id, x, y, w, h }) => ({ id, x, y, w, h })) } } : {}) }] })).status(), 200);
     await page.goto(base);
-    await page.locator('.terminal-view[data-state=connected]').waitFor();
+    await item('a').locator('.terminal-view[data-state=connected]').waitFor();
 }
 async function drag(handle, dx, dy, cancel = false) {
     const box = await handle.boundingBox();
@@ -59,6 +65,15 @@ async function drag(handle, dx, dy, cancel = false) {
 }
 try {
     await fixture([panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)]);
+    assert.equal(await page.locator('.layout-cycle').getAttribute('title'), 'Auto layout');
+    await page.locator('.monitor-controls').waitFor({ state: 'visible' });
+    for (const section of ['.panel-additions', '.monitor-controls']) {
+        const spacing = await page.locator(section).evaluate(node => {
+            const style = getComputedStyle(node), next = node.nextElementSibling;
+            return { margin: parseFloat(style.marginRight), padding: parseFloat(style.paddingRight), gap: next.getBoundingClientRect().left - node.getBoundingClientRect().right };
+        });
+        assert.deepEqual(spacing, { margin: 0, padding: 3, gap: 3 }, `${section} separator has equal compact spacing on either side`);
+    }
     const node = await item('a').elementHandle(), grid = await page.locator('.grid-stack').boundingBox();
     await drag(page.locator('.workspace-divider:not(.divider-junction)'), grid.width * .19, 0);
     assert.deepEqual(await rect('a'), [0, 0, 3, 2]); assert.deepEqual(await rect('b'), [3, 0, 1, 2]);
@@ -94,6 +109,72 @@ try {
         assert.deepEqual(await rect('a'), [1, 0, 2, 1]); assert.deepEqual(await rect('b'), [3, 0, 1, 2]);
     }
     console.log('PASS overlapping grid drops from both sides of boundary shrink neighbors without replacing terminal');
+    await mkdir('test-results', { recursive: true });
+    for (const size of ['desktop', 'wide', 'portrait']) for (const direction of ['bottom', 'right']) {
+        const portrait = size === 'portrait';
+        await fixture([panel('a', 0, 0, 1, 2), { ...panel('b', 1, 1, 1, 1), kind: 'terminal', terminal: neighbor.id },
+            portrait ? panel('c', 0, 2, 2, 2) : panel('c', 2, 0, 2, 2)], portrait);
+        if (size === 'wide') { await page.setViewportSize({ width: 2560, height: 1080 }); await page.waitForTimeout(250); }
+        await item('b').locator('.terminal-view[data-state=connected]').waitFor();
+        const originalA = await item('a').locator('.xterm').elementHandle(), originalB = await item('b').locator('.xterm').elementHandle();
+        const fixed = await rect('c'), bounds = await page.locator('.grid-stack').boundingBox();
+        const columns = portrait ? 2 : 4, rows = portrait ? 4 : 2;
+        const expectedA = direction === 'bottom' ? [0, 1, 2, 1] : [1, 0, 1, 2];
+        const expectedB = direction === 'bottom' ? [1, 0, 1, 1] : [0, 1, 1, 1];
+        for (const cancel of [true, false]) {
+            const head = await item('a').locator('.panel-header').boundingBox();
+            await page.mouse.move(head.x + 45, head.y + head.height / 2); await page.mouse.down();
+            const x = direction === 'bottom' ? 1 : 1.5, y = direction === 'bottom' ? 1.5 : 1;
+            const offset = cancel ? -8 : 8;
+            await page.mouse.move(bounds.x + x * bounds.width / columns + (direction === 'bottom' ? offset : 0),
+                bounds.y + y * bounds.height / rows + (direction === 'right' ? offset : 0), { steps: 6 });
+            const preview = page.locator('.dock-preview[data-edge=empty]:not(.invalid)'); await preview.waitFor();
+            await page.waitForTimeout(140);
+            const cover = await preview.boundingBox();
+            assert.ok(Math.abs(cover.width - expectedA[2] * bounds.width / columns) < 2);
+            assert.ok(Math.abs(cover.height - expectedA[3] * bounds.height / rows) < 2);
+            assert.deepEqual(await rect('b'), [1, 1, 1, 1], 'preview does not move a live neighbor');
+            if (cancel) await page.keyboard.press('Escape');
+            const saved = cancel ? undefined : page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT');
+            await page.mouse.up(); await page.waitForTimeout(220);
+            if (cancel) {
+                assert.deepEqual(await rect('a'), [0, 0, 1, 2]); assert.deepEqual(await rect('b'), [1, 1, 1, 1]); continue;
+            }
+            assert.equal((await saved).status(), 200);
+            assert.deepEqual(await rect('a'), expectedA); assert.deepEqual(await rect('b'), expectedB); assert.deepEqual(await rect('c'), fixed);
+            assert.ok(await page.evaluate(() => window.geometryFrames.b?.some(frame => frame.transform && frame.transform !== 'none')), 'blocking terminal animates to the free cell');
+            assert.ok(await originalA.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')));
+            assert.ok(await originalB.evaluate(node => node === document.querySelector('[data-panel=b] .xterm')));
+        }
+        if (size === 'desktop') await page.screenshot({ path: `test-results/drop-relocate-${direction}.png` });
+        await page.reload(); await item('b').locator('.terminal-view[data-state=connected]').waitFor();
+        assert.deepEqual(await rect('a'), expectedA); assert.deepEqual(await rect('b'), expectedB);
+        assert.equal((await (await api(`/terminals/${neighbor.id}`)).json()).pid, neighbor.pid);
+    }
+    await fixture([panel('a', 0, 0, 1, 1), { ...panel('b', 2, 1, 2, 1), kind: 'terminal', terminal: neighbor.id },
+        panel('c', 1, 0, 1, 1), panel('d', 0, 1, 1, 1), panel('e', 3, 0, 1, 1)]);
+    const shrinkGrid = await page.locator('.grid-stack').boundingBox(), shrinkHead = await item('a').locator('.panel-header').boundingBox();
+    await page.mouse.move(shrinkHead.x + 45, shrinkHead.y + 15); await page.mouse.down();
+    await page.mouse.move(shrinkGrid.x + shrinkGrid.width * .75, shrinkGrid.y + shrinkGrid.height / 2, { steps: 6 });
+    await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
+    assert.deepEqual(await rect('a'), [2, 0, 2, 2]); assert.deepEqual(await rect('b'), [1, 1, 1, 1]);
+    assert.deepEqual(await rect('e'), [0, 0, 1, 1]); assert.deepEqual(await rect('c'), [1, 0, 1, 1]); assert.deepEqual(await rect('d'), [0, 1, 1, 1]);
+    await page.screenshot({ path: 'test-results/drop-move-and-shrink.png' });
+    await fixture([panel('a', 0, 0, 1, 1), panel('b', 1, 1, 1, 1), panel('c', 2, 0, 2, 2)]);
+    const addGrid = await page.locator('.grid-stack').boundingBox(), addButton = await page.getByRole('button', { name: 'Add file browser', exact: true }).boundingBox();
+    await page.mouse.move(addButton.x + addButton.width / 2, addButton.y + addButton.height / 2); await page.mouse.down();
+    await page.mouse.move(addGrid.x + addGrid.width * .375, addGrid.y + addGrid.height / 2, { steps: 6 });
+    await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
+    assert.equal(await page.locator('[data-panel]').count(), 4);
+    assert.deepEqual(await rect('a'), [0, 0, 1, 1]); assert.deepEqual(await rect('b'), [0, 1, 1, 1]); assert.deepEqual(await rect('c'), [2, 0, 2, 2]);
+    await fixture([panel('a', 2, 0, 1, 1), panel('b', 1, 0, 1, 1), panel('c', 3, 0, 1, 1),
+        ...Array.from({ length: 4 }, (_, x) => panel(`d${x}`, x, 1, 1, 1))]);
+    const fullGrid = await page.locator('.grid-stack').boundingBox(), add = await page.getByRole('button', { name: 'Add file browser', exact: true }).boundingBox();
+    await page.mouse.move(add.x + add.width / 2, add.y + add.height / 2); await page.mouse.down();
+    await page.mouse.move(fullGrid.x + fullGrid.width / 4, fullGrid.y + fullGrid.height / 4, { steps: 6 });
+    await page.locator('.dock-preview[data-edge=empty].invalid').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
+    assert.equal(await page.locator('[data-panel]').count(), 7, 'insufficient space never removes a window');
+    console.log('PASS bottom/right relocation, occupied/vacant-side previews, cancellation, animations, original terminals, persistence, full-grid rejection and compact header spacing');
     await fixture([panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 1), panel('c', 0, 1, 2, 1)], false, 1);
     const survivingTerminal = await item('a').locator('.terminal-view').elementHandle(), survivingFiles = await item('b').locator('.file-view').elementHandle();
     const previousFiles = await item('b').boundingBox(), previousTerminal = await item('a').boundingBox();
@@ -132,5 +213,6 @@ try {
     await page.waitForTimeout(350); await page.goto('about:blank');
     if (original) await api('/settings', 'PUT', original);
     await api(`/terminals/${terminal.id}`, 'DELETE');
+    await api(`/terminals/${neighbor.id}`, 'DELETE');
     await browser.close();
 }

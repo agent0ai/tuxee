@@ -162,21 +162,61 @@ const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y
 export function dropLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | undefined {
     const next = { ...panel, ...rect };
     if (!validGrid({ ...ws, panels: [next] })) return;
-    const panels: Panel[] = [];
-    for (const p of ws.panels) {
-        if (p.id === panel.id) continue;
-        if (!overlaps(p, rect)) { panels.push({ ...p }); continue; }
-        // Keep the largest rectangular part of the neighbor; never relocate or split its content.
-        const remaining = [
+    const others = ws.panels.filter(p => p.id !== panel.id);
+    const fixed = others.filter(p => !overlaps(p, rect)), blocked = others.filter(p => overlaps(p, rect));
+    // Preserve the existing in-place trim whenever every neighbor can remain.
+    const trimmed = blocked.map(p => [
             { ...p, w: rect.x - p.x },
             { ...p, x: rect.x + rect.w, w: p.x + p.w - rect.x - rect.w },
             { ...p, h: rect.y - p.y },
             { ...p, y: rect.y + rect.h, h: p.y + p.h - rect.y - rect.h },
-        ].filter(r => r.w >= 1 && r.h >= 1).sort((a, b) => b.w * b.h - a.w * a.h);
-        if (!remaining.length) return;
-        panels.push(remaining[0]);
+        ].filter(r => r.w >= 1 && r.h >= 1).sort((a, b) => b.w * b.h - a.w * a.h)[0]);
+    if (trimmed.every(p => p !== undefined)) {
+        const panels = [...fixed.map(p => ({ ...p })), ...trimmed, next];
+        return validGrid({ ...ws, panels }) ? panels : undefined;
     }
-    panels.push(next);
+    if (ws.columns * ws.rows - rect.w * rect.h - fixed.reduce((sum, p) => sum + p.w * p.h, 0) < blocked.length) return;
+    const mask = (r: Rect) => {
+        let bits = 0;
+        for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) bits |= 1 << (y * ws.columns + x);
+        return bits;
+    };
+    const occupied = fixed.reduce((bits, p) => bits | mask(p), mask(rect));
+    const choices = blocked.map(p => {
+        const options = [];
+        for (let y = 0; y < ws.rows; y++) for (let x = 0; x < ws.columns; x++)
+            for (let h = 1; h <= p.h && y + h <= ws.rows; h++) for (let w = 1; w <= p.w && x + w <= ws.columns; w++) {
+                const candidate = { ...p, x, y, w, h }, bits = mask(candidate);
+                if (bits & occupied) continue;
+                options.push({ panel: candidate, bits,
+                    moved: Number(x < p.x || y < p.y || x + w > p.x + p.w || y + h > p.y + p.h),
+                    lost: p.w * p.h - w * h,
+                    distance: Math.abs(2 * x + w - 2 * p.x - p.w) + Math.abs(2 * y + h - 2 * p.y - p.h) });
+            }
+        return options;
+    });
+    type Plan = { panels: Panel[]; moved: number; lost: number; distance: number };
+    const cache = new Map<string, Plan | undefined>();
+    // Joint placement on the at-most-16-cell grid avoids greedy moves that needlessly shrink another neighbor.
+    function arrange(index: number, used: number): Plan | undefined {
+        if (index === blocked.length) return { panels: [], moved: 0, lost: 0, distance: 0 };
+        const key = `${index}:${used}`;
+        if (cache.has(key)) return cache.get(key);
+        let best: Plan | undefined;
+        for (const option of choices[index]) {
+            if (used & option.bits) continue;
+            const rest = arrange(index + 1, used | option.bits);
+            if (!rest) continue;
+            const moved = option.moved + rest.moved, lost = option.lost + rest.lost, distance = option.distance + rest.distance;
+            if (!best || moved < best.moved || moved === best.moved && (lost < best.lost || lost === best.lost && distance < best.distance))
+                best = { panels: [option.panel, ...rest.panels], moved, lost, distance };
+        }
+        cache.set(key, best);
+        return best;
+    }
+    const plan = arrange(0, occupied);
+    if (!plan) return;
+    const panels = [...fixed.map(p => ({ ...p })), ...plan.panels, next];
     return validGrid({ ...ws, panels }) ? panels : undefined;
 }
 export type Divider = { axis: 'x' | 'y'; at: number; from: number; to: number; before: string[]; after: string[]; min: number; max: number };

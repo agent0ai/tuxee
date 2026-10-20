@@ -324,7 +324,7 @@ try{
  assert.equal((await api('/settings','PUT',layoutSettings.settings)).status(),200);await page.goto(base);await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);await page.waitForTimeout(400);
  const arrangeButton=page.getByRole('button',{name:'Rearrange workspace',exact:true});
  const layoutLabel=arrangeButton.locator('.layout-label');
- assert.equal(await arrangeButton.getAttribute('title'),null);assert.equal(await layoutLabel.evaluate(node=>node.getBoundingClientRect().width),0);
+ assert.equal(await arrangeButton.getAttribute('title'),'Auto layout');assert.equal(await layoutLabel.evaluate(node=>node.getBoundingClientRect().width),0);
  const geometry=()=>page.locator('.grid-stack-item').evaluateAll(nodes=>nodes.map(node=>({id:node.dataset.panel,x:Number(node.getAttribute('gs-x')||0),y:Number(node.getAttribute('gs-y')||0),w:Number(node.getAttribute('gs-w')||1),h:Number(node.getAttribute('gs-h')||1)})));
  async function cycle(mode){
   const saved=page.waitForResponse(r=>r.url().endsWith('/api/settings')&&r.request().method()==='PUT'&&(r.request().postDataJSON().workspaces.find(ws=>ws.id==='layouts')?.layout?.mode||0)===mode);

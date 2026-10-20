@@ -275,7 +275,7 @@ function renderChrome() {
             arrange.classList.add('expanded');
             if (!arrange.matches(':hover')) collapseLater();
         }, 'layout-cycle');
-        arrange.removeAttribute('title');
+        arrange.title = 'Auto layout';
         const label = el('span', 'layout-label');
         label.setAttribute('aria-hidden', 'true'); arrange.append(label);
         arrange.onpointerenter = () => clearTimeout(collapseTimer);
