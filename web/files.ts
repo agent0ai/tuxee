@@ -212,11 +212,14 @@ export class FileView implements View {
                 this.selected.add(entry.path);
                 this.paintSelection();
             } row.focus(); this.menu({ x: e.clientX, y: e.clientY }); };
-            name.onpointerdown = e => { startFileDrag(e, this.panel.id, () => {
-                row.focus({ preventScroll: true });
-                if (!this.selected.has(entry.path)) { this.selected.clear(); this.selected.add(entry.path); this.paintSelection(); }
-                return this.chosen();
-            }, this.events.signal); };
+            row.onpointerdown = e => {
+                if (!this.selected.has(entry.path) && !(e.target as Element).closest('.file-name')) return;
+                startFileDrag(e, this.panel.id, () => {
+                    row.focus({ preventScroll: true });
+                    if (!this.selected.has(entry.path)) { this.selected.clear(); this.selected.add(entry.path); this.paintSelection(); }
+                    return this.chosen();
+                }, this.events.signal);
+            };
             this.list.append(row);
         }
         this.paintSelection();
@@ -261,7 +264,7 @@ export class FileView implements View {
     }
     private clearSelection() { this.selected.clear(); this.selectionAnchor = ''; this.paintSelection(); }
     private startSelection(event: PointerEvent) {
-        if (event.button !== 0 || event.pointerType === 'touch' || (event.target as Element).closest('.file-name')) return;
+        if (event.defaultPrevented || event.button !== 0 || event.pointerType === 'touch') return;
         event.preventDefault();
         this.cancelSelection?.();
         const list = this.list, bounds = list.getBoundingClientRect(), events = new AbortController();

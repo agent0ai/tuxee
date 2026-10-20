@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/model.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/model.mjs' });
-const { newWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel } = await import('../.test-state/model.mjs');
+const { newWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
 for (const [width, height, columns, rows, count] of [[1440, 1000, 4, 2, 3], [2560, 1080, 8, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 4, 2, 2]]) {
     const ws = newWorkspace('test', '/home/test', width, height);
     assert.equal(ws.columns, columns);
@@ -112,6 +112,45 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
     assert.deepEqual(expandPanel(ws,panel),{x:0,y:0,w:ws.columns,h:ws.rows});
 }
 console.log('PASS double-click expands into free space in all directions or shrinks, without moving neighbors');
+
+const closeCases = [
+    ['left only', 8, 2, 2560, [1, 0, 1, 1], [['terminal', 2, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['right only', 8, 2, 2560, [2, 0, 1, 1], [['terminal', 1, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['up only', 2, 4, 900, [0, 1, 1, 1], [['terminal', 0, 2, 1, 1]], [[0, 1, 1, 2]]],
+    ['down only', 2, 4, 900, [0, 2, 1, 1], [['terminal', 0, 1, 1, 1]], [[0, 1, 1, 2]]],
+    ['smallest first despite input order', 8, 2, 2560, [1, 0, 2, 2], [['terminal', 3, 0, 2, 2], ['terminal', 0, 0, 1, 1]], [[3, 0, 2, 2], [0, 0, 3, 1]]],
+    ['stacked neighbors share the hole', 8, 2, 2560, [1, 0, 2, 2], [['terminal', 0, 0, 1, 1], ['terminal', 0, 1, 1, 1]], [[0, 0, 3, 1], [0, 1, 3, 1]]],
+    ['skip a capped smaller neighbor', 8, 2, 2560, [2, 0, 2, 2], [['files', 0, 0, 2, 1], ['terminal', 4, 0, 2, 2]], [[0, 0, 2, 1], [2, 0, 4, 2]]],
+    ['skip a blocked smaller neighbor', 8, 2, 2560, [1, 0, 2, 1], [['terminal', 0, 0, 1, 2], ['terminal', 1, 1, 3, 1]], [[0, 0, 1, 2], [1, 0, 3, 2]]],
+    ['file two-cell cap', 8, 2, 2048, [1, 0, 3, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
+    ['file pixel cap', 8, 2, 3440, [1, 0, 2, 2], [['files', 0, 0, 1, 2]], [[0, 0, 1, 2]]],
+    ['terminal pixel cap', 8, 2, 3440, [1, 0, 5, 2], [['terminal', 0, 0, 1, 2]], [[0, 0, 3, 2]]],
+    ['oversized manual widths may grow vertically', 8, 2, 3440, [0, 1, 5, 1], [['files', 0, 0, 5, 1]], [[0, 0, 5, 2]]],
+    ['corners and separated windows stay put', 8, 2, 2560, [1, 0, 1, 1], [['terminal', 2, 1, 1, 1], ['terminal', 4, 0, 1, 2]], [[2, 1, 1, 1], [4, 0, 1, 2]]],
+    ['standard desktop closes into its other file browser', 4, 2, 1440, [0, 1, 2, 1], [['files', 0, 0, 2, 1], ['terminal', 2, 0, 2, 2]], [[0, 0, 2, 2], [2, 0, 2, 2]]],
+    ['last panel', 4, 2, 1440, [0, 0, 4, 2], [], []],
+];
+for (const [name, columns, rows, width, removed, shapes, expected] of closeCases) {
+    const [x, y, w, h] = removed, closed = { x, y, w, h };
+    const panels = shapes.map(([kind, x, y, w, h], i) => ({ ...newPanel(kind, '/'), id: String(i), x, y, w, h }));
+    const ws = { id: 'close', name, columns, rows, panels, active: panels[0]?.id || '' };
+    assert.ok(validGrid({ ...ws, panels: [...panels, { ...newPanel('files', '/'), ...closed }] }), name);
+    expandAfterClose(ws, closed, width);
+    assert.ok(validGrid(ws), name);
+    assert.deepEqual(ws.panels.map(({ x, y, w, h }) => [x, y, w, h]), expected, name);
+    assert.ok(ws.panels.every((panel, i) => panel === panels[i]), 'keep original panel identities');
+}
+console.log('PASS close expansion: four directions, smallest-first, shared holes, caps, portrait, unrelated gaps and stable identities');
+{
+    const ws = newWorkspace('closing', '/', 1440, 1000), [first, second, terminal] = ws.panels;
+    ws.panels = ws.panels.filter(p => p !== first);
+    expandAfterClose(ws, first, 1440, [terminal]);
+    assert.deepEqual([second.x, second.y, second.w, second.h], [0, 1, 2, 1], 'another closing window cannot grow');
+    assert.equal(terminal.x, 2, 'another closing window still blocks expansion');
+    ws.panels = [terminal];
+    expandAfterClose(ws, second, 1440);
+    assert.deepEqual([terminal.x, terminal.y, terminal.w, terminal.h], [0, 0, 4, 2]);
+}
 
 function fixture(width, height, files, terminals) {
     const ws = newWorkspace('arrange', '/', width, height);

@@ -21,7 +21,6 @@ export type Workspace = {
 };
 export type Settings = {
     theme: 'dark' | 'light';
-    idleHours: number;
     current: string;
     workspaces: Workspace[];
     monitoring?: MonitoringPreferences;
@@ -244,6 +243,28 @@ export function expandPanel(ws: Workspace, panel: Panel): Rect {
     const expanded = expandedRect(ws, panel, ws.columns);
     return expanded === panel ? { x: panel.x, y: panel.y, w: 1, h: 1 } : expanded;
 }
+function automaticWidthCap(ws: Workspace, panel: Panel, width: number, priority?: Kind): number {
+    return Math.min(panel.kind === 'files' ? 2 : ws.columns,
+        panel.kind === priority ? ws.columns : Math.max(1, Math.floor((panel.kind === 'terminal' ? 1440 : 640) / (width / ws.columns))));
+}
+export function expandAfterClose(ws: Workspace, closed: Rect, width: number, candidates = ws.panels) {
+    for (const panel of [...candidates].sort((a, b) => a.w * a.h - b.w * b.h)) {
+        let axis: 'x' | 'y';
+        if (panel.y < closed.y + closed.h && panel.y + panel.h > closed.y
+            && (panel.x + panel.w === closed.x || panel.x === closed.x + closed.w)) axis = 'x';
+        else if (panel.x < closed.x + closed.w && panel.x + panel.w > closed.x
+            && (panel.y + panel.h === closed.y || panel.y === closed.y + closed.h)) axis = 'y';
+        else continue;
+        const size = axis === 'x' ? 'w' : 'h', backwards = panel[axis] === closed[axis] + closed[size];
+        const maxWidth = Math.max(panel.w, automaticWidthCap(ws, panel, width));
+        for (let step = 0; step < closed[size]; step++) {
+            const rect = { x: panel.x, y: panel.y, w: panel.w, h: panel.h };
+            rect[size]++;
+            if (backwards) rect[axis]--;
+            if (rect.w > maxWidth || !place(ws, panel, rect)) break;
+        }
+    }
+}
 export function screenSnap(ws: Workspace, x: number, y: number, width: number, height: number): Rect | undefined {
     const edge = 18, left = x < edge, right = x > width - edge, top = y < edge, bottom = y > height - edge;
     if (x < -edge || y < -edge || x > width + edge || y > height + edge || !left && !right && !top && !bottom) return;
@@ -290,8 +311,7 @@ export function rearrange(ws: Workspace, width: number, height: number, mode: 1 
     const files = panels.filter(p => p.kind === 'files').length;
     const cellWidth = width / ws.columns, cellHeight = height / ws.rows;
     const priority: Kind | undefined = files && files < panels.length && mode !== 1 ? mode === 2 ? 'terminal' : 'files' : undefined;
-    const widthCap = (panel: Panel) => Math.min(panel.kind === 'files' ? 2 : ws.columns,
-        panel.kind === priority ? ws.columns : Math.max(1, Math.floor((panel.kind === 'terminal' ? 1440 : 640) / cellWidth)));
+    const widthCap = (panel: Panel) => automaticWidthCap(ws, panel, width, priority);
     const cap = (panel: Panel) => priority && panel.kind !== priority ? 1 : widthCap(panel);
     const maxArea = (kind: Kind) => panels.filter(p => p.kind === kind).reduce((sum, p) => sum + Math.min(ws.columns, cap(p)) * ws.rows, 0);
     const fileMax = maxArea('files'), terminalMax = maxArea('terminal');

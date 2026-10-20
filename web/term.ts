@@ -1,6 +1,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { installTerminalView, restoreTerminal, terminalTheme } from './terminal/state';
+import { installTerminalView, installTerminalMetrics, restoreTerminal, terminalTheme } from './terminal/state';
+import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
 import { uploadBatch, type UploadSource } from './transfers';
@@ -36,7 +37,7 @@ export class TerminalView implements View {
     private host = el('div', 'terminal-host');
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         root.classList.add('terminal-view');
-        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1.2, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
+        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
         this.term.loadAddon(this.fit);
         installTerminalView(this.term);
         this.control.hidden = true;
@@ -56,6 +57,8 @@ export class TerminalView implements View {
             upload: (sources, point) => { void this.uploadFiles(sources, point); }
         }, this.events.signal);
         this.term.open(this.host);
+        installTerminalMetrics(this.term);
+        installTerminalTouch(this.term, this.events.signal);
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.inputBytes(Uint8Array.from(data, c => c.charCodeAt(0))));
         this.observer = new ResizeObserver(() => this.resize());
@@ -78,6 +81,26 @@ export class TerminalView implements View {
         if (point) animateFileDrop(uploaded, point, this.host);
     }
     private state(value: string) { this.root.dataset.state = value; }
+    private sessionLost() {
+        if (this.disposed || this.closing) return;
+        this.ended = true; this.ready = false; this.control.hidden = true;
+        this.state('ended');
+        clearTimeout(this.reconnect);
+        const socket = this.socket; this.socket = undefined; socket?.close();
+        if (this.root.querySelector('.terminal-recovery')) return;
+        this.host.hidden = true;
+        this.root.classList.add('session-lost');
+        const recovery = el('div', 'terminal-recovery'), message = el('p', '', 'Terminal session lost');
+        message.setAttribute('role', 'status');
+        recovery.append(message, button('Restart terminal', undefined, () => {
+            delete this.panel.terminal;
+            this.ended = false;
+            recovery.remove(); this.root.classList.remove('session-lost');
+            this.host.hidden = false; this.term.reset();
+            this.starting = this.start().catch(this.notice);
+        }, 'primary restart-terminal'));
+        this.root.append(recovery);
+    }
     private async start() {
         let info: TerminalInfo;
         if (this.panel.terminal) {
@@ -89,9 +112,7 @@ export class TerminalView implements View {
                     return;
                 if (!(error instanceof APIError) || error.status !== 404)
                     throw error;
-                this.ended = true;
-                this.state('ended');
-                this.root.append(button('Restart terminal', undefined, () => { delete this.panel.terminal; this.ended = false; this.root.querySelector('.restart-terminal')?.remove(); this.starting = this.start().catch(this.notice); }, 'restart-terminal'));
+                this.sessionLost();
                 return;
             }
         }
@@ -150,9 +171,11 @@ export class TerminalView implements View {
                             this.resize();
                         break;
                     case 'exit':
-                    case 'closed':
                         this.ended = true;
                         this.state('ended');
+                        break;
+                    case 'closed':
+                        this.sessionLost();
                         break;
                     case 'error':
                         this.inFlight = false;
@@ -170,13 +193,14 @@ export class TerminalView implements View {
             }).catch(error => { this.notice(error); ws.close(); });
         };
         ws.onclose = () => {
-            this.ready = false;
-            if (this.disposed)
+            if (this.disposed || this.socket !== ws)
                 return;
+            this.ready = false;
             if (this.ended) {
                 this.state('ended');
                 return;
             }
+            if (!this.closing) window.dispatchEvent(new Event('tuxee-connection-check'));
             this.state('disconnected');
             this.reconnect = setTimeout(async () => {
                 try {
@@ -187,8 +211,7 @@ export class TerminalView implements View {
                     if (this.disposed)
                         return;
                     if (error instanceof APIError && error.status === 404) {
-                        this.ended = true;
-                        this.state('ended');
+                        this.sessionLost();
                     }
                     else {
                         this.state('unavailable');
@@ -221,9 +244,10 @@ export class TerminalView implements View {
     } }
     resize = () => { clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {
-        if (this.disposed)
+        if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
-        if (!this.ready || !this.controller || this.host.clientWidth < 30 || this.host.clientHeight < 30)
+        this.term.refresh(0, this.term.rows - 1);
+        if (!this.ready || !this.controller)
             return;
         const proposed = this.fit.proposeDimensions();
         if (proposed) {

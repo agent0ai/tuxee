@@ -11,6 +11,6 @@ export function networkFill(value: number | null, history: number[]): number {
     if (value == null) { history.length = 0; return 0; }
     history.push(value);
     if (history.length > 100) history.shift();
-    const average = history.reduce((sum, sample) => sum + sample, 0) / history.length;
-    return average > 0 ? Math.min(1, value / (2 * average)) : 0;
+    const peak = Math.max(...history);
+    return value > 0 ? Math.max(0.05, value / peak) : 0;
 }

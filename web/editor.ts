@@ -88,7 +88,8 @@ export class FileInspector {
             control.title = `${label} ${isImage(this.file.name) ? 'image' : 'file'}`;
             control.setAttribute('aria-label', control.title);
         }
-        for (const control of [this.syntax, this.saveButton, this.undo, this.redo, this.pageUp, this.pageDown, this.pageLabel]) control.hidden = !this.editor;
+        for (const control of [this.syntax, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
+        for (const control of [this.pageUp, this.pageDown, this.pageLabel]) control.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
         const busy = this.saving || this.loading;
         this.undo.disabled = this.redo.disabled = busy;
         this.saveButton.disabled = !this.dirty || busy;

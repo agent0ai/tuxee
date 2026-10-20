@@ -17,17 +17,27 @@ for (const [value, expected] of [
 }
 const upload = [], download = [];
 for (let i = 0; i < 100; i++) {
-    assert.equal(networkFill(20, upload), 0.5);
-    assert.equal(networkFill(2000, download), 0.5);
+    assert.equal(networkFill(20, upload), 1);
+    assert.equal(networkFill(2000, download), 1);
 }
 assert.equal(networkFill(1000, upload), 1, 'spikes fill at most one semicircle');
-for (let i = 0; i < 99; i++) networkFill(20, upload);
+assert.equal(networkFill(1000, download), 0.5, 'download compares against its own peak');
+assert.equal(networkFill(250, upload), 0.25, 'upload compares against its own peak');
+for (let i = 0; i < 98; i++) assert.equal(networkFill(20, upload), 0.05, 'nonzero traffic keeps a visible minimum arc');
 assert.equal(upload.length, 100);
-assert.equal(networkFill(20, upload), 0.5, 'the 101st sample evicts the old spike');
-assert.equal(networkFill(2000, download), 0.5, 'directions have independent averages');
+assert.equal(networkFill(20, upload), 0.08, 'the 101st sample evicts the old spike, leaving the next highest sample');
+assert.equal(networkFill(20, upload), 1, 'the next sample evicts the remaining peak');
+assert.equal(networkFill(2000, download), 1, 'directions have independent peaks');
 assert.equal(networkFill(0, upload), 0);
 assert.equal(networkFill(null, upload), 0);
 assert.equal(upload.length, 0, 'unavailable/reset counters clear their baseline');
+assert.equal(download.length, 100, 'resetting one direction must not clear the other');
 assert.equal(networkFill(0, upload), 0);
-assert.equal(networkFill(20, upload), 1, 'idle samples contribute to the average');
-console.log('PASS fixed-width compact sizes and independent 100-sample network gauges');
+assert.equal(networkFill(20, upload), 1, 'idle samples do not inflate the peak');
+networkFill(1e9, upload);
+assert.equal(networkFill(0.001, upload), 0.05, 'even tiny positive rates remain visible after a large spike');
+for (let i = 0; i < 100; i++) assert.equal(networkFill(0, upload), 0);
+assert.equal(upload.length, 100);
+assert.ok(upload.every(value => value === 0), 'idle samples age old peaks out of the window');
+assert.equal(networkFill(1, upload), 1);
+console.log('PASS fixed-width sizes, independent 100-sample peaks, peak eviction, resets, zero and minimum visible network arcs');

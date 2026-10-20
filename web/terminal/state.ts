@@ -561,6 +561,19 @@ export function installTerminalStyles(terminal: any, nonce: string): void {
   };
 }
 
+/** Keep the pinned DOM renderer's width measurements at subpixel precision. */
+export function installTerminalMetrics(terminal: any): void {
+  const renderer = terminal._core._renderService._renderer.value;
+  const cache = renderer._widthCache;
+  cache._measure = (text: string, variant: number) => {
+    const element = cache._measureElements[variant];
+    element.textContent = text.repeat(32);
+    // offsetWidth rounds the entire run; that error accumulates across a terminal row.
+    return (parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).width) || 0) / 32;
+  };
+  renderer.handleCharSizeChanged();
+}
+
 /** Match xterm's renderer timeout: subsequent writes no longer defer painting. */
 export function endSynchronizedOutput(terminal: any): void {
   terminal._core.coreService.decPrivateModes.synchronizedOutput = false;

@@ -7,7 +7,9 @@ type Disk = Partial<Capacity> & { path: string; device: string; type: string };
 type Network = { name: string; state: string; received: number; sent: number; receiveRate: number | null; sendRate: number | null };
 type Snapshot = { time: string; scope: 'host' | 'container'; cpu: { percent: number | null; cores: number }; memory: Capacity | null; swap: Capacity | null; disks: Disk[]; networks: Network[] };
 type Metric = { label: string; symbol: Parameters<typeof icon>[0]; percent?: number | null; value: string; detail: string; extra?: string; network?: { upload: number; download: number; uploadText: string; downloadText: string } };
-const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [], interval: 2 };
+const allNetworks = '/all';
+const networkLabel = (name: string) => name === allNetworks ? 'All' : name;
+const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
 const percentage = (value?: number | null, precise = false) => {
     if (value == null) return '—';
     if (precise && value > 0 && value < 0.1) return '0%';
@@ -79,7 +81,7 @@ export class Monitoring {
             const network = data?.networks.find(network => network.name === name);
             const downloadText = compactSize(network?.receiveRate), uploadText = compactSize(network?.sendRate);
             const fill = network ? this.networks.get(name)?.fill : undefined;
-            items.push({ label: name, symbol: 'Network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received)} · ↑ ${size(network.sent)} total · ${network.state || 'unknown'}` : undefined, network: { upload: fill?.upload ?? 0, download: fill?.download ?? 0, uploadText, downloadText } });
+            items.push({ label: networkLabel(name), symbol: 'Network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received)} · ↑ ${size(network.sent)} total · ${network.state || 'unknown'}` : undefined, network: { upload: fill?.upload ?? 0, download: fill?.download ?? 0, uploadText, downloadText } });
         }
         return items;
     }
@@ -193,9 +195,9 @@ export class Monitoring {
             choice(disks, path, draft.disks.includes(path), checked => select('disks', path, checked), disk ? `${disk.type} · ${disk.total ? size(disk.total) : 'Unavailable'}` : 'Unavailable');
         }
         const networks = section('Networks');
-        for (const name of new Set([...(this.data?.networks.map(network => network.name) || []), ...draft.networks])) {
+        for (const name of new Set([allNetworks, ...(this.data?.networks.map(network => network.name) || []), ...draft.networks])) {
             const network = this.data?.networks.find(network => network.name === name);
-            choice(networks, name, draft.networks.includes(name), checked => select('networks', name, checked), network?.state || 'Unavailable');
+            choice(networks, networkLabel(name), draft.networks.includes(name), checked => select('networks', name, checked), name === allNetworks ? 'Active interfaces' : network?.state || 'Unavailable');
         }
         const field = el('label', 'field', 'Refresh'), interval = el('select'); interval.setAttribute('aria-label', 'Resource monitor refresh');
         for (const seconds of [2, 5, 10]) { const option = el('option', '', `${seconds} seconds`); option.value = String(seconds); interval.append(option); }

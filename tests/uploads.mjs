@@ -20,7 +20,7 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const { csrf } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const settings = { theme: 'dark', idleHours: 36, current: 'uploads', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 5 }, workspaces: [
+const settings = { theme: 'dark', current: 'uploads', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 5 }, workspaces: [
     { id: 'uploads', name: 'Uploads', columns: 4, rows: 2, active: 'files', panels: [
         { id: 'files', kind: 'files', path: fixture, x: 0, y: 0, w: 2, h: 2 },
         { id: 'term', kind: 'terminal', path: fixture, x: 2, y: 0, w: 2, h: 2 },

@@ -15,10 +15,13 @@ assert.equal((await context.request.get(base+'/api/metrics')).status(),401);
 assert.equal((await context.request.post(base+'/api/login',{data:{username:user,password},headers:{'X-Tuxee-Client':'web'}})).status(),200);
 const me=await(await context.request.get(base+'/api/me')).json();
 const api=(path,method='GET',data)=>context.request.fetch(base+'/api'+path,{method,data,headers:{'X-Tuxee-CSRF':me.csrf,'X-Tuxee-Client':'web'}});
-const settings={theme:'dark',idleHours:36,current:'monitor',workspaces:[{id:'monitor',name:'Monitor',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:'/',x:0,y:0,w:4,h:2}]}]};
+const settings={theme:'dark',current:'monitor',workspaces:[{id:'monitor',name:'Monitor',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:'/',x:0,y:0,w:4,h:2}]}]};
 assert.equal((await api('/settings','PUT',settings)).status(),200);
 const initial=await(await api('/metrics')).json();assert.ok(initial.memory.total>0);assert.ok(initial.cpu.cores>0);assert.ok(initial.disks.some(disk=>disk.path==='/'));assert.ok(initial.networks.length);
-const network=initial.networks.find(item=>item.name!=='lo'&&item.state==='up')?.name||initial.networks[0].name;
+const all='/all',aggregate=initial.networks.find(item=>item.name===all),active=initial.networks.filter(item=>item.name!==all&&['up','unknown'].includes(item.state));
+assert.ok(aggregate);assert.equal(aggregate.received,active.reduce((sum,item)=>sum+item.received,0));assert.equal(aggregate.sent,active.reduce((sum,item)=>sum+item.sent,0));
+for(const key of ['receiveRate','sendRate'])assert.equal(aggregate[key],active.some(item=>item[key]===null)?null:active.reduce((sum,item)=>sum+item[key],0));
+const network=initial.networks.find(item=>item.name!==all&&item.name!=='lo'&&item.state==='up')?.name||initial.networks.find(item=>item.name!==all).name;
 const page=await context.newPage(),errors=[],external=[];let polls=0;
 page.on('pageerror',error=>errors.push(error.message));
 page.on('request',request=>{if(request.url()===base+'/api/metrics')polls++;if(!request.url().startsWith(base)&&!['data:','blob:'].includes(new URL(request.url()).protocol))external.push(request.url());});
@@ -39,14 +42,14 @@ async function openFromMenu() {
 await mkdir('test-results',{recursive:true});
 try {
  await page.goto(base);await page.locator('.monitor-summary[data-state=ready]').waitFor();
- assert.deepEqual(await summary.locator('.monitor-label').allTextContents(),['CPU','RAM','Disk']);
+ assert.deepEqual(await summary.locator('.monitor-label').allTextContents(),['CPU','RAM','Disk','All']);
  const tools=await page.locator('.panel-additions').boundingBox(),widget=await summary.boundingBox(),theme=await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).boundingBox();
  assert.ok(tools.x+tools.width<=widget.x&&widget.x+widget.width<theme.x);
  assert.equal(await page.locator('.monitor-controls').evaluate(node=>getComputedStyle(node).borderInlineEndWidth),'1px');
  await page.waitForFunction(()=>document.querySelector('.monitor-summary .monitor-value')?.textContent!=='—');
- await summary.click();await dialog.getByRole('heading',{name:'CPU',exact:true}).waitFor();assert.equal(await dialog.locator('.monitor-card').count(),3);assert.equal(await dialog.locator('.monitor-scope').count(),0);
+ await summary.click();await dialog.getByRole('heading',{name:'CPU',exact:true}).waitFor();assert.equal(await dialog.locator('.monitor-card').count(),4);assert.equal(await dialog.locator('.monitor-scope').count(),0);
  assert.ok(await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).isVisible());
- await page.screenshot({path:'test-results/monitoring-desktop.png'});check('authenticated live gauges and CPU/RAM/disk details');
+ await page.screenshot({path:'test-results/monitoring-desktop.png'});check('authenticated live default CPU/RAM/disk/All gauges and active-interface aggregate');
  let cpuPercent=0.24;
  await page.route(base+'/api/metrics',async route=>{const response=await route.fetch(),data=await response.json();data.cpu.percent=cpuPercent;await route.fulfill({response,json:data});});
  const cpuWidth=(await summary.locator('.monitor-chip').first().boundingBox()).width;
@@ -58,6 +61,13 @@ try {
  }
  await page.unroute(base+'/api/metrics');check('small CPU loads remain visible in the widget and details');
  await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();
+ assert.ok(await dialog.getByRole('checkbox',{name:'All',exact:true}).isChecked());
+ const allSaved=page.waitForResponse(r=>r.url()===base+'/api/settings'&&r.request().method()==='PUT');
+ await dialog.getByRole('button',{name:'Save resource monitor',exact:true}).click();assert.equal((await allSaved).status(),200);
+ await dialog.locator('.monitor-config').waitFor({state:'detached'});assert.deepEqual((await(await api('/me')).json()).settings.monitoring.networks,[all]);
+ await page.reload();await page.locator('.monitor-summary[data-state=ready]').waitFor();assert.deepEqual(await summary.locator('.monitor-label').allTextContents(),['CPU','RAM','Disk','All']);
+ await summary.click();await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();
+ assert.ok(await dialog.getByRole('checkbox',{name:'All',exact:true}).isChecked());await dialog.getByRole('checkbox',{name:'All',exact:true}).uncheck();
  await dialog.getByRole('checkbox',{name:'CPU',exact:true}).uncheck();await dialog.getByRole('checkbox',{name:'Swap',exact:true}).check();await dialog.getByRole('checkbox',{name:network,exact:true}).check();
  await dialog.getByRole('combobox',{name:'Resource monitor refresh',exact:true}).selectOption('5');
  const saved=page.waitForResponse(r=>r.url()===base+'/api/settings'&&r.request().method()==='PUT');await dialog.getByRole('button',{name:'Save resource monitor',exact:true}).click();assert.equal((await saved).status(),200);
@@ -66,39 +76,72 @@ try {
  const invalid={...(await(await api('/me')).json()).settings,monitoring:{...expected,networks:['../../etc/passwd']}};
  assert.equal((await api('/settings','PUT',invalid)).status(),400);assert.deepEqual((await(await api('/me')).json()).settings.monitoring,expected);
  await page.reload();await page.locator('.monitor-summary[data-state=ready]').waitFor();assert.deepEqual(await summary.locator('.monitor-label').allTextContents(),['RAM','Swap','Disk',network]);check('cog config selects swap/disks/interfaces, validates preferences and persists across reload');
- let sample=0,receiveRate=2500,sendRate=12000;
+ let sample=0,receiveRate=2500,sendRate=12000,networkPresent=true;
  await page.route(base+'/api/metrics',async route=>{
   const response=await route.fetch(),data=await response.json(),item=data.networks.find(item=>item.name===network);
   data.time=new Date(Date.UTC(2030,0,1)+sample*2000).toISOString();item.receiveRate=receiveRate;item.sendRate=sendRate;
+  if(!networkPresent)data.networks=data.networks.filter(item=>item.name!==network);
   await route.fulfill({response,json:data});
  });
  await page.reload();await page.locator('.monitor-summary[data-state=ready]').waitFor();
  const networkRing=summary.locator('.monitor-network-ring');
- assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'90deg');
- assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'90deg');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'180deg');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'180deg');
+ assert.ok(await networkRing.evaluate(node=>getComputedStyle(node).backgroundImage.startsWith('conic-gradient(')));
  const duplicate=page.waitForResponse(r=>r.url()===base+'/api/metrics');
  await summary.click();await duplicate;await dialog.locator('.monitor-network-ring').waitFor();
  const widths=await summary.locator('.monitor-chip').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width));
- async function networkSample(receive,send,downloadText,uploadText) {
-  receiveRate=receive;sendRate=send;sample++;
+ async function networkSample(receive,send,downloadText,uploadText,fresh=true) {
+  receiveRate=receive;sendRate=send;if(fresh)sample++;
+  const previous=await networkRing.elementHandle();
   const response=page.waitForResponse(r=>r.url()===base+'/api/metrics');
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await response;
+  await page.waitForFunction(node=>!node.isConnected,previous);await previous.dispose();
   await page.waitForFunction(({downloadText,uploadText})=>{
    const reading=document.querySelector('.monitor-summary .monitor-network-value');
    return reading?.querySelector('.monitor-download')?.textContent===`↓${downloadText}`&&reading?.querySelector('.monitor-upload')?.textContent===`↑${uploadText}`;
   },{downloadText,uploadText});
  }
  await networkSample(7500,0,'7.5K','0.0B');
- assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'135deg','cached polls must not count twice');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'180deg');
  assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'0deg');
+ await networkSample(3750,6000,'3.8K','6.0K');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'90deg');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'90deg','each direction uses its own peak');
  for(const [value,label] of [[999,'999B'],[12000,'12K '],[999e6,'999M'],[7.8e6,'7.8M'],[null,'—   ']]){
   await networkSample(value,value,label,label);
   assert.equal(await summary.locator('.monitor-download').textContent(),`↓${label}`);
   assert.equal(await summary.locator('.monitor-upload').textContent(),`↑${label}`);
   assert.deepEqual(await summary.locator('.monitor-chip').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width)),widths);
  }
+ await networkSample(1e6,10000,'1.0M','10K ');
+ for(let i=0;i<3;i++)await networkSample(1e6,10000,'1.0M','10K ',false);
+ for(let i=0;i<99;i++)await networkSample(100,100,'100B','100B');
+ for(const ring of [networkRing,dialog.locator('.monitor-network-ring')]){
+  assert.equal(await ring.evaluate(node=>node.style.getPropertyValue('--download')),'9deg','positive download traffic must remain visible');
+  assert.equal(await ring.evaluate(node=>node.style.getPropertyValue('--upload')),'9deg','cached polls and repaints must not evict the peak early');
+  assert.ok(await ring.evaluate(node=>getComputedStyle(node).backgroundImage.includes('9deg')));
+ }
+ await page.screenshot({path:'test-results/monitoring-network-low.png'});
+ await page.getByRole('button',{name:'Close dialog',exact:true}).click();
+ await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();
+ assert.ok(await networkRing.evaluate(node=>getComputedStyle(node).backgroundImage.includes('9deg')));
+ await summary.screenshot({path:'test-results/monitoring-network-low-light.png'});
+ await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await summary.click();
+ await networkSample(100,100,'100B','100B');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'180deg','the 101st distinct sample evicts the peak');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'180deg');
+ await networkSample(null,1000,'—   ','1.0K');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'0deg');
+ await networkSample(1,100,'1.0B','100B');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'180deg','an unavailable direction starts a fresh history');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'18deg','the other direction retains its peak');
+ networkPresent=false;await networkSample(0,0,'—   ','—   ');
+ networkPresent=true;await networkSample(1,1,'1.0B','1.0B');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--download')),'180deg');
+ assert.equal(await networkRing.evaluate(node=>node.style.getPropertyValue('--upload')),'180deg','a returning interface starts fresh histories');
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await page.unroute(base+'/api/metrics');
- check('network directions scale independently, cached samples are ignored, and all widget widths stay fixed');
+ check('independent network peaks, visible low-traffic arcs, exact 100-sample eviction, cached/repaint exclusion, counter/interface resets and fixed widths');
  const beforeHidden=polls;await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(5200);assert.equal(polls,beforeHidden);
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForResponse(r=>r.url()===base+'/api/metrics');assert.ok(polls>beforeHidden);check('hidden tabs pause monitoring and resume on visibility');
  await openFromMenu();assert.ok(await displaySwitch.isChecked());await setDisplay(false);

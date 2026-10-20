@@ -5,21 +5,32 @@ import './style.css';
 import horizontalLogo from './tuxee-logo-horizontal.webp';
 import emblemLogo from './tuxee-logo-emblem.webp';
 import verticalLogo from './tuxee-logo-vertical.webp';
+import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
+import emblemLogoLight from './tuxee-logo-emblem-light.webp';
+import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, type Rect } from './model';
+import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { TerminalView, terminateTerminal } from './term';
 import { cancelTransfers, prepareDownloads } from './transfers';
 import { Monitoring } from './monitor';
+import { BackendConnection } from './connection';
+import { Updates } from './updates';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
 let user: User, settings: Settings;
 let loggedIn = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
 let monitoring: Monitoring | undefined;
+let connection: BackendConnection | undefined;
+let updates: Updates | undefined;
+let terminalSessions: TerminalInfo[] = [], terminalError = '';
+let terminalRequest: AbortController | undefined, terminalTimer: ReturnType<typeof setTimeout> | undefined;
 type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
 let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animation | undefined;
+const warmWorkspaces = new Map<string, Mounted>();
+const MAX_WARM_WORKSPACES = 8;
 let track: HTMLElement, viewportRoot: HTMLElement;
 let dragging = false, cancelDrag = () => {};
 let chromeDisposers: (() => void)[] = [];
@@ -53,26 +64,38 @@ function save() {
     if (!loggedIn)
         return Promise.resolve();
     const value = structuredClone(settings);
-    savePromise = savePromise.catch(() => { }).then(() => api('/settings', 'PUT', value)).then(() => { });
+    updateMenuWarnings();
+    savePromise = savePromise.catch(() => { }).then(() => api('/settings', 'PUT', value)).then(() => { void refreshTerminals(); });
     return savePromise;
 }
 function destroyWorkspace(value?: Mounted) {
     if (!value) return;
+    warmWorkspaces.delete(value.ws.id);
     value.items.forEach(item => item.view.dispose());
     value.grid?.destroy(false);
     value.board.remove();
 }
 function finishSlide() {
     slide?.cancel(); slide = undefined;
-    destroyWorkspace(outgoing); outgoing = undefined;
+    if (outgoing) {
+        // Keep inactive DOM and terminal connections in the bounded cache.
+        if (warmWorkspaces.has(outgoing.ws.id)) outgoing.board.remove();
+        else destroyWorkspace(outgoing);
+    }
+    outgoing = undefined;
     if (mounted) mounted.board.style.left = '0';
 }
 function disposeViews() {
     cancelDrag(); chromeDisposers.splice(0).forEach(dispose => dispose());
-    finishSlide(); destroyWorkspace(mounted); mounted = undefined;
+    finishSlide();
+    warmWorkspaces.forEach(destroyWorkspace); mounted = undefined;
 }
 function showLogin() {
+    updates?.dispose(); updates = undefined;
+    connection?.dispose(); connection = undefined;
     monitoring?.dispose(); monitoring = undefined;
+    stopTerminalPolling();
+    terminalSessions = []; terminalError = '';
     loggedIn = false;
     setCSRF('');
     clearTimeout(saveTimer);
@@ -92,7 +115,7 @@ function showLogin() {
     username.name = 'username';
     username.autocomplete = 'username';
     username.required = true;
-    username.autofocus = true;
+    username.autofocus = matchMedia('(pointer: fine)').matches;
     password.name = 'password';
     password.type = 'password';
     password.autocomplete = 'current-password';
@@ -110,6 +133,7 @@ function showLogin() {
     form.append(status, submit);
     form.onsubmit = async (e) => { e.preventDefault(); submit.disabled = true; status.textContent = ''; const value = password.value; password.value = ''; try {
         await api('/login', 'POST', { username: username.value, password: value });
+        if (form.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
         await load();
     }
     catch (error) {
@@ -120,7 +144,7 @@ function showLogin() {
     } };
     page.append(form);
     root.append(page);
-    username.focus();
+    if (username.autofocus) username.focus();
 }
 async function load() {
     const value = await api<{
@@ -132,6 +156,7 @@ async function load() {
     settings = value.settings;
     setCSRF(value.csrf);
     loggedIn = true;
+    connection?.dispose(); connection = new BackendConnection();
     monitoring?.dispose();
     monitoring = new Monitoring(settings.monitoring, async preferences => {
         const previous = settings.monitoring;
@@ -145,6 +170,8 @@ async function load() {
         await save();
     }
     render();
+    updates?.dispose(); updates = new Updates(updateMenuWarnings);
+    void refreshTerminals();
     prepareDownloads();
 }
 function isCompact() { return innerWidth < 760 || innerHeight < 480; }
@@ -161,9 +188,20 @@ function render(direction = 0) {
     if (!mounted || mounted.ws.id !== ws.id) {
         finishSlide();
         outgoing = mounted;
-        mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), compact: isCompact(), items: new Map() };
-        mounted.board.dataset.workspace = ws.id;
-        mounted.board.append(mounted.gridEl);
+        mounted = warmWorkspaces.get(ws.id);
+        if (!mounted) {
+            if (warmWorkspaces.size >= MAX_WARM_WORKSPACES) {
+                const oldest = warmWorkspaces.values().next().value!;
+                if (outgoing === oldest) outgoing = undefined;
+                destroyWorkspace(oldest);
+            }
+            mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), compact: isCompact(), items: new Map() };
+            mounted.board.dataset.workspace = ws.id;
+            mounted.board.append(mounted.gridEl);
+            warmWorkspaces.set(ws.id, mounted);
+        }
+        mounted.board.inert = false;
+        mounted.board.style.left = '0';
         track.append(mounted.board);
         if (outgoing && direction) mounted.board.style.left = `${direction * 100}%`;
         syncWorkspace(mounted);
@@ -184,7 +222,9 @@ function renderChrome() {
     root.classList.toggle('compact', compact);
     const top = el('header', 'topbar');
     const brand = el('img', 'brand');
-    brand.src = compact ? emblemLogo : horizontalLogo;
+    brand.src = settings.theme === 'light'
+        ? (compact ? emblemLogoLight : horizontalLogoLight)
+        : (compact ? emblemLogo : horizontalLogo);
     brand.alt = 'Tuxee';
     brand.width = compact ? 128 : 320;
     brand.height = compact ? 117 : 128;
@@ -197,6 +237,7 @@ function renderChrome() {
     tabs.setAttribute('aria-label', 'Workspaces');
     for (const item of settings.workspaces) {
         const group = el('div', 'workspace-tab-item');
+        group.dataset.workspace = item.id;
         group.classList.toggle('active', item.id === ws.id);
         const tab = button(item.name, undefined, () => switchWorkspace(item.id), 'workspace-tab');
         tab.classList.toggle('active', item.id === ws.id);
@@ -205,7 +246,10 @@ function renderChrome() {
         if (!compact) tab.ondblclick = () => renameWorkspace(item).catch(notify);
         chromeDisposers.push(bindContextMenu(group, position => workspaceMenu(item, tab, position), compact));
         group.append(tab);
-        if (!compact) group.append(button('Rename workspace', 'Pencil', () => renameWorkspace(item), 'workspace-rename'), button('Close workspace', 'X', () => closeWorkspace(item), 'workspace-close'));
+        if (!compact) {
+            const menu = button('Workspace menu', 'ChevronDown', () => workspaceMenu(item, menu), 'workspace-menu');
+            menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
+        }
         tabs.append(group);
     }
     const tabItems = [...tabs.children] as HTMLElement[];
@@ -252,6 +296,7 @@ function renderChrome() {
     const account = button('User menu', undefined, () => userMenu(account), 'user-menu-button');
     account.replaceChildren(el('span', 'username', user.name), icon('Menu'));
     account.setAttribute('aria-haspopup', 'menu');
+    setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
     right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
     componentTabs.setAttribute('aria-label', 'Components');
@@ -272,7 +317,10 @@ function renderChrome() {
     }
     root.prepend(top, componentControls);
     updateLayoutButton();
-    chromeDisposers.push(overflowTabs(tabs, tabItems, 'More workspaces'));
+    chromeDisposers.push(overflowTabs(tabs, tabItems, 'More workspaces', compact ? undefined : items => {
+        settings.workspaces = items.map(item => settings.workspaces.find(ws => ws.id === item.dataset.workspace)!);
+        changed();
+    }));
     if (compact) chromeDisposers.push(overflowTabs(componentTabs, components, 'More components'));
     mounted?.grid?.cellHeight(cellHeight(mounted));
     mounted?.items.forEach(item => item.view.resize?.());
@@ -409,6 +457,7 @@ function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerE
     let dx = 0, dy = 0;
     items.forEach(item => item.node.getAnimations().forEach(animation => animation.cancel()));
     trigger.setPointerCapture(event.pointerId);
+    trigger.classList.add('divider-active');
     dragging = true; value.board.classList.add('resizing-dividers');
     const cursor = document.body.style.cursor;
     document.body.style.cursor = dividers.length === 2 ? 'move' : dividers[0].axis === 'x' ? 'ew-resize' : 'ns-resize';
@@ -417,6 +466,7 @@ function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerE
         events.abort(); cancelDrag = () => {};
         if (trigger.hasPointerCapture(event.pointerId)) trigger.releasePointerCapture(event.pointerId);
         if (document.activeElement === trigger) trigger.blur();
+        trigger.classList.remove('divider-active');
         dragging = false; value.board.classList.remove('resizing-dividers'); document.body.style.cursor = cursor;
         if (!cancelled) {
             const next = resizeDividers(snapshot, dividers, Math.round(dx), Math.round(dy));
@@ -437,6 +487,10 @@ function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerE
         const next = resizeDividers(snapshot, dividers, x, y);
         if (!next) return;
         dx = x; dy = y;
+        for (const divider of dividers) {
+            const panel = next.find(p => p.id === divider.after[0])!;
+            trigger.style[divider.axis === 'x' ? 'left' : 'top'] = `${panel[divider.axis] * (divider.axis === 'x' ? cellW : cellH)}px`;
+        }
         for (const p of next) if (affected.has(p.id)) {
             const item = items.get(p.id)!;
             Object.assign(item.node.style, { left: `${p.x * cellW}px`, top: `${p.y * cellH}px`, width: `${p.w * cellW}px`, height: `${p.h * cellH}px` });
@@ -599,32 +653,36 @@ function addPanel(kind: Kind, path = user.home, terminal?: TerminalInfo) {
 function stopPanel(panel: Panel, value?: Mounted) {
     if (panel.kind !== 'terminal') return;
     const view = value?.items.get(panel.id)?.view;
-    (view instanceof TerminalView ? view.close() : terminateTerminal(panel)).catch(notify);
+    (view instanceof TerminalView ? view.close() : terminateTerminal(panel)).catch(notify).finally(() => refreshTerminals());
 }
 async function closePanel(panel: Panel) {
     const value = mounted, item = value?.items.get(panel.id);
     if (!value || !item || item.node.dataset.closing) return;
     if (item.view.canClose && !await item.view.canClose()) return;
+    const width = value.gridEl.clientWidth;
     item.node.dataset.closing = 'true';
     const animation = item.node.animate([{ opacity: 1, transform: 'scale(1)', transformOrigin: 'center' }, { opacity: 0, transform: 'scale(.96)', transformOrigin: 'center' }], { duration: duration(160), fill: 'forwards' });
     try {
         stopPanel(panel, value);
         await animation.finished;
         value.ws.panels = value.ws.panels.filter(p => p.id !== panel.id);
+        if (!value.compact) expandAfterClose(value.ws, panel, value.gridEl.clientWidth || width,
+            value.ws.panels.filter(p => !value.items.get(p.id)?.node.dataset.closing));
         layoutChanged(value.ws);
         if (mounted === value) render();
     } catch (error) { animation.cancel(); delete item.node.dataset.closing; throw error; }
 }
-async function canLeave() { for (const item of mounted?.items.values() || []) if (item.view.canClose && !await item.view.canClose()) return false; return true; }
+async function canLeave(value?: Mounted) { for (const item of value?.items.values() || []) if (item.view.canClose && !await item.view.canClose()) return false; return true; }
 async function switchWorkspace(value: string, checked = false) {
     cancelDrag();
-    if (settings.current === value || !checked && !await canLeave()) return;
+    if (settings.current === value) return;
+    if (!checked && !warmWorkspaces.has(value) && warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
     const from = settings.workspaces.findIndex(ws => ws.id === settings.current), to = settings.workspaces.findIndex(ws => ws.id === value);
     settings.current = value; changed(); render(to > from ? 1 : -1);
 }
 async function createWorkspace() {
     if (settings.workspaces.length >= 12) { notify('Workspace limit reached'); return; }
-    if (!await canLeave()) return;
+    if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
     const ws = newWorkspace(`Workspace ${settings.workspaces.length + 1}`, user.home); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
 }
 async function renameWorkspace(ws: Workspace) {
@@ -670,35 +728,88 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: TabA
     ({ close } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
 }
 async function closeWorkspace(ws = current()) {
-    if (ws.id === settings.current && !await canLeave()) return;
+    const value = warmWorkspaces.get(ws.id);
+    if (!await canLeave(value)) return;
     if (!await confirmAction(`Close ${ws.name}?`, 'Stop all terminals in this workspace?', 'Close workspace')) return;
     const index = settings.workspaces.indexOf(ws), active = settings.current === ws.id;
-    const value = mounted?.ws === ws ? mounted : outgoing?.ws === ws ? outgoing : undefined;
     ws.panels.forEach(panel => stopPanel(panel, value));
     settings.workspaces = settings.workspaces.filter(value => value.id !== ws.id);
+    warmWorkspaces.delete(ws.id);
+    if (value !== mounted && value !== outgoing) destroyWorkspace(value);
     if (!settings.workspaces.length) settings.workspaces.push(newWorkspace('Workspace 1', user.home));
     if (active) settings.current = settings.workspaces[Math.max(0, index - 1)].id;
     changed(); render(active ? (index ? -1 : 1) : 0);
 }
+function unlistedTerminals() {
+    const listed = new Set(settings.workspaces.flatMap(ws => ws.panels.filter(panel => panel.kind === 'terminal').map(panel => panel.terminal)));
+    return terminalSessions.filter(info => !listed.has(info.id));
+}
+function stopTerminalPolling() {
+    clearTimeout(terminalTimer); terminalRequest?.abort();
+}
+async function refreshTerminals() {
+    stopTerminalPolling();
+    if (!loggedIn || document.hidden) return false;
+    const request = terminalRequest = new AbortController();
+    try {
+        const sessions = await api<TerminalInfo[]>('/terminals', 'GET', undefined, request.signal);
+        if (request.signal.aborted) return false;
+        terminalSessions = sessions; terminalError = '';
+    } catch (error) {
+        if (request.signal.aborted) return false;
+        terminalError = error instanceof Error ? error.message : 'Unable to check retained terminals';
+    }
+    updateMenuWarnings();
+    terminalTimer = setTimeout(() => refreshTerminals(), 10000);
+    return !terminalError;
+}
+function accountActions(): [...TabAction, string?][] {
+    const count = unlistedTerminals().filter(info => !info.exited).length;
+    const actions: [...TabAction, string?][] = [
+        ['Settings', 'Settings', openSettings],
+        ['Retained terminals', 'SquareTerminal', retainedTerminals, terminalError || (count ? `${count} running terminal${count === 1 ? '' : 's'} outside your workspaces` : '')],
+        ['About', 'Info', openAbout, updates?.warning], ['Log out', 'LogOut', logout]
+    ];
+    if (monitoring) actions.unshift(['Resource monitor', 'Activity', () => monitoring?.open()]);
+    return actions;
+}
+function setMenuWarning(control: HTMLElement, warning: string) {
+    control.querySelector('.menu-warning')?.remove();
+    control.removeAttribute('aria-description');
+    control.title = control.getAttribute('aria-label') || '';
+    if (!warning) return;
+    const badge = el('span', 'menu-warning');
+    badge.append(icon('TriangleAlert')); badge.setAttribute('aria-hidden', 'true');
+    control.append(badge);
+    control.setAttribute('aria-description', warning); control.title += `: ${warning}`;
+}
+function updateMenuWarnings() {
+    if (!loggedIn) return;
+    const actions = accountActions(), account = root.querySelector<HTMLElement>('.user-menu-button');
+    if (account) setMenuWarning(account, actions.flatMap(action => action[3] ? [action[3]] : []).join('\n'));
+    for (const [label, , , warning] of actions) {
+        const control = document.querySelector<HTMLElement>(`.account-menu [aria-label="${label}"]`);
+        if (control) setMenuWarning(control, warning || '');
+    }
+}
 function userMenu(anchor: HTMLElement) {
     const content = el('div', 'menu-actions');
+    content.classList.add('account-menu');
     const account = el('div', 'menu-username');
     account.append(icon('UserRound'), el('span', '', user.name));
     content.append(account);
-    const actions: [string, Parameters<typeof icon>[0], () => unknown][] = [['Settings', 'Settings', openSettings], ['Retained terminals', 'SquareTerminal', retainedTerminals]];
-    if (mounted?.compact) actions.push(['Close workspace', 'X', () => closeWorkspace()]);
-    actions.push(['About', 'Info', openAbout], ['Log out', 'LogOut', logout]);
     let close = () => {};
-    if (monitoring) actions.unshift(['Resource monitor', 'Activity', () => monitoring?.open()]);
-    for (const [label, name, action] of actions) {
+    for (const [label, name, action, warning] of accountActions()) {
         const b = button(label, name, () => { close(); return action(); });
         b.append(el('span', '', label)); b.setAttribute('role', 'menuitem'); content.append(b);
+        setMenuWarning(b, warning || '');
     }
     ({ close } = popover(anchor, content));
+    void refreshTerminals();
 }
 async function openAbout() {
     const content = el('div', 'about-content'), logo = el('img', 'about-logo');
-    logo.src = verticalLogo;
+    logo.src = settings.theme === 'light' ? verticalLogoLight : verticalLogo;
     logo.alt = 'Tuxee';
     logo.width = logo.height = 192; logo.draggable = false;
     const status = el('p', 'muted', 'Loading…');
@@ -709,6 +820,7 @@ async function openAbout() {
     dialog.querySelector('h2')!.remove();
     const controller = new AbortController();
     dialog.addEventListener('close', () => controller.abort(), { once: true });
+    if (updates) content.append(updates.view(controller.signal));
     try {
         const info = await api<{ version: string; os: string; kernel: string; architecture: string; hostname: string; username: string; uid: number; home: string; shell: string }>('/system', 'GET', undefined, controller.signal);
         const table = el('table', 'about-details'), body = el('tbody');
@@ -731,29 +843,28 @@ async function openAbout() {
     }
 }
 async function retainedTerminals() {
-    const sessions = (await api<TerminalInfo[]>('/terminals')).filter(info => !info.attached), content = el('div', 'retained-list');
+    if (!await refreshTerminals()) throw new Error(terminalError || 'Unable to check retained terminals');
+    const content = el('div', 'retained-list');
     const { close } = modal('Retained terminals', content);
-    if (!sessions.length)
-        content.append(el('p', 'muted', 'No retained terminals.'));
-    for (const info of sessions) {
-        const row = el('div', 'retained-row'), text = el('div');
-        text.append(el('strong', '', info.name), el('small', 'muted', `PID ${info.pid} · ${info.exited ? 'Ended' : info.attached ? 'Attached' : 'Detached'} · ${info.directory}`));
-        row.append(text, button('Attach', undefined, () => { close(); addPanel('terminal', info.directory, info); }), button('Terminate', 'Trash2', async () => { if (await confirmAction('Terminate terminal?', `Stop ${info.name} and its running work?`, 'Terminate')) {
-            await api(`/terminals/${info.id}`, 'DELETE');
-            row.remove();
-        } }));
-        content.append(row);
-    }
+    const paint = () => {
+        content.replaceChildren();
+        const sessions = unlistedTerminals();
+        if (!sessions.length) content.append(el('p', 'muted', 'No retained terminals.'));
+        for (const info of sessions) {
+            const row = el('div', 'retained-row'), text = el('div');
+            text.append(el('strong', '', info.name), el('small', 'muted', `PID ${info.pid} · ${info.exited ? 'Ended' : info.attached ? 'Attached' : 'Detached'} · ${info.directory}`));
+            row.append(text, button('Attach', undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); }), button('Terminate', 'Trash2', async () => { if (await confirmAction('Terminate terminal?', `Stop ${info.name} and its running work?`, 'Terminate')) {
+                await api(`/terminals/${info.id}`, 'DELETE');
+                terminalSessions = terminalSessions.filter(value => value.id !== info.id);
+                updateMenuWarnings(); paint(); void refreshTerminals();
+            } }));
+            content.append(row);
+        }
+    };
+    paint();
 }
 async function openSettings() {
-    const content = el('div', 'form'), field = el('label', 'field', 'Terminate detached terminals after (hours)'), input = el('input');
-    input.type = 'number';
-    input.min = String(1 / 3600);
-    input.max = '8760';
-    input.step = 'any';
-    input.value = String(settings.idleHours);
-    field.append(input);
-    content.append(field);
+    const content = el('div', 'form');
     const tls = await api('/tls');
     const details = el('section', 'tls-status');
     details.append(el('h3', '', 'Connection'), el('p', '', tls.source === 'public' ? `Public certificate · expires ${new Date(tls.expires).toLocaleString()}` : tls.source === 'local' ? 'Encrypted with a local certificate' : 'Plain HTTP'));
@@ -766,23 +877,30 @@ async function openSettings() {
     if (tls.error)
         details.append(el('p', 'muted', tls.error));
     content.append(details);
-    const { close } = modal('Settings', content);
-    content.append(button('Save settings', undefined, async () => { if (!input.reportValidity())
-        return; const hours = Number(input.value); if (!Number.isFinite(hours) || hours < 1 / 3600 || hours > 8760)
-        throw new Error('Enter a timeout between one second and one year'); settings.idleHours = hours; await save(); close(); notify('Settings saved'); }, 'primary'));
+    modal('Settings', content);
 }
-async function logout() { if (!await canLeave()) return; await save(); await api('/logout', 'POST', {}); showLogin(); }
+async function logout() {
+    for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;
+    await save(); await api('/logout', 'POST', {}); showLogin();
+}
 let resizeTimer: ReturnType<typeof setTimeout>;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { if (loggedIn && !dragging) render(); }, 100);
 });
-function viewport() { document.documentElement.style.setProperty('--viewport-height', `${visualViewport?.height || innerHeight}px`); }
+function viewport() {
+    // Keyboard shrink affects layout; intentional pinch zoom must not resize the workspace.
+    const height = visualViewport ? visualViewport.height * visualViewport.scale : innerHeight;
+    document.documentElement.style.setProperty('--viewport-height', `${height}px`);
+}
+window.addEventListener('resize', viewport);
 visualViewport?.addEventListener('resize', viewport);
 viewport();
 window.addEventListener('tuxee-unauthorized', () => { if (loggedIn) {
     showLogin();
     notify('Your session ended. Sign in to reconnect.');
 } });
-window.addEventListener('pagehide', () => { monitoring?.dispose(); disposeViews(); cancelTransfers(); });
+document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
+window.addEventListener('focus', () => { void refreshTerminals(); });
+window.addEventListener('pagehide', () => { updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 load().catch(() => showLogin());

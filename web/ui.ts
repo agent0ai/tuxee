@@ -1,5 +1,5 @@
-import { createElement, X, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
-const icons = { X, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
+import { createElement, X, ChevronDown, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
+const icons = { X, ChevronDown, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
     node.className = cls;
@@ -32,14 +32,21 @@ export class APIError extends Error {
 export function setCSRF(value: string) { csrf = value; }
 export function requestHeaders() { return { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' }; }
 export async function api<T = any>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
-    const response = await fetch(`/api${path}`, { method, headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
-    const data = await response.json();
-    if (!response.ok) {
-        if (response.status === 401 && csrf)
-            window.dispatchEvent(new Event('tuxee-unauthorized'));
-        throw new APIError(data.error || `Request failed (${response.status})`, response.status);
+    try {
+        const response = await fetch(`/api${path}`, { method, headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
+        if (response.status >= 500) window.dispatchEvent(new Event('tuxee-connection-check'));
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401 && csrf)
+                window.dispatchEvent(new Event('tuxee-unauthorized'));
+            throw new APIError(data.error || `Request failed (${response.status})`, response.status);
+        }
+        return data;
+    } catch (error) {
+        if (!signal?.aborted && !(error instanceof APIError))
+            window.dispatchEvent(new Event('tuxee-connection-check'));
+        throw error;
     }
-    return data;
 }
 const notificationOwners = new WeakMap<HTMLElement, HTMLElement>();
 export function scopeNotifications(content: HTMLElement, owner: HTMLElement) { notificationOwners.set(content, owner); }

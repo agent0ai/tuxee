@@ -62,7 +62,7 @@ async function command(text) { await page.locator('.terminal-host .xterm-helper-
 async function twoPanelFixture() {
     await page.locator('.panel:has(.file-view)').last().getByRole('button', { name: 'Close panel', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 2);
-    await page.locator('.panel:has(.file-view) .panel-title').dblclick();
+    assert.equal(await page.locator('.grid-stack-item:has(.file-view)').getAttribute('gs-h'), '2');
     await page.waitForTimeout(220);
 }
 async function checkGridDragLayers() {
@@ -339,7 +339,8 @@ try {
     assert.equal(await page.getByRole('dialog').count(), 0, 'creation must not ask for a workspace name');
     assert.equal(await page.locator('.workspace-tab.active').textContent(), 'Workspace 2');
     await twoPanelFixture();
-    await page.locator('.workspace-tab-item.active .workspace-rename').click();
+    await page.locator('.workspace-tab-item.active .workspace-menu').click();
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('Motion');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
@@ -408,7 +409,7 @@ try {
     assert.equal((await api(`/terminals/${motionTerminalID}`)).status(), 404);
     assert.equal(await page.evaluate(() => window.fixedFileNode === document.querySelector('.file-view')), true);
     assert.deepEqual(await fixedFile.boundingBox(), fixedBox);
-    check('terminal close stops the process and leaves other panel DOM and position unchanged');
+    check('terminal close stops the process and preserves the file browser already at its automatic width cap');
     const boardBox = await page.locator('.board .grid-stack').boundingBox();
     const header = fixedFile.locator('.panel-header');
     for (const [cx, cy, x, y, w, h] of [[3.5, .5, 3, 0, 1, 1], [3, .5, 2, 0, 2, 1], [3.5, 1, 3, 0, 1, 2], [3, 1, 2, 0, 2, 2]]) {
@@ -462,13 +463,15 @@ try {
     check('workspace transitions slide two complete adjacent layouts in either direction');
 
     await page.getByRole('button', { name: 'New workspace', exact: true }).click();
-    await page.locator('.workspace-tab-item.active .workspace-rename').click();
+    await page.locator('.workspace-tab-item.active .workspace-menu').click();
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('Other');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.workspace-tab.active')?.textContent === 'Other');
     await page.getByRole('button', { name: 'Motion', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
-    await page.locator('.workspace-tab-item.active .workspace-close').click();
+    await page.locator('.workspace-tab-item.active .workspace-menu').click();
+    await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.workspace-tab.active')?.textContent === 'Workspace 1');
     assert.ok(await page.evaluate(() => document.querySelector('.workspace-track').getAnimations()[0]?.effect.getKeyframes().some(frame => frame.transform === 'translateX(100%)')));
@@ -488,14 +491,14 @@ try {
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('user-menu-button')), true);
     await page.locator('.user-menu-button .username').click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-    await page.getByRole('spinbutton').fill('2');
-    await page.getByRole('button', { name: 'Save settings', exact: true }).click();
+    assert.equal(await page.getByRole('spinbutton').count(), 0);
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await page.waitForTimeout(400);
     await page.reload();
     await page.locator('.topbar').waitFor();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
-    assert.equal((await (await api('/me')).json()).settings.idleHours, 2);
+    assert.equal((await (await api('/me')).json()).settings.idleHours, undefined);
     check('theme and layouts persist');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(300);
@@ -508,7 +511,7 @@ try {
     await page.screenshot({ path: 'test-results/mobile.png' });
     assert.equal(await page.locator('.panel-header:visible').count(), 0);
     assert.equal(await page.locator('.component-tabs .panel-tools').count(), 0);
-    assert.equal(await page.locator('.workspace-close, .workspace-rename').count(), 0);
+    assert.equal(await page.locator('.workspace-menu').count(), 0);
     assert.equal(await page.locator('.panel:visible').evaluate(node => getComputedStyle(node).borderRadius), '0px');
     const mobileAccount = await page.getByRole('button', { name: 'User menu', exact: true }).boundingBox();
     assert.ok(mobileAccount.x + mobileAccount.width > 375);
@@ -564,7 +567,8 @@ try {
     await page.screenshot({ path: 'test-results/portrait.png' });
     check('portrait two-by-four grid');
     const portraitTerminal = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
-    await page.locator('.workspace-tab-item.active .workspace-close').click();
+    await page.locator('.workspace-tab-item.active .workspace-menu').click();
+    await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
     await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.status===404), portraitTerminal);
     check('confirmed workspace closure terminates its terminal');
@@ -689,7 +693,10 @@ try {
         if (width < 760) {
             await activeTab.click({ button: 'right' });
             await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
-        } else await page.locator('.workspace-tab-item.active .workspace-close').click();
+        } else {
+            await page.locator('.workspace-tab-item.active .workspace-menu').click();
+            await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
+        }
         await page.keyboard.press('Enter');
         await page.waitForFunction(id => fetch('/api/terminals/' + id).then(response => response.status === 404), terminal.id);
         await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
@@ -719,7 +726,7 @@ try {
         const terminalRect = { x: 0, y: 0, w: vertical ? 2 : columns / 2, h: 2 };
         const blockers = vertical ? [{ x: 0, y: 2, w: 2, h: 1 }, { x: 0, y: 3, w: 1, h: 1 }]
             : [{ x: columns / 2, y: 0, w: columns / 2 - 1, h: 2 }, { x: hx, y: 0, w: 1, h: 1 }];
-        const fixture = { theme: 'dark', idleHours: 36, current: 'drop-grid', workspaces: [{
+        const fixture = { theme: 'dark', current: 'drop-grid', workspaces: [{
             id: 'drop-grid', name: 'Drop grid', columns, rows, active: 'moving-terminal',
             panels: [{ id: 'moving-terminal', kind: 'terminal', path: a.home, ...terminalRect },
                 ...blockers.map((rect, i) => ({ id: `blocker-${i}`, kind: 'files', path: a.home, ...rect }))],

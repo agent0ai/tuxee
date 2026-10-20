@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
-const user = 'tuxee-poc-a';
+const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
 const fields = spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':');
 assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
@@ -24,7 +24,7 @@ const panels = Array.from({ length: 8 }, (_, index) => ({
     x: index % 4, y: Math.floor(index / 4), w: 1, h: 1,
 }));
 const settings = {
-    theme: 'dark', idleHours: 36, current: 'work',
+    theme: 'dark', current: 'work',
     workspaces: [
         { id: 'work', name: 'Work', columns: 4, rows: 2, active: panels[0].id, panels },
         ...Array.from({ length: 5 }, (_, index) => ({
@@ -33,7 +33,8 @@ const settings = {
     ],
 };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
-const page = await context.newPage(), errors = [], external = [];
+const page = await context.newPage(), errors = [], external = [], sockets = [];
+page.on('websocket', socket => sockets.push(socket));
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => {
     if (!request.url().startsWith(base + '/') && !/^(data|blob):/.test(request.url())) external.push(request.url());
@@ -110,9 +111,89 @@ try {
     assert.equal(await title('panel-0').textContent(), alias);
     check('desktop file/terminal rename icons, saved labels, reload and folder navigation');
 
+    const workspace = id => page.locator(`.workspace-tab-item[data-workspace="${id}"]`);
+    const workspaceOrder = async () => (await snapshot()).workspaces.map(ws => ws.id);
+    const originalOrder = await workspaceOrder();
+    const liveTerminal = await panel('panel-6').locator('.terminal-view').elementHandle();
+    const connectionCount = sockets.length;
+    const terminalPID = (await (await api(`/terminals/${terminalID}`)).json()).pid;
+    await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
+    await workspace('other-0').getByRole('button', { name: 'Workspace menu', exact: true }).click();
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Close']);
+    assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
+    await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+    save = saved(); await renameDialog('workspace', 'A much wider workspace'); await save;
+    assert.equal((await snapshot()).current, 'work', 'opening an inactive chevron does not activate it');
+    await workspace('work').locator('.workspace-menu').click();
+    assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled());
+    await page.keyboard.press('Escape');
+    assert.ok(await workspace('work').locator('.workspace-menu').evaluate(node => node === document.activeElement));
+
+    async function dragWorkspace(from, to, vertical = false) {
+        const source = await workspace(from).locator('.workspace-tab').boundingBox(), target = await workspace(to).boundingBox();
+        const forward = vertical ? target.y > source.y : target.x > source.x;
+        await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(vertical ? source.x + source.width / 2 : target.x + (forward ? target.width - 2 : 2),
+            vertical ? target.y + (forward ? target.height - 2 : 2) : source.y + source.height / 2, { steps: 8 });
+        assert.ok(await workspace(from).evaluate(node => node.classList.contains('tab-dragging')));
+    }
+    await dragWorkspace('work', 'other-4');
+    assert.ok(await page.locator('.tab-shifting').evaluateAll(nodes => nodes.some(node => getComputedStyle(node).transform !== 'none' && parseFloat(getComputedStyle(node).transitionDuration) > 0)));
+    await page.screenshot({ path: 'test-results/workspace-tabs-drag.png' });
+    save = saved(); await page.mouse.up(); await save;
+    assert.deepEqual(await workspaceOrder(), [...originalOrder.slice(1), 'work']);
+    assert.equal((await snapshot()).current, 'work');
+    assert.ok(await liveTerminal.evaluate(node => node === document.querySelector('[data-panel="panel-6"] .terminal-view')));
+    assert.equal(sockets.length, connectionCount, 'reordering does not reconnect the terminal');
+    assert.equal((await (await api(`/terminals/${terminalID}`)).json()).pid, terminalPID);
+    await page.reload(); await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .terminal-view')?.dataset.state === 'connected');
+    assert.deepEqual(await page.locator('.workspace-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace)), [...originalOrder.slice(1), 'work']);
+    await dragWorkspace('work', 'other-0'); save = saved(); await page.mouse.up(); await save;
+    assert.deepEqual(await workspaceOrder(), originalOrder);
+
+    for (const cancel of ['escape', 'pointercancel', 'blur', 'resize']) {
+        await dragWorkspace('other-0', 'other-4');
+        if (cancel === 'escape') await page.keyboard.press('Escape');
+        else if (cancel === 'resize') await page.setViewportSize({ width: 1440, height: 1000 });
+        else await page.evaluate(type => window.dispatchEvent(type === 'blur' ? new Event(type) : new PointerEvent(type)), cancel);
+        await page.mouse.up(); await page.waitForTimeout(300);
+        assert.equal(await page.locator('.tab-dragging, .tab-shifting').count(), 0);
+        assert.deepEqual(await workspaceOrder(), originalOrder, `${cancel} preserves order`);
+        assert.equal((await snapshot()).current, 'work', 'a cancelled drag does not activate a workspace');
+    }
+    await page.setViewportSize({ width: 1024, height: 900 }); await page.waitForTimeout(250);
+    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    const hidden = await page.locator('.overflow-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace));
+    assert.ok(hidden.length >= 2);
+    await dragWorkspace(hidden[0], hidden.at(-1), true);
+    save = saved(); await page.mouse.up(); await save;
+    const reordered = originalOrder.filter(id => id !== hidden[0]);
+    reordered.splice(reordered.indexOf(hidden.at(-1)) + 1, 0, hidden[0]);
+    assert.deepEqual(await workspaceOrder(), reordered, 'overflow entries reorder without losing hidden workspaces');
+    assert.equal((await snapshot()).current, 'work');
+    await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
+    const keyboardTab = workspace('other-4').locator('.workspace-tab');
+    const beforeKeyboard = await workspaceOrder(), keyboardIndex = beforeKeyboard.indexOf('other-4');
+    await keyboardTab.focus(); save = saved(); await page.keyboard.press('Alt+ArrowLeft'); await save;
+    const afterKeyboard = [...beforeKeyboard];
+    afterKeyboard.splice(keyboardIndex, 1); afterKeyboard.splice(keyboardIndex - 1, 0, 'other-4');
+    assert.deepEqual(await workspaceOrder(), afterKeyboard);
+    assert.ok(await keyboardTab.evaluate(node => node === document.activeElement));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await dragWorkspace('other-4', 'work');
+    assert.ok(await page.locator('.tab-shifting').evaluateAll(nodes => nodes.every(node => parseFloat(getComputedStyle(node).transitionDuration) === 0)));
+    await page.keyboard.press('Escape'); await page.mouse.up();
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await workspace('other-0').locator('.workspace-menu').click();
+    await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+    save = saved(); await renameDialog('workspace', 'Other 0'); await save;
+    await page.screenshot({ path: 'test-results/workspace-tabs-desktop.png' });
+    check('workspace chevrons, animated/persisted reordering, stable terminals, cancellation, overflow, keyboard and reduced motion');
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.compact').waitFor(); await page.waitForTimeout(250);
-    assert.equal(await page.locator('.component-tabs .panel-tools, .workspace-close, .workspace-rename').count(), 0);
+    assert.equal(await page.locator('.component-tabs .panel-tools, .workspace-menu').count(), 0);
     await hold(await reveal('panel-0'));
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled());
     await page.screenshot({ path: 'test-results/tabs-mobile-context.png' });
@@ -185,8 +266,8 @@ try {
     await panel('panel-6').waitFor({ state: 'detached' });
     await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
     assert.ok(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).isVisible());
-    assert.ok(await page.locator('.workspace-tabs .workspace-close').first().isVisible());
-    assert.ok(await page.locator('.workspace-tabs .workspace-rename').first().isVisible());
+    assert.ok(await page.locator('.workspace-tabs .workspace-menu').first().isVisible());
+    assert.equal(await page.locator('.workspace-close, .workspace-rename').count(), 0);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     check('mobile Close kills the real terminal, desktop controls restore, no browser errors/external assets');
 } catch (error) {
