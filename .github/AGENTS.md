@@ -8,7 +8,7 @@ Tag-triggered binary and Docker Hub releases, and repository presentation assets
 
 Own Actions workflows and release-note generation. Root owns Dockerfile and
 installer; internal/update owns the release-asset contract.
-`resources/` owns optimized README screenshots and their thumbnails.
+`resources/` owns optimized README screenshots, infographics and their thumbnails.
 
 # Local Contracts
 
@@ -43,4 +43,4 @@ actionlint. Native CI builds/tests and registry publication require GitHub Actio
 
 # Child DOX Index
 
-- [resources/AGENTS.md](resources/AGENTS.md): Full-size WebP screenshots and thumbnails linked from the README.
+- [resources/AGENTS.md](resources/AGENTS.md): Optimized screenshots, infographics and thumbnails linked from the README.

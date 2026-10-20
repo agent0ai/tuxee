@@ -32,6 +32,17 @@ curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
 
 <table>
   <tr>
+    <td width="50%" align="center" valign="middle">
+      <a href=".github/resources/screenshots/lightweight-metrics.jpg" target="_blank" rel="noopener noreferrer">
+        <img src=".github/resources/screenshots/lightweight-metrics-thumb.jpg" alt="Tuxee metrics infographic: 0% CPU, 10 MB RAM, 41 MB Docker image and 1 second startup time" width="100%">
+      </a>
+    </td>
+    <td width="50%" valign="middle">
+      <h3>Lightweight and fast</h3>
+      <p>Based on Debian slim.<br>Core written in Go.<br>No bloat.</p>
+    </td>
+  </tr>
+  <tr>
     <td width="50%" valign="middle">
       <h3>Web interface automatically exposed</h3>
       <p>Log in as a real Linux user.<br>No config needed.</p>
