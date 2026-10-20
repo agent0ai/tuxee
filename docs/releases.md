@@ -96,10 +96,20 @@ Set these under **Settings → Secrets and variables → Actions**:
 | Kind | Name | Value |
 | --- | --- | --- |
 | Secret | `DOCKERHUB_ORG` | Docker Hub organization used to log in, e.g. `agent0ai` |
-| Secret | `DOCKERHUB_OAT_TOKEN` | Organization access token with push access to `agent0ai/tuxee` |
+| Secret | `DOCKERHUB_OAT_TOKEN` | Organization access token with **Read public repositories** and **Image Push** access to `agent0ai/tuxee` |
 | Variable, optional | `DOCKERHUB_IMAGE` | Full image name; defaults to `agent0ai/tuxee` |
 
-Create the Docker Hub repository and grant the token access. For a personal
+Create the Docker Hub repository and grant the token access. In Docker Home,
+select the organization → **Identity & auth → Access tokens → Edit**. Under
+**Resources → Repository**, enable **Read public repositories** for the
+`golang`, `node` and `debian` base images, and grant **Image Push** on the target
+repository. See [Docker's token permissions](https://docs.docker.com/security/access-tokens/organization-access-tokens/).
+A successful login alone does not establish pull permission: missing public
+access causes `401 Unauthorized: access token has insufficient scopes`.
+After correcting token permissions, rerun the failed Actions jobs for the same
+tag. Replace the GitHub secret only if the token value changed.
+
+For a personal
 access token, use its Docker Hub username as `DOCKERHUB_ORG`. No manually created
 GitHub token is needed: the publishing job requests `contents: write` on the
 automatic Actions token. Repository/organization policy must permit Actions and

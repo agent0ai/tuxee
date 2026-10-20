@@ -23,7 +23,9 @@ installer; internal/update owns the release-asset contract.
 - Docker tags are `<tag>`, `<version>` and `latest` only for the newest stable
   release. Older releases must not move latest backwards.
 - Require `DOCKERHUB_ORG` and `DOCKERHUB_OAT_TOKEN` secrets. Optional repository
-  variable `DOCKERHUB_IMAGE` defaults to `agent0ai/tuxee`. Use the job-scoped
+  variable `DOCKERHUB_IMAGE` defaults to `agent0ai/tuxee`. The token needs
+  Read public repositories for base-image pulls and Image Push on the target
+  repository. Login success does not verify those scopes. Use the job-scoped
   GitHub token with contents:write only in the publishing job.
 
 # Work Guidance
