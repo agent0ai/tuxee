@@ -6,9 +6,12 @@ Detailed product, deployment and development documentation.
 
 # Ownership
 
-`SPEC.md` owns the accepted product scope. `guide.md` owns build, deployment,
-interaction, verification and implementation-limit details. Root `README.md`
-stays a concise introduction with the centered vertical logo and quick starts.
+`SPEC.md` owns the accepted product scope. `install.md` owns the installer,
+manual binary download/installation commands, and advanced Go compilation.
+`guide.md` owns deployment, interaction, verification and implementation limits.
+`releases.md` owns updates, GitHub/Docker Hub setup and publication limits.
+Root `README.md` contains only the logo, title, short container/standalone
+description, one installer-command block and documentation links.
 
 # Local Contracts
 
@@ -23,7 +26,7 @@ Keep operational details here and link them from the root README.
 
 # Verification
 
-Use the existing build and verification commands documented in `guide.md`.
+Use the build commands in `install.md` and verification commands in `guide.md`.
 
 # Child DOX Index
 

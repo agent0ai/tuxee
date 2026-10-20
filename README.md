@@ -2,48 +2,23 @@
   <img src="web/tuxee-logo-vertical.webp" alt="Tuxee" width="220">
 </p>
 
-<p align="center">
-  A Linux workspace in your browser.
-</p>
+# The most convenient Linux for servers and agents
 
-Manage files, edit code, use persistent terminals and monitor system resources
-in a responsive, dockable workspace. Tuxee ships as one Go executable with a
-locally bundled web UI and authenticates against Linux accounts.
+A tiny Debian Linux container with a superb web interface for files and persistent
+terminals. Also available as a standalone web interface for existing Linux servers.
 
-## Docker
+## Quick start
 
 ```sh
-ROOT_PASSWORD='your-password' docker compose up --build -d
+curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
 ```
 
-Open **https://SERVER/** and sign in as **root** with that password.
-If omitted, the password defaults to **toor**. Restarts preserve password changes;
-new containers initialize from `ROOT_PASSWORD` again. Docker manages the container's environment.
+[Manual installation and building from source](docs/install.md)
 
-Scripts in `/init` run independently in parallel and may run continuously.
-See [startup scripts](docker/init/README.md) and
-[Docker configuration](docs/guide.md#docker).
-
-## Native Linux
-
-Requires Go 1.26.3+, Node.js 22+, a C compiler and PAM development headers.
-
-```sh
-npm ci
-npm run build
-go build -trimpath -o bin/tuxee ./cmd/tuxee
-sudo ./bin/tuxee serve --bind :443
-```
-
-Sign in with an existing Linux account. Native mode manages the host.
-Public certificates require a reachable public port 443; private addresses use
-a local CA. See [HTTPS setup](docs/guide.md#https).
-
-## Documentation
-
+- [Docker setup](docs/guide.md#docker)
 - [User and developer guide](docs/guide.md)
+- [Updates, releases and repository setup](docs/releases.md)
+- [Startup scripts](docker/init/README.md)
 - [Product specification](docs/SPEC.md)
 - [Example configuration](docker/tuxee.example.json)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
-
-Prototype; not yet production-reviewed.

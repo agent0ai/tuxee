@@ -81,21 +81,26 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
 - Use `main` as the primary Git branch.
+- Attribute repository commits to `Jan Tomášek <tomasekhonza@gmail.com>` as both author and committer.
 - The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker assets separate.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
 - Keep the UI free of promotional/descriptive microcopy. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
-- Keep the root README short, with the centered vertical logo and quick starts. Put detailed documentation in `docs/`, Docker support files in `docker/`, and original artwork in `assets/`. Keep generated outputs, dependencies, local state and editor/OS clutter out of Git.
+- Keep the root README to the centered vertical logo, project title, one short paragraph covering container/standalone use, one installer-command block, a manual-install/source-build link and other documentation links. No internal explanations, microcopy or screenshot placeholders; screenshots can be added later with simple titles. Put detailed documentation in `docs/`, Docker support files in `docker/`, and original artwork in `assets/`. Keep generated outputs, dependencies, local state and editor/OS clutter out of Git.
+
+- Stable version tags publish Linux amd64/arm64 binaries and matching Docker Hub images, with version-named GitHub releases and commit-based notes. Use a checksum-verified installer and explicit `tuxee update`; never restart automatically. About checks versions and shows a terminal command, with update warnings on About and the hamburger. Check at startup and daily at 00:01 in the server timezone.
 
 ## Child DOX Index
+
+- [.github/AGENTS.md](.github/AGENTS.md): Version-tag release builds, commit notes and GitHub/Docker Hub publication.
 
 - [internal/AGENTS.md](internal/AGENTS.md): Linux identity, file operations, terminal lifecycle, transport, TLS, and service implementation.
 - [web/AGENTS.md](web/AGENTS.md): Embedded frontend and browser dependency builds.
 - [tests/AGENTS.md](tests/AGENTS.md): Real-system and browser integration checks.
 - [third_party/AGENTS.md](third_party/AGENTS.md): Verbatim bundled dependency licenses.
 - [docker/AGENTS.md](docker/AGENTS.md): Docker runtime files, example configuration and startup-folder documentation.
-- [docs/AGENTS.md](docs/AGENTS.md): Accepted product specification and detailed user/developer guide.
+- [docs/AGENTS.md](docs/AGENTS.md): Product specification, installation, releases and user/developer documentation.
 - [assets/AGENTS.md](assets/AGENTS.md): Original logo artwork and its relationship to UI assets.
-- Root owns README.md, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
+- Root owns README.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
 
 
 ## Tuxee purpose and requested scope
@@ -104,7 +109,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Current phase: a built and locally validated prototype matching docs/SPEC.md. The user has authorized local builds, dedicated Linux test users, browser testing, and isolated service lifecycle checks.
 - Investigate reuse of `the8020/https`, `the8020/dev-core`, and `the8020/kernel` for automatic certificates, HTTPS routing, and retained terminals.
 - Authenticate with real Linux usernames/passwords. Terminals and file operations must run with that user's UID, GID, and supplementary groups so Linux enforces permissions.
-- Keep named terminal tabs and their running processes across navigation, disconnect, and web logout. Expire detached sessions after a configurable number of hours with no connection; logout revokes browser access independently.
+- Keep named terminal tabs and their running processes across navigation, disconnect, and web logout. Never expire terminals because of inactivity or detachment; logout revokes browser access independently. Warn in Retained terminals and on the hamburger button about running sessions absent from every workspace, with explicit reattach/terminate actions.
 - Optimize phones and small screens, including terminal input and file management. Provide smooth interactions, drag-and-drop uploads, downloads, transfer progress, and light/dark themes.
 - Native mode manages the host. Docker mode manages its container environment; no implicit privileged host access.
 - Docker initializes root from runtime `ROOT_PASSWORD` on each new container's first start, defaulting to `toor` when unset; do not create a tuxee account. Restarts preserve password changes; recreation initializes the new account database again. This applies only to the image, never the host root account. Persist the container root home.
@@ -141,16 +146,18 @@ When the user requests a durable behavior change, record it here or in the relev
 - Go 1.26.3 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
 - Build the embedded frontend and terminal engine with `npm run build`; build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/` and `internal/terminal/engine.js` are generated and ignored by Git. Run the frontend build before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
-- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:features` and `npm run test:monitoring` for frontend checks; run browser suites sequentially.
+- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:features` and `npm run test:monitoring` for frontend checks; run browser suites sequentially.
 - Run `npm run test:docker-init` for parallel Docker startup scripts and failure isolation. With Tini on PATH, also verify continuous hooks alongside the framework, clean/crash restarts and shutdown through the production entrypoint without a Docker engine.
 
+
+Distribution verification: run `npm run test:installer`, `npm run test:updates`, `go test ./internal/update`, and `python3 .github/release-notes.py --self-test`. The update browser suite starts an isolated server and restores user settings. Use actionlint for `.github/workflows/release.yml`; actual Docker/registry publication requires CI.
 
 ## Prototype contracts
 
 - docs/SPEC.md is the complete accepted goal; do not shrink completion to a partial implementation.
 - Prefer public TLS-ALPN-01 through public port 443 on any local listener, with persistent local-CA fallback when no valid public certificate exists. Keep retrying public renewal; do not default HSTS on.
 - Native process credentials enforce Linux permissions. Passwords are transient authentication input only.
-- Explicit panel/workspace closure terminates its terminals in the background, including pending creation. Switching workspaces, closing the browser and logout only detach; terminal expiry follows last browser detachment using per-user hours, regardless of output.
+- Explicit panel/workspace closure terminates its terminals in the background, including pending creation. Keep at most eight visited workspaces warm, including the active workspace, in first-visited FIFO order; revisiting does not reorder them. Switching within the cache keeps terminal connections attached. Eviction, browser closure and logout detach without terminating; terminals have no idle timeout, regardless of output. Only explicit termination, process exit, unrecoverable terminal failure or server shutdown ends them.
 - Standard landscape desktop defaults: two file browsers stacked in the left half and one terminal in the right half; ultrawide defaults: files/files/terminal/terminal. Mobile shows one component. Whole-layout bounds are 4x2 landscape, 2x4 portrait, 8x2 ultrawide.
 - Service restart survival is not required. Preserve layouts and report ended sessions honestly.
 - Test with dedicated users, ports, and services; do not alter host SSH or unrelated repositories.
@@ -158,5 +165,6 @@ When the user requests a durable behavior change, record it here or in the relev
 ## Current implementation boundary
 
 - Implemented and locally validated: PAM/per-user workers, filesystem operations, canonical retained PTYs, TLS lifecycle, HTTP/WebSocket sessions, bundled frontend with docking/files/mobile workspaces, and service CLI. The Docker example uses a Bash restart loop; its image and lifecycle remain unverified.
+- Release/update fixtures, daily-check scheduling, live binary-replacement helper/PTY continuity and Chromium update notices are locally verified. Tag workflows and Docker Hub publication still need a real CI run.
 - Backend race tests, real PAM/HTTP/WebSocket integration, Chromium desktop/mobile/portrait/ultrawide flows, transfer memory/cancellation, interactive terminal recovery, unit verification and installation safety pass. docs/guide.md documents exact commands and limits.
 - This test environment has root and Chromium but PID 1 is `tail`, not systemd, and Docker is absent. Live systemd/Docker execution and public Internet ACME validation remain unverified. The prototype is not production-reviewed.
