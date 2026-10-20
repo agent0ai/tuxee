@@ -1,0 +1,142 @@
+# Tuxee guide
+
+One Go executable with an embedded workspace for Linux files and retained terminals. Native mode manages the host's real accounts. Container mode manages the container's accounts and mounted files.
+
+All frontend dependencies are shipped locally. Editable TypeScript and CSS stay separate; the production build creates one self-contained, gzip-compressed `index.html` with a hash-protected inline script. No CDN, external font or external script request is required. A small local `sw.js` handles streaming download progress.
+
+This is a built, locally validated prototype, not a production release. The complete accepted scope is in [SPEC.md](SPEC.md).
+
+## Build and run
+
+Linux, Go 1.26.3+, a C compiler, PAM development headers, and Node 22 for the frontend build are required. Runtime needs glibc, PAM, host PAM configuration, NSS, `/dev/ptmx`, `/dev/pts`, and each user's shell. Node is not required for native runtime; the matched headless xterm engine runs inside Go through Goja. The binary is dynamically linked, not fully static.
+
+Run commands from the repository root. Generated frontend and terminal bundles
+are excluded from Git, so run `npm run build` before Go builds or tests on a fresh checkout.
+
+```sh
+sudo apt-get install build-essential libpam0g-dev
+npm ci
+npm run build
+go build -trimpath -o bin/tuxee ./cmd/tuxee
+sudo ./bin/tuxee serve --bind :443 --hosts admin.example.com
+```
+
+For a local prototype with no public certificate requests:
+
+```sh
+sudo ./bin/tuxee serve --bind 127.0.0.1:9443 \
+  --state /var/lib/tuxee-poc --acme off
+```
+
+Open `https://127.0.0.1:9443`. Sign in with a Linux username and password. PAM authentication and account policy apply; non-login shells are rejected. Passwords are never stored by Tuxee. File operations and shells run with the user's UID, GID and supplementary groups. User layouts live in `~/.config/tuxee/settings.json`; server keys live under the separate state directory.
+
+Use `tuxee serve --help`, `tuxee help`, and `tuxee version` for CLI help. `--config /absolute/file.json` loads a JSON configuration; explicit flags override it. [The example configuration](../docker/tuxee.example.json) contains the defaults. Terminal access is exclusively through the web UI; shells run directly on local PTYs. Explicit HTTP is available with `--http --bind 127.0.0.1:8080`. For a protected reverse proxy, set `--origin https://admin.example.com` and forward WebSocket upgrades as well as HTTP. Origin checks use this exact external origin; forwarded headers are not implicitly trusted.
+
+## Native service
+
+```sh
+sudo ./bin/tuxee service install --hosts admin.example.com
+sudo ./bin/tuxee start
+sudo ./bin/tuxee status
+sudo ./bin/tuxee restart
+sudo ./bin/tuxee logs
+sudo ./bin/tuxee stop
+sudo ./bin/tuxee service uninstall
+```
+
+Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc/tuxee/config.json` on first installation, registers `/etc/systemd/system/tuxee.service`, and enables boot startup. It reports whether the service is running; `start` is explicit. Repeat installation preserves existing configuration and rejects unrelated units. Edit the existing configuration and restart to change deployed settings. Uninstall unregisters the service and preserves the binary, configuration, certificate state and all user files.
+
+Use `--name tuxee-poc` consistently to install/test a separate service identity. Its configuration, binary and default state paths use that name. Lifecycle commands delegate to systemctl/journalctl. Machines without a running systemd manager can use foreground or Docker operation.
+
+## HTTPS
+
+Opening `http://HOST:TLS_PORT` redirects to `https://HOST:TLS_PORT`, preserving the path and query. This uses the same listening port and does not open port 80. Explicit `--http` mode continues serving HTTP.
+
+Automatic public issuance uses TLS-ALPN-01, so port 80 is unnecessary. Public TCP 443 must reach Tuxee's TLS listener for validation. `--acme auto` (the default, also accepted as `on`) enables issuance and renewal on any local listening port. Any public domain pointing to the server can trigger issuance through the browser's TLS SNI; `--hosts` is optional. For example, forward public TCP 443 to local 4433 and run `tuxee serve --bind :4433`; no port override is needed. Forwarding must preserve the TLS handshake. Behind a TLS-terminating proxy, use HTTP mode and let the proxy manage certificates.
+
+DNS names and eligible public IPs are supported. Set `--hosts admin.example.com` to request a certificate at startup, before the first browser visit. Without configured hosts, startup uses discovered interface addresses. For access by public IP behind NAT, set `--hosts PUBLIC_IP`: clients commonly omit SNI for IP addresses and Tuxee cannot infer an external NAT address. The first configured host is the no-SNI name. Private addresses and localhost use local certificates.
+
+Until public issuance succeeds, Tuxee serves a locally issued leaf from a persisted CA, so the first visit can show a certificate warning. Existing public certificates remain in use until expiry despite renewal failures. Startup targets and background renewal of tracked names do not depend on browser visits. Retries continue at most once per hour per host when automatic issuance is enabled; `--acme off` disables them. Local leaves renew automatically. No transport downgrade and no default HSTS are used.
+
+Settings shows certificate status and offers the CA certificate. Verify its SHA-256 fingerprint against the server before installing it in your client trust store. The server CA file also contains its private key: **never copy the complete `local-ca.pem` file to a client**. Extract only the certificate:
+
+```sh
+sudo openssl x509 -in /var/lib/tuxee/tls/local-ca.pem -noout -fingerprint -sha256
+```
+
+Browsers do not automatically trust this CA. An inherited/cached HSTS rule can prevent bypassing a certificate warning. Single-file service-worker download progress requires a trusted secure context; when unavailable, the browser's download manager provides progress and cancellation. ZIP downloads use server progress and cancellation over either HTTP or HTTPS.
+
+## Workspaces, files and terminals
+
+Regular desktop defaults to two file browsers stacked in the left half (`/` above your home directory) and one full-height terminal in the right half; ultrawide (at least 1920px and aspect ratio 2.2+) defaults to files/files/terminal/terminal. Portrait desktops use a vertical default. Drag anywhere on a panel header to move the actual panel. Grid cells and workspace highlights stay below all windows; the dragged window becomes translucent until it is dropped or cancelled. Over another panel, the cursor selects the split edge or center swap; in empty grid space, hover a cell to fill it, a shared grid line to span two adjacent cells horizontally/vertically, or a crossing to span a 2×2 square. The window resizes to the highlight regardless of its previous size, so a large window fits a small hole. Overlapping drops shrink each affected neighbor to its largest remaining rectangle, preserving its one-cell minimum and leaving unaffected windows in place. A drop is rejected if any neighbor cannot remain. Grid targets spanning vacant and occupied cells work from either side of the boundary. Drops snap with an animation; invalid drops return to the original location. Add icons can also be dragged. Screen edges preview half/quarter layouts and reflow neighboring panels. Double-click a title to fill surrounding empty cells without moving or covering neighbors; if it cannot expand, it shrinks to one cell. Rearrange favors wide terminals and compact file lists, grouping files left and terminals right (files above terminals in portrait). Click to cycle Balanced → Terminals → Files → the saved custom layout; the icon rotates a quarter turn each time, with upright meaning custom. Clicking smoothly reveals the current mode label (Balanced, Terminals, Files or Custom). It stays open while hovered and collapses to the icon two seconds after the pointer leaves; hovering again cancels that countdown. Modes and the original geometry survive reload. Manual layout edits reset the cycle. Balanced keeps files slimmer and terminals wider, with reading room for both types, width caps of roughly 640px/1440px at grid-cell resolution, and spare side space centered. Terminals initially packs file browsers into single cells and maximizes terminal space; Files does the opposite, favoring full-height file lists. Each automatic layout then expands components into unused neighboring cells, with the priority type first, without shrinking components or moving/covering neighbors. Other components keep the normal width caps. These priority modes lift the chosen type’s pixel width cap, while file browsers remain at most two cells wide in every automatic layout. Spare space stays around the centered group; manual/custom layouts can still use wider panels. Modes can produce the same layout when both already use the available space well; components are never minimized just to make a mode look different. Resize with panel edges or the small diagonal corner grips. Drag shared gaps or their junctions to resize adjoining panels together; focused dividers also accept arrow keys. The existing grid and one-cell minimums still apply, so two minimum-height rows cannot move their horizontal boundary. Release snaps smoothly to cells; Escape cancels. Click add to use an empty cell, then split the largest panel. Limits are 4×2, 2×4 portrait, and 8×2 ultrawide. Smaller viewports present one borderless component with icons, names and controls in top tabs, separated by faint pipes, while preserving the saved desktop layout. Desktop titlebars also show component icons. Rearrange is hidden on mobile. Excess tabs move into three-dot menus; workspace content never changes the page's responsive mode. The workspace plus follows the tabs. On desktop, component add/rearrange tools sit before the theme switch; on mobile, file/terminal add buttons follow the component tabs and stay visible beside their overflow control. Component overflow menus align icons/names left. Mobile component and workspace tabs use long-press context menus instead of inline rename/close buttons. Retained-terminal management lists only detached sessions, without IDs. Maximums are 12 workspaces, 32 terminal sessions per user and 128 total. Panel changes preserve neighboring views; workspace switches slide adjacent full layouts left or right.
+
+Closing a terminal panel or confirming workspace closure terminates its terminals in the background, including shells still starting. A failed termination does not block UI closure. Switching workspaces or closing the browser keeps terminals available for reconnection. Logout revokes that browser login and its connections. Detached processes expire after the per-user timeout (168 hours / one week by default); output does not reset it. Existing saved timeout values are preserved. Stopping/restarting Tuxee ends live terminals; saved layouts remain and offer a restart action on next login.
+
+Only one attachment controls input/resize. Other browser views can use Take control. Terminal palettes belong to the running program and remain consistent across reloads, resizing and UI themes; terminal surfaces default to dark in both UI themes.
+
+File drag between browsers defaults to **move**; Ctrl/⌘/Option changes it to **copy**. Internal drags use pointer handling to avoid native macOS modifier filtering; uploads from the desktop still use native file drops. Inside the same browser, dragging only acts when copying; moves are silent no-ops. Group feedback includes all selected files/folders. Buttons provide the same operations without dragging. Right-click opens a menu at the click; the actions button anchors it to that button. Typing filters the loaded list and shows the query in the footer. Up/Down moves focus, Shift+Up/Down extends/shrinks selection, Right enters folders, Left exits, and Space toggles selection. Alt, ContextMenu, or Shift+F10 opens the keyboard menu; Escape closes it without deselecting. Enter opens, F2 renames, Delete confirms, and Ctrl/⌘+A selects all. Properties supports multiple selected entries, summing their metadata sizes (directory contents are not scanned). With nothing selected, the footer info button opens properties of the current folder. Right-click empty folder space and choose Properties to inspect that folder too. Explicit destination collisions fail without overwriting; copies into the same directory receive ` (copy)` or numbered sibling names. Uploads and copies stage their output and clean up on cancellation. Multi-item operations may complete some items before a later item fails; completed items are retained. Single files download directly. Selecting a folder or multiple items downloads one ZIP, streamed while it is compressed without a temporary archive. The local progress bar shows the growing compressed ZIP size and a Cancel button that stops compression and transfer. Its final size is unknown until completion, so progress is indeterminate. ZIP progress and cancellation also work over plain HTTP. Empty folders and symlinks are preserved; unreadable or special files fail the download instead of silently producing an incomplete archive. Folder icons in the file list are filled; file icons remain outlines. Compress/extract actions use installed tar/compressors and 7zz/7z, with ZIP/7z passwords when available. Extraction creates a new folder and never overwrites an existing destination. Use current archive utilities.
+
+Click anywhere in a file row to select it; double-click anywhere in the row to enter a folder or open the bundled CodeMirror 6 editor or native image/PDF/media viewer. Drag from the name/icon to move or copy files; drag from the rest of the row or list margins to draw a selection rectangle. The rectangle selects rows it overlaps anywhere across their width, including the size/date columns. Syntax is selected by extension and can be changed; extensionless dotfiles default to shell. Binary/non-UTF-8 content is rejected. Text opens sequentially in pages of at most 1 MiB and 10,000 displayed rows; lines visually wrap every 1,000 characters without changing file bytes. Text headers offer Undo/Redo and Page up/down. Changing pages asks to save pending edits; cancelling or a failed save keeps the current draft. Previous/next file controls and Left/Right navigation remain for media previews. Saves validate the file version and original page hash, preserve every byte outside that page, and retain untouched line endings, ownership, ordinary permissions and extended attributes. The complete prefix, edited page and suffix are streamed into a temporary file before atomic replacement: saving requires disk space for the complete result and parent-directory write access, and changes the inode, leaving other hard links unchanged. Advisory locks cannot exclude other programs that ignore them. Unsaved changes require confirmation before closing. PDF rendering and media codec support depend on the browser. Archive passwords are transient and passed to tools through stdin.
+
+Images start fitted to the panel. Previous/Next and Left/Right loop only through images in the current visible file list. Use zoom buttons, pinch or Ctrl-wheel to zoom; the percentage button returns to 100%, and Fit resets the view. Drag to pan or scroll in both directions with a touchpad, including diagonal movement. Double-click toggles fit/zoom. With the image focused, `+`/`-` zoom, `0` fits and `1` selects actual size. Zoom is capped at 1600%; changing images resets the view.
+
+Drop OS files or folders onto a file browser to upload into its current directory, or onto a connected terminal to upload into your `~/uploads` and insert quoted paths without pressing Enter. Folder hierarchy and empty folders are preserved. Each batch has one progress bar with file count and total bytes. Repeated names receive numbered suffixes such as `photo (1).png` or `folder (1)`; existing data is never overwritten. Drops outside panels are ignored. Paste screenshots or files exposed by the browser with normal Paste (Ctrl/⌘+V in file lists, ⌘+V on macOS terminals or Shift+Insert on Linux terminals); screenshots use `clipboard-image.png` and numbered variants. Ordinary text paste and input fields stay unchanged. File-manager clipboard support depends on the browser/OS; clipboard text containing local paths is never treated as file access. Cancelling, closing the component, switching workspaces or logging out stops pending uploads; files and folders already created remain. Terminal paths are pasted only when the whole batch succeeds and the terminal still accepts input.
+
+File browsers have no embedded command terminal. File-browser and terminal rename/close controls share the panel header on desktop and the component-tab context menu on mobile. File-browser labels persist across navigation and reload without renaming the folder. Reset in the rename dialog restores the current-folder label (Files at `/`); terminal Reset restores Terminal. On mobile, Take control is also available in the terminal-tab menu when needed. Notifications and progress appear inside their originating component; global actions use viewport notifications. Confirmation dialogs focus the confirming button so Enter confirms. Use normal keyboard/OS clipboard controls; dropping files from a file browser inserts their shell-quoted paths without pressing Enter. The username/menu button opens directly below itself.
+
+Right-click workspace or component tabs for **Activate**, **Rename** and **Close**; on mobile, hold the tab briefly. The same menu is available with the ContextMenu key or Shift+F10, including overflow entries. A normal tap switches tabs; moving or scrolling cancels a hold. Workspace closure still asks for confirmation.
+
+The header shows live CPU, RAM and root-filesystem gauges after the add/layout buttons, separated by pipes. The user menu on desktop and mobile has a plain Resource monitor button that opens the modal; it contains no live gauges. Click the gauges for details, then the cog to choose CPU/RAM/swap, disks, network interfaces and a 2/5/10-second refresh interval. The modal's **Display resource monitor widget** switch hides the gauges and their separator without resetting your choices. While display is off, polling runs only while the modal is open; opening the user menu does not restart it. **Resource monitor** remains in the user menu on desktop and mobile for a live quick look or to turn display back on. Preferences belong to the signed-in user. Network values show receive/send rates; disk values describe each mounted local filesystem, including shared backing storage in containers. Container CPU/memory use cgroup v1/v2 counters and visible limits. Remote/pseudo filesystems are excluded. Monitoring pauses in hidden tabs.
+
+Container CPU usage is the increase in CPU time divided by elapsed time and effective core capacity, multiplied by 100. One fully busy core out of eight available cores is 12.5%; other containers and host processes are excluded. Native installations use aggregate `/proc/stat` busy time, excluding idle and I/O wait. htop's CPU bars read `/proc/stat`, so they can include host or VM activity outside the container; refresh intervals can also differ. Tuxee defaults to a two-second refresh and keeps one decimal from 0.1% to below 10%, showing usage below 0.1% as `0%`.
+
+Click the workspace logo or choose **About** in the user menu for the Tuxee version, operating system, kernel, architecture, server name and signed-in account details.
+
+## Docker
+
+```sh
+ROOT_PASSWORD='your-password' docker compose up --build -d
+docker compose logs -f tuxee
+```
+
+Open `https://SERVER/` and sign in as **root** with `ROOT_PASSWORD`. If omitted, it defaults to **toor**. With `docker run`, pass `-e ROOT_PASSWORD='your-password'`. The entrypoint sets it on the first start of each new container, before Tuxee or init scripts run. Later restarts do not reset passwords changed with `passwd`; recreating the container initializes its new account database from `ROOT_PASSWORD` again. The completion marker stays in `/opt/tuxee/.root-password-initialized`, in the container's writable layer alongside the account database lifecycle, not a persistent volume. Empty passwords and line breaks are rejected; a failed update prevents startup and can retry on the next start. The password is sent to `chpasswd` through stdin and `ROOT_PASSWORD` is removed from the environment inherited by Tuxee and init scripts.
+
+The image creates no tuxee user and persists `/root` for user files/settings. Its Bash login profile reuses the8020 development prompt: green username/host and blue directory. User startup files can override it; native installs retain the host’s shell configuration.
+
+The final image uses Debian slim with a stripped Go executable and runtime dependencies. Node/npm stay in the frontend build stage; Go, compiler tools, frontend node_modules and build caches are excluded. Apt lists, installation logs and generated package-database backups are removed in the installation layer. Debian slim already excludes most documentation and translations while retaining licenses. Keep active apt/dpkg metadata so users can install software normally. Docker may retain builder caches on the build host; those are separate from the tagged runtime image. Deleting files inherited from a base layer does not remove their bytes from that layer.
+
+A Bash loop restarts Tuxee one second after any exit. On container shutdown it stops restarting, signals Tuxee and the init runner, and waits for them; Compose allows 30 seconds before forcing termination. [Tini](https://github.com/krallin/tini) runs as PID 1 to forward signals and reap orphaned processes. No privileged mode or host setup is required.
+
+Docker launches `/init/*.sh` independently in parallel on every container start alongside Tuxee. Scripts may run indefinitely; one blocking or crashing does not stop Tuxee or the others. There is no execution order guarantee. Scripts run as container root through Bash; executable permission is unnecessary. Failures are logged, and finished scripts are not automatically restarted. Use a restart loop when a program should restart after exiting. Restarting Tuxee alone does not rerun these hooks. The runner waits for active scripts and terminates their process groups on shutdown. Instructions and examples are available in [the startup-script README](../docker/init/README.md), installed at `/init/README.md`. Compose persists this folder in `tuxee-init`; replace the mount with `./my-init:/init` to manage scripts from the host. Native installations do not run init scripts. Existing scripts that use Node/npm or PM2 must install those dependencies or launch services directly.
+
+The example publishes only HTTPS port 443. It persists certificate/server state and the default user's home, including layouts. Configuration is mounted from `docker/tuxee.example.json`. Account/password changes survive container restarts but must be provisioned again after container recreation; Linux account databases remain in the container's writable layer. Provision additional container users deliberately. This example does not mount host account databases, the Docker socket, or require privileged mode. It is not a host-management deployment.
+
+## Verification
+
+```sh
+npm run test:layout
+TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 go test -p 2 -race ./internal/... ./cmd/... ./tests
+go vet ./...
+npm run test:browser
+npm run test:uploads
+npm run test:tabs
+npm run test:features
+npm run test:monitoring
+npm run test:docker-init
+```
+
+The system integration test launches the built binary on isolated ports and checks real PAM, trusted local-CA HTTPS, browser attachment and reconnection, controller transfer, logout and expiry despite output. Browser tests expect the local prototype URL above by default; override `TUXEE_TEST_URL` if needed. They use Chromium at `/usr/bin/chromium`, real accounts, filesystem operations and PTYs. Dedicated browser accounts are `tuxee-poc-a` and `tuxee-poc-b`; the isolated system test uses `tuxee-poc-system`. Tests refuse unrelated accounts, generate passwords only in memory and reset their dedicated fixtures. Set usable passwords afterward with `sudo passwd tuxee-poc-a` and `sudo passwd tuxee-poc-b`.
+
+Browser tests explicitly bypass certificate validation for the isolated local test instance. Separate Go tests verify the local CA and TLS switching without that bypass. The system test also verifies default ACME enrollment on a nonstandard port against a local failing CA before sending any HTTP request. No production ACME requests are made by these tests.
+
+Local validation passed: backend race tests and vet; real PAM/UID/group permissions; retained PTY/WebSocket takeover and expiry; alternate-screen Unicode and application colors after reload/resize; desktop, portrait, ultrawide and mobile browser flows; file copy/move/chmod and streaming upload/download progress/cancellation; keyboard file navigation, multi-file permissions and tab overflow; workspace/theme/timeout persistence; and a 64 MiB transfer memory bound. Feature checks also cover real grouped/same-browser Control/Command/Option drag copies, edge reflow, free-space expansion/rearrange, bundled CodeMirror syntax/save/discard, CRLF and stale-save protection, image/PDF/audio previews, and password-protected archives. Chromium reported no unexpected console errors or external asset requests. Systemd accepted the generated unit through `systemd-analyze verify`; install/reinstall safety and clear refusal without a running manager were checked. Explicit loopback HTTP also passed a live launch/health/shutdown check.
+
+This environment has no running systemd manager and no Docker engine. Unit generation and registration safety are testable here; actual boot enablement/lifecycle and Docker image execution must be verified on a suitable host. Public Internet ACME reachability has not been exercised here.
+
+The Docker init check uses temporary folders and real Bash processes without touching the host's `/init`. When run as root, it also checks first-run password initialization through the real `chpasswd --root` against disposable account files, preserving the host's accounts. With Tini on PATH, it checks the production entrypoint's parallel framework/init startup, restart after clean exits and crashes, and shutdown with fixture services; otherwise that portion reports a skip.
+
+## Reuse and remaining limits
+
+CodeMirror 6 and its syntax modes are vendored from `the8020/uui`. The canonical xterm engine and full snapshot restoration reuse `the8020/dev-core`; idle/session contracts adapt `the8020/kernel`; certificate eligibility and fallback policies adapt `the8020/https`. Go's lego library performs ACME. GridStack supplies grid placement/resizing. The distributed database/sandbox runtime is intentionally excluded. Attribution is in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
+PAM authentication/account checks are implemented; full PAM login-session modules, systemd-logind integration, and persistent processes across service restarts are not implemented. The root server is a privileged management surface and still needs a production security review before public deployment.

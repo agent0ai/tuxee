@@ -1,0 +1,47 @@
+Parent DOX: [internal](../AGENTS.md).
+
+# Purpose
+
+Authenticated HTTP API, application sessions, per-user settings, and WebSocket terminal views.
+
+# Ownership
+
+Own HTTP routing and session revocation. Delegate filesystem syscalls to files, account checks to identity, and all terminal lifetime/control to terminal.
+
+# Local Contracts
+
+Cookies contain random revocable tokens; login passwords never leave the isolated authentication path. Archive passwords are transient filesystem-worker input. Mutations require same-origin admission and a session CSRF token. Logout cancels all requests/WebSockets associated with that login, but never closes retained PTYs. Every terminal operation verifies its Linux owner. User settings validate whole-layout bounds and overlap before an atomic user-owned save. File transfers stream under the user's credentials.
+
+Default detached-terminal expiry is 168 hours (one week). Apply it when `idleHours` is absent; preserve explicitly saved values.
+
+`POST /api/upload?path=…&unique=true` streams a size-declared file through the credential-dropped worker and returns its actual `path`. The worker owns collision naming; the HTTP layer must not pre-check or retry destinations. Omitted/false unique keeps explicit no-overwrite behavior for New file. Directory upload preparation uses the existing files API's mkdir with unique or parents flags.
+
+`POST /api/download-archive` registers a sibling selection and returns a random session-bound token/name. `GET /api/download?archive=token` claims it once and streams the worker's ZIP immediately without Content-Length or a temporary archive. `GET /api/download-archive?token=token` reports compressed bytes sent, completion and errors; DELETE cancels/removes it. Require the same login for every operation and CSRF for registration/cancellation. Bound pending records to 128 and active workers through the shared file slots; expire unused/completed records after one minute and stop active streams after 30 minutes. Logout/disconnection/cancellation stops the worker. Failed ZIP streams must abort the HTTP response instead of reporting a successful partial archive.
+
+Optional workspace `layout` stores auto mode 1/2/3 and `custom` geometry keyed by panel ID. Validate both current and saved positions with the same bounds/overlap check; the custom snapshot must contain exactly the current panel IDs, without duplicates. It stores no paths or terminal identities. Absent layout means custom and remains compatible with older settings.
+
+Optional file-panel `name` is a display label, limited to 80 bytes with no NUL. Accept absent/empty labels for older settings; reject nonempty labels on terminal panels because terminal sessions own their names. Preserve the field through the existing user-owned settings load/save.
+
+ServeHTTPS wraps the existing Go TLS listener to return an empty 308 redirect for plaintext HTTP on that same port. Preserve the request host, explicit port, escaped path and query; do not trust forwarded headers. Never pass plaintext requests to application handlers. Use the existing TLS handshake deadlines and bounded header parsing; malformed requests return 400. Keep the wrapper small: no separate protocol dispatcher or listener lifecycle. Explicit --http remains plain HTTP.
+
+The bundled index is precompressed and its inline script requires the build-generated SHA-256 CSP hash. Terminal transport waits for a render acknowledgement before sending the next display event; input acknowledgement means bytes were consumed by the PTY writer. Terminal identity is separate from cookies and views.
+
+Authenticated `GET /api/system` supplies the About modal with the executable's version, OS release, kernel, architecture, hostname and the current session's username, UID, home and shell. Read system metadata within the running environment, including containers; never substitute the server process account for the signed-in user. The CLI passes the same version used by `tuxee version`.
+
+Authenticated `GET /api/metrics` returns the shared monitor snapshot with no-store caching headers. It accepts no user paths or interface queries. Optional per-user `monitoring` settings select CPU/RAM/swap, up to eight absolute mount paths and eight Linux interface names, and a 2/5/10-second refresh interval. The optional boolean `hidden` hides persistent gauges; absent/false keeps them shown and does not restrict on-demand metrics access. Missing preferences retain frontend defaults; validate names, duplicates, counts and interval before the existing user-owned atomic save.
+
+# Work Guidance
+
+Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.
+
+# Verification
+
+Run `go test ./internal/server` for origin/CSRF/logout admission, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and expiry checks against the built executable.
+
+HTTPS redirect checks cover preserved URLs, invalid/oversized headers, plaintext isolation, idle clients, HTTP/2, TLS-ALPN certificate challenges and shutdown. The real-system test follows the redirect through the built binary.
+
+Content APIs use the same authenticated user worker. File-operation JSON is bounded at 8 MiB to accommodate escaped 1 MiB editor pages, including their original byte ranges and hashes. Inline previews allow only selected image/PDF/audio/video MIME types, never HTML/SVG. The /api/preview/{filename}?path= route carries the original filename in its URL and Content-Disposition for native viewers. Responses are private/no-store, use same-origin frames with restrictive CSP, and support validated single byte ranges plus HEAD. The main CSP permits local frames/media for those previews. Test malformed/suffix/open-ended ranges and active-content exclusions.
+
+# Child DOX Index
+
+No children.

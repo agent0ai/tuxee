@@ -1,0 +1,32 @@
+# Dependencies and local tools
+node_modules/
+/.tools/
+/.scratch/
+
+# Generated builds
+/bin/
+/web/dist/
+/internal/terminal/engine.js
+*.test
+
+# Local state and verification output
+/.test-state/
+/test-results/
+/coverage/
+*.log
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+*~

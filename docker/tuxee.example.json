@@ -1,0 +1,11 @@
+{
+  "bind": ":443",
+  "state": "/var/lib/tuxee",
+  "http": false,
+  "hosts": "",
+  "acme": "auto",
+  "acmeDirectory": "",
+  "email": "",
+  "pam": "login",
+  "origin": ""
+}

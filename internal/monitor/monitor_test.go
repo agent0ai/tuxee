@@ -1,0 +1,157 @@
+package monitor
+
+import (
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
+)
+
+func fixture(t *testing.T, values map[string]string, container bool) *Collector {
+	t.Helper()
+	c := &Collector{root: t.TempDir(), container: container, statfs: func(_ string, s *unix.Statfs_t) error {
+		*s = unix.Statfs_t{Blocks: 100, Bfree: 40, Bavail: 30, Bsize: 1024}
+		return nil
+	}}
+	put(t, c, "/proc/stat", "cpu 100 0 0 300 0 0 0 0 999 999\ncpu0 1\ncpu1 1\ncpu2 1\ncpu3 1\n")
+	put(t, c, "/proc/meminfo", "MemTotal: 32768 kB\nMemAvailable: 8192 kB\nSwapTotal: 16384 kB\nSwapFree: 8192 kB\n")
+	put(t, c, "/proc/self/mountinfo", "1 0 8:1 / / rw - ext4 /dev/test rw\n")
+	put(t, c, "/proc/net/dev", "eth0: 100 0 0 0 0 0 0 0 200 0 0 0 0 0 0 0\n")
+	put(t, c, "/sys/class/net/eth0/operstate", "up\n")
+	for path, data := range values {
+		put(t, c, path, data)
+	}
+	return c
+}
+func put(t *testing.T, c *Collector, path, data string) {
+	t.Helper()
+	p := filepath.Join(c.root, path)
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+func wantPercent(t *testing.T, value *float64, want float64) {
+	t.Helper()
+	if value == nil || *value != want {
+		t.Fatalf("percent %v, want %v", value, want)
+	}
+}
+func TestHostDeltasResetAndCache(t *testing.T) {
+	c := fixture(t, nil, false)
+	now := time.Now()
+	first := c.sampleAt(now)
+	if first.CPU.Percent != nil || first.Networks[0].ReceiveRate != nil {
+		t.Fatal("initial rates must be unavailable")
+	}
+	if first.Memory.Used != 24576*1024 || first.Swap.Used != 8192*1024 {
+		t.Fatalf("memory: %+v %+v", first.Memory, first.Swap)
+	}
+	if first.Disks[0].Used != 60*1024 || first.Disks[0].Available != 30*1024 {
+		t.Fatalf("reserved disk blocks lost: %+v", first.Disks[0])
+	}
+	put(t, c, "/proc/stat", "cpu 150 0 0 350 0 0 0 0 9999 9999\ncpu0 1\ncpu1 1\ncpu2 1\ncpu3 1\n")
+	put(t, c, "/proc/net/dev", "eth0: 1100 0 0 0 0 0 0 0 2200 0 0 0 0 0 0 0\n")
+	if c.sampleAt(now.Add(time.Second)) != first {
+		t.Fatal("cache did not share sample")
+	}
+	second := c.sampleAt(now.Add(2 * time.Second))
+	wantPercent(t, second.CPU.Percent, 50)
+	if *second.Networks[0].ReceiveRate != 500 || *second.Networks[0].SendRate != 1000 {
+		t.Fatalf("network deltas: %+v", second.Networks[0])
+	}
+	put(t, c, "/proc/net/dev", "eth0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n")
+	put(t, c, "/proc/stat", "cpu 1 0 0 3 0 0 0 0\ncpu0 1\n")
+	reset := c.sampleAt(now.Add(4 * time.Second))
+	if reset.CPU.Percent != nil || reset.Networks[0].ReceiveRate != nil || reset.Networks[0].SendRate != nil {
+		t.Fatal("counter reset caused false rates")
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Go(func() {
+			if c.sampleAt(now.Add(4*time.Second)) != reset {
+				t.Error("concurrent cache changed")
+			}
+		})
+	}
+	wg.Wait()
+}
+func TestCgroupV2AncestorLimitsAndNamespace(t *testing.T) {
+	c := fixture(t, map[string]string{
+		"/proc/self/cgroup":    "0::/child\n",
+		"/proc/self/mountinfo": "1 0 0:1 /docker/container /cg rw - cgroup2 cgroup rw\n",
+		"/cg/cpu.max":          "100000 100000", "/cg/child/cpu.max": "200000 100000",
+		"/cg/child/cpu.stat": "usage_usec 1000000\n", "/cg/child/cpuset.cpus.effective": "0-3",
+		"/cg/memory.max": "8388608", "/cg/child/memory.max": "16777216",
+		"/cg/child/memory.current": "6291456", "/cg/child/memory.stat": "inactive_file 1048576\n",
+		"/cg/child/memory.swap.current": "1048576", "/cg/memory.swap.max": "2097152",
+	}, true)
+	now := time.Now()
+	first := c.sampleAt(now)
+	if first.Scope != "container" || first.CPU.Cores != 1 || first.Memory.Total != 8388608 || first.Memory.Used != 5242880 || first.Swap.Total != 2097152 {
+		t.Fatalf("container limits: %+v %+v %+v", first, first.Memory, first.Swap)
+	}
+	wantPercent(t, first.Memory.Percent, 62.5)
+	put(t, c, "/cg/child/cpu.stat", "usage_usec 1500000\n")
+	wantPercent(t, c.sampleAt(now.Add(2*time.Second)).CPU.Percent, 25)
+	if err := os.Remove(filepath.Join(c.root, "/cg/child/memory.current")); err != nil {
+		t.Fatal(err)
+	}
+	if c.sampleAt(now.Add(4*time.Second)).Memory != nil {
+		t.Fatal("missing container counter fell back to host memory")
+	}
+}
+func TestCgroupV1AndCpuset(t *testing.T) {
+	c := fixture(t, map[string]string{
+		"/proc/self/cgroup":          "0::/test\n2:cpu,cpuacct:/docker/test\n3:memory:/docker/test\n4:cpuset:/docker/test\n",
+		"/proc/self/mountinfo":       "4 0 0:4 / /unified rw - cgroup2 cgroup rw\n1 0 0:1 /docker /cg/cpu rw - cgroup cgroup rw,cpu,cpuacct\n2 0 0:2 /docker /cg/memory rw - cgroup cgroup rw,memory\n3 0 0:3 /docker /cg/cpuset rw - cgroup cgroup rw,cpuset\n",
+		"/cg/cpu/test/cpuacct.usage": "1000000000", "/cg/cpu/test/cpu.cfs_quota_us": "50000", "/cg/cpu/test/cpu.cfs_period_us": "100000",
+		"/cg/cpuset/test/cpuset.cpus":           "1-3",
+		"/cg/memory/test/memory.usage_in_bytes": "4194304", "/cg/memory/test/memory.limit_in_bytes": "8388608", "/cg/memory/test/memory.stat": "total_inactive_file 1048576",
+		"/cg/memory/test/memory.memsw.usage_in_bytes": "5242880", "/cg/memory/test/memory.memsw.limit_in_bytes": "10485760",
+	}, true)
+	now := time.Now()
+	first := c.sampleAt(now)
+	if first.CPU.Cores != .5 || first.Memory.Used != 3145728 || first.Swap.Used != 1048576 || first.Swap.Total != 2097152 {
+		t.Fatalf("v1: %+v %+v %+v", first.CPU, first.Memory, first.Swap)
+	}
+	put(t, c, "/cg/cpu/test/cpuacct.usage", "1500000000")
+	wantPercent(t, c.sampleAt(now.Add(2*time.Second)).CPU.Percent, 50)
+	put(t, c, "/cg/cpu/test/cpu.cfs_quota_us", "-1")
+	if got := c.sampleAt(now.Add(4 * time.Second)).CPU.Cores; got != 3 {
+		t.Fatalf("cpuset: %v", got)
+	}
+	put(t, c, "/cg/memory/test/memory.limit_in_bytes", "9223372036854771712")
+	put(t, c, "/cg/memory/test/memory.memsw.limit_in_bytes", "9223372036854771712")
+	unlimited := c.sampleAt(now.Add(6 * time.Second))
+	if unlimited.Memory.Total != 32768*1024 || unlimited.Swap.Total != 16384*1024 {
+		t.Fatal("unlimited v1 limits must respect physical capacity")
+	}
+}
+func TestMountEscapesAndFiltering(t *testing.T) {
+	c := fixture(t, map[string]string{"/proc/self/mountinfo": "1 0 8:1 / / rw - ext4 /dev/test rw\n2 1 8:2 / /data\\040disk rw - xfs /dev/data rw\n3 1 8:2 /file /bind-file rw - ext4 /dev/data rw\n4 1 0:1 / /remote rw - nfs server:/remote rw\n5 1 0:2 / /proc rw - proc proc rw\n6 1 0:3 / /dev rw - tmpfs tmpfs rw\n", "/bind-file": "fixture"}, false)
+	if err := os.Mkdir(filepath.Join(c.root, "data disk"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	disks := c.Sample().Disks
+	if len(disks) != 2 || disks[1].Path != "/data disk" {
+		t.Fatalf("mounts: %+v", disks)
+	}
+}
+func TestRealEnvironment(t *testing.T) {
+	c := New()
+	value := c.Sample()
+	if value.CPU.Cores <= 0 || value.Memory == nil || value.Memory.Total == 0 || len(value.Disks) == 0 || len(value.Networks) == 0 {
+		t.Fatalf("missing real metrics: %+v", value)
+	}
+	for _, disk := range value.Disks {
+		if disk.Capacity != nil && disk.Used > disk.Total {
+			t.Fatalf("disk overflow: %+v", disk)
+		}
+	}
+}

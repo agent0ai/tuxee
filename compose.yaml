@@ -1,0 +1,18 @@
+services:
+  tuxee:
+    build: .
+    ports:
+      - "443:443"
+    environment:
+      ROOT_PASSWORD: ${ROOT_PASSWORD-toor}
+    volumes:
+      - tuxee-state:/var/lib/tuxee
+      - tuxee-home:/root
+      - tuxee-init:/init
+      - ./docker/tuxee.example.json:/etc/tuxee/config.json:ro
+    restart: unless-stopped
+    stop_grace_period: 30s
+volumes:
+  tuxee-state:
+  tuxee-home:
+  tuxee-init:
