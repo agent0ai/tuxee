@@ -6,7 +6,7 @@ Detailed product, deployment and development documentation.
 
 # Ownership
 
-`SPEC.md` owns the accepted product scope. `install.md` owns the installer,
+`install.md` owns the installer,
 manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits.
 `releases.md` owns updates, GitHub/Docker Hub setup and publication limits.

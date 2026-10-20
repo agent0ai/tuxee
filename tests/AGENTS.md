@@ -14,7 +14,7 @@ Use dedicated test users, temporary fixtures and isolated listener ports. Never 
 
 # Work Guidance
 
-Keep implementation and checks small, complete, and aligned with [the specification](../docs/SPEC.md).
+Keep implementation and checks small and complete.
 
 # Verification
 

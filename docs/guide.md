@@ -4,7 +4,7 @@ One Go executable with an embedded workspace for Linux files and retained termin
 
 All frontend dependencies are shipped locally. Editable TypeScript and CSS stay separate; the production build creates one self-contained, gzip-compressed `index.html` with a hash-protected inline script. No CDN, external font or external script request is required. A small local `sw.js` handles streaming download progress.
 
-This is a built, locally validated prototype, not a production release. The complete accepted scope is in [SPEC.md](SPEC.md).
+This is a built, locally validated prototype, not a production release.
 
 See [installation](install.md) for the installer, manual downloads and source
 builds, or [updates and releases](releases.md) for GitHub/Docker Hub setup.

@@ -101,7 +101,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - [tests/AGENTS.md](tests/AGENTS.md): Real-system and browser integration checks.
 - [third_party/AGENTS.md](third_party/AGENTS.md): Verbatim bundled dependency licenses.
 - [docker/AGENTS.md](docker/AGENTS.md): Docker runtime files, example configuration and startup-folder documentation.
-- [docs/AGENTS.md](docs/AGENTS.md): Product specification, installation, releases and user/developer documentation.
+- [docs/AGENTS.md](docs/AGENTS.md): Installation, releases and user/developer documentation.
 - [assets/AGENTS.md](assets/AGENTS.md): Original logo artwork and its optimized UI/README copies.
 - Root owns README.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
 
@@ -109,7 +109,7 @@ When the user requests a durable behavior change, record it here or in the relev
 ## Tuxee purpose and requested scope
 
 - Build a Linux management helper delivered as a Go binary serving HTTP/HTTPS and an embedded web UI with a file manager, terminals, and user configuration.
-- Current phase: a built and locally validated prototype matching docs/SPEC.md. The user has authorized local builds, dedicated Linux test users, browser testing, and isolated service lifecycle checks.
+- Current phase: a built and locally validated prototype. The user has authorized local builds, dedicated Linux test users, browser testing, and isolated service lifecycle checks.
 - Investigate reuse of `the8020/https`, `the8020/dev-core`, and `the8020/kernel` for automatic certificates, HTTPS routing, and retained terminals.
 - Authenticate with real Linux usernames/passwords. Terminals and file operations must run with that user's UID, GID, and supplementary groups so Linux enforces permissions.
 - Keep named terminal tabs and their running processes across navigation, disconnect, and web logout. Never expire terminals because of inactivity or detachment; logout revokes browser access independently. Warn in Retained terminals and on the hamburger button about running sessions absent from every workspace, with explicit reattach/terminate actions.
@@ -157,7 +157,6 @@ Distribution verification: run `npm run test:installer`, `npm run test:updates`,
 
 ## Prototype contracts
 
-- docs/SPEC.md is the complete accepted goal; do not shrink completion to a partial implementation.
 - Prefer public TLS-ALPN-01 through public port 443 on any local listener, with persistent local-CA fallback when no valid public certificate exists. Keep retrying public renewal; do not default HSTS on.
 - Native process credentials enforce Linux permissions. Passwords are transient authentication input only.
 - Explicit panel/workspace closure terminates its terminals in the background, including pending creation. Keep at most eight visited workspaces warm, including the active workspace, in first-visited FIFO order; revisiting does not reorder them. Switching within the cache keeps terminal connections attached. Eviction, browser closure and logout detach without terminating; terminals have no idle timeout, regardless of output. Only explicit termination, process exit, unrecoverable terminal failure or server shutdown ends them.

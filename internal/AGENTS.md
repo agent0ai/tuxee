@@ -14,7 +14,7 @@ User filesystem operations execute in credential-dropped child processes. Shared
 
 # Work Guidance
 
-Keep implementation and checks small, complete, and aligned with [the specification](../docs/SPEC.md).
+Keep implementation and checks small and complete.
 
 # Verification
 

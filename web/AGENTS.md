@@ -48,7 +48,7 @@ updates.ts reads cached `/api/update` once per minute while visible and on focus
 
 # Work Guidance
 
-Keep implementation and checks small, complete, and aligned with [the specification](../docs/SPEC.md).
+Keep implementation and checks small and complete.
 
 # Verification
 

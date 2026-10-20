@@ -115,7 +115,6 @@ curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
 - [User and developer guide](docs/guide.md)
 - [Updates, releases and repository setup](docs/releases.md)
 - [Startup scripts](docker/init/README.md)
-- [Product specification](docs/SPEC.md)
 - [Example configuration](docker/tuxee.example.json)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
