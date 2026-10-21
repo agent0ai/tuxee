@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
+	"tuxee/internal/processes"
 	"tuxee/internal/server"
 	"tuxee/internal/service"
 	"tuxee/internal/terminal"
@@ -51,6 +52,12 @@ func main() {
 			return
 		case "__files":
 			if err := files.Worker(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
+		case "__processes":
+			if err := processes.Worker(); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

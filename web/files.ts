@@ -2,6 +2,7 @@ import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, noti
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
+import { fittingHeaderItemCount } from './overflow';
 import { registerFileDrop, registerUploadInput, setDropFeedback, animateFileDrop, startFileDrag, type DraggedFile } from './file-drag';
 type Entry = {
     name: string;
@@ -35,6 +36,7 @@ export class FileView implements View {
     private sort?: { column: 'name' | 'size' | 'modified'; descending: boolean };
     private cancelSelection?: () => void;
     private rowMenus: (() => void)[] = [];
+    private closeMenu = () => {};
     private selectAll = el('input');
     private inspector?: FileInspector;
     private uploadInput = el('input');
@@ -48,10 +50,13 @@ export class FileView implements View {
         const nav = el('form', 'file-nav');
         this.pathInput.value = panel.path || hooks.user.home;
         this.pathInput.setAttribute('aria-label', 'Directory path');
-        nav.append(button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/')), button('Home directory', 'House', () => this.navigate(hooks.user.home)), this.pathInput, button('Refresh files', 'RefreshCw', () => this.refresh()));
+        nav.append(button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/')), button('Home directory', 'House', () => this.navigate(hooks.user.home)), button('Refresh files', 'RefreshCw', () => this.refresh()), this.pathInput);
         nav.onsubmit = e => { e.preventDefault(); this.navigate(this.pathInput.value).catch(this.notice); };
         const actions = el('div', 'file-actions');
-        actions.append(button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Copy selected', 'Copy', () => this.transferPrompt('copy')), button('Move selected', 'MoveRight', () => this.transferPrompt('move')), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path)), button('File actions', 'Ellipsis', () => this.menu(actions.querySelector<HTMLButtonElement>('[aria-label="File actions"]')!)));
+        const actionButtons = [button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Copy selected', 'Copy', () => this.transferPrompt('copy')), button('Move selected', 'MoveRight', () => this.transferPrompt('move')), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const more = button('File actions', 'Ellipsis', () => this.menu(more, !this.selected.size, actionButtons.filter(item => item.hidden)));
+        more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
+        actions.append(...actionButtons, more);
         this.uploadInput.type = 'file';
         this.uploadInput.multiple = true;
         this.uploadInput.hidden = true;
@@ -126,6 +131,19 @@ export class FileView implements View {
         };
         footer.append(this.filterButton, this.filterInput, this.status, button('Properties', 'Info', () => this.properties()));
         root.append(nav, actions, header, this.list, footer, this.uploadInput);
+        const fitActions = () => {
+            if (!actions.getClientRects().length) return;
+            this.closeMenu();
+            actionButtons.forEach(item => { item.hidden = false; });
+            const style = getComputedStyle(actions), gap = parseFloat(style.columnGap) || 0;
+            const available = actions.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            // Count the permanent menu button too, so it always retains its space.
+            const count = fittingHeaderItemCount([...actionButtons, more].map(item => item.getBoundingClientRect().width), available, more.getBoundingClientRect().width, gap);
+            actionButtons.forEach((item, index) => { item.hidden = index >= count; });
+            if (actionButtons.some(item => item.hidden && item === document.activeElement)) more.focus();
+        };
+        const observer = new ResizeObserver(fitActions); observer.observe(actions); fitActions();
+        this.events.signal.addEventListener('abort', () => { observer.disconnect(); this.closeMenu(); }, { once: true });
         this.navigate(this.pathInput.value).catch(this.notice);
     }
     private notice = (value: unknown) => notify(value, this.root);
@@ -554,10 +572,16 @@ export class FileView implements View {
         }, 'primary'));
         const { close } = modal('Properties', content);
     }
-    private menu(anchor: HTMLElement | { x: number; y: number }, background = !this.selected.size) {
+    private menu(anchor: HTMLElement | { x: number; y: number }, background = !this.selected.size, overflow: HTMLButtonElement[] = []) {
         const content = el('div', 'menu-actions');
         scopeNotifications(content, this.root);
         let close = () => {};
+        for (const source of overflow) {
+            const item = button(source.title, undefined, () => { close(); source.click(); });
+            item.replaceChildren(...[...source.childNodes].map(node => node.cloneNode(true)), el('span', '', source.title));
+            item.disabled = source.disabled; item.setAttribute('role', 'menuitem'); content.append(item);
+        }
+        if (overflow.length) content.append(el('hr', 'menu-separator'));
         for (const [label, name, action] of background ? [
             ['New file', 'FilePlus', () => this.createFile()], ['New folder', 'FolderPlus', () => this.mkdir()], ['Properties', 'Info', () => this.properties()]
         ] as const : [
@@ -569,6 +593,7 @@ export class FileView implements View {
             content.append(b);
         }
         ({ close } = popover(anchor, content));
+        this.closeMenu = close;
     }
     private async uploadFiles(files: UploadSource[], point?: { clientX: number; clientY: number }) {
         try {

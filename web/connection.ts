@@ -1,10 +1,12 @@
-import { api, el, requestHeaders } from './ui';
+import { api, button, el, modal, requestHeaders } from './ui';
+import { Processes } from './processes';
 
 export class BackendConnection {
     private events = new AbortController();
     private request?: AbortController;
     private timer?: ReturnType<typeof setTimeout>;
     private dialog?: HTMLDialogElement;
+    private recovery?: HTMLDialogElement;
 
     constructor(private restore: (signal: AbortSignal) => Promise<void>, private expired: () => void) {
         const signal = this.events.signal;
@@ -38,7 +40,7 @@ export class BackendConnection {
             if (state.authenticated) await this.restore(request.signal);
             request.signal.throwIfAborted();
             if (this.events.signal.aborted) return;
-            if (!state.authenticated) this.expired();
+            if (!state.authenticated) { this.recovery?.close(); this.expired(); }
             this.hide();
         } catch {
             if (!this.events.signal.aborted && !document.hidden) this.show();
@@ -59,6 +61,13 @@ export class BackendConnection {
         spinner.setAttribute('aria-hidden', 'true');
         status.setAttribute('role', 'status');
         dialog.append(spinner, status);
+        if (requestHeaders()['X-Tuxee-CSRF']) dialog.append(button('Processes', undefined, () => {
+            if (this.recovery?.isConnected) return;
+            const view = new Processes(), { dialog: recovery } = modal('Processes', view.element);
+            recovery.classList.add('monitor-processes'); this.recovery = recovery;
+            recovery.addEventListener('close', () => { view.dispose(); this.recovery = undefined; }, { once: true });
+            void view.load();
+        }));
         document.body.append(dialog);
         dialog.showModal();
     }
@@ -68,6 +77,7 @@ export class BackendConnection {
         this.dialog = undefined;
     }
     dispose() {
+        this.recovery?.close();
         this.events.abort();
         clearTimeout(this.timer);
         this.request?.abort();

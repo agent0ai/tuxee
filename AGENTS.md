@@ -92,6 +92,9 @@ When the user requests a durable behavior change, record it here or in the relev
 - Go and Docker builds default to version `0.0.0` when no version is injected; release builds use their Git tag.
 - The install script also upgrades existing default installations, including releases without `tuxee update`. Use the downloaded binary's installer, preserve configuration/state, and leave restarts explicit.
 - `tuxee upgrade` is an alias for `tuxee update`, using the same handler and options.
+- Resource monitor process discovery and signalling run under the signed-in Linux user's credentials and verify stable process identity before signalling to prevent PID-reuse mistakes. Load processes only on request, with Refresh and server-side RAM/CPU sorting; RAM is the default. No background process polling.
+- Display a tree with `CPU (own)` and `RAM (own)`: the main value includes descendants; parentheses show only that process. Use inexpensive CPU counters and approximate RSS, prefixing aggregate RAM with `~`. Return at most 1,000 rows, with total-process footer information. Under a parent with more than 100 live children, show the top 99 and group the rest into one record. Zombies use count-only summary rows with no expansion or kill action.
+- Process selection cascades to descendants, including grouped PIDs; deselecting a child deselects its ancestors recursively. Use one toolbar Kill button and a popup offering SIGTERM or Force kill, with deduplicated target/child counts and snapshot CPU/RAM totals. There is no children switch or per-row kill button. Do not promise reclaimed resources. Keep controls/copy minimal and use ordinary bounded rendering, including on phones and in container hierarchies.
 
 ## Child DOX Index
 
@@ -150,7 +153,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Go 1.26.3 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
 - Build the embedded frontend and terminal engine with `npm run build`; build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/` and `internal/terminal/engine.js` are generated and ignored by Git. Run the frontend build before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
-- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features` and `npm run test:monitoring` for frontend checks; run browser suites sequentially.
+- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features`, `npm run test:monitoring` and `npm run test:processes` for frontend checks; run browser suites sequentially.
 - Run `npm run test:docker-init` for parallel Docker startup scripts and failure isolation. With Tini on PATH, also verify continuous hooks alongside the framework, clean/crash restarts and shutdown through the production entrypoint without a Docker engine.
 
 

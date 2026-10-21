@@ -6,7 +6,7 @@ Authenticated HTTP API, application sessions, per-user settings, and WebSocket t
 
 # Ownership
 
-Own HTTP routing and session revocation. Delegate filesystem syscalls to files, account checks to identity, and all terminal lifetime/control to terminal.
+Own HTTP routing and session revocation. Delegate filesystem syscalls to files, account checks to identity, process discovery/signals to processes, and all terminal lifetime/control to terminal.
 
 # Local Contracts
 
@@ -34,6 +34,8 @@ Authenticated `GET /api/system` supplies the About modal with the executable's v
 
 Authenticated `GET /api/metrics` returns the shared monitor snapshot with no-store caching headers. It accepts no user paths or interface queries. Optional per-user `monitoring` settings select CPU/RAM/swap, up to eight absolute mount paths and eight network selections (Linux interface names or the reserved `/all` aggregate), and a 2/5/10-second refresh interval. The optional boolean `hidden` hides persistent gauges; absent/false keeps them shown and does not restrict on-demand metrics access. Missing preferences retain frontend defaults; validate names, duplicates, counts and interval before the existing user-owned atomic save.
 
+Authenticated `GET /api/processes?sort=ram|cpu` obtains a fresh credential-dropped snapshot, returning at most 1,000 process/group/zombie rows and a random session-bound snapshot ID. Keep one immutable full snapshot per login, replacing it on refresh/sort; other views using the previous ID must refresh. Release it on matching CSRF-protected DELETE, logout or after 30 minutes. POST accepts only that snapshot ID, displayed selection IDs and signal 15/9; resolve grouped descendants from the saved snapshot and delegate identity/permission checks and signals to processes. No arbitrary client PID/command execution and no discovery of new kill targets. Bound reads and kills independently to two concurrent helpers each; helpers have a 30-second deadline. Responses remain no-store, mutations require the existing origin/CSRF admission, and cancellation/logout stops workers.
+
 Authenticated `GET /api/update` reads the shared cached update status and a shell-quoted command for this server executable, with sudo for non-root users. CSRF-protected POST requests a rate-limited check through internal/update. Neither endpoint installs or restarts. The CLI starts the checker with the server lifecycle; failures retain known update availability.
 
 # Work Guidance
@@ -42,7 +44,7 @@ Keep frontend protocol and real-system tests in sync. Do not weaken shared owner
 
 # Verification
 
-Run `go test ./internal/server` for origin/CSRF/logout admission, connection readiness/authentication, shutdown unavailability/session cancellation, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. Run with `-race` for lifecycle changes. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
+Run `go test ./internal/server` for origin/CSRF/logout admission, connection readiness/authentication, shutdown unavailability/session cancellation, authenticated system information and metrics, process snapshot/CSRF/selection admission, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. Run with `-race` for lifecycle changes. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
 
 HTTPS redirect checks cover preserved URLs, invalid/oversized headers, plaintext isolation, idle clients, HTTP/2, TLS-ALPN certificate challenges and shutdown. The real-system test follows the redirect through the built binary.
 

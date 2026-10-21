@@ -1,6 +1,7 @@
 import { api, button, el, icon, modal, size } from './ui';
-import type { MonitoringPreferences } from './model';
+import { id, type MonitoringPreferences } from './model';
 import { compactSize, networkFill } from './monitor-values';
+import { Processes } from './processes';
 
 type Capacity = { total: number; used: number; available: number; percent: number | null };
 type Disk = Partial<Capacity> & { path: string; device: string; type: string };
@@ -28,6 +29,8 @@ export class Monitoring {
     private dialog?: HTMLDialogElement;
     private details?: HTMLElement;
     private configuring = false;
+    private processes?: Processes;
+    private showingProcesses = false;
     private networks = new Map<string, { upload: number[]; download: number[]; fill: { upload: number; download: number } }>();
 
     constructor(preferences: MonitoringPreferences | undefined, private save: (value: MonitoringPreferences) => Promise<void>) {
@@ -126,7 +129,7 @@ export class Monitoring {
     }
     private paint() {
         if (this.header?.isConnected) this.paintSummary(this.header);
-        if (this.details?.isConnected && !this.configuring) this.paintDetails();
+        if (this.details?.isConnected && !this.configuring && !this.showingProcesses) this.paintDetails();
     }
     private paintDetails() {
         const content = this.details!;
@@ -145,22 +148,46 @@ export class Monitoring {
     }
     open() {
         if (this.dialog?.isConnected) { this.dialog.focus(); return; }
-        this.configuring = false;
+        this.configuring = false; this.showingProcesses = false;
         const content = el('div', 'monitor-content'), controls = el('div');
         const display = el('label', 'monitor-display'), toggle = el('input'), error = el('p', 'monitor-error');
         toggle.type = 'checkbox'; toggle.setAttribute('role', 'switch'); toggle.checked = this.displayed;
         display.append(el('span', '', 'Display resource monitor widget'), toggle);
         error.setAttribute('role', 'alert'); controls.append(display, error);
-        this.details = el('div', 'monitor-content'); content.append(controls, this.details);
+        const resourcePanel = el('section'), processPanel = el('section');
+        this.details = el('div', 'monitor-content'); resourcePanel.append(controls, this.details);
+        processPanel.hidden = true; content.append(resourcePanel, processPanel);
         const { dialog } = modal('Resource monitor', content);
         this.dialog = dialog; dialog.classList.add('monitor-modal');
+        const tabs = el('div', 'monitor-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Resource monitor');
+        const resources = button('Resources', undefined, () => selectTab(false));
+        const processes = button('Processes', undefined, () => selectTab(true));
+        for (const [tab, panel] of [[resources, resourcePanel], [processes, processPanel]]) {
+            tab.id = id(); panel.id = id(); tab.setAttribute('role', 'tab'); panel.setAttribute('role', 'tabpanel');
+            tab.setAttribute('aria-controls', panel.id); panel.setAttribute('aria-labelledby', tab.id); tabs.append(tab);
+        }
+        resources.setAttribute('aria-selected', 'true'); processes.setAttribute('aria-selected', 'false');
+        tabs.onkeydown = event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); selectTab(!this.showingProcesses); (this.showingProcesses ? processes : resources).focus(); } };
+        content.prepend(tabs);
+        const selectTab = (show: boolean) => {
+            if (show === this.showingProcesses) return;
+            this.showingProcesses = show;
+            resources.setAttribute('aria-selected', String(!show)); processes.setAttribute('aria-selected', String(show));
+            resources.tabIndex = show ? -1 : 0; processes.tabIndex = show ? 0 : -1;
+            resourcePanel.hidden = show; processPanel.hidden = !show; cog.hidden = show;
+            dialog.classList.toggle('monitor-processes', show);
+            if (show) {
+                if (!this.processes) { this.processes = new Processes(); processPanel.append(this.processes.element); void this.processes.load(); }
+            } else this.paintDetails();
+        };
+        processes.tabIndex = -1;
         const cog = button('Configure resource monitor', 'Settings', () => {
             this.configuring = !this.configuring;
-            controls.hidden = this.configuring;
+            controls.hidden = this.configuring; tabs.hidden = this.configuring;
             cog.replaceChildren(icon(this.configuring ? 'ArrowLeft' : 'Settings'));
             cog.setAttribute('aria-label', this.configuring ? 'Back to resource monitor' : 'Configure resource monitor');
             cog.title = cog.getAttribute('aria-label')!;
-            if (this.configuring) this.configure(() => { this.configuring = false; controls.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', 'Configure resource monitor'); cog.title = 'Configure resource monitor'; this.paint(); cog.focus(); });
+            if (this.configuring) this.configure(() => { this.configuring = false; controls.hidden = false; tabs.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', 'Configure resource monitor'); cog.title = 'Configure resource monitor'; this.paint(); cog.focus(); });
             else this.paintDetails();
         });
         toggle.onchange = async () => {
@@ -174,7 +201,7 @@ export class Monitoring {
             } finally { toggle.disabled = cog.disabled = false; }
         };
         dialog.querySelector('.modal-head')!.insertBefore(cog, dialog.querySelector('.modal-head button'));
-        dialog.addEventListener('close', () => { this.details = undefined; this.dialog = undefined; if (!this.displayed) this.poll(); }, { once: true });
+        dialog.addEventListener('close', () => { this.processes?.dispose(); this.processes = undefined; this.showingProcesses = false; this.details = undefined; this.dialog = undefined; if (!this.displayed) this.poll(); }, { once: true });
         this.paintDetails(); this.poll();
     }
     private configure(done: () => void) {
@@ -215,5 +242,5 @@ export class Monitoring {
         };
         content.replaceChildren(form);
     }
-    dispose() { this.events.abort(); clearTimeout(this.timer); this.request?.abort(); this.dialog?.close(); }
+    dispose() { this.processes?.dispose(); this.processes = undefined; this.events.abort(); clearTimeout(this.timer); this.request?.abort(); this.dialog?.close(); }
 }

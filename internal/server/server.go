@@ -35,32 +35,38 @@ import (
 )
 
 type login struct {
-	user    identity.User
-	csrf    string
-	expires time.Time
-	ctx     context.Context
-	cancel  context.CancelFunc
+	user            identity.User
+	csrf            string
+	expires         time.Time
+	ctx             context.Context
+	cancel          context.CancelFunc
+	processMu       sync.Mutex
+	processSnapshot *processSnapshot
 }
 type Server struct {
-	Gate       *identity.Gate
-	Terminals  *terminal.Manager
-	TLS        *tlsmanager.Manager
-	Origin     string
-	Version    string
-	Updates    *update.Checker
-	Assets     fs.FS
-	mu         sync.Mutex
-	closed     atomic.Bool
-	logins     map[[32]byte]*login
-	archives   map[string]*archiveDownload
-	fileSlots  chan struct{}
-	scriptHash string
-	monitor    *monitor.Collector
+	Gate         *identity.Gate
+	Terminals    *terminal.Manager
+	TLS          *tlsmanager.Manager
+	Origin       string
+	Version      string
+	Updates      *update.Checker
+	Assets       fs.FS
+	mu           sync.Mutex
+	closed       atomic.Bool
+	logins       map[[32]byte]*login
+	archives     map[string]*archiveDownload
+	fileSlots    chan struct{}
+	scriptHash   string
+	monitor      *monitor.Collector
+	processReads chan struct{}
+	processKills chan struct{}
 }
 
 func New(gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32)}
 	s.monitor = monitor.New()
+	s.processReads = make(chan struct{}, 2)
+	s.processKills = make(chan struct{}, 2)
 	if data, err := fs.ReadFile(assets, "script-csp.txt"); err == nil {
 		if hash, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data))); err == nil && len(hash) == 32 {
 			s.scriptHash = " 'sha256-" + base64.StdEncoding.EncodeToString(hash) + "'"
@@ -241,6 +247,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case r.URL.Path == "/api/processes" && (r.Method == "GET" || r.Method == "POST" || r.Method == "DELETE"):
+		s.processOperation(w, r, session)
 	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"):
 		if s.Updates == nil {
 			failure(w, 503, errors.New("update checks unavailable"))

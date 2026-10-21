@@ -21,7 +21,7 @@ type User struct {
 	Groups []uint32 `json:"-"`
 }
 
-// Self keeps authentication and file helpers on the running binary after updates.
+// Self keeps authentication, file and process helpers on the running binary after updates.
 const Self = "/proc/self/exe"
 
 func Lookup(name string) (User, error) {

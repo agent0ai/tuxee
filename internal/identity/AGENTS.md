@@ -6,13 +6,13 @@ Linux account lookup, isolated PAM authentication, and child-process identity.
 
 # Ownership
 
-Own the authentication helper and the sole process-credential constructor used by files and terminals.
+Own the authentication helper and the sole process-credential constructor used by files, terminals and process controls.
 
 # Local Contracts
 
 Passwords travel only through transient stdin to a short-lived PAM helper. Perform both PAM authentication and account checks. Never change the shared server's identity. Child environments contain a fixed safe PATH and the account's HOME/USER/LOGNAME/SHELL, not server environment secrets. Include supplementary groups. PAM policy defaults to the host's login service.
 
-`identity.Self` is `/proc/self/exe`. Authentication and file-worker launches use this running inode, never the mutable installation pathname, so binary updates cannot mix helper versions before restart.
+`identity.Self` is `/proc/self/exe`. Authentication, file and process-worker launches use this running inode, never the mutable installation pathname, so binary updates cannot mix helper versions before restart.
 
 # Work Guidance
 
