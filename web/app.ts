@@ -245,10 +245,8 @@ function renderChrome() {
         if (!compact) tab.ondblclick = () => renameWorkspace(item).catch(notify);
         chromeDisposers.push(bindContextMenu(group, position => workspaceMenu(item, tab, position), compact));
         group.append(tab);
-        if (!compact) {
-            const menu = button('Workspace menu', 'ChevronDown', () => workspaceMenu(item, menu), 'workspace-menu');
-            menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
-        }
+        const menu = button('Workspace menu', 'ChevronDown', () => workspaceMenu(item, menu), 'workspace-menu');
+        menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         tabs.append(group);
     }
     const tabItems = [...tabs.children] as HTMLElement[];
@@ -312,6 +310,9 @@ function renderChrome() {
         tab.classList.toggle('active', panel.id === ws.active); group.append(tab);
         tab.setAttribute('aria-haspopup', 'menu');
         chromeDisposers.push(bindContextMenu(tab, position => componentMenu(panel, tab, position), compact));
+        const menu = button('Component menu', 'ChevronDown', () => componentMenu(panel, menu), 'component-menu');
+        menu.dataset.componentMenu = panel.id;
+        menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         components.push(group);
     }
     root.prepend(top, componentControls);
@@ -748,7 +749,7 @@ type TabAction = [string, Parameters<typeof icon>[0], () => unknown];
 function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: TabAction[], position?: { x: number; y: number }) {
     const content = el('div', 'menu-actions');
     content.setAttribute('aria-label', title);
-    const item = mounted?.items.get(tab.dataset.componentName || '');
+    const item = mounted?.items.get(tab.dataset.componentName || tab.dataset.componentMenu || '');
     if (item) scopeNotifications(content, item.node.querySelector<HTMLElement>('.panel')!);
     let close = () => {};
     for (const [label, name, action] of actions) {
@@ -757,7 +758,7 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: TabA
         control.append(el('span', '', label)); control.setAttribute('role', 'menuitem'); content.append(control);
     }
     const rect = tab.getBoundingClientRect();
-    const host = tab.classList.contains('component-tab') ? '.component-tabs' : '.workspace-tabs';
+    const host = tab.closest('.component-tab-item') ? '.component-tabs' : '.workspace-tabs';
     const returnFocus = tab.closest('.overflow-tabs') ? document.querySelector<HTMLElement>(`${host} .overflow-toggle`)! : tab;
     ({ close } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
 }

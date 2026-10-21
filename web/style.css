@@ -427,7 +427,7 @@ h3 {
 .file-columns,
 .file-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 70px 90px;
+  grid-template-columns: 32px minmax(0, 1fr) 70px 90px;
   align-items: center;
   gap: 6px;
 }
@@ -438,9 +438,9 @@ h3 {
   padding: 3px 20px;
 }
 .file-columns button { display: flex; justify-content: flex-start; align-items: center; gap: 4px; min-width: 0; padding: 6px 0; color: inherit; font: inherit; border-radius: 0; }
-.file-columns button:nth-child(n+2) { justify-content: flex-end; }
+.file-columns button:nth-child(n+3) { justify-content: flex-end; }
 .sort-indicator { font-size: 8px; color: var(--accent); }
-.file-columns button:nth-child(n+2),
+.file-columns button:nth-child(n+3),
 .file-size,
 .file-date {
   text-align: right;
@@ -466,6 +466,8 @@ h3 {
   cursor: default;
   font-size: 12px;
 }
+.file-select { display: flex; align-items: center; justify-content: center; align-self: stretch; min-height: 32px; cursor: pointer; touch-action: none; }
+.file-select input { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); cursor: pointer; }
 .file-entry:hover {
   background: var(--raised);
 }
@@ -604,6 +606,8 @@ h3 {
   background: #0008;
   backdrop-filter: blur(3px);
 }
+.modal[open]:has(> .modal-body) { display: flex; flex-direction: column; overflow: hidden; }
+.modal-body { min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .connection-overlay {
   width: min(380px, calc(100vw - 32px));
   padding: 32px 24px;
@@ -642,6 +646,7 @@ h3 {
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 @keyframes connection-appear { from { opacity: 0; } to { opacity: 1; } }
 .modal-head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -653,7 +658,8 @@ h3 {
   overflow-wrap: anywhere;
 }
 .about-modal { width: min(580px, calc(100vw - 24px)); }
-.about-modal .modal-head { position: absolute; top: 12px; right: 12px; margin: 0; }
+.modal-head > button:last-child { flex-shrink: 0; min-width: 36px; min-height: 36px; margin-left: auto; }
+.about-modal .modal-head { justify-content: flex-end; margin-bottom: 8px; }
 .about-content {
   display: flex;
   flex-direction: column;
@@ -899,10 +905,11 @@ progress {
 }
 .compact-board .file-columns,
 .compact-board .file-entry {
-  grid-template-columns: minmax(0, 1fr) 65px;
+  grid-template-columns: 44px minmax(0, 1fr) 65px;
 }
+.compact-board .file-select { min-height: 44px; }
 .compact-board .file-date,
-.compact-board .file-columns button:nth-child(3) {
+.compact-board .file-columns button[data-column=modified] {
   display: none;
 }
 .compact-board .file-actions button {
@@ -942,7 +949,8 @@ progress {
 .workspace-tab-item.active { background: var(--raised); border-color: var(--line); color: var(--text); }
 .workspace-tab-item .workspace-tab { border: 0; background: transparent; }
 .workspace-tab-item .workspace-menu { padding: 4px; min-height: 23px; margin-right: 5px; }
-.workspace-menu svg { width: 12px; height: 12px; }
+.workspace-menu, .component-menu { flex-shrink: 0; }
+.workspace-menu svg, .component-menu svg { width: 12px; height: 12px; }
 .reorderable-tab { position: relative; }
 .reorderable-tab > button:first-child { cursor: grab; touch-action: none; }
 .tab-shifting { transition: transform .18s cubic-bezier(.2,.7,.2,1); }
@@ -1006,7 +1014,9 @@ progress {
 .component-tab { max-width: 140px; overflow: hidden; display: flex; gap: 5px; }
 .component-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .component-tab > svg { width: 13px; height: 13px; }
-.long-press { user-select: none; -webkit-touch-callout: none; }
+.long-press, .long-press * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.compact .workspace-tab-item .workspace-menu, .component-menu { min-width: 32px; min-height: 36px; padding: 6px; margin: 0; }
+.overflow-tabs .workspace-menu { min-width: 32px; min-height: 36px; }
 .overflow-tabs:popover-open { display: flex; flex-direction: column; gap: 4px; }
 .overflow-tabs > div { flex-shrink: 0; }
 .overflow-tabs .workspace-tab, .overflow-tabs .component-tab { flex: 1; text-align: left; justify-content: flex-start; max-width: 240px; }

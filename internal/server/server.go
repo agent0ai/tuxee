@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -10,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html"
 	"io"
 	"io/fs"
 	"mime"
@@ -158,23 +160,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-			path := "index.html"
+			compressed := false
 			for _, encoding := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
 				fields := strings.Split(strings.TrimSpace(encoding), ";")
 				if fields[0] == "gzip" && (len(fields) == 1 || strings.TrimSpace(fields[1]) != "q=0") {
-					path += ".gz"
+					compressed = true
 					break
 				}
 			}
-			data, err := fs.ReadFile(s.Assets, path)
+			data, err := fs.ReadFile(s.Assets, "index.html")
 			if err != nil {
 				http.Error(w, "frontend build is unavailable", 500)
 				return
 			}
+			data = bytes.ReplaceAll(data, []byte("{{origin}}"), []byte(html.EscapeString(s.origin(r))))
+			if compressed {
+				var buffer bytes.Buffer
+				writer := gzip.NewWriter(&buffer)
+				writer.Write(data)
+				writer.Close()
+				data = buffer.Bytes()
+			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Vary", "Accept-Encoding")
-			if strings.HasSuffix(path, ".gz") {
+			if compressed {
 				w.Header().Set("Content-Encoding", "gzip")
 			}
 			http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))

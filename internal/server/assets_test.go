@@ -53,3 +53,37 @@ func TestSelfContainedIndexAndCSP(t *testing.T) {
 		t.Fatal("compressed asset differs from source")
 	}
 }
+
+func TestBrandingOrigin(t *testing.T) {
+	for _, test := range []struct{ request, origin, expected string }{
+		{"http://local.test:8080/?workspace=private", "", "http://local.test:8080"},
+		{"https://local.test/", "", "https://local.test"},
+		{"http://internal.test/", "https://public.test", "https://public.test"},
+	} {
+		s := New(nil, nil, nil, test.origin, web.Assets())
+		request := httptest.NewRequest("GET", test.request, nil)
+		request.Header.Set("X-Forwarded-Host", "untrusted.test")
+		response := httptest.NewRecorder()
+		s.ServeHTTP(response, request)
+		for _, tag := range []string{
+			`property="og:url" content="` + test.expected + `/"`,
+			`property="og:image" content="` + test.expected + `/social-preview.jpg"`,
+			`name="twitter:image" content="` + test.expected + `/social-preview.jpg"`,
+		} {
+			if !strings.Contains(response.Body.String(), tag) {
+				t.Fatalf("missing absolute branding URL %s", tag)
+			}
+		}
+		if strings.Contains(response.Body.String(), "{{origin}}") || strings.Contains(response.Body.String(), "workspace=private") || strings.Contains(response.Body.String(), "untrusted.test") {
+			t.Fatal("metadata leaked request state or used forwarded headers")
+		}
+	}
+	s := New(nil, nil, nil, "", web.Assets())
+	request := httptest.NewRequest("GET", "http://local.test/", nil)
+	request.Host = `local.test"><script>injected</script>`
+	response := httptest.NewRecorder()
+	s.ServeHTTP(response, request)
+	if strings.Contains(response.Body.String(), "<script>injected</script>") || !strings.Contains(response.Body.String(), "&lt;script&gt;injected&lt;/script&gt;") {
+		t.Fatal("origin must be escaped as HTML attribute text")
+	}
+}

@@ -84,7 +84,9 @@ export function modal(title: string, content: HTMLElement): {
     dialog.setAttribute('aria-label', title);
     const head = el('header', 'modal-head');
     head.append(el('h2', '', title), button('Close dialog', 'X', () => dialog.close()));
-    dialog.append(head, content);
+    const body = el('div', 'modal-body');
+    body.append(content);
+    dialog.append(head, body);
     document.body.append(dialog);
     dialog.onclose = () => dialog.remove();
     dialog.showModal();
@@ -94,18 +96,22 @@ let closePopover = () => {};
 export function bindContextMenu(target: HTMLElement, open: (position?: { x: number; y: number }) => void, longPress = false) {
     const events = new AbortController();
     if (longPress) target.classList.add('long-press');
-    let cancelPress = () => {}, cancelRelease = () => {};
+    let cancelPress = () => {}, cancelRelease = () => {}, touch = false;
     target.addEventListener('contextmenu', event => {
-        event.preventDefault(); cancelPress(); open({ x: event.clientX, y: event.clientY });
+        event.preventDefault(); event.stopPropagation();
+        // Touch menus belong to the hold timer, including its release-click suppression.
+        if (longPress && touch) return;
+        cancelPress(); open({ x: event.clientX, y: event.clientY });
     }, { signal: events.signal });
     target.addEventListener('keydown', event => {
-        cancelPress();
+        cancelPress(); touch = false;
         if (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10') {
             event.preventDefault(); event.stopPropagation(); open();
         }
     }, { signal: events.signal });
     if (longPress) target.addEventListener('pointerdown', event => {
-        if (!event.isPrimary || event.button !== 0) return;
+        touch = event.pointerType === 'touch' || event.pointerType === 'pen';
+        if (!touch || !event.isPrimary || event.button !== 0) return;
         cancelPress(); cancelRelease();
         const press = new AbortController(), signal = press.signal;
         const timer = setTimeout(() => {
@@ -128,7 +134,7 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
         window.addEventListener('pointermove', e => {
             if (e.pointerId === event.pointerId && Math.hypot(e.clientX - event.clientX, e.clientY - event.clientY) > 10) cancelPress();
         }, { signal });
-        for (const type of ['pointerup', 'pointercancel', 'pointerdown', 'blur', 'scroll']) {
+        for (const type of ['pointerup', 'pointercancel', 'pointerdown', 'blur', 'scroll', 'resize']) {
             window.addEventListener(type, cancelPress, { capture: true, signal });
         }
     }, { signal: events.signal });

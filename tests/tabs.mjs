@@ -193,7 +193,29 @@ try {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.compact').waitFor(); await page.waitForTimeout(250);
-    assert.equal(await page.locator('.component-tabs .panel-tools, .workspace-menu').count(), 0);
+    assert.equal(await page.locator('.component-tabs .panel-tools').count(), 0);
+    assert.ok(await page.locator('.workspace-tabs .workspace-menu').first().isVisible());
+    for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(250);
+        for (const id of ['work', 'other-4']) {
+            if (!await workspace(id).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
+            const arrow = workspace(id).getByRole('button', { name: 'Workspace menu', exact: true });
+            const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
+            await arrow.tap(); await menu.waitFor();
+            assert.equal((await snapshot()).current, 'work', 'workspace arrow never activates its tab');
+            assert.equal(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled(), id === 'work');
+            await page.keyboard.press('Escape');
+        }
+        for (const id of ['panel-0', 'panel-6']) {
+            const label = await reveal(id), arrow = label.locator('..').getByRole('button', { name: 'Component menu', exact: true });
+            const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
+            await arrow.tap(); await menu.waitFor(); assert.ok(await panel('panel-0').isVisible());
+            assert.equal(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled(), id === 'panel-0');
+            await page.keyboard.press('Escape');
+        }
+    }
+    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);
+    check('visible and overflow workspace/component arrows at 320/390px open menus without activation');
     await hold(await reveal('panel-0'));
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled());
     await page.screenshot({ path: 'test-results/tabs-mobile-context.png' });

@@ -82,7 +82,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - Use `main` as the primary Git branch.
 - Attribute repository commits to `Jan Tomášek <tomasekhonza@gmail.com>` as both author and committer.
-- The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker assets separate.
+- The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker and public branding assets separate.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
 - Keep the UI free of promotional/descriptive microcopy except the About tagline. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
 - Use the exact tagline `Tuxee - the most convenient linux for servers and agents.` in the README title, CLI help banner and About subtitle below the logo.
@@ -150,7 +150,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Go 1.26.3 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
 - Build the embedded frontend and terminal engine with `npm run build`; build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/` and `internal/terminal/engine.js` are generated and ignored by Git. Run the frontend build before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
-- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:features` and `npm run test:monitoring` for frontend checks; run browser suites sequentially.
+- Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features` and `npm run test:monitoring` for frontend checks; run browser suites sequentially.
 - Run `npm run test:docker-init` for parallel Docker startup scripts and failure isolation. With Tini on PATH, also verify continuous hooks alongside the framework, clean/crash restarts and shutdown through the production entrypoint without a Docker engine.
 
 

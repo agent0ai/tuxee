@@ -513,7 +513,7 @@ try {
     await page.screenshot({ path: 'test-results/mobile.png' });
     assert.equal(await page.locator('.panel-header:visible').count(), 0);
     assert.equal(await page.locator('.component-tabs .panel-tools').count(), 0);
-    assert.equal(await page.locator('.workspace-menu').count(), 0);
+    assert.ok(await page.locator('.workspace-menu:visible').count() > 0);
     assert.equal(await page.locator('.panel:visible').evaluate(node => getComputedStyle(node).borderRadius), '0px');
     const mobileAccount = await page.getByRole('button', { name: 'User menu', exact: true }).boundingBox();
     assert.ok(mobileAccount.x + mobileAccount.width > 375);

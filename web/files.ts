@@ -1,4 +1,4 @@
-import { api, ask, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, size } from './ui';
+import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, size } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
@@ -34,6 +34,8 @@ export class FileView implements View {
     private filterButton = button('Filter files', 'Search', () => this.showFilter(this.filterInput.hidden));
     private sort?: { column: 'name' | 'size' | 'modified'; descending: boolean };
     private cancelSelection?: () => void;
+    private rowMenus: (() => void)[] = [];
+    private selectAll = el('input');
     private inspector?: FileInspector;
     private uploadInput = el('input');
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
@@ -55,6 +57,16 @@ export class FileView implements View {
         this.uploadInput.hidden = true;
         this.uploadInput.onchange = () => this.uploadFiles([...this.uploadInput.files || []]);
         const header = el('div', 'file-columns');
+        const selectAll = el('label', 'file-select');
+        this.selectAll.type = 'checkbox';
+        this.selectAll.setAttribute('aria-label', 'Select all visible files');
+        this.selectAll.onchange = () => {
+            for (const entry of this.visibleEntries()) {
+                if (this.selectAll.checked) this.selected.add(entry.path); else this.selected.delete(entry.path);
+            }
+            this.paintSelection();
+        };
+        selectAll.append(this.selectAll); header.append(selectAll);
         for (const [column, label] of [['name', 'Name'], ['size', 'Size'], ['modified', 'Modified']] as const) {
             const heading = button(`Sort by ${label}`, undefined, () => {
                 this.sort = this.sort?.column !== column ? { column, descending: false } : !this.sort.descending ? { column, descending: true } : undefined;
@@ -188,6 +200,7 @@ export class FileView implements View {
     }
     private render() {
         this.cancelSelection?.();
+        this.rowMenus.splice(0).forEach(dispose => dispose());
         const entries = this.visibleEntries();
         this.list.replaceChildren();
         if (!entries.length) this.list.append(el('div', 'empty', this.filter ? 'No matches' : 'Empty folder'));
@@ -196,12 +209,22 @@ export class FileView implements View {
             row.dataset.path = entry.path;
             row.dataset.directory = String(entry.directory);
             row.tabIndex = -1;
-            row.onfocus = () => { this.focusedPath = entry.path; };
+            row.addEventListener('focusin', () => { this.focusedPath = entry.path; });
             row.setAttribute('role', 'option');
             row.setAttribute('aria-selected', 'false');
+            const select = el('label', 'file-select'), checkbox = el('input');
+            checkbox.type = 'checkbox'; checkbox.setAttribute('aria-label', `Select ${entry.name}`);
+            checkbox.onchange = () => {
+                if (checkbox.checked) this.selected.add(entry.path); else this.selected.delete(entry.path);
+                this.selectionAnchor = entry.path; this.paintSelection();
+            };
+            checkbox.onkeydown = event => { if (event.key === ' ') event.stopPropagation(); };
+            select.onclick = select.ondblclick = event => event.stopPropagation();
+            select.onpointerdown = event => { event.stopPropagation(); this.startCheckSelection(event, entry.path); };
+            select.append(checkbox);
             const name = el('span', 'file-name');
             name.append(icon(entry.directory ? 'Folder' : entry.symlink ? 'Link' : 'File'), el('span', '', entry.name));
-            row.append(name, el('span', 'file-size', entry.directory ? '—' : size(entry.size)), el('span', 'file-date', new Date(entry.modified).toLocaleDateString()));
+            row.append(select, name, el('span', 'file-size', entry.directory ? '—' : size(entry.size)), el('span', 'file-date', new Date(entry.modified).toLocaleDateString()));
             row.onclick = e => {
                 row.focus({ preventScroll: true });
                 if (e.shiftKey && this.selectionAnchor) this.selectRange(entry.path);
@@ -220,11 +243,11 @@ export class FileView implements View {
             };
             const open = () => entry.directory ? this.navigate(entry.path) : this.openFile(entry);
             row.ondblclick = () => open().catch(this.notice);
-            row.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); if (!this.selected.has(entry.path)) {
+            this.rowMenus.push(bindContextMenu(row, position => { if (!this.selected.has(entry.path)) {
                 this.selected.clear();
                 this.selected.add(entry.path);
                 this.paintSelection();
-            } row.focus(); this.menu({ x: e.clientX, y: e.clientY }); };
+            } row.focus({ preventScroll: true }); this.menu(position || row); }, true));
             row.onpointerdown = e => {
                 if (!this.selected.has(entry.path) && !(e.target as Element).closest('.file-name')) return;
                 startFileDrag(e, this.panel.id, () => {
@@ -276,6 +299,60 @@ export class FileView implements View {
         this.selected = new Set(entries.slice(Math.min(start, end), Math.max(start, end) + 1).map(entry => entry.path)); this.paintSelection();
     }
     private clearSelection() { this.selected.clear(); this.selectionAnchor = ''; this.paintSelection(); }
+    private startCheckSelection(event: PointerEvent, path: string) {
+        if (!event.isPrimary || event.button !== 0) return;
+        this.cancelSelection?.();
+        const target = event.currentTarget as HTMLElement, events = new AbortController(), signal = events.signal;
+        const previous = new Set(this.selected), anchor = this.selectionAnchor, select = !previous.has(path);
+        const bounds = this.list.getBoundingClientRect();
+        const rows = [...this.list.querySelectorAll<HTMLElement>('.file-entry')].map(row => {
+            const rect = row.getBoundingClientRect();
+            return { path: row.dataset.path!, top: rect.top - bounds.top + this.list.scrollTop, bottom: rect.bottom - bounds.top + this.list.scrollTop };
+        });
+        const start = rows.findIndex(row => row.path === path);
+        let dragging = false, y = event.clientY, frame = 0, lastTime = performance.now();
+        target.setPointerCapture(event.pointerId);
+        const update = () => {
+            const index = rows.findIndex(row => y - bounds.top + this.list.scrollTop < row.bottom);
+            const end = index < 0 ? rows.length - 1 : index;
+            for (const row of rows.slice(Math.min(start, end), Math.max(start, end) + 1)) {
+                if (select) this.selected.add(row.path); else this.selected.delete(row.path);
+            }
+            this.selectionAnchor = path; this.paintSelection();
+        };
+        const scroll = (time: number) => {
+            const speed = y < bounds.top + 24 ? -Math.min(1, (bounds.top + 24 - y) / 24) : y > bounds.bottom - 24 ? Math.min(1, (y - bounds.bottom + 24) / 24) : 0;
+            this.list.scrollTop += speed * Math.min(50, time - lastTime) * .7;
+            lastTime = time; update(); frame = requestAnimationFrame(scroll);
+        };
+        const finish = (cancel = false) => {
+            events.abort(); cancelAnimationFrame(frame); this.cancelSelection = undefined;
+            if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+            if (cancel) { this.selected = previous; this.selectionAnchor = anchor; this.paintSelection(); }
+            if (dragging || cancel) {
+                // Escape can precede release indefinitely; a new pointer gesture ends suppression.
+                const release = new AbortController(), signal = release.signal;
+                document.addEventListener('click', click => {
+                    if (!click.detail) return;
+                    click.preventDefault(); click.stopImmediatePropagation(); release.abort();
+                }, { capture: true, signal });
+                window.addEventListener('pointerdown', () => release.abort(), { capture: true, once: true, signal });
+            }
+        };
+        const cancel = this.cancelSelection = () => finish(true);
+        target.addEventListener('pointermove', move => {
+            if (move.pointerId !== event.pointerId) return;
+            y = move.clientY;
+            if (!dragging && Math.abs(y - event.clientY) >= 5) { dragging = true; frame = requestAnimationFrame(scroll); }
+            if (dragging) update();
+        }, { signal });
+        target.addEventListener('pointerup', () => finish(), { signal });
+        target.addEventListener('pointercancel', cancel, { signal });
+        target.addEventListener('lostpointercapture', cancel, { signal });
+        window.addEventListener('blur', cancel, { signal });
+        window.addEventListener('resize', cancel, { signal });
+        document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); key.stopImmediatePropagation(); cancel(); } }, { capture: true, signal });
+    }
     private startSelection(event: PointerEvent) {
         if (event.defaultPrevented || event.button !== 0 || event.pointerType === 'touch') return;
         event.preventDefault();
@@ -341,7 +418,16 @@ export class FileView implements View {
     private chosen() { return this.entries.filter(entry => this.selected.has(entry.path)); }
     private paintSelection() {
         const rows = this.list.querySelectorAll<HTMLElement>('.file-entry');
-        for (const row of rows) row.setAttribute('aria-selected', String(this.selected.has(row.dataset.path!)));
+        let selected = 0;
+        for (const row of rows) {
+            const checked = this.selected.has(row.dataset.path!);
+            row.setAttribute('aria-selected', String(checked));
+            row.querySelector<HTMLInputElement>('input[type=checkbox]')!.checked = checked;
+            if (checked) selected++;
+        }
+        this.selectAll.checked = rows.length > 0 && selected === rows.length;
+        this.selectAll.indeterminate = selected > 0 && selected < rows.length;
+        this.selectAll.disabled = !rows.length;
         this.status.textContent = `${this.filter ? `${rows.length}/${this.entries.length}` : this.entries.length} items${this.selected.size ? ` · ${this.selected.size} selected` : ''}`;
     }
     private single() { const values = this.chosen(); if (values.length !== 1)
@@ -492,5 +578,5 @@ export class FileView implements View {
         catch { /* The batch indicator owns upload errors and cancellation. */ }
         this.uploadInput.value = '';
     }
-    dispose() { this.cancelSelection?.(); this.inspector?.dispose(); this.disposed = true; this.events.abort(); instances.delete(this); this.request?.abort(); }
+    dispose() { this.cancelSelection?.(); this.rowMenus.splice(0).forEach(dispose => dispose()); this.inspector?.dispose(); this.disposed = true; this.events.abort(); instances.delete(this); this.request?.abort(); }
 }
