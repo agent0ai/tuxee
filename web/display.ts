@@ -31,7 +31,7 @@ export class TerminalDisplay {
         this.frame.append(this.screen, this.status); this.frame.hidden = true;
         root.append(this.frame);
         this.update();
-        this.disposeOverflow = overflowTabs(this.windows, this.items, 'More windows');
+        this.disposeOverflow = overflowTabs(this.windows, this.items, 'More windows', () => {});
     }
 
     rename(name: string) {
@@ -45,7 +45,10 @@ export class TerminalDisplay {
         this.state = state;
         const windows = state?.windows || [];
         const present = new Set(windows.map(w => w.id));
-        for (const [id, item] of this.buttons) if (!present.has(id)) { this.closeMenu(); item.dispose(); item.group.remove(); this.buttons.delete(id); }
+        for (const [id, item] of this.buttons) if (!present.has(id)) {
+            this.closeMenu(); item.dispose(); item.group.remove(); this.buttons.delete(id);
+            this.items.splice(this.items.indexOf(item.group), 1);
+        }
         for (const window of windows) {
             let item = this.buttons.get(window.id);
             if (!item) {
@@ -59,7 +62,7 @@ export class TerminalDisplay {
                 menu.setAttribute('aria-haspopup', 'menu');
                 group.append(b, menu); scopeNotifications(group, this.root);
                 item = { tab: b, group, dispose: bindContextMenu(group, position => this.windowMenu(window.id, b, position), true) };
-                this.buttons.set(window.id, item);
+                this.buttons.set(window.id, item); this.items.push(group);
             }
             const b = item.tab, title = window.title || `Window ${window.id}`;
             b.title = title; b.setAttribute('aria-label', title);
@@ -71,7 +74,6 @@ export class TerminalDisplay {
             }
             b.querySelector('.display-title')!.textContent = title;
         }
-        this.items.splice(0, this.items.length, ...windows.map(w => this.buttons.get(w.id)!.group));
         const opened = windows.some(w => !previous.has(w.id));
         this.show(!!state?.ready && windows.length > 0 && (this.visible || opened), opened);
         if (state?.error) notify(state.error, this.root);
