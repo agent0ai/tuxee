@@ -8,6 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20261018113103-d42f16bb6161
 	github.com/dop251/goja_nodejs v0.0.0-20260918173711-b481721df8a2
 	github.com/go-acme/lego/v4 v4.35.2
+	github.com/jezek/xgb v1.3.1
 	golang.org/x/mod v0.41.0
 	golang.org/x/sys v0.49.0
 )

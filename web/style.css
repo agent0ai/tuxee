@@ -1224,3 +1224,31 @@ progress {
  .process-zombies { min-height: 34px; align-items: center; }
 }
 .process-kill-counts { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+
+/* The same window row lives in the terminal header and the compact view. */
+.display-controls { display: flex; flex: 1; align-items: center; gap: 5px; min-width: 0; overflow: hidden; color: var(--muted); }
+.display-tab { flex: 0 0 auto; min-height: 25px; max-width: 180px; gap: 5px; padding: 4px; border: 1px solid transparent; font-size: 11px; }
+.display-tab svg, .display-tab img { width: 15px; height: 15px; flex-shrink: 0; }
+.display-tab .display-title, .terminal-tab .panel-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-tab { min-width: 25px; flex-shrink: 1; }
+.terminal-tab.selected:not(.active) { background: transparent; }
+.terminal-tab:not(.selected) .panel-title, .display-window:not(.active) .display-title { display: none; }
+.display-windows { container-type: inline-size; display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.display-window-item { display: flex; align-items: center; max-width: 205px; }
+.display-windows .display-window-item { max-width: clamp(25px, calc(100cqw - 35px), 205px); }
+.display-window-item .display-window { min-width: 25px; flex-shrink: 1; }
+.display-window-menu { flex: 0 0 25px; width: 25px; min-height: 25px; padding: 4px; color: var(--text); }
+.display-window-menu svg { width: 13px; height: 13px; }
+.display-window-item:not(.active) .display-window-menu { display: none; }
+.display-windows .overflow-toggle { width: 27px; min-height: 25px; padding: 4px; }
+.display-separator { flex-shrink: 0; }
+.display-window { opacity: .6; }
+.display-tab.active { opacity: 1; color: var(--text); background: var(--raised); border-color: var(--accent); }
+.display-tab:focus-visible { opacity: 1; }
+.overflow-tabs .display-window { max-width: 240px; justify-content: flex-start; }
+.overflow-tabs .display-window .display-title { display: inline; }
+.panel-header:has(.display-controls) .panel-tools { flex-shrink: 0; }
+.terminal-view > .display-controls { flex: 0 0 auto; padding: 3px 6px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.terminal-display { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #111827; }
+.display-screen { width: 100%; height: 100%; overflow: hidden; }
+.display-status:not([hidden]) { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: var(--bg); overflow: auto; }

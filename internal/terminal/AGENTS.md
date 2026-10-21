@@ -6,15 +6,17 @@ Retained Linux PTYs and canonical display recovery.
 
 # Ownership
 
-Own session identity, process groups, bounded output, browser controller leases, and explicit termination. Shells use local PTYs without an SSH transport.
+Own session identity, process groups, bounded output, browser controller leases, and explicit termination. Shells use local PTYs without an SSH transport. Each session owns an optional lazy internal/desktop display; prepare its environment before starting the shell and close it on shell exit or session destruction.
 
 # Local Contracts
 
 Attachment loss never kills a shell. There is no idle or detached timeout. Explicit termination, process exit, unrecoverable terminal failure, and server shutdown end it. User ownership is checked before attachment and control.
 
-Ended processes retain a display until their session is explicitly closed; a new attachment receives its snapshot followed by an exit event. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
+Ended processes retain their terminal output until their session is explicitly closed; a new attachment receives its snapshot followed by an exit event. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
 
 Serialize process-group signals with child reaping. Never signal a retained terminal's numeric PID after it has exited and been reaped.
+
+Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
 
 # Work Guidance
 
