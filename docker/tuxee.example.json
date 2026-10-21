@@ -1,7 +1,7 @@
 {
-  "bind": ":443",
+  "httpPort": 80,
+  "httpsPort": 443,
   "state": "/var/lib/tuxee",
-  "http": false,
   "hosts": "",
   "acme": "auto",
   "acmeDirectory": "",
