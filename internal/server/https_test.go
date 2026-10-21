@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -88,7 +87,7 @@ func TestHTTPSPortRedirect(t *testing.T) {
 			t.Fatalf("%s %s: %d %v", test.method, test.path, response.StatusCode, response.Header)
 		}
 	}
-	for _, host := range []string{"", "user@other.test", `other.test\@example.test`} {
+	for _, host := range []string{"", "bad/host", "user@other.test", `other.test\@example.test`} {
 		response := raw("GET / HTTP/1.1\r\nHost: " + host + "\r\n\r\n")
 		if response.StatusCode != 400 || response.Header.Get("Location") != "" {
 			t.Fatalf("invalid host %q redirected: %v", host, response.Header)
@@ -136,31 +135,5 @@ func TestHTTPSPortRedirect(t *testing.T) {
 	idle.SetReadDeadline(time.Now().Add(time.Second))
 	if _, err := idle.Read(make([]byte, 1)); err != io.EOF {
 		t.Fatalf("idle detection connection not closed on shutdown: %v", err)
-	}
-}
-
-func TestIndependentHTTPRedirect(t *testing.T) {
-	for _, tc := range []struct{ host, port, origin, path, want string }{
-		{"example.test:8080", "8443", "", "/a%2Fb?q=x%20y", "https://example.test:8443/a%2Fb?q=x%20y"},
-		{"example.test:80", "443", "", "/?", "https://example.test/?"},
-		{"[::1]:8080", "8443", "", "/", "https://[::1]:8443/"},
-		{"[::1]:8080", "443", "", "/", "https://[::1]/"},
-		{"internal:8080", "8443", "https://public.example:9443/", "/a%2Fb?q=1", "https://public.example:9443/a%2Fb?q=1"},
-		{"bad/host", "443", "", "/", ""},
-		{"user@host", "443", "", "/", ""},
-	} {
-		r := httptest.NewRequest("POST", "http://placeholder"+tc.path, strings.NewReader("never sent to app"))
-		r.Host = tc.host
-		r.Header.Set("X-Forwarded-Host", "untrusted.example")
-		r.Header.Set("X-Forwarded-Proto", "http")
-		w := httptest.NewRecorder()
-		HTTPSRedirect(tc.port, tc.origin).ServeHTTP(w, r)
-		status := http.StatusPermanentRedirect
-		if tc.want == "" {
-			status = http.StatusBadRequest
-		}
-		if w.Code != status || w.Header().Get("Location") != tc.want || w.Body.Len() != 0 || w.Header().Get("Cache-Control") != "no-store" {
-			t.Fatalf("redirect for %s: %d %v %q", tc.host, w.Code, w.Header(), w.Body.String())
-		}
 	}
 }

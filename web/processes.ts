@@ -11,10 +11,12 @@ export class Processes {
     private selected = new Set<string>();
     private collapsed = new Set<string>();
     private request?: AbortController;
+    private refreshTimer?: ReturnType<typeof setTimeout>;
     private disposed = false;
     private killDialog?: HTMLDialogElement;
     private refresh = button('Refresh processes', 'RefreshCw', () => this.load());
-    private kill = button('Kill', undefined, () => this.confirmKill(), 'danger');
+    private kill = button('Kill', 'X', () => this.confirmKill(), 'danger');
+    private allowCore = el('input');
     private error = el('p', 'monitor-error');
     private table = el('table', 'process-table');
     private footer = el('p', 'process-footer');
@@ -23,25 +25,35 @@ export class Processes {
 
     constructor() {
         const toolbar = el('div', 'process-toolbar');
-        toolbar.append(this.refresh, this.kill); this.kill.disabled = true;
+        const core = el('label', 'process-core'); this.allowCore.type = 'checkbox';
+        core.append(this.allowCore, el('span', '', 'Allow killing core'));
+        this.allowCore.onchange = () => { this.selected.clear(); void this.load(); };
+        this.kill.append(el('span', '', 'Kill'));
+        toolbar.append(this.refresh, core, this.kill); this.kill.disabled = true;
         this.error.setAttribute('role', 'alert');
         this.footer.setAttribute('role', 'status');
         const scroll = el('div', 'process-scroll'); scroll.append(this.table);
         this.element.append(toolbar, this.error, scroll, this.footer);
     }
-    async load() {
+    async load(preserveError = false) {
+        clearTimeout(this.refreshTimer);
+        if (this.disposed) return;
         this.request?.abort(); const request = this.request = new AbortController();
-        this.refresh.disabled = this.kill.disabled = true; this.error.textContent = '';
+        this.allowCore.disabled = this.refresh.disabled = this.kill.disabled = true;
+        if (!preserveError) this.error.textContent = '';
         this.element.setAttribute('aria-busy', 'true');
         if (!this.data) this.footer.textContent = 'Loading…';
         try {
-            const data = await api<ProcessSnapshot>(`/processes?sort=${this.sort}`, 'GET', undefined, request.signal);
+            const data = await api<ProcessSnapshot>(`/processes?sort=${this.sort}&allowCore=${this.allowCore.checked}`, 'GET', undefined, request.signal);
             if (request.signal.aborted || this.disposed) return;
             this.data = data; this.selected.clear(); this.collapsed.clear(); this.paint();
         } catch (error) {
-            if (!request.signal.aborted) { this.error.textContent = error instanceof Error ? error.message : 'Processes unavailable'; if (!this.data) this.footer.textContent = ''; }
+            if (!request.signal.aborted) {
+                this.allowCore.checked = this.data?.allowCore ?? false;
+                this.error.textContent = error instanceof Error ? error.message : 'Processes unavailable'; if (!this.data) this.footer.textContent = '';
+            }
         } finally {
-            if (!request.signal.aborted && !this.disposed) { this.request = undefined; this.refresh.disabled = false; this.element.setAttribute('aria-busy', 'false'); this.updateSelection(); }
+            if (!request.signal.aborted && !this.disposed) { this.request = undefined; this.allowCore.disabled = this.refresh.disabled = false; this.element.setAttribute('aria-busy', 'false'); this.updateSelection(); }
         }
     }
     private paint() {
@@ -110,6 +122,7 @@ export class Processes {
     }
     private confirmKill() {
         if (!this.data || this.request || !this.selected.size) return;
+        clearTimeout(this.refreshTimer);
         const data = this.data, roots = selectionRoots(data.rows, this.selected);
         const count = roots.reduce((n, row) => n + row.targets, 0), cpu = roots.reduce((n, row) => n + row.targetCPU, 0), ram = roots.reduce((n, row) => n + row.targetRAM, 0);
         const selectedCount = roots.reduce((n, row) => n + row.ownTargets, 0);
@@ -122,7 +135,7 @@ export class Processes {
             choice.append(input, el('span', '', label)); options.append(choice);
         }
         const error = el('p', 'monitor-error'); error.setAttribute('role', 'alert');
-        const actions = el('div', 'actions'), confirm = button('Kill processes', undefined, undefined, 'danger'); confirm.textContent = 'Kill'; confirm.type = 'submit';
+        const actions = el('div', 'actions'), confirm = button('Kill processes', 'X', undefined, 'danger'); confirm.append(el('span', '', 'Kill')); confirm.type = 'submit';
         content.append(summary, options, error, actions);
         const { dialog, close } = modal('Kill processes', content); this.killDialog = dialog;
         const cancel = button('Cancel', undefined, close); actions.append(cancel, confirm);
@@ -132,22 +145,26 @@ export class Processes {
             const signal = Number(new FormData(content).get('signal'));
             confirm.disabled = true; options.disabled = true; error.textContent = '';
             try {
-                const response = await api<{ results: { pid: number; error?: string }[] }>('/processes', 'POST', { snapshot: data.snapshot, selected: roots.map(row => row.id), signal }, request.signal);
+                const response = await api<{ results: { pid: number; error?: string }[] }>('/processes', 'POST', { snapshot: data.snapshot, selected: roots.map(row => row.id), signal, allowCore: data.allowCore }, request.signal);
                 if (request.signal.aborted || this.disposed) return;
                 const failed = response.results.filter(item => item.error), sent = response.results.length - failed.length;
                 this.error.textContent = failed.length ? `${sent} signals sent; ${failed.length} failed. ${failed.slice(0, 3).map(item => `${item.pid}: ${item.error}`).join(' · ')}` : '';
                 this.footer.textContent = `${sent} signals sent`;
-                this.selected.clear(); this.updateSelection(); close();
+                close();
             } catch (value) {
-                if (!request.signal.aborted) error.textContent = value instanceof Error ? value.message : 'Signal failed';
+                if (request.signal.aborted || this.disposed) return;
+                error.textContent = value instanceof Error ? value.message : 'Signal failed';
                 // A failed response may follow a delivered signal; require a fresh explicit action.
                 cancel.textContent = 'Close';
             }
+            this.selected.clear(); this.updateSelection();
+            this.refreshTimer = setTimeout(() => { void this.load(true); }, 500);
         };
         confirm.focus();
     }
     dispose() {
         if (this.disposed) return;
+        clearTimeout(this.refreshTimer);
         this.disposed = true; this.request?.abort(); this.killDialog?.close();
         if (this.data) void api(`/processes?snapshot=${encodeURIComponent(this.data.snapshot)}`, 'DELETE').catch(() => {});
     }

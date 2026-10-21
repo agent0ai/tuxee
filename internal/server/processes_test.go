@@ -40,6 +40,9 @@ func TestProcessAdmissionAndSnapshotTargets(t *testing.T) {
 	if w := request("GET", "/api/processes?sort=invalid", "owner", "", ""); w.Code != 400 {
 		t.Fatal(w.Code)
 	}
+	if w := request("GET", "/api/processes?allowCore=invalid", "owner", "", ""); w.Code != 400 {
+		t.Fatal(w.Code)
+	}
 	if w := request("POST", "/api/processes", "owner", "csrf", `{"snapshot":"x","selected":["p:42"],"signal":-9}`); w.Code != 400 {
 		t.Fatal(w.Code)
 	}
@@ -49,6 +52,14 @@ func TestProcessAdmissionAndSnapshotTargets(t *testing.T) {
 	}
 	current := &processSnapshot{id: "snapshot", data: data, view: data.View("ram")}
 	session.processSnapshot = current
+	if w := request("POST", "/api/processes", "owner", "csrf", `{"snapshot":"snapshot","selected":["p:42"],"signal":15,"allowCore":true}`); w.Code != 409 {
+		t.Fatal("upgraded protected snapshot", w.Code)
+	}
+	current.allowCore = true
+	if w := request("POST", "/api/processes", "owner", "csrf", `{"snapshot":"snapshot","selected":["p:42"],"signal":15}`); w.Code != 409 {
+		t.Fatal("core action without explicit opt-in", w.Code)
+	}
+	current.allowCore = false
 	group := current.view.Rows[len(current.view.Rows)-1]
 	if !group.Group {
 		t.Fatal("missing group")

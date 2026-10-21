@@ -59,7 +59,7 @@ func TestIndependentPortConfig(t *testing.T) {
 		{name: "mixed bind", args: []string{"--bind", ":443", "--http-port", "0"}, invalid: true},
 		{name: "mixed env", json: `{"http":true}`, env: map[string]string{"TUXEE_HTTPS_PORT": "0"}, invalid: true},
 		{name: "same port", args: []string{"--http-port", "443"}, invalid: true},
-		{name: "HTTP redirect origin", args: []string{"--origin", "http://example.test"}, invalid: true},
+		{name: "HTTP proxy origin", args: []string{"--origin", "http://example.test"}, want: []listenerConfig{{":443", true}, {":80", false}}},
 		{name: "negative JSON", json: `{"httpPort":-1}`, invalid: true},
 		{name: "high JSON", json: `{"httpsPort":65536}`, invalid: true},
 		{name: "fraction JSON", json: `{"httpsPort":1.5}`, invalid: true},

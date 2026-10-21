@@ -109,7 +109,7 @@ func parseStat(data []byte) (Process, error) {
 	}
 	return p, nil
 }
-func scan(ctx context.Context, root string) ([]Process, error) {
+func scan(ctx context.Context, root string, allowCore bool) ([]Process, error) {
 	dir, err := os.Open(root)
 	if err != nil {
 		return nil, err
@@ -173,7 +173,9 @@ func scan(ctx context.Context, root string) ([]Process, error) {
 			break
 		}
 	}
-	protectAncestors(result, os.Getpid())
+	if !allowCore {
+		protectAncestors(result, os.Getpid())
+	}
 	return result, nil
 }
 func protectAncestors(items []Process, pid int) {
@@ -195,8 +197,8 @@ func protectAncestors(items []Process, pid int) {
 		pid = items[i].Parent
 	}
 }
-func Sample(ctx context.Context) (*Snapshot, error) {
-	before, err := scan(ctx, "/proc")
+func Sample(ctx context.Context, allowCore bool) (*Snapshot, error) {
+	before, err := scan(ctx, "/proc", allowCore)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +209,7 @@ func Sample(ctx context.Context) (*Snapshot, error) {
 		return nil, ctx.Err()
 	case <-timer.C:
 	}
-	after, err := scan(ctx, "/proc")
+	after, err := scan(ctx, "/proc", allowCore)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +457,7 @@ func (s *Snapshot) Targets(selected []int) ([]Ref, error) {
 	}
 	return targets, nil
 }
-func ValidateSignal(refs []Ref, signal int) error {
+func ValidateSignal(refs []Ref, signal int, allowCore bool) error {
 	if signal != int(unix.SIGTERM) && signal != int(unix.SIGKILL) {
 		return errors.New("invalid process signal")
 	}
@@ -463,7 +465,7 @@ func ValidateSignal(refs []Ref, signal int) error {
 		return errors.New("invalid process selection")
 	}
 	for _, ref := range refs {
-		if ref.PID <= 1 {
+		if ref.PID < 1 || (ref.PID == 1 && !allowCore) {
 			return errors.New("protected process")
 		}
 		if _, err := strconv.ParseUint(ref.Start, 10, 64); err != nil {
@@ -478,28 +480,30 @@ type Result struct {
 	Error string `json:"error,omitempty"`
 }
 
-func Signal(ctx context.Context, refs []Ref, signal int) ([]Result, error) {
-	if err := ValidateSignal(refs, signal); err != nil {
+func Signal(ctx context.Context, refs []Ref, signal int, allowCore bool) ([]Result, error) {
+	if err := ValidateSignal(refs, signal, allowCore); err != nil {
 		return nil, err
 	}
-	// Resolve protected ancestors independently of client data.
-	protected := map[int]bool{1: true}
-	pid := os.Getpid()
-	for pid > 1 && !protected[pid] {
-		protected[pid] = true
-		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-		if err != nil {
-			return nil, err
+	if !allowCore {
+		// Resolve protected ancestors independently of client data.
+		protected := map[int]bool{1: true}
+		pid := os.Getpid()
+		for pid > 1 && !protected[pid] {
+			protected[pid] = true
+			data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+			if err != nil {
+				return nil, err
+			}
+			p, err := parseStat(data)
+			if err != nil {
+				return nil, err
+			}
+			pid = p.Parent
 		}
-		p, err := parseStat(data)
-		if err != nil {
-			return nil, err
-		}
-		pid = p.Parent
-	}
-	for _, ref := range refs {
-		if protected[ref.PID] {
-			return nil, errors.New("selection includes Tuxee or a protected ancestor")
+		for _, ref := range refs {
+			if protected[ref.PID] {
+				return nil, errors.New("selection includes Tuxee or a protected ancestor")
+			}
 		}
 	}
 	results := make([]Result, 0, len(refs))

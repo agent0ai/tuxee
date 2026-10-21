@@ -24,7 +24,9 @@ assert.equal((await context.request.post(base + '/api/login', { data: { username
 const me = await (await context.request.get(base + '/api/me')).json(), original = me.settings;
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
-let requests = 0; page.on('request', request => { if (request.method() === 'GET' && request.url().includes('/api/processes')) requests++; });
+let requests = 0, lastRefresh = 0, lastKillResponse = 0;
+page.on('request', request => { if (request.method() === 'GET' && request.url().includes('/api/processes')) { requests++; lastRefresh = performance.now(); } });
+page.on('response', response => { if (response.request().method() === 'POST' && response.url() === base + '/api/processes') lastKillResponse = performance.now(); });
 const dialog = page.getByRole('dialog', { name: 'Resource monitor', exact: true });
 const fixtures = JSON.parse(await readFile('.test-state/process-fixtures.json', 'utf8'));
 let fixture = 'container', worker, family, workerExit;
@@ -34,8 +36,9 @@ try {
  await api('/settings', 'PUT', { theme: 'dark', current: 'processes', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 2 }, workspaces: [{ id: 'processes', name: 'Processes', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: '/', x: 0, y: 0, w: 4, h: 2 }] }] });
  await page.route(base + '/api/processes?*', async route => {
   if (route.request().method() !== 'GET') return route.continue();
-  const key = fixture === 'wide' && new URL(route.request().url()).searchParams.get('sort') === 'cpu' ? 'wideCPU' : fixture;
-  await route.fulfill({ json: { ...fixtures[key], snapshot: 'synthetic' } });
+  const query = new URL(route.request().url()).searchParams, allowCore = query.get('allowCore') === 'true';
+  const key = fixture === 'container' && allowCore ? 'containerCore' : fixture === 'wide' && query.get('sort') === 'cpu' ? 'wideCPU' : fixture;
+  await route.fulfill({ json: { ...fixtures[key], snapshot: 'synthetic', allowCore } });
  });
  await page.goto(base); await page.locator('.topbar').waitFor(); assert.equal(requests, 0);
  await openProcesses(); assert.equal(requests, 1);
@@ -45,6 +48,36 @@ try {
  await page.keyboard.press('ArrowRight');
  assert.ok(await dialog.getByRole('tabpanel', { name: 'Processes', exact: true }).isVisible());
  await page.waitForTimeout(2600); assert.equal(requests, 1, 'no process polling');
+ const core = dialog.getByRole('checkbox', { name: 'Allow killing core', exact: true });
+ const root = dialog.locator('tr[data-pid="1"] input');
+ assert.equal(await core.isChecked(), false); assert.equal(await root.isDisabled(), true);
+ assert.equal(await dialog.getByRole('button', { name: 'Kill', exact: true }).locator('svg').count(), 1);
+ await core.check(); await dialog.locator('.processes[aria-busy=false]').waitFor();
+ assert.equal(await root.isEnabled(), true); await root.check();
+ await dialog.getByRole('button', { name: 'Kill', exact: true }).click();
+ const corePopup = page.getByRole('dialog', { name: 'Kill processes', exact: true });
+ assert.equal(await corePopup.locator('.process-kill-summary strong').textContent(), `${fixtures.containerCore.total} processes`);
+ let corePosts = 0;
+ await page.route(base + '/api/processes', async route => {
+  const input = route.request().postDataJSON(); corePosts++;
+  assert.equal(input.allowCore, true); assert.deepEqual(input.selected, ['p:1']);
+  // Never send synthetic core PIDs to the real service.
+  await route.fulfill({ json: { results: [{ pid: 1, error: 'fixture denied' }] } });
+ });
+ const coreRefresh = page.waitForRequest(r => r.method() === 'GET' && r.url().includes('/api/processes?'));
+ const beforeCoreKill = requests;
+ await corePopup.getByRole('button', { name: 'Kill processes', exact: true }).click();
+ await corePopup.waitFor({ state: 'detached' }); await coreRefresh;
+ assert.ok(lastRefresh - lastKillResponse >= 450, 'refresh waits about 500ms after kill');
+ await dialog.locator('.processes[aria-busy=false]').waitFor();
+ assert.match(await dialog.locator('.processes > .monitor-error').textContent(), /fixture denied/);
+ assert.equal(await core.isChecked(), true);
+ await page.waitForTimeout(700); assert.equal(requests, beforeCoreKill + 1, 'one refresh after kill'); assert.equal(corePosts, 1, 'no signal retry');
+ await page.unroute(base + '/api/processes');
+ await root.check(); await core.uncheck(); await dialog.locator('.processes[aria-busy=false]').waitFor();
+ assert.equal(await root.isDisabled(), true); assert.equal(await dialog.locator('tbody input:checked').count(), 0);
+ assert.equal(await dialog.getByRole('button', { name: 'Kill', exact: true }).isDisabled(), true);
+
  await mkdir('test-results', { recursive: true });
  const renderings = [];
  for (const name of ['container', 'wide', 'zombies', 'large', 'deep']) {
@@ -80,6 +113,7 @@ try {
  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
  await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click(); await openProcesses();
  await page.screenshot({ path: 'test-results/processes-mobile-light.png' });
+ assert.equal(await core.isChecked(), false, 'core opt-in resets on close');
  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
  await page.unroute(base + '/api/processes?*'); await page.setViewportSize({ width: 1440, height: 1000 });
  console.log('PASS synthetic tree rendering, bounded rows, zombie summaries, grouped selection and sort refetch', renderings);
@@ -114,15 +148,20 @@ else:
  await dialog.getByRole('button', { name: 'Kill', exact: true }).click();
  assert.equal(await popup.locator('.process-kill-summary strong').textContent(), '106 processes');
  assert.equal(await popup.locator('.process-kill-counts').textContent(), '1 selected · 105 children');
+ const afterTerm = page.waitForRequest(r => r.method() === 'GET' && r.url().includes('/api/processes?'));
  const term = page.waitForResponse(r => r.url() === base + '/api/processes' && r.request().method() === 'POST');
  await popup.getByRole('button', { name: 'Kill processes', exact: true }).click();
  const termResponse = await term; assert.equal(termResponse.status(), 200); assert.equal((await termResponse.json()).results.filter(r => !r.error).length, 106);
  await popup.waitFor({ state: 'detached' });
  for (const pid of [family.parent, ...family.children]) process.kill(pid, 0);
+ await afterTerm; assert.ok(lastRefresh - lastKillResponse >= 450); await dialog.locator('.processes[aria-busy=false]').waitFor();
  await liveParent.check(); await dialog.getByRole('button', { name: 'Kill', exact: true }).click(); await popup.getByRole('radio', { name: 'Force kill', exact: true }).check();
+ const afterKill = page.waitForRequest(r => r.method() === 'GET' && r.url().includes('/api/processes?'));
  const killed = page.waitForResponse(r => r.url() === base + '/api/processes' && r.request().method() === 'POST');
  await popup.getByRole('button', { name: 'Kill processes', exact: true }).click(); assert.equal((await killed).status(), 200); await workerExit; family = undefined;
  await popup.waitFor({ state: 'detached' });
+ await afterKill; await dialog.locator('.processes[aria-busy=false]').waitFor();
+ assert.equal(await liveParent.count(), 0, 'killed process disappears after automatic refresh');
  console.log('PASS real user-scoped tree signals, ignored SIGTERM, Force kill and grouped hidden children');
  // The shared outage overlay keeps an explicit route to recovery controls.
  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();

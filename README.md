@@ -96,7 +96,7 @@ terminals. Also available as a standalone web interface for existing Linux serve
 docker run -p 80:80 -p 443:443 agent0ai/tuxee
 ```
 
-HTTP 80 redirects to HTTPS 443 by default. `TUXEE_HTTP_PORT` and
+The app is available on HTTP 80 and HTTPS 443. `TUXEE_HTTP_PORT` and
 `TUXEE_HTTPS_PORT` change the internal ports; `0` disables either protocol.
 See [listening ports](docs/guide.md#listening-ports) for alternate-port mappings.
 

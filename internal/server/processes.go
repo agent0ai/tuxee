@@ -10,16 +10,18 @@ import (
 )
 
 type processSnapshot struct {
-	id     string
-	data   *processes.Snapshot
-	view   processes.View
-	expiry *time.Timer
-	stop   func() bool
+	id        string
+	allowCore bool
+	data      *processes.Snapshot
+	view      processes.View
+	expiry    *time.Timer
+	stop      func() bool
 }
 type processAction struct {
-	Snapshot string   `json:"snapshot"`
-	Selected []string `json:"selected"`
-	Signal   int      `json:"signal"`
+	Snapshot  string   `json:"snapshot"`
+	Selected  []string `json:"selected"`
+	Signal    int      `json:"signal"`
+	AllowCore bool     `json:"allowCore"`
 }
 
 func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, session *login) {
@@ -30,6 +32,12 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 	}
 
 	if r.Method == "GET" {
+		core := r.URL.Query().Get("allowCore")
+		if core != "" && core != "false" && core != "true" {
+			failure(w, 400, errors.New("invalid core process option"))
+			return
+		}
+		allowCore := core == "true"
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
 			sortBy = "ram"
@@ -45,7 +53,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 			failure(w, 429, errors.New("process sampling is busy"))
 			return
 		}
-		output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "list"})
+		output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "list", AllowCore: allowCore})
 		if err != nil {
 			failure(w, 400, err)
 			return
@@ -54,7 +62,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 			failure(w, 500, errors.New("process snapshot unavailable"))
 			return
 		}
-		current := &processSnapshot{id: randomToken(), data: output.Snapshot, view: output.Snapshot.View(sortBy)}
+		current := &processSnapshot{id: randomToken(), allowCore: allowCore, data: output.Snapshot, view: output.Snapshot.View(sortBy)}
 		if r.Context().Err() != nil {
 			return
 		}
@@ -74,8 +82,9 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 		session.processMu.Unlock()
 		jsonResponse(w, 200, struct {
 			processes.View
-			Snapshot string `json:"snapshot"`
-		}{current.view, current.id})
+			Snapshot  string `json:"snapshot"`
+			AllowCore bool   `json:"allowCore"`
+		}{current.view, current.id, current.allowCore})
 		return
 	}
 	var input processAction
@@ -94,6 +103,10 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 		failure(w, 409, errors.New("process snapshot expired; refresh"))
 		return
 	}
+	if input.AllowCore != current.allowCore {
+		failure(w, 409, errors.New("core process option changed; refresh"))
+		return
+	}
 	refs, err := current.targets(input.Selected)
 	if err != nil {
 		failure(w, 400, err)
@@ -106,7 +119,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 		failure(w, 429, errors.New("process signalling is busy"))
 		return
 	}
-	output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "signal", Targets: refs, Signal: input.Signal})
+	output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "signal", Targets: refs, Signal: input.Signal, AllowCore: input.AllowCore})
 	if err != nil {
 		failure(w, 400, err)
 		return

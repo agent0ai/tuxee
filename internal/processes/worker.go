@@ -13,6 +13,7 @@ import (
 
 type Request struct {
 	Operation string `json:"operation"`
+	AllowCore bool   `json:"allowCore,omitempty"`
 	Targets   []Ref  `json:"targets,omitempty"`
 	Signal    int    `json:"signal,omitempty"`
 }
@@ -35,9 +36,9 @@ func Worker() error {
 	var err error
 	switch input.Operation {
 	case "list":
-		output.Snapshot, err = Sample(ctx)
+		output.Snapshot, err = Sample(ctx, input.AllowCore)
 	case "signal":
-		output.Results, err = Signal(ctx, input.Targets, input.Signal)
+		output.Results, err = Signal(ctx, input.Targets, input.Signal, input.AllowCore)
 	default:
 		err = errors.New("invalid process operation")
 	}

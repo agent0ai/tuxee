@@ -373,9 +373,6 @@ func (value config) listeners() ([]listenerConfig, error) {
 	if httpPort != 0 && httpPort == httpsPort {
 		return nil, errors.New("HTTP and HTTPS ports must differ")
 	}
-	if httpPort != 0 && httpsPort != 0 && value.Origin != "" && !strings.HasPrefix(value.Origin, "https://") {
-		return nil, errors.New("origin must use HTTPS when HTTP redirects to enabled HTTPS")
-	}
 	var listeners []listenerConfig
 	if httpsPort != 0 {
 		listeners = append(listeners, listenerConfig{":" + strconv.Itoa(httpsPort), true})
@@ -499,16 +496,12 @@ func serve(value config) error {
 	for i, listener := range listeners {
 		httpServer := &http.Server{Handler: app, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 90 * time.Second, MaxHeaderBytes: 32 << 10}
 		servers = append(servers, httpServer)
-		scheme, role := "http", "application"
+		scheme := "http"
 		if configs[i].https {
 			scheme = "https"
 			httpServer.TLSConfig = tls.TLSConfig()
-		} else if tls != nil {
-			_, port, _ := net.SplitHostPort(listeners[0].Addr().String())
-			httpServer.Handler = server.HTTPSRedirect(port, value.Origin)
-			role = "redirect to HTTPS"
 		}
-		fmt.Printf("Tuxee %s listening at %s://%s (%s) — state %s\n", version, scheme, listener.Addr(), role, value.State)
+		fmt.Printf("Tuxee %s listening at %s://%s — state %s\n", version, scheme, listener.Addr(), value.State)
 		go func() {
 			if httpServer.TLSConfig != nil {
 				errorsCh <- server.ServeHTTPS(httpServer, listener)

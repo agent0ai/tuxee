@@ -58,7 +58,7 @@ The container's existing restart loop retries this invalid startup once per seco
 use a stopped container when you want Tuxee to remain stopped.
 
 ```sh
-# Both protocols: HTTP redirects to https://SERVER:8443.
+# Both protocols: serve the app on HTTP 8080 and HTTPS 8443.
 sudo env TUXEE_HTTP_PORT=8080 TUXEE_HTTPS_PORT=8443 tuxee serve
 # HTTPS only: port 80 remains available to another service.
 sudo env TUXEE_HTTP_PORT=0 TUXEE_HTTPS_PORT=8443 tuxee serve
@@ -66,18 +66,18 @@ sudo env TUXEE_HTTP_PORT=0 TUXEE_HTTPS_PORT=8443 tuxee serve
 sudo env TUXEE_HTTP_PORT=8080 TUXEE_HTTPS_PORT=0 tuxee serve
 ```
 
-Independent listeners bind all interfaces. When both are enabled, HTTP serves
-only empty 308 redirects to the effective HTTPS port, preserving escaped paths
-and queries. HTTPS 443 is omitted from redirect URLs. An explicit HTTPS `--origin`
-sets the external redirect origin, including its public port; forwarded headers
-are never trusted. Use it if Docker/NAT publishes a different external HTTPS port.
-With HTTPS disabled, HTTP serves the application directly and never redirects to
-HTTPS. Plain HTTP sends login credentials and session traffic unencrypted; use it
+Independent listeners bind all interfaces and each serves the application directly.
+The HTTP listener never redirects to HTTPS, whether HTTPS is enabled or disabled.
+Only plaintext HTTP sent to the HTTPS listener redirects to HTTPS on that same
+host and port, preserving escaped paths and queries. Docker/NAT may publish each
+listener on a different external port; use that port in the browser URL.
+Plain HTTP sends login credentials and session traffic unencrypted; use it
 only on a trusted network or behind a protected TLS proxy. Direct HTTP cookies
 are HttpOnly/SameSite=Strict without Secure, and terminals use `ws://`; direct
 HTTPS cookies are Secure and terminals use `wss://`. Behind a TLS-terminating
 proxy, configure `--origin https://PUBLIC_HOST[:PORT]` for Secure cookies and exact
-origin checks, and forward WebSocket upgrades. The proxy must protect the backend.
+origin checks, and forward WebSocket upgrades. Forwarded headers are never trusted.
+The proxy must protect the backend.
 
 The existing `--bind ADDRESS:PORT` / JSON `bind` and `--http` / JSON `http: true`
 retain their **single-listener** behavior (default address `:443`, TLS unless
@@ -99,7 +99,7 @@ TLS or alter browser/ACME verification.
 
 ## HTTPS
 
-Opening `http://HOST:TLS_PORT` redirects to `https://HOST:TLS_PORT`, preserving the path and query. This redirect remains on the TLS socket even when `TUXEE_HTTP_PORT=0`; it opens no additional port. By default, the separate HTTP listener on 80 also redirects to HTTPS. Legacy explicit `--http` mode continues serving HTTP.
+Opening `http://HOST:TLS_PORT` redirects to `https://HOST:TLS_PORT`, preserving the path and query. This redirect remains on the TLS socket even when `TUXEE_HTTP_PORT=0`; it opens no additional port. The separate HTTP listener (80 by default) and legacy explicit `--http` mode serve the application directly without redirecting.
 
 Automatic public issuance uses TLS-ALPN-01, so port 80 is unnecessary. Public TCP 443 must reach Tuxee's TLS listener for validation. `--acme auto` (the default, also accepted as `on`) enables issuance and renewal on any local listening port. Any public domain pointing to the server can trigger issuance through the browser's TLS SNI; `--hosts` is optional. For example, forward public TCP 443 to local 4433 and run `tuxee serve --bind :4433`; no port override is needed. Forwarding must preserve the TLS handshake. Behind a TLS-terminating proxy, use HTTP mode and let the proxy manage certificates.
 
@@ -142,6 +142,8 @@ File browsers have no embedded command terminal. File-browser and terminal renam
 Workspace tabs on desktop/mobile and mobile component tabs have a down-chevron for **Activate**, **Rename** and **Close**. Drag workspace labels to reorder them; adjacent tabs slide into place and the order is saved. Overflow entries can be reordered within their list. Alt+Left/Right also moves a focused workspace tab; Escape cancels a drag. Reordering keeps the current workspace and its terminals running. Right-click workspace or component tabs for the same menu; on mobile, hold the tab briefly. The same menu is available with the ContextMenu key or Shift+F10, including overflow entries. A normal tap switches tabs; moving or scrolling cancels a hold. Workspace closure still asks for confirmation.
 
 The header defaults to live CPU, RAM, root-filesystem and **All** network gauges after the add/layout buttons, separated by pipes. All sums active interfaces (operstate up/unknown), including loopback and virtual interfaces; traffic crossing multiple interfaces is counted at each. Existing saved choices stay unchanged, and individual interfaces remain selectable. The user menu on desktop and mobile has a plain Resource monitor button that opens the modal; it contains no live gauges. Click the gauges for details, then the cog to choose CPU/RAM/swap, disks, network interfaces and a 2/5/10-second refresh interval. The modal's **Display resource monitor widget** switch hides the gauges and their separator without resetting your choices. While display is off, polling runs only while the modal is open; opening the user menu does not restart it. **Resource monitor** remains in the user menu on desktop and mobile for a live quick look or to turn display back on. Preferences belong to the signed-in user. Network values show receive/send rates. Each half-ring compares its current rate with that direction's highest rate in the latest 100 distinct samples; positive traffic always shows a small visible arc, while zero is empty. These are recent measured peaks, not link-speed limits. Disk values describe each mounted local filesystem, including shared backing storage in containers. Container CPU/memory use cgroup v1/v2 counters and visible limits. Remote/pseudo filesystems are excluded. Monitoring pauses in hidden tabs.
+
+The Resource monitor's **Processes** tab shows an on-demand process tree. Select a process to include its eligible descendants, then use **Kill** to choose SIGTERM or Force kill. **Allow killing core**, beside Refresh, enables selection of PID 1, Tuxee and its startup ancestors where your Linux account has signal permission. It starts unchecked and resets when the view closes. Killing these processes can disconnect the app or stop the container; Docker's restart policy determines whether a stopped container restarts. The list refreshes once 500 ms after a kill attempt while the view remains open; processes still shutting down may need another manual Refresh.
 
 Container CPU usage is the increase in CPU time divided by elapsed time and effective core capacity, multiplied by 100. One fully busy core out of eight available cores is 12.5%; other containers and host processes are excluded. Native installations use aggregate `/proc/stat` busy time, excluding idle and I/O wait. htop's CPU bars read `/proc/stat`, so they can include host or VM activity outside the container; refresh intervals can also differ. Tuxee defaults to a two-second refresh and keeps one decimal from 0.1% to below 10%, showing usage below 0.1% as `0%`.
 

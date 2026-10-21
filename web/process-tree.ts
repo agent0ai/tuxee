@@ -3,7 +3,7 @@ export type ProcessRow = {
     cpu: number | null; ram: number; totalCPU: number | null; totalRAM: number;
     count: number; targets: number; ownTargets: number; unknownCPU?: boolean; targetCPU: number; targetRAM: number; canSignal: boolean; group?: boolean; zombies?: number;
 };
-export type ProcessSnapshot = { snapshot: string; time: string; rows: ProcessRow[]; total: number; zombies: number };
+export type ProcessSnapshot = { snapshot: string; allowCore: boolean; time: string; rows: ProcessRow[]; total: number; zombies: number };
 
 export function selectProcess(rows: ProcessRow[], selected: Set<string>, id: string, checked: boolean) {
     const byID = new Map(rows.map(row => [row.id, row])), children = new Map<string, string[]>();

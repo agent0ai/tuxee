@@ -208,7 +208,10 @@ func TestIndependentListeners(t *testing.T) {
 			}
 			transport := &http.Transport{}
 			defer transport.CloseIdleConnections()
-			base := "http://127.0.0.1:" + httpPort
+			var bases []string
+			if httpPort != "0" {
+				bases = append(bases, "http://127.0.0.1:"+httpPort)
+			}
 			if httpsPort != "0" {
 				pem, err := os.ReadFile(filepath.Join(state, "tls", "local-ca.pem"))
 				if err != nil {
@@ -219,105 +222,89 @@ func TestIndependentListeners(t *testing.T) {
 					t.Fatal("invalid CA")
 				}
 				transport.TLSClientConfig = &tls.Config{RootCAs: roots}
-				base = "https://127.0.0.1:" + httpsPort
+				bases = append(bases, "https://127.0.0.1:"+httpsPort)
 			} else if _, err := os.Stat(filepath.Join(state, "tls")); !os.IsNotExist(err) {
 				t.Fatal("HTTP-only initialized TLS state")
-			}
-			jar, _ := cookiejar.New(nil)
-			client := &http.Client{Jar: jar, Transport: transport, Timeout: 10 * time.Second}
-			if httpPort != "0" && httpsPort != "0" {
-				plain := "http://127.0.0.1:" + httpPort + "/a%2Fb?q=x%20y"
-				redirectClient := *client
-				redirectClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-				response, err := redirectClient.Get(plain)
-				if err != nil {
-					t.Fatal(err)
-				}
-				response.Body.Close()
-				target := base + "/a%2Fb?q=x%20y"
-				if httpsPort == "443" {
-					target = strings.Replace(target, ":443/", "/", 1)
-				}
-				if response.StatusCode != 308 || response.Header.Get("Location") != target {
-					t.Fatalf("redirect: %d %v", response.StatusCode, response.Header)
-				}
-				response, err = client.Get("http://127.0.0.1:" + httpPort + "/api/connection")
-				if err != nil {
-					t.Fatal(err)
-				}
-				response.Body.Close()
-				if response.StatusCode != 200 || response.TLS == nil {
-					t.Fatal("redirect did not reach TLS application")
-				}
 			}
 			probe := exec.Command("../bin/tuxee", append([]string{"healthcheck"}, args[1:]...)...)
 			probe.Env = cmd.Env
 			if out, err := probe.CombinedOutput(); err != nil {
 				t.Fatalf("image health probe: %v %s", err, out)
 			}
-			var csrf string
-			request := func(path, method string, body any, expected int, target any) *http.Response {
-				t.Helper()
-				data, _ := json.Marshal(body)
-				req, _ := http.NewRequest(method, base+path, bytes.NewReader(data))
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("X-Tuxee-Client", "web")
-				req.Header.Set("Origin", base)
-				req.Header.Set("X-Tuxee-CSRF", csrf)
-				response, err := client.Do(req)
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer response.Body.Close()
-				if response.StatusCode != expected {
-					t.Fatalf("%s: got %d, want %d", path, response.StatusCode, expected)
-				}
-				if target != nil {
-					if err := json.NewDecoder(response.Body).Decode(target); err != nil {
+			for _, base := range bases {
+				t.Run(base, func(t *testing.T) {
+					jar, _ := cookiejar.New(nil)
+					client := &http.Client{Jar: jar, Transport: transport, Timeout: 10 * time.Second,
+						CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+					var csrf string
+					request := func(path, method string, body any, expected int, target any) *http.Response {
+						t.Helper()
+						data, _ := json.Marshal(body)
+						req, _ := http.NewRequest(method, base+path, bytes.NewReader(data))
+						req.Header.Set("Content-Type", "application/json")
+						req.Header.Set("X-Tuxee-Client", "web")
+						req.Header.Set("Origin", base)
+						req.Header.Set("X-Tuxee-CSRF", csrf)
+						response, err := client.Do(req)
+						if err != nil {
+							t.Fatal(err)
+						}
+						defer response.Body.Close()
+						if response.StatusCode != expected {
+							t.Fatalf("%s: got %d, want %d", path, response.StatusCode, expected)
+						}
+						if target != nil {
+							if err := json.NewDecoder(response.Body).Decode(target); err != nil {
+								t.Fatal(err)
+							}
+						} else {
+							io.Copy(io.Discard, response.Body)
+						}
+						return response
+					}
+					page := request("/", "GET", nil, 200, nil)
+					if page.Header.Get("Content-Type") != "text/html; charset=utf-8" || (page.TLS != nil) != strings.HasPrefix(base, "https://") {
+						t.Fatal("listener did not serve the application directly")
+					}
+					var ready struct{ Authenticated bool }
+					request("/api/connection", "GET", nil, 200, &ready)
+					if ready.Authenticated {
+						t.Fatal("anonymous client authenticated")
+					}
+					var login struct{ CSRF string }
+					response := request("/api/login", "POST", map[string]string{"username": "tuxee-poc-ports", "password": password}, 200, &login)
+					if len(response.Cookies()) != 1 {
+						t.Fatal("missing session cookie")
+					}
+					cookie := response.Cookies()[0]
+					if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode || cookie.Secure != strings.HasPrefix(base, "https://") {
+						t.Fatal("incorrect session cookie security")
+					}
+					csrf = login.CSRF
+					request("/api/connection", "GET", nil, 200, &ready)
+					if !ready.Authenticated {
+						t.Fatal("cookie not admitted")
+					}
+					var term struct{ ID string }
+					request("/api/terminals", "POST", map[string]any{"directory": "/tmp", "columns": 80, "rows": 24}, 201, &term)
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					ws, _, err := websocket.Dial(ctx, strings.Replace(base, "http", "ws", 1)+"/api/terminals/"+term.ID+"/ws", &websocket.DialOptions{HTTPClient: client, HTTPHeader: http.Header{"Origin": {base}}})
+					if err != nil {
 						t.Fatal(err)
 					}
-				} else {
-					io.Copy(io.Discard, response.Body)
-				}
-				return response
-			}
-			var ready struct{ Authenticated bool }
-			request("/api/connection", "GET", nil, 200, &ready)
-			if ready.Authenticated {
-				t.Fatal("anonymous client authenticated")
-			}
-			var login struct{ CSRF string }
-			response := request("/api/login", "POST", map[string]string{"username": "tuxee-poc-ports", "password": password}, 200, &login)
-			if len(response.Cookies()) != 1 {
-				t.Fatal("missing session cookie")
-			}
-			cookie := response.Cookies()[0]
-			if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode || cookie.Secure != (httpsPort != "0") {
-				t.Fatal("incorrect session cookie security")
-			}
-			csrf = login.CSRF
-			request("/api/connection", "GET", nil, 200, &ready)
-			if !ready.Authenticated {
-				t.Fatal("cookie not admitted")
-			}
-			var term struct{ ID string }
-			request("/api/terminals", "POST", map[string]any{"directory": "/tmp", "columns": 80, "rows": 24}, 201, &term)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			ws, _, err := websocket.Dial(ctx, strings.Replace(base, "http", "ws", 1)+"/api/terminals/"+term.ID+"/ws", &websocket.DialOptions{HTTPClient: client, HTTPHeader: http.Header{"Origin": {base}}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer ws.CloseNow()
-			if _, _, err = ws.Read(ctx); err != nil {
-				t.Fatal("terminal WebSocket did not deliver initial event", err)
-			}
-			ws.CloseNow()
-			request("/api/terminals/"+term.ID, "DELETE", nil, 200, nil)
-			request("/api/logout", "POST", nil, 200, nil)
-			request("/api/connection", "GET", nil, 200, &ready)
-			if ready.Authenticated {
-				t.Fatal("logout did not revoke cookie")
+					defer ws.CloseNow()
+					if _, _, err = ws.Read(ctx); err != nil {
+						t.Fatal("terminal WebSocket did not deliver initial event", err)
+					}
+					ws.CloseNow()
+					request("/api/terminals/"+term.ID, "DELETE", nil, 200, nil)
+					request("/api/logout", "POST", nil, 200, nil)
+					request("/api/connection", "GET", nil, 200, &ready)
+					if ready.Authenticated {
+						t.Fatal("logout did not revoke cookie")
+					}
+				})
 			}
 		})
 	}

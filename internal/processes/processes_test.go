@@ -1,6 +1,7 @@
 package processes
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -81,6 +83,8 @@ func TestProjection(t *testing.T) {
 		}
 	}
 	fixtures["container"] = container.View("ram")
+	container.Processes[0].CanSignal = true
+	fixtures["containerCore"] = container.View("ram")
 	wide := Snapshot{Time: time.Now(), Processes: []Process{fake(1, 0, 0, 0), fake(2, 1, 20<<20, 0)}}
 	for i := 3; i < 5003; i++ {
 		wide.Processes = append(wide.Processes, fake(i, 2, uint64(i)*1024, float64(i%100)/10))
@@ -207,6 +211,74 @@ func procRef(t *testing.T, pid int) Ref {
 	}
 	return p.Ref
 }
+func TestCoreProcessOptIn(t *testing.T) {
+	for _, allowCore := range []bool{false, true} {
+		items, err := scan(context.Background(), "/proc", allowCore)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, item := range items {
+			if item.PID == os.Getpid() {
+				found = true
+				if item.CanSignal != allowCore {
+					t.Fatalf("helper selection with allowCore=%t: %t", allowCore, item.CanSignal)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("helper missing from snapshot")
+		}
+		if err := ValidateSignal([]Ref{{PID: 1, Start: "1"}}, 15, allowCore); (err == nil) != allowCore {
+			t.Fatalf("PID 1 validation with allowCore=%t: %v", allowCore, err)
+		}
+		for _, pid := range []int{0, -1} {
+			if err := ValidateSignal([]Ref{{PID: pid, Start: "1"}}, 15, allowCore); err == nil {
+				t.Fatal("accepted non-positive PID")
+			}
+		}
+		// A stale self-reference tests the override without signalling any live core process.
+		stale := procRef(t, os.Getpid())
+		stale.Start += "0"
+		results, err := Signal(context.Background(), []Ref{stale}, 15, allowCore)
+		if !allowCore && err == nil {
+			t.Fatal("accepted protected helper")
+		}
+		if allowCore && (err != nil || len(results) != 1 || !strings.Contains(results[0].Error, "identity changed")) {
+			t.Fatalf("core override lost identity check: %v %v", results, err)
+		}
+	}
+}
+func TestCoreSignalOverride(t *testing.T) {
+	if os.Getenv("TUXEE_CORE_SIGNAL_FIXTURE") == "1" {
+		for _, allowCore := range []bool{false, true} {
+			input, err := json.Marshal(Request{Operation: "signal", Targets: []Ref{procRef(t, os.Getpid())}, Signal: 15, AllowCore: allowCore})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(os.Args[0], "__processes")
+			cmd.Stdin = bytes.NewReader(input)
+			out, err := cmd.Output()
+			var response Response
+			if err != nil || json.Unmarshal(out, &response) != nil {
+				t.Fatalf("helper: %v", err)
+			}
+			if !allowCore && !strings.Contains(response.Error, "protected ancestor") {
+				t.Fatalf("unprotected parent: %+v", response)
+			}
+		}
+		t.Fatal("core override did not terminate disposable parent")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestCoreSignalOverride$")
+	cmd.Env = append(os.Environ(), "TUXEE_CORE_SIGNAL_FIXTURE=1")
+	out, err := cmd.CombinedOutput()
+	exit, ok := err.(*exec.ExitError)
+	if !ok || exit.Sys().(syscall.WaitStatus).Signal() != syscall.SIGTERM {
+		t.Fatalf("disposable parent exit: %v %s", err, out)
+	}
+}
 func TestStableSignals(t *testing.T) {
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {
@@ -219,13 +291,13 @@ func TestStableSignals(t *testing.T) {
 	if err := signalOne(stale, unix.SIGKILL); err == nil || unix.Kill(ref.PID, 0) != nil {
 		t.Fatal("stale identity killed live process", err)
 	}
-	if _, err := Signal(context.Background(), []Ref{procRef(t, os.Getpid())}, 15); err == nil {
+	if _, err := Signal(context.Background(), []Ref{procRef(t, os.Getpid())}, 15, false); err == nil {
 		t.Fatal("signalled helper itself")
 	}
-	if _, err := Signal(context.Background(), []Ref{ref}, 0); err == nil {
+	if _, err := Signal(context.Background(), []Ref{ref}, 0, false); err == nil {
 		t.Fatal("accepted arbitrary signal")
 	}
-	results, err := Signal(context.Background(), []Ref{ref}, 15)
+	results, err := Signal(context.Background(), []Ref{ref}, 15, false)
 	if err != nil || len(results) != 1 || results[0].Error != "" {
 		t.Fatalf("TERM: %v %v", results, err)
 	}
@@ -284,9 +356,11 @@ func TestUserSignalPermissions(t *testing.T) {
 	}
 	defer func() { cmd.Process.Kill(); cmd.Wait() }()
 	ref := procRef(t, cmd.Process.Pid)
-	denied, err := Run(context.Background(), other, Request{Operation: "signal", Targets: []Ref{ref}, Signal: 9})
-	if err != nil || len(denied.Results) != 1 || denied.Results[0].Error == "" || unix.Kill(ref.PID, 0) != nil {
-		t.Fatalf("cross-user signal: %+v %v", denied, err)
+	for _, allowCore := range []bool{false, true} {
+		denied, err := Run(context.Background(), other, Request{Operation: "signal", Targets: []Ref{ref}, Signal: 9, AllowCore: allowCore})
+		if err != nil || len(denied.Results) != 1 || denied.Results[0].Error == "" || unix.Kill(ref.PID, 0) != nil {
+			t.Fatalf("cross-user signal with allowCore=%t: %+v %v", allowCore, denied, err)
+		}
 	}
 	allowed, err := Run(context.Background(), owner, Request{Operation: "signal", Targets: []Ref{ref}, Signal: 9})
 	if err != nil || len(allowed.Results) != 1 || allowed.Results[0].Error != "" {
