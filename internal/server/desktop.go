@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -45,6 +46,9 @@ func terminalDisplay(w http.ResponseWriter, r *http.Request, value *terminal.Ses
 			failure(w, 403, errors.New("WebSocket origin is required"))
 			return
 		}
+	case action == "display/audio" && r.Method == "GET":
+		terminalAudio(w, r, value)
+		return
 	default:
 		failure(w, 404, errors.New("terminal endpoint not found"))
 		return
@@ -72,4 +76,39 @@ func terminalDisplay(w http.ResponseWriter, r *http.Request, value *terminal.Ses
 	connection.CloseNow()
 	upstream.Close()
 	<-done
+}
+
+func terminalAudio(w http.ResponseWriter, r *http.Request, value *terminal.Session) {
+	if r.Header.Get("Origin") == "" {
+		failure(w, 403, errors.New("WebSocket origin is required"))
+		return
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	output, closeAudio, err := value.Display.Audio(ctx)
+	if err != nil {
+		failure(w, 503, errors.New("display audio is unavailable"))
+		return
+	}
+	defer closeAudio()
+	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	if err != nil {
+		return
+	}
+	defer connection.CloseNow()
+	ctx = connection.CloseRead(ctx)
+	stop := context.AfterFunc(ctx, cancel)
+	defer stop()
+	packet := make([]byte, 3840) // 20 ms; close stalled writers instead of allocating a growing queue.
+	for {
+		if _, err := io.ReadFull(output, packet); err != nil {
+			return
+		}
+		writeCtx, stop := context.WithTimeout(ctx, 250*time.Millisecond)
+		err := connection.Write(writeCtx, websocket.MessageBinary, packet)
+		stop()
+		if err != nil {
+			return
+		}
+	}
 }

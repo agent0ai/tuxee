@@ -23,7 +23,7 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 # Child DOX Index
 
 - [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, display interpreter, attachments, and explicit termination.
-- [desktop/AGENTS.md](desktop/AGENTS.md): Lazy terminal X/VNC displays, native window discovery, credentials and process cleanup.
+- [desktop/AGENTS.md](desktop/AGENTS.md): Lazy terminal X/VNC/audio runtimes, native window discovery, credentials and process cleanup.
 
 - [identity/AGENTS.md](identity/AGENTS.md): PAM authentication and Linux process credentials.
 - [files/AGENTS.md](files/AGENTS.md): Credential-dropped filesystem workers and settings.

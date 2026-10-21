@@ -10,6 +10,7 @@ Detailed product, deployment and development documentation.
 manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits.
 `releases.md` owns updates, GitHub/Docker Hub setup and publication limits.
+`audio.md` owns the minimal GUI audio experiment, reproduction commands, measured footprint and validation limits.
 Root `README.md` owns the logo/title, short container/standalone introduction,
 illustrated Highlights, Quick start, Resources links and Agent Zero credits.
 

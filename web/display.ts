@@ -1,9 +1,10 @@
 import RFB from './vendor/novnc/core/rfb';
 import { api, bindContextMenu, button, el, icon, notify, popover, scopeNotifications } from './ui';
 import { overflowTabs } from './overflow';
+import { DisplayAudio } from './audio';
 
 type Window = { id: number; title: string; icon?: string; active: boolean };
-export type DisplayState = { ready: boolean; error?: string; windows: Window[] | null };
+export type DisplayState = { ready: boolean; audio?: boolean; error?: string; windows: Window[] | null };
 
 export class TerminalDisplay {
     private controls = el('div', 'display-controls');
@@ -21,11 +22,13 @@ export class TerminalDisplay {
     private rfb?: RFB;
     private request?: AbortController;
     private disposed = false;
+    private audio: DisplayAudio;
     visible = false;
 
     constructor(private root: HTMLElement, private terminal: HTMLElement, private id: () => string | undefined, private focus: () => void) {
         const header = root.closest('.panel')!.querySelector('.panel-header')!;
         this.terminalButton.replaceChildren(header.querySelector('svg')!, header.querySelector('.panel-title')!);
+        this.audio = new DisplayAudio(id, root);
         this.controls.append(this.terminalButton, this.separator, this.windows);
         this.status.setAttribute('role', 'status');
         this.frame.append(this.screen, this.status); this.frame.hidden = true;
@@ -43,6 +46,7 @@ export class TerminalDisplay {
         if (this.disposed) return;
         const previous = new Set(this.state?.windows?.map(w => w.id));
         this.state = state;
+        this.audio.available(!!state?.ready && !!state?.audio);
         const windows = state?.windows || [];
         const present = new Set(windows.map(w => w.id));
         for (const [id, item] of this.buttons) if (!present.has(id)) {
@@ -105,6 +109,11 @@ export class TerminalDisplay {
     private windowMenu(id: number, anchor: HTMLElement, position?: { x: number; y: number }) {
         this.closeMenu();
         const content = el('div', 'menu-actions'); scopeNotifications(content, this.root);
+        if (this.state?.audio) {
+            const label = this.audio.muted ? 'Unmute' : 'Mute';
+            const sound = button(label, this.audio.muted ? 'Volume2' : 'VolumeX', () => { this.closeMenu(); this.audio.toggle(); });
+            sound.append(el('span', '', label)); sound.setAttribute('role', 'menuitem'); content.append(sound);
+        }
         const close = button('Close', 'X', () => {
             this.closeMenu();
             return api(`/terminals/${this.id()}/display/window`, 'DELETE', { id });
@@ -163,5 +172,5 @@ export class TerminalDisplay {
         this.screen.replaceChildren(); delete this.frame.dataset.state;
     }
 
-    dispose() { this.disposed = true; this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
+    dispose() { this.disposed = true; this.audio.close(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
 }
