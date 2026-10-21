@@ -131,9 +131,11 @@ func (c *Collector) containerUsage(result *Snapshot, mounts []mount, host map[st
 	if memory.path == "" {
 		return counter
 	}
-	currentFile, limitFile, swapFile, swapLimit, cacheKey := "memory.current", "memory.max", "memory.swap.current", "memory.swap.max", "inactive_file"
+	currentFile, limitFile, swapFile, swapLimit := "memory.current", "memory.max", "memory.swap.current", "memory.swap.max"
+	inactiveKey, activeKey, dirtyKey, writebackKey := "inactive_file", "active_file", "file_dirty", "file_writeback"
 	if !memory.v2 {
-		currentFile, limitFile, swapFile, swapLimit, cacheKey = "memory.usage_in_bytes", "memory.limit_in_bytes", "memory.memsw.usage_in_bytes", "memory.memsw.limit_in_bytes", "total_inactive_file"
+		currentFile, limitFile, swapFile, swapLimit = "memory.usage_in_bytes", "memory.limit_in_bytes", "memory.memsw.usage_in_bytes", "memory.memsw.limit_in_bytes"
+		inactiveKey, activeKey, dirtyKey, writebackKey = "total_inactive_file", "total_active_file", "total_dirty", "total_writeback"
 	}
 	usage, err := c.number(memory.path + "/" + currentFile)
 	if err != nil {
@@ -156,9 +158,23 @@ func (c *Collector) containerUsage(result *Snapshot, mounts []mount, host map[st
 			swapTotal = min(swapTotal, swapCap)
 		}
 	}
-	stats, _ := c.read(memory.path + "/memory.stat")
-	used := usage - min(usage, fields(stats, 1)[cacheKey])
-	result.Memory = capacity(limit, used, limit-min(limit, used))
+	stats, err := c.read(memory.path + "/memory.stat")
+	values := fields(stats, 1)
+	inactive, haveInactive := values[inactiveKey]
+	active, haveActive := values[activeKey]
+	if err == nil && haveInactive && haveActive {
+		// File LRUs exclude shmem and unevictable pages; dirty pages still need writeback.
+		cache := inactive + active
+		cache -= min(cache, values[dirtyKey]+values[writebackKey])
+		if memory.v2 {
+			cache += values["slab_reclaimable"]
+		}
+		cache = min(usage, cache)
+		used := usage - cache
+		result.Memory = capacity(limit, used, limit-min(limit, used))
+		cache = min(cache, result.Memory.Available)
+		result.Memory.Cache = &cache
+	}
 	if swap, e := c.number(memory.path + "/" + swapFile); e == nil {
 		if !memory.v2 {
 			swap -= min(swap, usage)

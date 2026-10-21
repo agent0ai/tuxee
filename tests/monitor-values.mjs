@@ -23,6 +23,10 @@ for (const [value, expected] of [
     assert.equal(compactSize(value).length, 4);
 }
 const upload = [], download = [];
+for (const [value, expected] of [[0, '0.0B'], [1024, '1.0K'], [140 * 1024 ** 2, '140M'], [1.5 * 1024 ** 3, '1.5G'], [999.5 * 1024 ** 2, '1.0G']]) {
+    assert.equal(compactSize(value, 1024), expected);
+    assert.equal(compactSize(value, 1024).length, 4);
+}
 for (let i = 0; i < 100; i++) {
     assert.equal(networkFill(20, upload), 1);
     assert.equal(networkFill(2000, download), 1);

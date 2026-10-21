@@ -1104,8 +1104,8 @@ progress {
 .monitor-network-value { display: flex; gap: 0 1ch; width: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 0; }
 .monitor-network-value > span { flex: 0 0 5ch; white-space: pre; }
 .monitor-reading.monitor-network-value { flex-wrap: wrap; letter-spacing: 0; }
-.monitor-chip, .monitor-card { --upload-color: #51bfa5; --download-color: var(--accent); }
-:root[data-theme=light] .monitor-chip, :root[data-theme=light] .monitor-card { --upload-color: #187b66; }
+.monitor-chip, .monitor-card { --upload-color: #51bfa5; --download-color: var(--accent); --cache-color: #69a9ff; }
+:root[data-theme=light] .monitor-chip, :root[data-theme=light] .monitor-card { --upload-color: #187b66; --cache-color: #246cd2; }
 .monitor-upload { color: var(--upload-color); }
 .monitor-download { color: var(--download-color); }
 .monitor-ring { --gauge-color: #51bfa5; display: grid; place-items: center; position: relative; width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%; background: conic-gradient(var(--gauge-color) calc(var(--usage) * 1%), var(--line) 0); }
@@ -1113,6 +1113,9 @@ progress {
 .monitor-ring svg { position: relative; width: 12px; height: 12px; color: var(--muted); }
 .monitor-ring[data-level=warm] { --gauge-color: #d8a657; }
 .monitor-ring[data-level=high] { --gauge-color: var(--danger); }
+.monitor-cache-ring { position: absolute; inset: 4px; border-radius: inherit; background: conic-gradient(var(--cache-color) calc(var(--cache) * 1%), var(--line) 0); }
+.monitor-cache-ring::before { content: ''; position: absolute; inset: 2px; border-radius: inherit; background: var(--surface); }
+.monitor-cache { color: var(--cache-color); }
 .monitor-network-ring { background: conic-gradient(var(--upload-color) 0deg var(--upload), var(--line) var(--upload) calc(360deg - var(--download)), var(--download-color) calc(360deg - var(--download)) 360deg); }
 .monitor-more { color: var(--muted); font-size: 10px; }
 .monitor-summary[data-state=error] .monitor-strip { opacity: .55; }
@@ -1130,7 +1133,7 @@ progress {
 .monitor-card-title { display: flex; align-items: center; gap: 10px; }
 .monitor-card-title h3 { font-size: 13px; font-weight: 500; min-width: 0; }
 .monitor-card .monitor-ring { width: 36px; height: 36px; }
-.monitor-card .monitor-ring::before { background: var(--raised); }
+.monitor-card .monitor-ring::before, .monitor-card .monitor-cache-ring::before { background: var(--raised); }
 .monitor-card .monitor-ring svg { width: 16px; height: 16px; }
 .monitor-reading { font-size: 24px; font-weight: 600; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
 .monitor-card p, .monitor-card small { font-size: 11px; line-height: 1.5; }
@@ -1173,7 +1176,7 @@ progress {
 .process-table tbody tr:last-child td { border-bottom: 0; }
 .process-table tr.selected { background: var(--accent-bg); }
 .process-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-.process-name { display: flex; align-items: center; min-width: 0; padding-inline-start: min(calc(var(--depth) * 14px), 70px); }
+.process-name { display: flex; align-items: center; min-width: 0; padding-inline-start: clamp(0px, calc(var(--depth) * 14px), calc(100% - 54px - 12ch)); }
 .process-check { display: grid; place-items: center; flex: 0 0 30px; height: 32px; cursor: pointer; }
 .process-check input { width: 15px; height: 15px; padding: 0; margin: 0; accent-color: var(--accent); cursor: pointer; }
 .process-check:has(input:disabled) { opacity: .4; cursor: default; }
@@ -1196,10 +1199,10 @@ progress {
 .process-signal label { flex: 1; }
 .connection-overlay > button { margin-top: 20px; }
 @media (max-width: 600px) {
- .process-table th:not(:first-child) { width: 86px; }
+ .process-table th:not(:first-child) { width: 90px; }
  .process-table th, .process-table td { padding-inline: 3px; }
  .process-table th button { font-size: 11px; padding-inline: 0; }
- .process-name { padding-inline-start: min(calc(var(--depth) * 5px), 15px); }
+ .process-name { padding-inline-start: clamp(0px, calc(var(--depth) * 5px), calc(100% - 42px - 12ch)); }
  .process-check { flex-basis: 24px; }
  .process-fold, .process-fold-space { flex-basis: 18px; width: 18px; }
  .process-fold { padding-inline: 2px; }

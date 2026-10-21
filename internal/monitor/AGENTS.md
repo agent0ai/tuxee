@@ -13,6 +13,7 @@ Own cached CPU, memory, swap, mounted-filesystem and network samples. HTTP admis
 - Share one sample across callers for two seconds. CPU and network rates use counter deltas; initial/reset counters produce unavailable rates, never fabricated spikes.
 - Return the reserved `/all` network first, summing counters and measured rates of interfaces whose operstate is `up` or `unknown`, including loopback and virtual interfaces. Sum per-interface rates, never deltas of changing aggregate counters; an unavailable member rate makes that direction unavailable. No active interfaces yield zero; a failed counter read yields no networks. Do not truncate discovery before aggregating.
 - Native mode reports the host. Containers read their own cgroup v1/v2 accounting and effective visible CPU/memory limits. Never replace unavailable container accounting with host usage.
+- RAM `used`/`percent` estimate non-reclaimable memory; `cache` reports estimated reclaimable memory separately and `available` includes it. Native RAM uses `MemTotal - MemAvailable`, with cache `max(MemAvailable - MemFree, 0)`. Container RAM subtracts active/inactive file LRUs (excluding dirty/writeback pages) and v2 `slab_reclaimable` from raw usage. File LRUs exclude shmem/tmpfs and unevictable pages; v1 uses hierarchical `total_*` counters and keeps kernel memory used because reclaimable slab is unavailable. Bound cache by usage and remaining capacity; missing/invalid required cgroup cache counters make RAM unavailable. These inexpensive estimates are neither exact reclaim guarantees nor summed process RSS. Swap/disk accounting has no cache field.
 - Disk capacity is per visible local filesystem, not a sum across bind mounts or container writable-layer size. Skip remote/pseudo filesystems and file bind mounts. Inputs come from kernel mount discovery, never client-supplied paths.
 - This collector exposes no processes, addresses, environment contents or credentials. On-demand process discovery/control belongs to `internal/processes`, separately from cached metrics. No external service, agent, database or new dependency is required.
 
@@ -22,7 +23,7 @@ Use the kernel's documented interfaces: [/proc](https://docs.kernel.org/filesyst
 
 # Verification
 
-Run `go test -race ./internal/monitor` for counter math, active-network aggregation (including membership changes and counter resets), container limits, mount discovery and concurrent caching. Fixtures use temporary proc/cgroup trees; real-system checks read this environment without changing resource limits.
+Run `go test -race ./internal/monitor` for counter math, native/v1/v2 RAM/cache breakdowns (shared/locked/dirty memory, missing counters, counter races and limits), active-network aggregation (including membership changes and counter resets), container limits, mount discovery and concurrent caching. Fixtures use temporary proc/cgroup trees; real-system checks read this environment without changing resource limits.
 
 # Child DOX Index
 

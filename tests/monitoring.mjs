@@ -18,6 +18,7 @@ const api=(path,method='GET',data)=>context.request.fetch(base+'/api'+path,{meth
 const settings={theme:'dark',current:'monitor',workspaces:[{id:'monitor',name:'Monitor',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:'/',x:0,y:0,w:4,h:2}]}]};
 assert.equal((await api('/settings','PUT',settings)).status(),200);
 const initial=await(await api('/metrics')).json();assert.ok(initial.memory.total>0);assert.ok(initial.cpu.cores>0);assert.ok(initial.disks.some(disk=>disk.path==='/'));assert.ok(initial.networks.length);
+assert.ok(initial.memory.cache>=0);assert.ok(initial.memory.used+initial.memory.cache<=initial.memory.total);
 const all='/all',aggregate=initial.networks.find(item=>item.name===all),active=initial.networks.filter(item=>item.name!==all&&['up','unknown'].includes(item.state));
 assert.ok(aggregate);assert.equal(aggregate.received,active.reduce((sum,item)=>sum+item.received,0));assert.equal(aggregate.sent,active.reduce((sum,item)=>sum+item.sent,0));
 for(const key of ['receiveRate','sendRate'])assert.equal(aggregate[key],active.some(item=>item[key]===null)?null:active.reduce((sum,item)=>sum+item[key],0));
@@ -60,6 +61,47 @@ try {
   assert.equal((await summary.locator('.monitor-chip').first().boundingBox()).width,cpuWidth);
  }
  await page.unroute(base+'/api/metrics');check('small CPU loads remain visible in the widget and details');
+ const MiB=1024**2;
+ let memory={total:1024*MiB,used:64*MiB,available:960*MiB,cache:896*MiB,percent:6.25};
+ await page.route(base+'/api/metrics',async route=>{const response=await route.fetch(),data=await response.json();data.memory=memory;await route.fulfill({response,json:data});});
+ const ramCard=dialog.locator('.monitor-card').filter({has:page.getByRole('heading',{name:'RAM',exact:true})});
+ const ramChip=summary.locator('.monitor-chip').filter({has:page.getByText('RAM',{exact:true})});
+ async function memorySample() {
+  const previous=await ramCard.elementHandle();
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForFunction(node=>!node.isConnected,previous);await previous.dispose();
+ }
+ await memorySample();
+ for(const theme of ['dark','light']) {
+  assert.equal(await ramChip.locator('.monitor-value').textContent(),'64M ');
+  assert.equal(await ramCard.locator('.monitor-reading').textContent(),'64M ');
+  assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 896.0 MB');
+  assert.match(await ramCard.textContent(),/Used 64.0 MB \/ 1.0 GB/);
+  assert.match(await summary.getAttribute('aria-description'),/Cache 896.0 MB/);
+  for(const item of [ramChip,ramCard]) {
+   const ring=item.locator('.monitor-ring'),cache=item.locator('.monitor-cache-ring');
+   assert.equal(await ring.getAttribute('data-level'),'normal','large caches must not raise hard-memory warnings');
+   assert.equal(await ring.evaluate(node=>node.style.getPropertyValue('--usage')),'6.25');
+   assert.equal(await cache.evaluate(node=>node.style.getPropertyValue('--cache')),'87.5');
+   assert.ok(await cache.evaluate(node=>getComputedStyle(node).backgroundImage.includes('87.5%')));
+   assert.notEqual(await cache.evaluate(node=>getComputedStyle(node).backgroundImage),await ring.evaluate(node=>getComputedStyle(node).backgroundImage));
+  }
+  await ramCard.screenshot({path:`test-results/monitoring-memory-${theme}.png`});
+  await summary.screenshot({path:`test-results/monitoring-memory-header-${theme}.png`});
+  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();
+  await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await summary.click();
+ }
+ await page.setViewportSize({width:320,height:720});await page.waitForTimeout(250);
+ assert.ok(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth));assert.ok(await ramCard.locator('.monitor-cache').isVisible());
+ await page.screenshot({path:'test-results/monitoring-memory-mobile.png'});
+ await page.setViewportSize({width:1440,height:1000});await page.waitForTimeout(250);
+ memory={total:1024*MiB,used:960*MiB,available:64*MiB,cache:0,percent:93.75};await memorySample();
+ assert.equal(await ramCard.locator('.monitor-reading').textContent(),'960M');
+ assert.equal(await ramCard.locator('.monitor-ring').getAttribute('data-level'),'high');
+ assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 0 B');
+ assert.equal(await ramCard.locator('.monitor-cache-ring').evaluate(node=>node.style.getPropertyValue('--cache')),'0');
+ memory=null;await memorySample();assert.equal(await ramCard.locator('.monitor-reading').textContent(),'—   ');assert.equal(await ramCard.locator('.monitor-cache-ring').count(),0);
+ await page.unroute(base+'/api/metrics');check('hard RAM headlines, independent blue cache rings, binary units, pressure warnings and unavailable/zero cache in desktop/mobile themes');
  await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();
  assert.ok(await dialog.getByRole('checkbox',{name:'All',exact:true}).isChecked());
  const allSaved=page.waitForResponse(r=>r.url()===base+'/api/settings'&&r.request().method()==='PUT');

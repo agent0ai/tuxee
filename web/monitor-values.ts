@@ -1,8 +1,8 @@
-export function compactSize(value: number | null | undefined): string {
+export function compactSize(value: number | null | undefined, base = 1000): string {
     if (value == null || !Number.isFinite(value) || value < 0) return '—   ';
     const units = 'BKMGTPE';
     let unit = 0;
-    while (value >= 999.5 && unit < units.length - 1) { value /= 1000; unit++; }
+    while (value >= 999.5 && unit < units.length - 1) { value /= base; unit++; }
     const rounded = Math.round(value * 10) / 10;
     return `${rounded < 10 ? rounded.toFixed(1) : Math.min(999, Math.round(value))}${units[unit]}`.padEnd(4);
 }

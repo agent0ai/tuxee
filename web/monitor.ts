@@ -3,11 +3,11 @@ import { id, type MonitoringPreferences } from './model';
 import { compactSize, networkFill } from './monitor-values';
 import { Processes } from './processes';
 
-type Capacity = { total: number; used: number; available: number; percent: number | null };
+type Capacity = { total: number; used: number; available: number; percent: number | null; cache?: number };
 type Disk = Partial<Capacity> & { path: string; device: string; type: string };
 type Network = { name: string; state: string; received: number; sent: number; receiveRate: number | null; sendRate: number | null };
 type Snapshot = { time: string; scope: 'host' | 'container'; cpu: { percent: number | null; cores: number }; memory: Capacity | null; swap: Capacity | null; disks: Disk[]; networks: Network[] };
-type Metric = { label: string; symbol: Parameters<typeof icon>[0]; percent?: number | null; value: string; detail: string; extra?: string; network?: { upload: number; download: number; uploadText: string; downloadText: string } };
+type Metric = { label: string; symbol: Parameters<typeof icon>[0]; percent?: number | null; value: string; detail: string; extra?: string; cache?: { percent: number; text: string }; network?: { upload: number; download: number; uploadText: string; downloadText: string } };
 const allNetworks = '/all';
 const networkLabel = (name: string) => name === allNetworks ? 'All' : name;
 const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
@@ -73,7 +73,12 @@ export class Monitoring {
     private metrics(): Metric[] {
         const data = this.error ? undefined : this.data, prefs = this.preferences, items: Metric[] = [];
         if (prefs.cpu) items.push({ label: 'CPU', symbol: 'Cpu', percent: data?.cpu.percent, value: percentage(data?.cpu.percent, true), detail: data ? `${Number(data.cpu.cores.toFixed(2))} cores` : 'Unavailable' });
-        const memory = (label: string, value: Capacity | null | undefined, symbol: Metric['symbol']) => ({ label, symbol, percent: value?.percent, value: value?.total === 0 ? 'Off' : compactSize(value?.used), detail: value ? `${size(value.used)} / ${size(value.total)}` : 'Unavailable', extra: value ? `${size(value.available)} available` : undefined });
+        const memory = (label: string, value: Capacity | null | undefined, symbol: Metric['symbol']): Metric => ({
+            label, symbol, percent: value?.percent, value: value?.total === 0 ? 'Off' : compactSize(value?.used, 1024),
+            detail: value ? `Used ${size(value.used)} / ${size(value.total)}` : 'Unavailable',
+            extra: value ? `${size(value.available)} available` : undefined,
+            cache: value?.cache != null ? { percent: value.total > 0 ? value.cache / value.total * 100 : 0, text: `Cache ${size(value.cache)}` } : undefined,
+        });
         if (prefs.memory) items.push(memory('RAM', data?.memory, 'MemoryStick'));
         if (prefs.swap) items.push(memory('Swap', data?.swap, 'MemoryStick'));
         for (const path of prefs.disks) {
@@ -92,6 +97,10 @@ export class Monitoring {
         const ring = el('span', 'monitor-ring');
         ring.style.setProperty('--usage', String(metric.percent ?? 0));
         ring.dataset.level = metric.percent != null && metric.percent >= 90 ? 'high' : metric.percent != null && metric.percent >= 75 ? 'warm' : 'normal';
+        if (metric.cache) {
+            const cache = el('span', 'monitor-cache-ring');
+            cache.style.setProperty('--cache', String(metric.cache.percent)); ring.append(cache);
+        }
         if (metric.network) {
             ring.classList.add('monitor-network-ring');
             ring.style.setProperty('--upload', `${metric.network.upload * 180}deg`);
@@ -102,6 +111,7 @@ export class Monitoring {
     }
     private reading(metric: Metric, className: string) {
         const reading = el('strong', className, metric.value);
+        if (metric.cache) reading.title = 'Estimated non-reclaimable memory';
         if (metric.network) {
             reading.classList.add('monitor-network-value');
             reading.setAttribute('aria-label', metric.detail);
@@ -114,7 +124,7 @@ export class Monitoring {
         control.hidden = !this.displayed;
         control.replaceChildren();
         control.dataset.state = this.error ? 'error' : this.data ? 'ready' : 'loading';
-        control.title = this.error || metrics.map(item => `${item.label}: ${item.value}`).join(' · ') || 'Resource monitor';
+        control.title = this.error || metrics.map(item => `${item.label}: ${item.value}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
         control.setAttribute('aria-description', control.title);
         const strip = el('span', 'monitor-strip');
         const visible = innerWidth <= 1100 ? 3 : 4;
@@ -140,6 +150,9 @@ export class Monitoring {
             const card = el('section', 'monitor-card'), title = el('div', 'monitor-card-title');
             title.append(this.ring(item), el('h3', '', item.label));
             card.append(title, this.reading(item, 'monitor-reading'), el('p', '', item.detail));
+            if (item.cache) {
+                const cache = el('p', 'monitor-cache', item.cache.text); cache.title = 'Estimated reclaimable memory'; card.append(cache);
+            }
             if (item.extra) card.append(el('small', 'muted', item.extra));
             grid.append(card);
         }

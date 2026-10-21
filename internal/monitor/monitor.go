@@ -22,6 +22,7 @@ type Capacity struct {
 	Used      uint64   `json:"used"`
 	Available uint64   `json:"available"`
 	Percent   *float64 `json:"percent"`
+	Cache     *uint64  `json:"cache,omitempty"`
 }
 type CPU struct {
 	Percent *float64 `json:"percent"`
@@ -93,6 +94,9 @@ func (c *Collector) sampleAt(now time.Time) *Snapshot {
 	memory := fields(memoryText, 1024)
 	if memory["MemTotal"] > 0 {
 		result.Memory = capacity(memory["MemTotal"], memory["MemTotal"]-min(memory["MemTotal"], memory["MemAvailable"]), memory["MemAvailable"])
+		// MemAvailable accounts for reserves and cache the kernel cannot reclaim.
+		cache := result.Memory.Available - min(result.Memory.Available, memory["MemFree"])
+		result.Memory.Cache = &cache
 		result.Swap = capacity(memory["SwapTotal"], memory["SwapTotal"]-min(memory["SwapTotal"], memory["SwapFree"]), memory["SwapFree"])
 	}
 	mountsText, _ := c.read("/proc/self/mountinfo")

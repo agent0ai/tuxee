@@ -91,6 +91,27 @@ try {
   await fold.click(); assert.equal(await dialog.locator('tbody tr:visible').count(), fixtures[name].rows.length);
   assert.equal(requests, beforeFold, 'folding uses the existing snapshot');
  }
+ const beforeResize = requests, indents = [];
+ for (const width of [1440, 900, 700, 601, 600, 481, 480, 390, 320, 1440]) {
+  await page.setViewportSize({ width, height: 1000 });
+  const rows = await dialog.locator('.process-name').evaluateAll(lines => lines.map(line => {
+   const text = line.querySelector('.process-label'), label = text.getBoundingClientRect(), box = line.getBoundingClientRect();
+   const check = line.querySelector('.process-check').getBoundingClientRect();
+   return { indent: check.left - box.left, free: box.right - label.right, labelWidth: label.width, clipped: text.scrollWidth > text.clientWidth, right: label.right, end: box.right };
+  }));
+  for (let i = 1; i < rows.length; i++) {
+   assert.ok(rows[i].indent >= rows[i - 1].indent - 1, `depth alignment at ${width}px`);
+   if (rows[i - 1].free > 40) assert.ok(rows[i].indent > rows[i - 1].indent + 1, `unused indentation space at depth ${i}, ${width}px`);
+   assert.ok(rows[i].labelWidth >= 60 || !rows[i].clipped, `readable names at depth ${i}, ${width}px`);
+   assert.ok(rows[i].right <= rows[i].end + 1, `name overflow at depth ${i}, ${width}px`);
+  }
+  assert.ok(await dialog.locator('.process-scroll').evaluate(node => node.scrollWidth <= node.clientWidth), `tree overflow at ${width}px`);
+  indents.push({ width, indent: rows.at(-1).indent });
+  if (width === 1440 || width === 320) await page.screenshot({ path: `test-results/processes-deep-${width}.png` });
+ }
+ assert.ok(indents[0].indent > indents.find(item => item.width === 320).indent, 'wider name column permits deeper indentation');
+ assert.equal(indents[0].indent, indents.at(-1).indent, 'indentation expands again after resizing');
+ assert.equal(requests, beforeResize, 'resizing reuses the snapshot');
  fixture = 'wide'; await refresh();
  assert.equal(await dialog.locator('.process-group').count(), 1);
  assert.equal(await dialog.locator('tbody tr[data-pid]').count(), 101, 'init + parent + top 99 children');

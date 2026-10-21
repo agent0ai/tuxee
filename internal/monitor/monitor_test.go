@@ -18,7 +18,7 @@ func fixture(t *testing.T, values map[string]string, container bool) *Collector 
 		return nil
 	}}
 	put(t, c, "/proc/stat", "cpu 100 0 0 300 0 0 0 0 999 999\ncpu0 1\ncpu1 1\ncpu2 1\ncpu3 1\n")
-	put(t, c, "/proc/meminfo", "MemTotal: 32768 kB\nMemAvailable: 8192 kB\nSwapTotal: 16384 kB\nSwapFree: 8192 kB\n")
+	put(t, c, "/proc/meminfo", "MemTotal: 32768 kB\nMemAvailable: 8192 kB\nMemFree: 2048 kB\nSwapTotal: 16384 kB\nSwapFree: 8192 kB\n")
 	put(t, c, "/proc/self/mountinfo", "1 0 8:1 / / rw - ext4 /dev/test rw\n")
 	put(t, c, "/proc/net/dev", "eth0: 100 0 0 0 0 0 0 0 200 0 0 0 0 0 0 0\n")
 	put(t, c, "/sys/class/net/eth0/operstate", "up\n")
@@ -55,6 +55,9 @@ func TestHostDeltasResetAndCache(t *testing.T) {
 	}
 	if first.Memory.Used != 24576*1024 || first.Swap.Used != 8192*1024 {
 		t.Fatalf("memory: %+v %+v", first.Memory, first.Swap)
+	}
+	if first.Memory.Cache == nil || *first.Memory.Cache != 6144*1024 || first.Swap.Cache != nil || first.Disks[0].Cache != nil {
+		t.Fatal("only RAM must expose estimated reclaimable cache")
 	}
 	if first.Disks[0].Used != 60*1024 || first.Disks[0].Available != 30*1024 {
 		t.Fatalf("reserved disk blocks lost: %+v", first.Disks[0])
@@ -170,7 +173,7 @@ func TestCgroupV2AncestorLimitsAndNamespace(t *testing.T) {
 		"/cg/cpu.max":          "100000 100000", "/cg/child/cpu.max": "200000 100000",
 		"/cg/child/cpu.stat": "usage_usec 1000000\n", "/cg/child/cpuset.cpus.effective": "0-3",
 		"/cg/memory.max": "8388608", "/cg/child/memory.max": "16777216",
-		"/cg/child/memory.current": "6291456", "/cg/child/memory.stat": "inactive_file 1048576\n",
+		"/cg/child/memory.current": "6291456", "/cg/child/memory.stat": "inactive_file 1048576\nactive_file 0\n",
 		"/cg/child/memory.swap.current": "1048576", "/cg/memory.swap.max": "2097152",
 	}, true)
 	now := time.Now()
@@ -194,7 +197,7 @@ func TestCgroupV1AndCpuset(t *testing.T) {
 		"/proc/self/mountinfo":       "4 0 0:4 / /unified rw - cgroup2 cgroup rw\n1 0 0:1 /docker /cg/cpu rw - cgroup cgroup rw,cpu,cpuacct\n2 0 0:2 /docker /cg/memory rw - cgroup cgroup rw,memory\n3 0 0:3 /docker /cg/cpuset rw - cgroup cgroup rw,cpuset\n",
 		"/cg/cpu/test/cpuacct.usage": "1000000000", "/cg/cpu/test/cpu.cfs_quota_us": "50000", "/cg/cpu/test/cpu.cfs_period_us": "100000",
 		"/cg/cpuset/test/cpuset.cpus":           "1-3",
-		"/cg/memory/test/memory.usage_in_bytes": "4194304", "/cg/memory/test/memory.limit_in_bytes": "8388608", "/cg/memory/test/memory.stat": "total_inactive_file 1048576",
+		"/cg/memory/test/memory.usage_in_bytes": "4194304", "/cg/memory/test/memory.limit_in_bytes": "8388608", "/cg/memory/test/memory.stat": "total_inactive_file 1048576\ntotal_active_file 0\n",
 		"/cg/memory/test/memory.memsw.usage_in_bytes": "5242880", "/cg/memory/test/memory.memsw.limit_in_bytes": "10485760",
 	}, true)
 	now := time.Now()
@@ -213,6 +216,69 @@ func TestCgroupV1AndCpuset(t *testing.T) {
 	unlimited := c.sampleAt(now.Add(6 * time.Second))
 	if unlimited.Memory.Total != 32768*1024 || unlimited.Swap.Total != 16384*1024 {
 		t.Fatal("unlimited v1 limits must respect physical capacity")
+	}
+}
+func TestMemoryCacheBreakdown(t *testing.T) {
+	for _, tc := range []struct {
+		name, stats               string
+		usage, limit, used, cache uint64
+	}{
+		{"shared locked and dirty stay used", "inactive_file 200\nactive_file 100\nfile_dirty 20\nfile_writeback 10\nslab_reclaimable 50\nshmem 400\nunevictable 100\n", 900, 1000, 580, 320},
+		{"no cache", "inactive_file 0\nactive_file 0\n", 900, 1000, 900, 0},
+		{"dirty counter race", "inactive_file 20\nactive_file 10\nfile_dirty 40\n", 900, 1000, 900, 0},
+		{"cache counter race", "inactive_file 800\nactive_file 800\n", 900, 1000, 0, 900},
+		{"limit below usage", "inactive_file 400\nactive_file 200\n", 900, 500, 300, 200},
+		{"limit below hard usage", "inactive_file 100\nactive_file 200\n", 900, 500, 500, 0},
+		{"reported container", "inactive_file 317513728\nactive_file 186155008\nslab_reclaimable 35379864\n", 598831104, 1073741824, 59782504, 539048600},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := fixture(t, map[string]string{
+				"/proc/meminfo":           "MemTotal: 2097152 kB\n",
+				"/proc/self/cgroup":       "0::/test\n",
+				"/proc/self/mountinfo":    "1 0 0:1 / /cg rw - cgroup2 cgroup rw\n",
+				"/cg/test/memory.current": fmt.Sprint(tc.usage),
+				"/cg/test/memory.max":     fmt.Sprint(tc.limit),
+				"/cg/test/memory.stat":    tc.stats,
+			}, true)
+			m := c.Sample().Memory
+			if m == nil || m.Used != tc.used || m.Cache == nil || *m.Cache != tc.cache || m.Available != tc.limit-tc.used {
+				t.Fatalf("memory breakdown: %+v", m)
+			}
+			wantPercent(t, m.Percent, float64(tc.used)/float64(tc.limit)*100)
+		})
+	}
+	t.Run("v1 hierarchical cache", func(t *testing.T) {
+		c := fixture(t, map[string]string{
+			"/proc/self/cgroup":              "1:memory:/test\n",
+			"/proc/self/mountinfo":           "1 0 0:1 / /cg rw - cgroup cgroup rw,memory\n",
+			"/cg/test/memory.usage_in_bytes": "900", "/cg/test/memory.limit_in_bytes": "1000",
+			"/cg/test/memory.stat": "inactive_file 999\nactive_file 999\ntotal_inactive_file 200\ntotal_active_file 100\ntotal_dirty 20\ntotal_writeback 10\ntotal_shmem 400\ntotal_unevictable 100\n",
+		}, true)
+		m := c.Sample().Memory
+		if m == nil || m.Used != 630 || m.Cache == nil || *m.Cache != 270 || m.Available != 370 {
+			t.Fatalf("v1 breakdown: %+v", m)
+		}
+	})
+	for _, stats := range []string{"", "inactive_file 10\n", "active_file 10\ninactive_file invalid\n"} {
+		c := fixture(t, map[string]string{
+			"/proc/self/cgroup": "0::/test\n", "/proc/self/mountinfo": "1 0 0:1 / /cg rw - cgroup2 cgroup rw\n",
+			"/cg/test/memory.current": "900", "/cg/test/memory.max": "1000",
+			"/cg/test/memory.swap.current": "0", "/cg/test/memory.swap.max": "1000",
+		}, true)
+		if stats != "" {
+			put(t, c, "/cg/test/memory.stat", stats)
+		}
+		m := c.Sample()
+		if m.Memory != nil || m.Swap == nil || m.Swap.Used != 0 {
+			t.Fatal("missing cache accounting must make only RAM unavailable")
+		}
+	}
+	for _, free := range []uint64{0, 9000} {
+		c := fixture(t, map[string]string{"/proc/meminfo": fmt.Sprintf("MemTotal: 10000 kB\nMemAvailable: 8000 kB\nMemFree: %d kB\n", free)}, false)
+		m := c.Sample().Memory
+		if m.Used != 2000*1024 || *m.Cache != (8000-min(8000, free))*1024 {
+			t.Fatalf("host cache bounds: %+v", m)
+		}
 	}
 }
 func TestMountEscapesAndFiltering(t *testing.T) {
