@@ -10,6 +10,8 @@ Own HTTP routing and session revocation. Delegate filesystem syscalls to files, 
 
 Terminal sessions own GUI lifetime. After the existing terminal UID check, `GET /api/terminals/{id}/display` returns the running display's temporary VNC password; it never starts a display. Its `/ws` suffix bridges the private Unix VNC socket through authenticated, same-origin binary WebSocket frames. `/api/terminals/{id}/display/window` accepts POST to activate and DELETE to request a normal window close; both require CSRF and a window ID from that display. Accept no caller-provided destination. Logout revokes transports while retaining the terminal and applications.
 
+`GET /api/terminals/{id}/display/audio` uses the same ownership/origin/session checks and streams 20 ms binary packets of 48 kHz stereo signed 16-bit little-endian PCM. No client audio/input messages or caller-selected source. Bound writes to 250 ms; disconnect/logout cancels and reaps the credential-dropped capture process without terminating the retained application.
+
 # Local Contracts
 
 Cookies contain random revocable tokens; login passwords never leave the isolated authentication path. Archive passwords are transient filesystem-worker input. Mutations require same-origin admission and a session CSRF token. Logout cancels all requests/WebSockets associated with that login, but never closes retained PTYs. Every terminal operation verifies its Linux owner. User settings validate whole-layout bounds and overlap before an atomic user-owned save. File transfers stream under the user's credentials.

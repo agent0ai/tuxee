@@ -1237,16 +1237,17 @@ progress {
 .terminal-tab.selected:not(.active) { background: transparent; }
 .terminal-tab:not(.selected) .panel-title, .display-window:not(.active) .display-title { display: none; }
 .display-windows { container-type: inline-size; display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
-.display-window-item { display: flex; align-items: center; max-width: 205px; }
+.display-window-item { display: flex; align-items: center; max-width: 205px; border: 1px solid transparent; border-radius: 7px; }
 .display-windows .display-window-item { max-width: clamp(25px, calc(100cqw - 35px), 205px); }
-.display-window-item .display-window { min-width: 25px; flex-shrink: 1; }
-.display-window-menu { flex: 0 0 25px; width: 25px; min-height: 25px; padding: 4px; color: var(--text); }
+.display-window-item .display-window { min-width: 23px; min-height: 23px; flex-shrink: 1; border: 0; background: transparent; }
+.display-window-menu { flex: 0 0 23px; width: 23px; min-height: 23px; padding: 4px; color: var(--text); }
 .display-window-menu svg { width: 13px; height: 13px; }
 .display-window-item:not(.active) .display-window-menu { display: none; }
 .display-windows .overflow-toggle { width: 27px; min-height: 25px; padding: 4px; }
 .display-separator { flex-shrink: 0; }
 .display-window { opacity: .6; }
-.display-tab.active { opacity: 1; color: var(--text); background: var(--raised); border-color: var(--accent); }
+.display-tab.active { opacity: 1; color: var(--text); }
+.terminal-tab.active, .display-window-item.active { color: var(--text); background: var(--raised); border-color: var(--accent); }
 .display-tab:focus-visible { opacity: 1; }
 .overflow-tabs .display-window { max-width: 240px; justify-content: flex-start; }
 .overflow-tabs .display-window .display-title { display: inline; }

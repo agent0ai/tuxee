@@ -32,9 +32,15 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     const more = button(label, 'Ellipsis', () => { ({ close } = popover(more, menu)); });
     more.className = 'overflow-toggle'; more.setAttribute('aria-haspopup', 'menu');
     host.append(visible, more);
-    const dragging = reorder ? reorderTabs(items, more, () => { fit(); reorder(items); }) : undefined;
+    let dragging: ReturnType<typeof reorderTabs> | undefined;
+    let bound: HTMLElement[] = [];
     function fit() {
         dragging?.cancel();
+        if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
+            dragging?.dispose();
+            bound = [...items];
+            dragging = reorderTabs(items, more, () => { fit(); reorder(items); });
+        }
         close();
         visible.replaceChildren(...items); more.hidden = false;
         const style = getComputedStyle(host), available = host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);

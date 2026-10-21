@@ -93,6 +93,17 @@ function runX(env, command, args) {
     assert.equal(result.status, 0, result.stderr);
     return result.stdout;
 }
+async function dragWindow(from, to, cancel = false, vertical = false) {
+    const start = await from.boundingBox(), end = await to.boundingBox();
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(vertical ? start.x + start.width / 2 : end.x + (end.x > start.x ? end.width - 1 : 1),
+        vertical ? end.y + (end.y > start.y ? end.height - 1 : 1) : start.y + start.height / 2, { steps: 12 });
+    assert.ok(await from.locator('..').evaluate(node => node.classList.contains('tab-dragging')));
+    if (cancel) await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+}
 const sessionPanels = async () => (await (await api('/me')).json()).settings.workspaces.filter(ws => ws.id === 'gui-proof').flatMap(ws => ws.panels).filter(panel => panel.kind === 'terminal');
 const measurements = {};
 try {
@@ -169,6 +180,35 @@ try {
     await poll(() => active().includes(mainID), 'window switcher did not restore the main window');
     await firstPanel.getByRole('button', { name: 'Second application window', exact: true }).click();
     await poll(() => firstPanel.getByRole('button', { name: 'Second application window', exact: true }).getAttribute('aria-pressed').then(value => value === 'true'), 'secondary window button did not become active');
+    const primaryTab = firstPanel.getByRole('button', { name: 'GUI application proof', exact: true });
+    const secondaryTab = firstPanel.getByRole('button', { name: 'Second application window', exact: true });
+    const windowOrder = () => firstPanel.locator('.display-windows .visible-tabs [data-window]').evaluateAll(nodes => nodes.map(n => n.dataset.window));
+    const originalOrder = await windowOrder(), liveCanvas = await first.locator('canvas').elementHandle();
+    const panelBounds = await firstPanel.boundingBox();
+    await dragWindow(primaryTab, secondaryTab);
+    assert.deepEqual(await windowOrder(), [...originalOrder].reverse());
+    assert.ok(active().includes(secondWindowID), 'dragging activated another window');
+    assert.deepEqual(await firstPanel.boundingBox(), panelBounds, 'window drag moved the whole terminal panel');
+    assert.ok(await liveCanvas.evaluate(node => node === document.querySelector('[data-panel="shell"] canvas')));
+    runX(env, 'xprop', ['-id', mainID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', 'Renamed GUI window']);
+    await firstPanel.getByRole('button', { name: 'Renamed GUI window', exact: true }).waitFor();
+    assert.deepEqual(await windowOrder(), [...originalOrder].reverse(), 'window metadata reset the order');
+    runX(env, 'xprop', ['-id', mainID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', 'GUI application proof']);
+    await primaryTab.press('Alt+ArrowLeft');
+    assert.deepEqual(await windowOrder(), originalOrder);
+    await primaryTab.press('Alt+ArrowLeft');
+    assert.deepEqual(await windowOrder(), originalOrder, 'window moved before the terminal');
+    assert.ok(await firstPanel.locator('.display-controls > :first-child').evaluate(node => node.classList.contains('terminal-tab')));
+    assert.equal(await firstPanel.locator('.terminal-tab').getAttribute('aria-keyshortcuts'), null);
+    await dragWindow(primaryTab, secondaryTab, true);
+    assert.deepEqual(await windowOrder(), originalOrder, 'cancelled drag changed window order');
+    assert.ok(await firstPanel.locator('.display-window-item.active').evaluate(group => {
+        const bounds = group.getBoundingClientRect(), menu = group.querySelector('.display-window-menu').getBoundingClientRect();
+        return getComputedStyle(group).borderTopWidth === '1px' && getComputedStyle(group).borderColor !== 'rgba(0, 0, 0, 0)' &&
+            getComputedStyle(group.querySelector('.display-window')).borderTopWidth === '0px' &&
+            getComputedStyle(group.querySelector('.display-window')).backgroundColor === 'rgba(0, 0, 0, 0)' &&
+            menu.left > bounds.left && menu.right < bounds.right && menu.top > bounds.top && menu.bottom < bounds.bottom;
+    }), 'chevron is outside the selected window outline');
     await firstPanel.locator('.display-window-item.active').getByRole('button', { name: 'Window menu', exact: true }).click();
     await page.screenshot({ path: 'test-results/gui-window-close-menu.png' });
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
@@ -176,6 +216,12 @@ try {
     assert.ok(await alive(input.pid), 'closing a child window killed the application');
     await clickControl(first, 'Open second window');
     await poll(async () => !!await windowID('Second application window'), 'secondary window did not reopen');
+    await poll(() => secondaryTab.getAttribute('aria-keyshortcuts').then(value => !!value), 'new window has no reorder binding');
+    const reopenedOrder = await windowOrder();
+    await secondaryTab.press('Alt+ArrowLeft');
+    assert.deepEqual(await windowOrder(), [...reopenedOrder].reverse(), 'reopened window cannot reorder');
+    await secondaryTab.press('Alt+ArrowRight');
+    assert.deepEqual(await windowOrder(), reopenedOrder);
     await firstPanel.getByRole('button', { name: 'GUI application proof', exact: true }).click();
     measurements.activeDisplay = await memory();
     await page.waitForTimeout(3000); measurements.idleDisplay = await memory();
@@ -260,6 +306,11 @@ try {
     await moreWindows.click();
     assert.ok(await overflowMenu.locator('.display-title').first().isVisible(), 'overflow lost window names');
     await page.screenshot({ path: 'test-results/gui-window-menu.png' });
+    const overflowOrder = () => overflowMenu.locator('[data-window]').evaluateAll(nodes => nodes.map(n => n.dataset.window));
+    const beforeOverflow = await overflowOrder();
+    await dragWindow(overflowMenu.locator('[data-window]').nth(0), overflowMenu.locator('[data-window]').nth(1), false, true);
+    await moreWindows.click();
+    assert.deepEqual((await overflowOrder()).slice(0, 2), [beforeOverflow[1], beforeOverflow[0]], 'overflow drag did not reorder windows');
     const toClose = overflowMenu.getByRole('button', { name: 'Extra window 24', exact: true });
     const closedID = '0x' + Number(await toClose.getAttribute('data-window')).toString(16);
     await toClose.click({ button: 'right' });

@@ -6,7 +6,7 @@ Docker runtime support and example configuration.
 
 # Ownership
 
-Own `build-gui.sh`, `entrypoint.sh`, `docker-init.sh`, `tuxee.profile.sh` and
+Own `build-gui.sh`, `build-audio.sh`, `entrypoint.sh`, `docker-init.sh`, `tuxee.profile.sh` and
 `tuxee.example.json`. Root owns `Dockerfile` and `compose.yaml`; update their
 COPY and mount paths when these files move.
 
@@ -42,6 +42,8 @@ GUI/frontend/runtime stages use Debian Trixie variants; runtime uses `debian:tri
 
 # Work Guidance
 
+`build-audio.sh OUTPUT` builds SHA-256-pinned PulseAudio 17.0 and libsndfile 1.2.2 in a separate stage. Disable optional audio-server integrations and libsndfile's external codecs; applications decode their own media. Copy only the server, capture utility, native-protocol/null-sink modules, private shared libraries and licenses. Keep libltdl private with its Debian copyright; do not install the broad PulseAudio/FFmpeg packages in runtime. The two `tuxee-*` wrappers confine library lookup to `/usr/local/lib/tuxee-audio`; preserve normal Debian audio libraries and package metadata. Check every shipped executable/module for missing or accidental codec dependencies. See `../docs/audio.md` for measured sizes and limitations.
+
 Keep runtime files here and keep the root Docker/Compose entry points usable.
 
 # Verification
@@ -50,6 +52,8 @@ Keep runtime files here and keep the root Docker/Compose entry points usable.
 account files when root, and, with Tini on PATH, the production entrypoint lifecycle.
 `npm run test:features` checks the shell profile with a dedicated user.
 Run `sh docker/build-gui.sh OUTPUT` with the GUI build-stage dependencies to validate the pinned source recipe and its dependency assertion. Full image build and lifecycle checks require Docker.
+
+Run `sh docker/build-audio.sh OUTPUT`, `python3 tests/audio-size.py OUTPUT`, and the browser checks documented in `../docs/audio.md`. Source-build measurements on the development host are distinct from a Docker image build.
 
 # Child DOX Index
 

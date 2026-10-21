@@ -32,6 +32,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY docker/build-gui.sh /build-gui.sh
 RUN sh /build-gui.sh /output
 
+FROM debian:trixie-slim AS audio
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential cmake ninja-build meson pkg-config libltdl-dev libcap-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/build-audio.sh /build-audio.sh
+RUN sh /build-audio.sh /output
+
 FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
     matchbox-window-manager xterm fonts-dejavu-core x11-xkb-utils xkb-data dbus \
@@ -42,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam
     && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
 COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
 COPY --from=gui /output/ /
+COPY --from=audio /output/ /
 RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee
 COPY docker/tuxee.profile.sh /etc/profile.d/tuxee.sh
 # Initialize ROOT_PASSWORD (default: toor) on the first container start.
