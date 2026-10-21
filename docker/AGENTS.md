@@ -20,6 +20,13 @@ shutdown. The init runner forwards shutdown to each script's process group.
 Node/npm belong only to the frontend build stage.
 Native installations never execute Docker startup scripts or install the shell profile.
 The example configuration contains defaults only, never credentials or state.
+Use numeric `httpPort: 80` and `httpsPort: 443`, with no legacy bind/http settings.
+`TUXEE_HTTP_PORT`/`TUXEE_HTTPS_PORT` override JSON inside the native binary;
+zero disables that listener and both zero refuses startup (the existing restart
+loop still retries). Empty/invalid values must fail visibly. Match container-side
+publications to enabled internal ports and remove disabled mappings; EXPOSE is
+metadata only. The image healthcheck uses the binary’s same JSON/environment
+parser; custom command-line listener options require matching healthcheck options.
 
 Before launching jobs, the entrypoint initializes root through `chpasswd` stdin
 from runtime `ROOT_PASSWORD` (unset defaults to `toor`). Reject empty values and

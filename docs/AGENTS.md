@@ -22,7 +22,7 @@ because their commands are documented.
 
 # Work Guidance
 
-Keep operational details here and link them from the root README.
+Keep operational details here and link them from the root README. `guide.md#listening-ports` owns independent port defaults/zero semantics, precedence, legacy-mode migration, HTTP/proxy security and internal versus published ports. Keep Docker examples and CLI help consistent; never imply nonstandard public HTTPS ports satisfy TLS-ALPN-01 validation.
 
 # Verification
 

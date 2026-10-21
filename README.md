@@ -93,8 +93,12 @@ terminals. Also available as a standalone web interface for existing Linux serve
 **Recommended: run the tiny Docker image with zero configuration.**
 
 ```sh
-docker run -p 443:443 agent0ai/tuxee
+docker run -p 80:80 -p 443:443 agent0ai/tuxee
 ```
+
+HTTP 80 redirects to HTTPS 443 by default. `TUXEE_HTTP_PORT` and
+`TUXEE_HTTPS_PORT` change the internal ports; `0` disables either protocol.
+See [listening ports](docs/guide.md#listening-ports) for alternate-port mappings.
 
 Open `https://localhost` (or `https://<server-ip>`) in your browser. Log in as
 **root** with password **toor**, then run `passwd` in a terminal to change it.

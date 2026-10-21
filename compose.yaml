@@ -2,9 +2,13 @@ services:
   tuxee:
     image: agent0ai/tuxee:latest
     ports:
+      - "80:80"
       - "443:443"
     environment:
       ROOT_PASSWORD: ${ROOT_PASSWORD-toor}
+      # Match container ports above when changing these; remove a mapping for 0.
+      TUXEE_HTTP_PORT: ${TUXEE_HTTP_PORT-80}
+      TUXEE_HTTPS_PORT: ${TUXEE_HTTPS_PORT-443}
     volumes:
       - tuxee-state:/var/lib/tuxee
       - tuxee-home:/root

@@ -37,9 +37,9 @@ COPY --chmod=0755 docker/docker-init.sh /opt/tuxee/docker-init.sh
 COPY docker/init/README.md /init/README.md
 COPY docker/tuxee.example.json /etc/tuxee/config.json
 COPY THIRD_PARTY_NOTICES.md /opt/tuxee/THIRD_PARTY_NOTICES.md
-EXPOSE 443
+EXPOSE 80 443
 VOLUME ["/var/lib/tuxee", "/root", "/init"]
 STOPSIGNAL SIGTERM
-HEALTHCHECK --interval=30s --timeout=5s CMD curl --fail --silent --show-error --insecure --max-time 4 https://127.0.0.1/health
+HEALTHCHECK --interval=30s --timeout=5s CMD ["/usr/local/bin/tuxee", "healthcheck", "--config", "/etc/tuxee/config.json"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/tuxee/entrypoint.sh", "/init"]
 CMD ["/usr/local/bin/tuxee", "serve", "--config", "/etc/tuxee/config.json"]
