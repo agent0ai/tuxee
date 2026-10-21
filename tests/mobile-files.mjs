@@ -30,7 +30,7 @@ const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const touch = await context.newCDPSession(page);
 const file = page.locator('.file-view'), list = file.locator('.file-list');
-const row = name => file.locator('.file-entry').filter({ has: page.getByRole('checkbox', { name: `Select ${name}`, exact: true }) });
+const row = name => file.locator('.file-entry').filter({ has: page.getByRole('checkbox', { name: `Select ${name}`, exact: true, includeHidden: true }) });
 const box = name => row(name).locator('.file-select');
 const all = file.getByRole('checkbox', { name: 'Select all visible files', exact: true });
 const selected = () => file.locator('.file-entry[aria-selected=true] .file-name span').allTextContents();
@@ -129,7 +129,7 @@ try {
         await page.screenshot({ path: `test-results/mobile-selection-${theme}.png` });
     }
     check('shared modal close stays fixed, clickable and keyboard-accessible while About scrolls in both themes');
-    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.setViewportSize({ width: 390, height: 844 });
     await list.evaluate(node => { node.scrollTop = 0; });
     for (const preselected of [false, true]) {
         await all.check(); await all.uncheck();
@@ -153,6 +153,32 @@ try {
         assert.deepEqual(await selected(), previous, 'keyboard selection must still work');
     }
     check('Escape preserves empty/nonempty selections through delayed reversed-sweep release and subsequent input');
+    const beforeResize = await selected();
+    for (const [width, height, compact] of [[1440, 1000, false], [759, 844, true], [760, 844, false], [1440, 479, true], [1440, 480, false], [390, 844, true], [1440, 1000, false]]) {
+        await page.setViewportSize({ width, height });
+        await page.waitForFunction(compact => document.querySelector('.board').classList.contains('compact-board') === compact, compact);
+        assert.equal(await file.locator('.file-select:visible').count(), compact ? await list.locator('.file-entry').count() + 1 : 0);
+        assert.equal(await file.getByRole('checkbox').count(), compact ? await list.locator('.file-entry').count() + 1 : 0, 'desktop checkboxes must also be absent from the accessibility tree');
+        assert.deepEqual(await selected(), beforeResize, 'resizing preserves selection');
+    }
+    await row('row-00.txt').click();
+    const offsets = await file.evaluate(node => {
+        const row = node.querySelector('.file-entry'), name = row.querySelector('.file-name').getBoundingClientRect();
+        return [node.querySelector('[data-column=name]').getBoundingClientRect().x - name.x, name.x - row.getBoundingClientRect().x];
+    });
+    assert.ok(Math.abs(offsets[0]) < 1); assert.ok(Math.abs(offsets[1] - 8) < 1, 'desktop has no empty checkbox column');
+    await row('row-02.txt').click({ modifiers: ['Control'] });
+    assert.deepEqual(await selected(), ['row-00.txt', 'row-02.txt']);
+    await row('row-04.txt').click({ modifiers: ['Shift'] });
+    assert.deepEqual(await selected(), ['row-02.txt', 'row-03.txt', 'row-04.txt']);
+    await row('row-00.txt').click();
+    const rectangleStart = await point(row('row-02.txt').locator('.file-size')), rectangleEnd = await point(row('row-04.txt').locator('.file-size'));
+    await page.mouse.move(rectangleStart.x, rectangleStart.y); await page.mouse.down();
+    await page.mouse.move(rectangleEnd.x + 10, rectangleEnd.y, { steps: 8 }); await page.mouse.up();
+    assert.deepEqual(await selected(), ['row-02.txt', 'row-03.txt', 'row-04.txt']);
+    await row('row-04.txt').focus(); await page.keyboard.press('Space');
+    assert.deepEqual(await selected(), ['row-02.txt', 'row-03.txt']);
+    check('checkboxes are compact-only across viewport changes; desktop click, modifier, rectangle and keyboard selection work');
     await row('row-00.txt').click({ button: 'right' }); await menu.waitFor(); await page.keyboard.press('Escape');
     await row('row-00.txt').locator('.file-name').dblclick(); await file.locator('.cm-content').waitFor();
     await file.locator('.cm-content').click(); await page.keyboard.press('Control+a');

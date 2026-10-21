@@ -427,7 +427,7 @@ h3 {
 .file-columns,
 .file-entry {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 70px 90px;
+  grid-template-columns: minmax(0, 1fr) 70px 90px;
   align-items: center;
   gap: 6px;
 }
@@ -466,7 +466,7 @@ h3 {
   cursor: default;
   font-size: 12px;
 }
-.file-select { display: flex; align-items: center; justify-content: center; align-self: stretch; min-height: 32px; cursor: pointer; touch-action: none; }
+.file-select { display: none; align-items: center; justify-content: center; align-self: stretch; min-height: 32px; cursor: pointer; touch-action: none; }
 .file-select input { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); cursor: pointer; }
 .file-entry:hover {
   background: var(--raised);
@@ -907,7 +907,7 @@ progress {
 .compact-board .file-entry {
   grid-template-columns: 44px minmax(0, 1fr) 65px;
 }
-.compact-board .file-select { min-height: 44px; }
+.compact-board .file-select { display: flex; min-height: 44px; }
 .compact-board .file-date,
 .compact-board .file-columns button[data-column=modified] {
   display: none;
