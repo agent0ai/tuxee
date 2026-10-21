@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS frontend
+FROM node:22-trixie-slim AS frontend
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY third_party ./third_party
 COPY THIRD_PARTY_NOTICES.md ./
 RUN npm run build
 
-FROM golang:1.26.3-bookworm AS backend
+FROM golang:1.26.3-trixie AS backend
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -21,13 +21,26 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v
 FROM scratch AS binary
 COPY --from=backend /tuxee /tuxee
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS gui
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential cmake ninja-build pkg-config autoconf automake libtool patch xutils-dev xfonts-utils xz-utils \
+    libjpeg62-turbo-dev zlib1g-dev libx11-dev libxext-dev libxdamage-dev libxfixes-dev libxrandr-dev libxtst-dev \
+    libxfont-dev xtrans-dev x11proto-dev libpixman-1-dev libxshmfence-dev libxkbfile-dev libfontenc-dev \
+    libpam0g-dev libunwind-dev nettle-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/build-gui.sh /build-gui.sh
+RUN sh /build-gui.sh /output
+
+FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
+    matchbox-window-manager xterm fonts-dejavu-core x11-xkb-utils xkb-data dbus \
+    libnettle8t64 libunwind8 libjpeg62-turbo libpixman-1-0 libxfont2 libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
     && chmod 0700 /var/lib/tuxee \
     && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
 COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
+COPY --from=gui /output/ /
 RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee
 COPY docker/tuxee.profile.sh /etc/profile.d/tuxee.sh
 # Initialize ROOT_PASSWORD (default: toor) on the first container start.

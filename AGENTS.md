@@ -81,7 +81,6 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
 - Use `main` as the primary Git branch.
-- Attribute repository commits to `Jan Tomášek <tomasekhonza@gmail.com>` as both author and committer.
 - The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker and public branding assets separate.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
 - Keep the UI free of promotional/descriptive microcopy except the About tagline. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
@@ -92,6 +91,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Go and Docker builds default to version `0.0.0` when no version is injected; release builds use their Git tag.
 - The install script also upgrades existing default installations, including releases without `tuxee update`. Use the downloaded binary's installer, preserve configuration/state, and leave restarts explicit.
 - `tuxee upgrade` is an alias for `tuxee update`, using the same handler and options.
+- Only file browsers and terminals are components. Terminals lazily start their own X display when an application connects; the terminal icon/name is the first header button, followed only while GUI windows exist by a pipe and window buttons. Show the selected item’s name, collapse other items to icons and put excess windows in the existing three-dot overflow menu. The active GUI window has a chevron menu with Close; right-click opens the same menu and preserves application save/cancel prompts. Release empty display runtimes, return to the plain terminal header and restart lazily on the next GUI command. Preserve the shell and GUI across navigation/logout, and terminate both on explicit terminal closure. Remove the separate GUI launcher/component/API. Use Debian Trixie slim, minimal TigerVNC/Matchbox and locally bundled noVNC; keep Dockerfile builds usable and verify memory, real inputs and screenshots.
 
 ## Child DOX Index
 

@@ -16,7 +16,8 @@ function account(name) {
     run('chpasswd', [], `${name}:${password}\n`);
     return { name, password, uid: Number(fields[2]), gid: Number(fields[3]), home: fields[5] };
 }
-const a = account('tuxee-poc-a'), b = account('tuxee-poc-b');
+const a = account(process.env.TUXEE_TEST_USER || 'tuxee-poc-a');
+const b = account(process.env.TUXEE_TEST_OTHER_USER || 'tuxee-poc-b');
 for (const user of [a, b]) {
     await rm(`${user.home}/.config/tuxee`, { recursive: true, force: true });
     await rm(`${user.home}/tuxee-fixtures`, { recursive: true, force: true });
@@ -369,7 +370,8 @@ try {
     assert.equal(await page.evaluate(() => window.fixedTerminalNode === document.querySelector('.panel-body.terminal-view')), true);
     check('terminal drag moves the original display and Escape returns it without reconnecting');
     const snapGrid = await page.locator('.grid-stack').boundingBox();
-    await page.mouse.move(terminalHead.x + 80, terminalHead.y + 15); await page.mouse.down();
+    const terminalTitle = await terminalWidget.locator('.panel-title').boundingBox();
+    await page.mouse.move(terminalTitle.x + terminalTitle.width / 2, terminalTitle.y + terminalTitle.height / 2); await page.mouse.down();
     await page.mouse.move(snapGrid.x + snapGrid.width * .75, snapGrid.y + 2, { steps: 12 });
     await page.locator('.dock-preview[data-edge=snap]').waitFor();
     await checkGridDragLayers();
@@ -785,7 +787,7 @@ try {
 }
 catch (error) {
     await page.screenshot({ path: 'test-results/failure.png' });
-    console.log(await page.evaluate(() => ({ transfers: window.transferHistory?.slice(-5), worker: !!navigator.serviceWorker.controller })));
+    console.log(await page.evaluate(() => ({ transfers: window.transferHistory?.slice(-5), worker: !!navigator.serviceWorker?.controller })));
     console.log(JSON.stringify({ errors, frames }, null, 2));
     throw error;
 }

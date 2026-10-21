@@ -20,6 +20,10 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		failure(w, 404, err)
 		return
 	}
+	if action == "display" || strings.HasPrefix(action, "display/") {
+		terminalDisplay(w, r, value, action)
+		return
+	}
 	if action == "ws" && r.Method == "GET" {
 		if r.Header.Get("Origin") == "" {
 			failure(w, 403, errors.New("WebSocket origin is required"))

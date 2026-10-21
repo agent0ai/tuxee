@@ -6,7 +6,7 @@ Docker runtime support and example configuration.
 
 # Ownership
 
-Own `entrypoint.sh`, `docker-init.sh`, `tuxee.profile.sh` and
+Own `build-gui.sh`, `entrypoint.sh`, `docker-init.sh`, `tuxee.profile.sh` and
 `tuxee.example.json`. Root owns `Dockerfile` and `compose.yaml`; update their
 COPY and mount paths when these files move.
 
@@ -31,6 +31,8 @@ inherit the environment. Do not bake custom passwords into image layers.
 
 The image exposes `/usr/local/lib/tuxee/tuxee` through `/usr/local/bin/tuxee`. The updater replaces that file without restarting. Updates in the writable layer survive same-container restarts, but recreation uses the image version. Compose defaults to the published multi-platform image; root release automation owns image tags.
 
+All Docker stages use Debian Trixie variants; runtime uses `debian:trixie-slim`. The `build-gui.sh OUTPUT` downloads SHA-256-pinned TigerVNC 1.16.2 and Xorg 21.1.25, applies the matching upstream integration patch, and builds stripped `tuxee-Xvnc`/`tuxee-vncpasswd` with GLX/DRI/glamor/viewer disabled. Keep compilers and source in the `gui` build stage; copy only binaries and upstream licenses into runtime. Preserve the no-GL/EGL/GBM/LLVM/missing-library dependency check. Runtime uses Matchbox, xterm, DejaVu fonts, X authentication/keyboard data and session D-Bus with no recommends. It needs no Python/Node/websockify, GPU device, privileged mode or public VNC port. Document app-specific dependencies separately.
+
 # Work Guidance
 
 Keep runtime files here and keep the root Docker/Compose entry points usable.
@@ -40,7 +42,7 @@ Keep runtime files here and keep the root Docker/Compose entry points usable.
 `npm run test:docker-init` exercises the runner, first-run credentials with isolated
 account files when root, and, with Tini on PATH, the production entrypoint lifecycle.
 `npm run test:features` checks the shell profile with a dedicated user.
-Image build and lifecycle checks require Docker.
+Run `sh docker/build-gui.sh OUTPUT` with the GUI build-stage dependencies to validate the pinned source recipe and its dependency assertion. Full image build and lifecycle checks require Docker.
 
 # Child DOX Index
 

@@ -1,3 +1,4 @@
+import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, terminalDimensions, restoreTerminal, terminalTheme } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
@@ -15,6 +16,7 @@ export async function terminateTerminal(panel: Panel) {
 
 export class TerminalView implements View {
     readonly term: Terminal;
+    private display: TerminalDisplay;
     private socket?: WebSocket;
     private disposed = false;
     private controller = false;
@@ -57,6 +59,7 @@ export class TerminalView implements View {
         installTerminalView(this.term);
         installTerminalMetrics(this.term);
         installTerminalTouch(this.term, this.events.signal);
+        this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.inputBytes(Uint8Array.from(data, c => c.charCodeAt(0))));
         this.observer = new ResizeObserver(() => this.resize());
@@ -83,6 +86,7 @@ export class TerminalView implements View {
         if (this.disposed || this.closing) return;
         this.ended = true; this.ready = false; this.control.hidden = true;
         this.state('ended');
+        this.display.update();
         clearTimeout(this.reconnect);
         const socket = this.socket; this.socket = undefined; socket?.close();
         if (this.root.querySelector('.terminal-recovery')) return;
@@ -123,7 +127,7 @@ export class TerminalView implements View {
             info = await pending;
         }
         this.name = info.name;
-        this.hooks.title?.(info.name);
+        this.hooks.title?.(info.name); this.display.rename(info.name);
         this.root.dataset.terminal = info.id;
         if (!this.disposed && !this.closing)
             this.connect();
@@ -150,7 +154,11 @@ export class TerminalView implements View {
                     return;
                 }
                 switch (value.type) {
+                    case 'display':
+                        this.display.update(value.display);
+                        break;
                     case 'snapshot':
+                        this.display.update(value.display);
                         restoreTerminal(this.term, value.snapshot);
                         this.ready = true;
                         this.controller = value.control;
@@ -169,6 +177,7 @@ export class TerminalView implements View {
                             this.resize();
                         break;
                     case 'exit':
+                        this.display.update();
                         this.ended = true;
                         this.state('ended');
                         break;
@@ -240,7 +249,7 @@ export class TerminalView implements View {
         this.inFlight = true;
         this.socket.send(value);
     } }
-    resize = () => { clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
+    resize = () => { this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {
         if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
@@ -259,7 +268,7 @@ export class TerminalView implements View {
         if (!name) return;
         await this.starting;
         const info = await api<TerminalInfo>(`/terminals/${this.panel.terminal}`, 'PATCH', { name });
-        this.name = info.name; this.hooks.title?.(info.name);
+        this.name = info.name; this.hooks.title?.(info.name); this.display.rename(info.name);
     }
     async close() {
         this.closing = true; this.socket?.close();
@@ -267,5 +276,5 @@ export class TerminalView implements View {
         await terminateTerminal(this.panel);
         this.ended = true; this.state('ended');
     }
-    dispose() { this.disposed = true; this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); this.socket?.close(); this.observer.disconnect(); this.term.dispose(); }
+    dispose() { this.disposed = true; this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
 }

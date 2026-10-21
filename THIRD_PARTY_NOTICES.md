@@ -42,8 +42,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # Additional bundled components
 
+The GUI proof of concept bundles noVNC 1.6.0 `core/` and `vendor/` ES modules from https://github.com/novnc/noVNC/releases/tag/v1.6.0. Corresponding source is included in `web/vendor/novnc/` in this repository and is available from that upstream tag. Tuxee modifies `core/util/browser.js` to release the H.264 capability probe's frame and decoder on success/failure, and `core/rfb.js` to reject invalid framebuffer dimensions from hidden/detached viewers; the remaining bundled modules are unmodified. The core is MPL-2.0, with BSD-licensed portions and the bundled MIT-licensed pako implementation. Full notices are in `third_party/NOVNC-*`; upstream per-file notices remain in source. The Go binary serves these notices under `/licenses/`.
+
+The POC container separately builds TigerVNC 1.16.2 (GPL-2.0 and upstream component licenses) with Xorg Server 21.1.25 (upstream X/MIT-style licenses). Exact source URLs, SHA-256 checksums, upstream integration patch and build options are in `docker/build-gui.sh`. Corresponding source archives are https://github.com/TigerVNC/tigervnc/archive/refs/tags/v1.16.2.tar.gz and https://www.x.org/releases/individual/xserver/xorg-server-21.1.25.tar.xz. The container retains their upstream license files under `/usr/local/share/licenses/tuxee-gui/`. They are separate runtime executables, not linked into Tuxee.
+
 Verbatim licenses for GridStack (MIT), Lucide (ISC, including Feather-derived portions), the Go standard library, and the Go dependencies linked into the executable are in `third_party/`. The frontend embeds these alongside this notice under `/licenses/`. Dependency versions are pinned by package-lock.json and go.sum.
 
 The HTTPS policy adaptation is based on the8020/https commit 7afdb86df19b608bb533017a4a48e84dc4833637 under Apache-2.0; its full license is included. Tuxee replaces the Deno runtime and ACME internals with Go/lego while preserving the public-address eligibility and persistent fallback contract.
 
 The owner authorized reuse from the8020/dev-core and the8020/kernel. Those inspected source trees do not supply a general redistribution license; their code is not represented here as independently open-source licensed. The dev-core snapshot/interpreter source is retained with import/runtime adaptation. The Docker Bash login prompt adapts `defaults/config/runtime/development/image/files/profile` from that kernel tree. Kernel lifetime contracts are adapted to PAM and local retained PTYs. Distributed identity, sandbox, database and routing dependencies are omitted.
+
+Terminal window discovery and activation use github.com/jezek/xgb v1.3.1 (XGB, BSD-3-Clause). The exact upstream license is in `third_party/XGB-LICENSE.txt` and is served under `/licenses/`.

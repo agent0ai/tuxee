@@ -8,6 +8,8 @@ Authenticated HTTP API, application sessions, per-user settings, and WebSocket t
 
 Own HTTP routing and session revocation. Delegate filesystem syscalls to files, account checks to identity, and all terminal lifetime/control to terminal.
 
+Terminal sessions own GUI lifetime. After the existing terminal UID check, `GET /api/terminals/{id}/display` returns the running display's temporary VNC password; it never starts a display. Its `/ws` suffix bridges the private Unix VNC socket through authenticated, same-origin binary WebSocket frames. `/api/terminals/{id}/display/window` accepts POST to activate and DELETE to request a normal window close; both require CSRF and a window ID from that display. Accept no caller-provided destination. Logout revokes transports while retaining the terminal and applications.
+
 # Local Contracts
 
 Cookies contain random revocable tokens; login passwords never leave the isolated authentication path. Archive passwords are transient filesystem-worker input. Mutations require same-origin admission and a session CSRF token. Logout cancels all requests/WebSockets associated with that login, but never closes retained PTYs. Every terminal operation verifies its Linux owner. User settings validate whole-layout bounds and overlap before an atomic user-owned save. File transfers stream under the user's credentials.
@@ -24,7 +26,7 @@ Multiple selected items use the cleaned parent directory's basename plus `.zip`,
 
 Optional workspace `layout` stores auto mode 1/2/3 and `custom` geometry keyed by panel ID. Validate both current and saved positions with the same bounds/overlap check; the custom snapshot must contain exactly the current panel IDs, without duplicates. It stores no paths or terminal identities. Absent layout means custom and remains compatible with older settings.
 
-Optional file-panel `name` is a display label, limited to 80 bytes with no NUL. Accept absent/empty labels for older settings; reject nonempty labels on terminal panels because terminal sessions own their names. Preserve the field through the existing user-owned settings load/save.
+Optional file-panel `name` is a display label, limited to 80 bytes with no NUL. Terminal sessions own their names. The only panel kinds are `files` and `terminal`; there is no separate GUI kind or GUI launch API.
 
 ServeHTTPS wraps the existing Go TLS listener to return an empty 308 redirect for plaintext HTTP on that same port. Preserve the request host, explicit port, escaped path and query; do not trust forwarded headers. Never pass plaintext requests to application handlers. Use the existing TLS handshake deadlines and bounded header parsing; malformed requests return 400. Keep the wrapper small: no separate protocol dispatcher or listener lifecycle. Explicit --http remains plain HTTP.
 
@@ -42,7 +44,7 @@ Keep frontend protocol and real-system tests in sync. Do not weaken shared owner
 
 # Verification
 
-Run `go test ./internal/server` for origin/CSRF/logout admission, connection readiness/authentication, shutdown unavailability/session cancellation, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. Run with `-race` for lifecycle changes. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
+Run `go test ./internal/server` for origin/CSRF/logout admission (including terminal display routes), connection readiness/authentication, shutdown unavailability/session cancellation, authenticated system information and metrics, monitoring preference validation, OS-release parsing, whole-grid/file-label validation, and compressed index/CSP integrity. Run with `-race` for lifecycle changes. `TUXEE_SYSTEM_TEST=1 go test ./tests` runs real HTTP/WebSocket takeover, reconnection and no-timeout retention checks against the built executable.
 
 HTTPS redirect checks cover preserved URLs, invalid/oversized headers, plaintext isolation, idle clients, HTTP/2, TLS-ALPN certificate challenges and shutdown. The real-system test follows the redirect through the built binary.
 

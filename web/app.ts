@@ -346,9 +346,9 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             tools.append(button(panel.kind === 'terminal' ? 'Rename terminal' : 'Rename file browser', 'Pencil', () => items.get(panel.id)?.view.renamePanel()));
             tools.append(button('Close panel', 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
-            head.ondblclick = event => { if (!(event.target as Element).closest('button')) { const before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(value); } };
+            head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(value); } };
             head.onpointerdown = event => {
-                if (!value.compact && !(event.target as Element).closest('button')) beginDrag(event, panel.kind, panel);
+                if (!value.compact && !(event.target as Element).closest('button:not(.terminal-tab)')) beginDrag(event, panel.kind, panel);
             };
             scopeNotifications(tools, content);
             tools.onpointerdown = event => event.stopPropagation();
@@ -559,7 +559,7 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
 function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
     cancelDrag(); finishSlide();
-    const value = mounted, ws = value.ws, trigger = event.currentTarget as HTMLElement;
+    const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab') || event.currentTarget as HTMLElement;
     const panel = existing || newPanel(kind, user.home);
     const node = existing ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
     node.getAnimations().forEach(animation => animation.cancel());

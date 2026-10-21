@@ -17,10 +17,12 @@ import (
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
+	"tuxee/internal/desktop"
 	"tuxee/internal/identity"
 )
 
 type Event struct {
+	Display  *desktop.State  `json:"display,omitempty"`
 	Type     string          `json:"type"`
 	Data     []byte          `json:"data,omitempty"`
 	Snapshot json.RawMessage `json:"snapshot,omitempty"`
@@ -28,6 +30,16 @@ type Event struct {
 	Rows     int             `json:"rows,omitempty"`
 	Control  bool            `json:"control"`
 	Message  string          `json:"message,omitempty"`
+}
+
+func (e Event) queuedBytes() int {
+	n := len(e.Data)
+	if e.Display != nil {
+		for _, w := range e.Display.Windows {
+			n += len(w.Title) + len(w.Icon) + 64
+		}
+	}
+	return n
 }
 
 type Info struct {
@@ -46,6 +58,7 @@ type Manager struct {
 }
 
 type Session struct {
+	Display     *desktop.Display
 	mu          sync.Mutex
 	manager     *Manager
 	user        identity.User
@@ -115,12 +128,26 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if err != nil {
 		return nil, err
 	}
+	display, err := desktop.Prepare(user)
+	if err != nil {
+		engine.Close()
+		return nil, err
+	}
+	created := false
+	defer func() {
+		if !created {
+			display.Close()
+		}
+	}()
 	args := []string{"-l"}
 	if command != "" {
 		args = []string{"-lc", command}
 	}
 	cmd := user.Command(context.Background(), user.Shell, args...)
 	cmd.Dir = directory
+	if display != nil {
+		cmd.Env = append(cmd.Env, display.Env...)
+	}
 	master, slave, err := pty.Open()
 	if err != nil {
 		engine.Close()
@@ -144,11 +171,15 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		return failed(err)
 	}
 	slave.Close()
-	s := &Session{manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
+	s := &Session{Display: display, manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
 	if s.info.Name == "" {
 		s.info.Name = "Terminal"
 	}
 	m.sessions[s.info.ID] = s
+	created = true
+	if display != nil {
+		go s.watchDisplay()
+	}
 	go s.readOutput()
 	go s.writeInput()
 	go func() {
@@ -160,6 +191,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		_ = cmd.Wait()
 		s.info.Exited = true
 		s.mu.Unlock()
+		display.Close()
 		close(s.exited)
 	}()
 	return s, nil
@@ -228,7 +260,7 @@ func (s *Session) Attach() (*Attachment, error) {
 	if err != nil {
 		return nil, err
 	}
-	event := Event{Type: "snapshot", Snapshot: snapshot}
+	event := Event{Type: "snapshot", Snapshot: snapshot, Display: s.Display.State()}
 	s.views[a.ID] = a
 	if s.controller == "" {
 		s.controller = a.ID
@@ -259,7 +291,7 @@ func (a *Attachment) Release(event Event) {
 	s := a.session
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	a.queued -= len(event.Data)
+	a.queued -= event.queuedBytes()
 	if a.queued < 0 {
 		a.queued = 0
 	}
@@ -345,13 +377,13 @@ func (s *Session) sendLocked(a *Attachment, event Event) {
 	if a.closed {
 		return
 	}
-	if a.queued+len(event.Data) > 1<<20 {
+	if a.queued+event.queuedBytes() > 1<<20 {
 		s.detachLocked(a)
 		return
 	}
 	select {
 	case a.Events <- event:
-		a.queued += len(event.Data)
+		a.queued += event.queuedBytes()
 	default:
 		s.detachLocked(a)
 	}
@@ -467,6 +499,7 @@ func (s *Session) destroy() {
 	_ = s.pty.Close()
 	s.engine.Close()
 	s.mu.Unlock()
+	s.Display.Close()
 	select {
 	case <-s.exited:
 	case <-time.After(time.Second):
@@ -480,3 +513,21 @@ func (s *Session) destroy() {
 }
 
 func (s *Session) String() string { return fmt.Sprintf("terminal %s", s.info.ID) }
+
+func (s *Session) watchDisplay() {
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-s.exited:
+			return
+		case <-s.Display.Changes:
+			state := s.Display.State()
+			s.mu.Lock()
+			if !s.closed {
+				s.broadcastLocked(Event{Type: "display", Display: state})
+			}
+			s.mu.Unlock()
+		}
+	}
+}
