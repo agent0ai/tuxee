@@ -20,6 +20,7 @@ import { Updates } from './updates';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
+const hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')!.content;
 let user: User, settings: Settings;
 let loggedIn = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
 let monitoring: Monitoring | undefined;
@@ -90,12 +91,21 @@ function disposeViews() {
     finishSlide();
     warmWorkspaces.forEach(destroyWorkspace); mounted = undefined;
 }
+function updateTitle() {
+    document.title = `Tuxee ${loggedIn && settings.serverName || hostname}`;
+}
+function setColorMarker(color?: string) {
+    if (loggedIn && color) document.documentElement.style.setProperty('--server-marker-border', `0.25rem solid ${color}`);
+    else document.documentElement.style.removeProperty('--server-marker-border');
+}
 function showLogin() {
     updates?.dispose(); updates = undefined;
     monitoring?.dispose(); monitoring = undefined;
     stopTerminalPolling();
     terminalSessions = []; terminalError = '';
     loggedIn = false;
+    updateTitle();
+    setColorMarker();
     setCSRF('');
     clearTimeout(saveTimer);
     disposeViews();
@@ -103,6 +113,7 @@ function showLogin() {
     root.replaceChildren();
     document.documentElement.dataset.theme = 'dark';
     const page = el('div', 'login-page');
+    const content = el('div', 'login-content');
     const form = el('form', 'login-form');
     const logo = el('img', 'login-logo');
     logo.src = verticalLogo;
@@ -141,7 +152,13 @@ function showLogin() {
     finally {
         submit.disabled = false;
     } };
-    page.append(form);
+    const version = document.querySelector<HTMLMetaElement>('meta[name="tuxee-version"]')!.content;
+    const metadata = el('p', 'login-metadata', `Server ${hostname} • `);
+    const github = el('a', '', `Tuxee v${version}`);
+    github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
+    metadata.append(github);
+    content.append(form, metadata);
+    page.append(content);
     root.append(page);
     if (username.autofocus) username.focus();
 }
@@ -156,6 +173,8 @@ async function load(signal?: AbortSignal) {
     settings = value.settings;
     setCSRF(value.csrf);
     loggedIn = true;
+    updateTitle();
+    setColorMarker(settings.serverColor);
     monitoring?.dispose();
     monitoring = new Monitoring(settings.monitoring, async preferences => {
         const previous = settings.monitoring;
@@ -803,7 +822,8 @@ function accountActions(): [...TabAction, string?][] {
     const actions: [...TabAction, string?][] = [
         ['Settings', 'Settings', openSettings],
         ['Retained terminals', 'SquareTerminal', retainedTerminals, terminalError || (count ? `${count} running terminal${count === 1 ? '' : 's'} outside your workspaces` : '')],
-        ['About', 'Info', openAbout, updates?.warning], ['Log out', 'LogOut', logout]
+        ['About', 'Info', openAbout, updates?.warning],
+        ['Restart Tuxee', 'RefreshCw', restartTuxee], ['Log out', 'LogOut', logout]
     ];
     if (monitoring) actions.unshift(['Resource monitor', 'Activity', () => monitoring?.open()]);
     return actions;
@@ -908,7 +928,26 @@ async function retainedTerminals() {
     paint();
 }
 async function openSettings() {
-    const content = el('div', 'form');
+    const content = el('form', 'form');
+    const serverName = el('input');
+    serverName.name = 'serverName';
+    serverName.maxLength = 64;
+    serverName.value = settings.serverName || '';
+    serverName.placeholder = hostname;
+    const label = el('label', 'field', 'Server name');
+    label.append(serverName); content.append(label);
+    let markerColor = settings.serverColor || '';
+    const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
+    const color = el('input');
+    color.type = 'color'; color.id = 'server-color'; color.value = markerColor || defaultColor;
+    const colorLabel = el('label', '', 'Color marker'); colorLabel.htmlFor = color.id;
+    const reset = button('Reset', undefined, () => {
+        markerColor = ''; color.value = defaultColor; reset.disabled = true; setColorMarker();
+    });
+    reset.disabled = !markerColor;
+    color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
+    const colors = el('div', 'settings-color'); colors.append(color, reset);
+    const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
     const tls = await api('/tls');
     const details = el('section', 'tls-status');
     details.append(el('h3', '', 'Connection'), el('p', '', tls.source === 'public' ? `Public certificate · expires ${new Date(tls.expires).toLocaleString()}` : tls.source === 'local' ? 'Encrypted with a local certificate' : 'Plain HTTP'));
@@ -920,8 +959,32 @@ async function openSettings() {
     }
     if (tls.error)
         details.append(el('p', 'muted', tls.error));
-    content.append(details);
-    modal('Settings', content);
+    const submit = button('Save');
+    submit.type = 'submit'; submit.className = 'primary';
+    const actions = el('div', 'actions'); actions.append(submit);
+    content.append(details, actions);
+    const dialog = modal('Settings', content);
+    dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
+    content.onsubmit = async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        submit.disabled = true;
+        const previous = settings.serverName;
+        const previousColor = settings.serverColor;
+        settings.serverName = serverName.value.trim();
+        settings.serverColor = markerColor;
+        serverName.value = settings.serverName;
+        try { await save(); updateTitle(); dialog.close(); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; notify(error, content); }
+        finally { submit.disabled = false; }
+    };
+}
+async function restartTuxee() {
+    for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;
+    if (!await confirmAction('Restart Tuxee?', 'This restarts the Tuxee runtime, ends all running terminals and GUI applications for every user, and signs everyone out. Linux and other services keep running. To restart Linux, use reboot. For containers, restart the container or terminate its PID 1 according to your deployment.', 'Restart Tuxee')) return;
+    await save();
+    await api('/restart', 'POST', {});
+    window.dispatchEvent(new Event('tuxee-connection-lost'));
 }
 async function logout() {
     for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;

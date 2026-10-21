@@ -6,6 +6,5 @@
   "acme": "auto",
   "acmeDirectory": "",
   "email": "",
-  "pam": "login",
-  "origin": ""
+  "pam": "login"
 }

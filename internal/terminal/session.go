@@ -53,6 +53,7 @@ type Info struct {
 
 type Manager struct {
 	mu       sync.Mutex
+	closing  sync.WaitGroup
 	sessions map[string]*Session
 	closed   bool
 }
@@ -176,6 +177,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		s.info.Name = "Terminal"
 	}
 	m.sessions[s.info.ID] = s
+	m.closing.Add(1)
 	created = true
 	if display != nil {
 		go s.watchDisplay()
@@ -228,6 +230,7 @@ func (m *Manager) Close() {
 	for _, s := range values {
 		s.Close()
 	}
+	m.closing.Wait()
 }
 func (s *Session) Info() Info {
 	s.mu.Lock()
@@ -481,6 +484,7 @@ func (s *Session) Close() {
 	s.destroy()
 }
 func (s *Session) destroy() {
+	defer s.manager.closing.Done()
 	s.manager.mu.Lock()
 	delete(s.manager.sessions, s.info.ID)
 	s.manager.mu.Unlock()
@@ -509,6 +513,7 @@ func (s *Session) destroy() {
 			_ = s.cmd.Process.Kill()
 		}
 		s.mu.Unlock()
+		<-s.exited
 	}
 }
 

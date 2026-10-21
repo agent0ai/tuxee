@@ -29,6 +29,7 @@ import (
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
 	"tuxee/internal/monitor"
+	"tuxee/internal/processes"
 	"tuxee/internal/terminal"
 	"tuxee/internal/tlsmanager"
 	"tuxee/internal/update"
@@ -50,6 +51,7 @@ type Server struct {
 	Origin       string
 	Version      string
 	Updates      *update.Checker
+	Restart      func()
 	Assets       fs.FS
 	mu           sync.Mutex
 	closed       atomic.Bool
@@ -111,14 +113,24 @@ func (s *Server) origin(r *http.Request) string {
 		return s.Origin
 	}
 	scheme := "http"
-	if r.TLS != nil {
+	// Proxy/browser hints may enable HTTPS cookies and links, never relax origin admission.
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" || strings.HasPrefix(r.Header.Get("Origin"), "https://") {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
 }
 func (s *Server) allowedOrigin(r *http.Request) bool {
-	origin := r.Header.Get("Origin")
-	return origin == "" || origin == s.origin(r)
+	check := *r
+	// API GETs include interactive WebSockets; apply unsafe-request checks to every method.
+	check.Method = http.MethodPost
+	if s.Origin != "" {
+		target, err := url.Parse(s.Origin)
+		if err != nil {
+			return false
+		}
+		check.Host = target.Host
+	}
+	return new(http.CrossOriginProtection).Check(&check) == nil
 }
 func (s *Server) Close() {
 	s.closed.Store(true)
@@ -179,7 +191,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "frontend build is unavailable", 500)
 				return
 			}
-			data = bytes.ReplaceAll(data, []byte("{{origin}}"), []byte(html.EscapeString(s.origin(r))))
+			hostname, err := os.Hostname()
+			if err != nil {
+				http.Error(w, "server hostname is unavailable", 500)
+				return
+			}
+			data = []byte(strings.NewReplacer(
+				"{{origin}}", html.EscapeString(s.origin(r)),
+				"{{hostname}}", html.EscapeString(hostname),
+				"{{version}}", html.EscapeString(s.Version),
+			).Replace(string(data)))
 			if compressed {
 				var buffer bytes.Buffer
 				writer := gzip.NewWriter(&buffer)
@@ -247,6 +268,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case r.URL.Path == "/api/restart" && r.Method == "POST":
+		if s.Restart == nil {
+			failure(w, 503, errors.New("runtime restart is unavailable"))
+			return
+		}
+		select {
+		case s.processKills <- struct{}{}:
+			defer func() { <-s.processKills }()
+		default:
+			failure(w, 429, errors.New("process signalling is busy"))
+			return
+		}
+		if _, err := processes.Run(ctx, session.user, processes.Request{Operation: "check-parent-signal"}); err != nil {
+			failure(w, 403, errors.New("Cannot restart Tuxee: "+err.Error()))
+			return
+		}
+		if !s.closed.CompareAndSwap(false, true) {
+			failure(w, 503, errors.New("server restarting"))
+			return
+		}
+		jsonResponse(w, http.StatusAccepted, map[string]bool{"ok": true})
+		s.Restart()
 	case r.URL.Path == "/api/processes" && (r.Method == "GET" || r.Method == "POST" || r.Method == "DELETE"):
 		s.processOperation(w, r, session)
 	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"):
@@ -303,7 +346,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = decode(w, r, &input)
 		value := input.Settings
 		if err == nil {
-			err = validateSettings(value)
+			err = validateSettings(&value)
 		}
 		if err != nil {
 			failure(w, 400, err)

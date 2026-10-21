@@ -93,7 +93,7 @@ try {
     await checkSummaryLine(); await checkNotice();
     assert.equal(await dialog.locator('.update-command').textContent(), real.command);
     assert.equal(checks, 1);
-    await dialog.getByText('The update takes effect on restart. Restarting ends all terminal sessions.', { exact: true }).waitFor();
+    await dialog.getByText('Run this command to update. Manual restart will be required (kills terminals).', { exact: true }).waitFor();
     await page.screenshot({ path: 'test-results/updates-desktop.png' });
     await page.keyboard.press('Escape');
     assert.equal(await menu.locator('.menu-warning').count(), 1);

@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="web/tuxee-logo-vertical.webp" alt="Tuxee" width="220">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/tuxee-logo-vertical.webp">
+    <img src="web/tuxee-logo-vertical-light.webp" alt="Tuxee" width="220">
+  </picture>
 </p>
 
 # Tuxee - the most convenient linux for servers and agents.
@@ -96,9 +99,9 @@ terminals. Also available as a standalone web interface for existing Linux serve
 docker run -p 80:80 -p 443:443 agent0ai/tuxee
 ```
 
-The app is available on HTTP 80 and HTTPS 443. `TUXEE_HTTP_PORT` and
-`TUXEE_HTTPS_PORT` change the internal ports; `0` disables either protocol.
-See [listening ports](docs/guide.md#listening-ports) for alternate-port mappings.
+The app is available on HTTP 80 and HTTPS 443. Behind Traefik or another HTTPS
+proxy, forward to container port **80**—no Tuxee configuration is needed.
+See [Docker setup](docs/guide.md#docker) for persistence and alternate host ports.
 
 Open `https://localhost` (or `https://<server-ip>`) in your browser. Log in as
 **root** with password **toor**, then run `passwd` in a terminal to change it.
@@ -119,7 +122,7 @@ curl -fsSL https://tuxee.agent-zero.ai/install.sh | sudo sh
 - [User and developer guide](docs/guide.md)
 - [Updates, releases and repository setup](docs/releases.md)
 - [Startup scripts](docker/init/README.md)
-- [Example configuration](docker/tuxee.example.json)
+- [Optional configuration](docs/guide.md#optional-configuration)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ---

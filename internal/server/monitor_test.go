@@ -47,7 +47,7 @@ func TestMonitoringPreferences(t *testing.T) {
 		return &Monitoring{CPU: true, Memory: true, Disks: []string{"/"}, Networks: []string{monitor.AllNetworks, "eth0", "all"}, Interval: 2}
 	}
 	settings := Settings{Theme: "dark", Workspaces: []Workspace{}, Monitoring: valid()}
-	if err := validateSettings(settings); err != nil {
+	if err := validateSettings(&settings); err != nil {
 		t.Fatal(err)
 	}
 	for _, change := range []func(*Monitoring){
@@ -60,12 +60,12 @@ func TestMonitoringPreferences(t *testing.T) {
 	} {
 		settings.Monitoring = valid()
 		change(settings.Monitoring)
-		if validateSettings(settings) == nil {
+		if validateSettings(&settings) == nil {
 			t.Fatalf("accepted invalid preferences: %+v", settings.Monitoring)
 		}
 	}
 	settings.Monitoring = nil
-	if err := validateSettings(settings); err != nil {
+	if err := validateSettings(&settings); err != nil {
 		t.Fatalf("old settings need no migration: %v", err)
 	}
 }

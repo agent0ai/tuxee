@@ -33,7 +33,7 @@ export class Updates {
         const content = el('tr', 'about-update'), cell = el('td'), summary = el('div', 'update-summary');
         content.setAttribute('aria-label', 'Updates'); cell.colSpan = 2;
         const message = el('span', 'update-status'), checked = el('span', 'update-checked muted'), detail = el('p', 'update-error');
-        const command = el('code', 'update-command'), restart = el('p', 'muted', 'The update takes effect on restart. Restarting ends all terminal sessions.');
+        const command = el('code', 'update-command'), restart = el('p', 'muted', 'Run this command to update. Manual restart will be required (kills terminals).');
         const checkLabel = el('span', '', 'Check now');
         const check = button('Check now', 'RefreshCw', async () => {
             check.disabled = true; checkLabel.textContent = 'Checking…'; detail.hidden = true;

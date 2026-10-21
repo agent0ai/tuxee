@@ -20,6 +20,8 @@ export type Workspace = {
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
+    serverName?: string;
+    serverColor?: string;
     theme: 'dark' | 'light';
     current: string;
     workspaces: Workspace[];

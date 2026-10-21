@@ -5,8 +5,10 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/base64"
+	"html"
 	"io"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -15,6 +17,7 @@ import (
 
 func TestSelfContainedIndexAndCSP(t *testing.T) {
 	s := New(nil, nil, nil, "", web.Assets())
+	s.Version = "0.2.1"
 	request := httptest.NewRequest("GET", "https://tuxee.test/", nil)
 	plain := httptest.NewRecorder()
 	s.ServeHTTP(plain, request)
@@ -85,5 +88,35 @@ func TestBrandingOrigin(t *testing.T) {
 	s.ServeHTTP(response, request)
 	if strings.Contains(response.Body.String(), "<script>injected</script>") || !strings.Contains(response.Body.String(), "&lt;script&gt;injected&lt;/script&gt;") {
 		t.Fatal("origin must be escaped as HTML attribute text")
+	}
+}
+
+func TestPublicServerIdentity(t *testing.T) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{"0.0.0", "0.2.1", `test"><script>injected</script>{{origin}}`} {
+		for _, path := range []string{"/", "/index.html"} {
+			s := New(nil, nil, nil, "", web.Assets())
+			s.Version = version
+			response := httptest.NewRecorder()
+			s.ServeHTTP(response, httptest.NewRequest("GET", "http://local.test"+path, nil))
+			if response.Code != 200 {
+				t.Fatal(response.Code)
+			}
+			for _, tag := range []string{
+				`<title>Tuxee ` + html.EscapeString(hostname) + `</title>`,
+				`name="tuxee-hostname" content="` + html.EscapeString(hostname) + `"`,
+				`name="tuxee-version" content="` + html.EscapeString(version) + `"`,
+			} {
+				if !strings.Contains(response.Body.String(), tag) {
+					t.Fatalf("missing public server metadata %s", tag)
+				}
+			}
+			if strings.Contains(response.Body.String(), "<script>injected</script>") {
+				t.Fatal("server metadata must be escaped as HTML")
+			}
+		}
 	}
 }

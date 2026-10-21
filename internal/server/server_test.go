@@ -6,14 +6,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"tuxee/internal/identity"
+	"tuxee/internal/processes"
 	"tuxee/internal/terminal"
 )
+
+func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "__processes" {
+		if processes.Worker() != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 func TestSessionAdmissionAndLogout(t *testing.T) {
 	manager := terminal.NewManager()
@@ -47,6 +59,78 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 		t.Fatalf("revoked cookie: %d", got)
 	}
 }
+
+func TestRestartAdmission(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires root to check both allowed and denied Linux credentials")
+	}
+	for _, tc := range []struct {
+		name, method, origin, csrf   string
+		uid                          uint32
+		anonymous, unavailable, busy bool
+		want                         int
+	}{
+		{name: "anonymous", method: "POST", anonymous: true, want: 401},
+		{name: "no signal permission", method: "POST", csrf: "csrf", uid: 65534, want: 403},
+		{name: "cross-origin", method: "POST", csrf: "csrf", origin: "http://evil.test", want: 403},
+		{name: "missing CSRF", method: "POST", want: 403},
+		{name: "GET cannot restart", method: "GET", want: 404},
+		{name: "unavailable", method: "POST", csrf: "csrf", unavailable: true, want: 503},
+		{name: "busy", method: "POST", csrf: "csrf", busy: true, want: 429},
+		{name: "signal permitted", method: "POST", csrf: "csrf", want: 202},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := New(nil, nil, nil, "", fstest.MapFS{})
+			defer s.Close()
+			if tc.busy {
+				s.processKills <- struct{}{}
+				s.processKills <- struct{}{}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			s.logins[sha256.Sum256([]byte("token"))] = &login{user: identity.User{UID: tc.uid}, csrf: "csrf", ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
+			calls := 0
+			if !tc.unavailable {
+				s.Restart = func() { calls++ }
+			}
+			r := httptest.NewRequest(tc.method, "http://tuxee.test/api/restart", nil)
+			r.Header.Set("Origin", tc.origin)
+			r.Header.Set("X-Tuxee-CSRF", tc.csrf)
+			if !tc.anonymous {
+				r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+			}
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, r)
+			if w.Code != tc.want || w.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("restart: %d %s", w.Code, w.Body.String())
+			}
+			if tc.uid != 0 && !strings.Contains(w.Body.String(), "operation not permitted") {
+				t.Fatalf("missing Linux permission error: %s", w.Body.String())
+			}
+			if tc.want != 202 {
+				if calls != 0 || s.closed.Load() {
+					t.Fatal("rejected restart changed the runtime")
+				}
+				return
+			}
+			if calls != 1 || !s.closed.Load() || w.Body.String() != "{\"ok\":true}\n" {
+				t.Fatal("restart was not accepted exactly once")
+			}
+			for _, path := range []string{"/api/restart", "/api/connection", "/health"} {
+				r.URL.Path = path
+				w = httptest.NewRecorder()
+				s.ServeHTTP(w, r)
+				if w.Code != 503 || calls != 1 {
+					t.Fatal("restart must report unavailable and reject duplicate requests")
+				}
+			}
+			s.Close()
+			if ctx.Err() == nil {
+				t.Fatal("runtime cleanup did not revoke the old session")
+			}
+		})
+	}
+}
+
 func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
 	s := New(nil, nil, nil, "", fstest.MapFS{})
 	defer s.Close()
@@ -108,20 +192,69 @@ func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
 	}
 	s.Close()
 }
+func TestServerColorMarker(t *testing.T) {
+	for _, color := range []string{"", "#000000", "#ffffff", "#aBc123"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, ServerColor: color}
+		if err := validateSettings(&value); err != nil {
+			t.Fatalf("valid color %q rejected: %v", color, err)
+		}
+		data, _ := json.Marshal(value)
+		var restored Settings
+		if err := json.Unmarshal(data, &restored); err != nil || restored.ServerColor != color {
+			t.Fatalf("color did not round-trip: %s, %v", data, err)
+		}
+		if color == "" && strings.Contains(string(data), "serverColor") {
+			t.Fatal("reset color marker should be omitted from settings")
+		}
+	}
+	for _, color := range []string{"red", "#abc", "123456", "#12345678", "#gg0000", "#123456 ", "#123456; color:red", "var(--line)"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, ServerColor: color}
+		if validateSettings(&value) == nil {
+			t.Fatalf("accepted invalid color %q", color)
+		}
+	}
+}
+
+func TestServerDisplayName(t *testing.T) {
+	for _, test := range []struct{ input, want string }{
+		{"", ""}, {" \t\n", ""}, {"  Lab <&> 東京 \u00a0", "Lab <&> 東京"},
+		{strings.Repeat("é", 64), strings.Repeat("é", 64)},
+		{strings.Repeat("🐧", 32), strings.Repeat("🐧", 32)},
+	} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, ServerName: test.input}
+		if err := validateSettings(&value); err != nil || value.ServerName != test.want {
+			t.Fatalf("server name %q: got %q, error %v", test.input, value.ServerName, err)
+		}
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test.want == "" && strings.Contains(string(data), "serverName") {
+			t.Fatal("empty server name should be omitted from settings")
+		}
+	}
+	for _, name := range []string{strings.Repeat("a", 65), strings.Repeat("é", 65), strings.Repeat("🐧", 33), "bad\x00name"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, ServerName: name}
+		if validateSettings(&value) == nil {
+			t.Fatalf("accepted invalid server name %q", name)
+		}
+	}
+}
+
 func TestSettingsWholeGridValidation(t *testing.T) {
-	if validateSettings(Settings{Theme: "dark"}) == nil {
+	if validateSettings(&Settings{Theme: "dark"}) == nil {
 		t.Fatal("accepted null workspace list")
 	}
 	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "a", Kind: "files", W: 2, H: 2}, {ID: "b", Kind: "terminal", X: 2, W: 2, H: 2}}}}}
-	if err := validateSettings(value); err != nil {
+	if err := validateSettings(&value); err != nil {
 		t.Fatal(err)
 	}
 	value.Workspaces[0].Panels[1].X = 1
-	if err := validateSettings(value); err == nil {
+	if err := validateSettings(&value); err == nil {
 		t.Fatal("accepted overlapping panels")
 	}
 	value.Workspaces[0].Panels[1].X = 3
-	if err := validateSettings(value); err == nil {
+	if err := validateSettings(&value); err == nil {
 		t.Fatal("accepted out of bounds panel")
 	}
 }
@@ -138,7 +271,7 @@ func TestSettingsLayoutCycle(t *testing.T) {
 		if err = json.Unmarshal(data, &restored); err != nil {
 			t.Fatal(err)
 		}
-		if err = validateSettings(restored); err != nil {
+		if err = validateSettings(&restored); err != nil {
 			t.Fatal(err)
 		}
 		if restored.Workspaces[0].Layout.Mode != mode || restored.Workspaces[0].Layout.Custom[0] != valid[0] {
@@ -156,12 +289,12 @@ func TestSettingsLayoutCycle(t *testing.T) {
 		{Mode: 1, Custom: []PanelPosition{valid[0], {ID: "b", X: 2, W: 0, H: 2}}},
 	} {
 		value.Workspaces[0].Layout = &layout
-		if validateSettings(value) == nil {
+		if validateSettings(&value) == nil {
 			t.Fatalf("accepted invalid layout: %+v", layout)
 		}
 	}
 	value.Workspaces[0].Layout = nil
-	if err := validateSettings(value); err != nil {
+	if err := validateSettings(&value); err != nil {
 		t.Fatal("legacy/custom workspace rejected:", err)
 	}
 }
@@ -170,22 +303,22 @@ func TestFileBrowserNames(t *testing.T) {
 	panel := &value.Workspaces[0].Panels[0]
 	for _, name := range []string{"", "Projects — server", strings.Repeat("x", 80)} {
 		panel.Name = name
-		if err := validateSettings(value); err != nil {
+		if err := validateSettings(&value); err != nil {
 			t.Fatalf("valid browser name rejected: %v", err)
 		}
 	}
 	for _, name := range []string{strings.Repeat("x", 81), "bad\x00name"} {
 		panel.Name = name
-		if validateSettings(value) == nil {
+		if validateSettings(&value) == nil {
 			t.Fatal("invalid browser name accepted")
 		}
 	}
 	panel.Kind, panel.Name = "terminal", "Duplicate name source"
-	if validateSettings(value) == nil {
+	if validateSettings(&value) == nil {
 		t.Fatal("terminal names must remain owned by the terminal session")
 	}
 	panel.Name = ""
-	if err := validateSettings(value); err != nil {
+	if err := validateSettings(&value); err != nil {
 		t.Fatal("legacy terminal settings rejected:", err)
 	}
 }

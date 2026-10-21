@@ -25,7 +25,7 @@ sudo ./bin/tuxee serve --bind 127.0.0.1:9443 \
 
 Open `https://127.0.0.1:9443`. Sign in with a Linux username and password. PAM authentication and account policy apply; non-login shells are rejected. Passwords are never stored by Tuxee. File operations and shells run with the user's UID, GID and supplementary groups. User layouts live in `~/.config/tuxee/settings.json`; server keys live under the separate state directory.
 
-Use `tuxee serve --help`, `tuxee help`, and `tuxee version` for CLI help. `--config /absolute/file.json` loads a JSON configuration; explicit flags override it. Port environment variables override JSON, and port flags override those variables. All supplied environment values must be valid, even when a flag overrides them. [The example configuration](../docker/tuxee.example.json) contains the defaults. Terminal access is exclusively through the web UI; shells run directly on local PTYs. Explicit HTTP is available with `--http --bind 127.0.0.1:8080`. For a protected reverse proxy, set `--origin https://admin.example.com` and forward WebSocket upgrades as well as HTTP. Origin checks use this exact external origin; forwarded headers are not implicitly trusted.
+Use `tuxee serve --help`, `tuxee help`, and `tuxee version` for CLI help. Defaults work both directly and behind a reverse proxy; no configuration file or public hostname is required. Terminal access is exclusively through the web UI; shells run directly on local PTYs.
 
 ## GUI applications in terminals
 
@@ -73,6 +73,8 @@ Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc
 
 Use `--name tuxee-poc` consistently to install/test a separate service identity. Its configuration, binary and default state paths use that name. Lifecycle commands delegate to systemctl/journalctl. Machines without a running systemd manager can use foreground or Docker operation.
 
+Every signed-in account can choose **Restart Tuxee** immediately above **Log out** in the user menu. Restart requires the same Linux permission as signalling the Tuxee process directly; a denied request shows an error and leaves the runtime and sessions running. The action does not invoke `sudo`. The confirmation explains that this restarts only the Tuxee runtime, ends every user's terminals and GUI applications, and signs everyone out. Unsaved editor changes require confirmation and saved layouts remain. The disconnected loader stays visible until Tuxee returns, then the browser shows login. This works for foreground, systemd and Docker deployments, uses the currently installed executable, and leaves Linux, unrelated processes and Docker init hooks running. To restart Linux, use `reboot`; for containers, use the deployment's container restart controls or terminate the container's PID 1 as appropriate.
+
 ## Listening ports
 
 `TUXEE_HTTP_PORT` and `TUXEE_HTTPS_PORT` select the actual listening ports in
@@ -104,10 +106,9 @@ listener on a different external port; use that port in the browser URL.
 Plain HTTP sends login credentials and session traffic unencrypted; use it
 only on a trusted network or behind a protected TLS proxy. Direct HTTP cookies
 are HttpOnly/SameSite=Strict without Secure, and terminals use `ws://`; direct
-HTTPS cookies are Secure and terminals use `wss://`. Behind a TLS-terminating
-proxy, configure `--origin https://PUBLIC_HOST[:PORT]` for Secure cookies and exact
-origin checks, and forward WebSocket upgrades. Forwarded headers are never trusted.
-The proxy must protect the backend.
+HTTPS cookies are Secure and terminals use `wss://`, including behind a
+TLS-terminating proxy. See [reverse proxies](#reverse-proxies); no Tuxee settings
+are required.
 
 The existing `--bind ADDRESS:PORT` / JSON `bind` and `--http` / JSON `http: true`
 retain their **single-listener** behavior (default address `:443`, TLS unless
@@ -116,7 +117,7 @@ it is separate from the new port settings' zero-as-disabled contract. Legacy mod
 cannot be mixed with any independent port setting: startup gives a diagnostic
 rather than ignoring a disabling zero. For a loopback-only proxy listener keep
 `--http --bind 127.0.0.1:8080`; to migrate old JSON, remove `bind` and `http: true`
-before adding port settings. The supplied Docker JSON uses the new settings.
+before adding port settings. Optional JSON configuration uses the new settings.
 `service install` persists resolved environment/flag settings in its initial JSON;
 existing service JSON is preserved. Later shell environment changes do not change
 an already installed systemd service; edit its JSON or systemd environment and restart.
@@ -131,7 +132,7 @@ TLS or alter browser/ACME verification.
 
 Opening `http://HOST:TLS_PORT` redirects to `https://HOST:TLS_PORT`, preserving the path and query. This redirect remains on the TLS socket even when `TUXEE_HTTP_PORT=0`; it opens no additional port. The separate HTTP listener (80 by default) and legacy explicit `--http` mode serve the application directly without redirecting.
 
-Automatic public issuance uses TLS-ALPN-01, so port 80 is unnecessary. Public TCP 443 must reach Tuxee's TLS listener for validation. `--acme auto` (the default, also accepted as `on`) enables issuance and renewal on any local listening port. Any public domain pointing to the server can trigger issuance through the browser's TLS SNI; `--hosts` is optional. For example, forward public TCP 443 to local 4433 and run `tuxee serve --bind :4433`; no port override is needed. Forwarding must preserve the TLS handshake. Behind a TLS-terminating proxy, use HTTP mode and let the proxy manage certificates.
+Automatic public issuance uses TLS-ALPN-01, so port 80 is unnecessary. Public TCP 443 must reach Tuxee's TLS listener for validation. `--acme auto` (the default, also accepted as `on`) enables issuance and renewal on any local listening port. Any public domain pointing to the server can trigger issuance through the browser's TLS SNI; `--hosts` is optional. For example, forward public TCP 443 to local 4433 and run `tuxee serve --bind :4433`; no port override is needed. Forwarding must preserve the TLS handshake. Behind a TLS-terminating proxy, forward to the existing HTTP listener and let the proxy manage certificates; Tuxee needs no changes.
 
 DNS names and eligible public IPs are supported. Set `--hosts admin.example.com` to request a certificate at startup, before the first browser visit. Without configured hosts, startup uses discovered interface addresses. For access by public IP behind NAT, set `--hosts PUBLIC_IP`: clients commonly omit SNI for IP addresses and Tuxee cannot infer an external NAT address. The first configured host is the no-SNI name. Private addresses and localhost use local certificates.
 
@@ -192,7 +193,7 @@ ROOT_PASSWORD='your-password' docker compose up -d
 docker compose logs -f tuxee
 ```
 
-Compose pulls the published amd64/arm64 image. To test local source instead,
+Compose pulls the published amd64/arm64 image and starts it with its built-in defaults. No host configuration file is needed. To test local source instead,
 run `docker build -t agent0ai/tuxee:latest .`, then
 `ROOT_PASSWORD='your-password' docker compose up -d --pull never`.
 See [Docker updates](releases.md#docker-updates) for binary and image updates.
@@ -207,39 +208,58 @@ A Bash loop restarts Tuxee one second after any exit. On container shutdown it s
 
 Docker launches `/init/*.sh` independently in parallel on every container start alongside Tuxee. Scripts may run indefinitely; one blocking or crashing does not stop Tuxee or the others. There is no execution order guarantee. Scripts run as container root through Bash; executable permission is unnecessary. Failures are logged, and finished scripts are not automatically restarted. Use a restart loop when a program should restart after exiting. Restarting Tuxee alone does not rerun these hooks. The runner waits for active scripts and terminates their process groups on shutdown. Instructions and examples are available in [the startup-script README](../docker/init/README.md), installed at `/init/README.md`. Compose persists this folder in `tuxee-init`; replace the mount with `./my-init:/init` to manage scripts from the host. Native installations do not run init scripts. Existing scripts that use Node/npm or PM2 must install those dependencies or launch services directly.
 
-The example publishes HTTP 80 and HTTPS 443. It persists certificate/server state and the default user's home, including layouts. Configuration is mounted from `docker/tuxee.example.json`. Account/password changes survive container restarts but must be provisioned again after container recreation; Linux account databases remain in the container's writable layer. Provision additional container users deliberately. This example does not mount host account databases, the Docker socket, or require privileged mode. It is not a host-management deployment.
+Compose publishes HTTP 80 and HTTPS 443 and keeps persistent data in three named volumes:
 
-For alternate internal ports, change **both** the environment and container-side
-publication. For example, build the source image first and then run:
+| Container path | Data |
+| --- | --- |
+| `/var/lib/tuxee` | Server state and certificates |
+| `/root` | User files and settings, including layouts |
+| `/init` | Startup scripts |
+
+Separate Compose projects get separate volumes automatically. No configuration volume or per-instance JSON file is needed. Account/password changes survive container restarts; recreating a container initializes its account database again. Container mode manages the container, not the host.
+
+To use different host ports, change only the published ports:
 
 ```sh
-docker run -e TUXEE_HTTP_PORT=8080 -e TUXEE_HTTPS_PORT=8443 \
-  -p 8080:8080 -p 8443:8443 agent0ai/tuxee:latest
-# HTTPS only; no HTTP publication or listener:
-docker run -e TUXEE_HTTP_PORT=0 -e TUXEE_HTTPS_PORT=8443 \
-  -p 8443:8443 agent0ai/tuxee:latest
-# HTTP only (trusted network/protected proxy):
-docker run -e TUXEE_HTTP_PORT=8080 -e TUXEE_HTTPS_PORT=0 \
-  -p 127.0.0.1:8080:8080 agent0ai/tuxee:latest
+docker run -p 8080:80 -p 8443:443 agent0ai/tuxee
 ```
 
-In Compose, set `TUXEE_HTTP_PORT: "8080"` and `TUXEE_HTTPS_PORT: "8443"`,
-and replace `ports` with `["8080:8080", "8443:8443"]`. For zero, remove that
-protocol's mapping entirely; do not publish container port 0. The supplied Compose
-file accepts environment overrides but cannot automatically remove a mapping.
-`EXPOSE 80 443` is image metadata, not listener configuration or host publication.
-The image healthcheck reads the same JSON and environment as its default command;
-if overriding command-line listener settings, override the healthcheck with the
-same settings too. The init runner and restart behavior are unchanged.
-Public ACME still requires **public TCP 443** to forward unchanged TLS to the
-chosen internal HTTPS port. Publishing only 8443 does not enable public validation;
-use the existing local CA trust flow or supply the necessary forwarding. A
-TLS-terminating proxy should own certificates and use an HTTP-only backend.
+The equivalent Compose mappings are `"8080:80"` and `"8443:443"`. Changing the
+internal listeners is optional; see [listening ports](#listening-ports).
+Public certificate issuance still requires public TCP 443 to reach Tuxee's TLS
+listener. With a TLS-terminating proxy, the proxy manages certificates instead.
+
+## Reverse proxies
+
+Start the image as supplied and forward your domain to **container port 80**.
+Traefik, Caddy and other TLS-terminating proxies can serve the public HTTPS URL
+without any Tuxee configuration. Forward HTTP and WebSocket connections and
+preserve the public Host header (Traefik's default). Only the proxy needs the
+domain and certificate configuration. Tuxee's unused HTTPS listener can stay
+at its default; there is no need to disable ACME, set `origin`, or mount a config.
+Keep the backend on the proxy's private network.
+
+Browser same-origin checks work across TLS termination. Secure login cookies
+follow the browser's HTTPS Origin or the usual `X-Forwarded-Proto: https` header;
+forwarded host headers never authorize a request. Session authentication, CSRF
+tokens and WebSocket origin checks remain enforced.
+
+## Optional configuration
+
+Most deployments need no configuration file. For custom settings,
+`--config /absolute/file.json` loads JSON; [the example](../docker/tuxee.example.json)
+shows the defaults. Flags override environment, which overrides JSON and defaults.
+All supplied port environment values must be valid, even when a flag overrides them.
+Existing `origin` overrides remain supported, but reverse proxies do not require one.
+The image contains `/etc/tuxee/config.json`; edit or replace it only when changing
+advanced settings. Its default command and healthcheck read the same file and
+environment. Custom command-line listener options require matching healthcheck options.
 
 ## Verification
 
 ```sh
 npm run test:layout
+npm run test:proxy
 TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 go test -p 2 -race ./internal/... ./cmd/... ./tests
 go vet ./...
 npm run test:browser
@@ -252,6 +272,7 @@ npm run test:monitoring
 npm run test:installer
 npm run test:updates
 node tests/retained.mjs
+node tests/restart.mjs
 npm run test:docker-init
 ```
 

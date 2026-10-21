@@ -77,11 +77,29 @@ This recreates the container when the image changes, ending terminals and
 rerunning startup scripts. Configured volumes retain their data; the container
 account database is recreated according to the existing ROOT_PASSWORD contract.
 
-`tuxee update` also works as root inside a writable container. It updates only
-the binary, leaving runtime packages and startup scripts as shipped in the image.
+`tuxee update` also works as root inside a writable container. It replaces
+the binary. On the next server start, that binary runs its embedded
+[`update.sh`](../internal/update/update.sh) to install missing release prerequisites.
 Use `docker restart <container>` from the host when ready. That update survives
 restarts of the same container; recreation uses the selected image's binary.
 No binary-override volume or Docker socket access is needed.
+
+For 0.2.1, setup installs the minimal private audio runtime in existing Tuxee
+containers. It checks the system first, refreshes apt metadata before installing
+any missing prerequisites, and downloads the architecture-specific audio bundle
+from the binary's release tag. The release checksum and staged executables are
+verified before installation. It does not install compilers, the full PulseAudio
+package, or change the host's sound configuration.
+
+New images already contain the runtime and their build version in
+`/usr/local/lib/tuxee/update-version`, so **brand-new containers skip setup**,
+including when reusing older data volumes. Successful upgrades advance this
+marker in the container's writable layer; subsequent starts skip it. Legacy
+containers without a marker run setup once. Setup takes at most five minutes;
+failure is logged, the server still starts, and setup retries on the next start.
+Native installations and commands such as `version` or `update --check` never
+run container setup. The script stays separate in the repository and is embedded
+at build time; startup does not download or execute a remote script.
 
 ## Update notices
 
@@ -146,7 +164,8 @@ the checks and builds the same Dockerfile: its Bookworm backend exports
 The tag supplies `tuxee version`. The workflow tests both exported binaries, native installation/reinstallation
 and image entrypoints before publication.
 
-After both jobs pass, publication uploads the two binaries and `checksums.txt`
+After both jobs pass, publication uploads the two binaries, matching
+`tuxee-audio-linux-{amd64,arm64}.tar.gz` bundles and `checksums.txt`
 to a draft GitHub Release named **Tuxee vX.Y.Z**. Notes contain every commit subject
 and body since the previous reachable stable version tag; the first release
 includes all reachable commits. It then publishes the two-platform Docker

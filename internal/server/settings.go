@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
+	"unicode/utf16"
 
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
@@ -44,10 +46,12 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
-	Theme      string      `json:"theme"`
-	Current    string      `json:"current"`
-	Workspaces []Workspace `json:"workspaces"`
-	Monitoring *Monitoring `json:"monitoring,omitempty"`
+	ServerName  string      `json:"serverName,omitempty"`
+	ServerColor string      `json:"serverColor,omitempty"`
+	Theme       string      `json:"theme"`
+	Current     string      `json:"current"`
+	Workspaces  []Workspace `json:"workspaces"`
+	Monitoring  *Monitoring `json:"monitoring,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -68,9 +72,23 @@ func LoadSettings(ctx context.Context, user identity.User) (Settings, error) {
 	if err = json.Unmarshal(response.Settings, &value); err != nil {
 		return value, err
 	}
-	return value, validateSettings(value)
+	err = validateSettings(&value)
+	return value, err
 }
-func validateSettings(value Settings) error {
+func validateSettings(value *Settings) error {
+	if color := value.ServerColor; color != "" {
+		if len(color) != 7 || color[0] != '#' {
+			return errors.New("color marker must be a six-digit hex color")
+		}
+		if _, err := hex.DecodeString(color[1:]); err != nil {
+			return errors.New("color marker must be a six-digit hex color")
+		}
+	}
+	value.ServerName = strings.TrimSpace(value.ServerName)
+	// Match the browser input's maxlength, which counts UTF-16 code units.
+	if len(utf16.Encode([]rune(value.ServerName))) > 64 || strings.ContainsRune(value.ServerName, 0) {
+		return errors.New("server name must be at most 64 characters with no NUL")
+	}
 	if m := value.Monitoring; m != nil {
 		if m.Interval != 2 && m.Interval != 5 && m.Interval != 10 || len(m.Disks) > 8 || len(m.Networks) > 8 || m.Disks == nil || m.Networks == nil {
 			return errors.New("invalid monitoring preferences")

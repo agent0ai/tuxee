@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
 )
 
@@ -39,6 +40,9 @@ func Worker() error {
 		output.Snapshot, err = Sample(ctx, input.AllowCore)
 	case "signal":
 		output.Results, err = Signal(ctx, input.Targets, input.Signal, input.AllowCore)
+	case "check-parent-signal":
+		// Signal zero checks the user's permission without interrupting the server.
+		err = unix.Kill(os.Getppid(), 0)
 	default:
 		err = errors.New("invalid process operation")
 	}

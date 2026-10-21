@@ -39,6 +39,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY docker/build-audio.sh /build-audio.sh
 RUN sh /build-audio.sh /output
 
+FROM audio AS audio-package
+RUN tar -C /output -czf /tuxee-audio.tar.gz .
+
+FROM scratch AS audio-runtime
+COPY --from=audio-package /tuxee-audio.tar.gz /tuxee-audio.tar.gz
+
 FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
     matchbox-window-manager xterm fonts-dejavu-core x11-xkb-utils xkb-data dbus \
@@ -50,7 +56,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam
 COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
 COPY --from=gui /output/ /
 COPY --from=audio /output/ /
-RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee
+ARG VERSION=0.0.0
+RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee \
+    && printf '%s\n' "${VERSION#v}" > /usr/local/lib/tuxee/update-version
 COPY docker/tuxee.profile.sh /etc/profile.d/tuxee.sh
 # Initialize ROOT_PASSWORD (default: toor) on the first container start.
 COPY --chmod=0755 docker/entrypoint.sh /opt/tuxee/entrypoint.sh

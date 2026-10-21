@@ -19,7 +19,8 @@ Preserve original artwork. Reuse existing logos; do not replace them with
 generated approximations or treat them as disposable build output.
 Light variants remove the backdrop and recolor only “Tux” to black, preserving
 the yellow hexagon/“ee”, typography and opaque black-and-white penguin.
-Login continues to use the original dark artwork.
+Login uses the transparent dark vertical WebP owned by `web/`; keep the original
+dark PNG unchanged here.
 
 # Work Guidance
 

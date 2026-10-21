@@ -204,6 +204,17 @@ h3 {
 .form > .primary {
   align-self: flex-end;
 }
+.settings-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-color input {
+  width: 48px;
+  height: 32px;
+  padding: 3px;
+  cursor: pointer;
+}
 .login-page {
   height: var(--viewport-height,100dvh);
   flex-shrink: 0;
@@ -217,20 +228,21 @@ h3 {
       #202d4f66,
       transparent 50%);
 }
-.login-form {
+.login-content {
   width: min(320px, 100%);
   margin: auto;
   flex-shrink: 0;
+}
+.login-form {
   display: flex;
   flex-direction: column;
   gap: clamp(8px, calc(var(--viewport-height,100dvh) * .02), 18px);
 }
 .login-logo {
-  width: clamp(64px, calc(var(--viewport-height,100dvh) * .22), 220px);
+  width: clamp(48px, calc(var(--viewport-height,100dvh) * .22 - 18px), 220px);
   max-width: 100%;
   height: auto;
   align-self: center;
-  mix-blend-mode: lighten;
 }
 .login-form input {
   font-size: 16px;
@@ -245,6 +257,16 @@ h3 {
 }
 .login-error:empty {
   display: none;
+}
+.login-metadata {
+  margin-top: clamp(8px, calc(var(--viewport-height,100dvh) * .02), 18px);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.login-metadata a {
+  color: inherit;
 }
 #app {
   height: var(--viewport-height,100dvh);
@@ -262,7 +284,7 @@ h3 {
   align-items: center;
   gap: 4px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--server-marker-border, 1px solid var(--line));
   background: var(--surface);
 }
 .brand {
@@ -677,10 +699,7 @@ h3 {
   max-width: 100%;
   height: auto;
   object-fit: contain;
-  border-radius: 20px;
-  background: #0c1017;
 }
-:root[data-theme=light] .about-logo { background: transparent; }
 .about-tagline { margin: 0; text-align: center; line-height: 1.5; }
 .about-details {
   width: 100%;
@@ -1122,7 +1141,7 @@ progress {
 .monitor-modal { width: min(580px, calc(100vw - 24px)); }
 .monitor-modal .modal-head h2 { flex: 1; }
 .monitor-content { display: flex; flex-direction: column; gap: 12px; }
-.monitor-display { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
+.monitor-display { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; cursor: pointer; }
 .monitor-display input { appearance: none; width: 32px; height: 20px; padding: 2px; margin: 0; border-radius: 12px; flex-shrink: 0; cursor: pointer; transition: background .12s; }
 .monitor-display input::before { content: ''; display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .12s; }
 .monitor-display input:checked { background: var(--accent-bg); border-color: var(--accent); }

@@ -39,6 +39,13 @@ the image. A dependency check rejects unexpected libraries. Private wrappers kee
 the stripped libraries out of other applications' library search paths. Build
 tools, source and caches remain in the build stage.
 
+Release builds also publish this exact runtime as a checksum-verified archive
+for each architecture. On the first start after an in-container binary upgrade,
+the embedded `internal/update/update.sh` installs it if missing. New containers
+already carry the runtime and completion marker, so skip setup. See
+[Docker updates](releases.md#docker-updates) for failure/retry behavior. Native
+installations still require manual audio runtime setup.
+
 The much larger Debian package estimates came from `apt-get --simulate` with
 `--no-install-recommends`, subtracting the existing Docker runtime dependency
 closure. They are sums of Debian `Installed-Size` metadata, not filesystem or

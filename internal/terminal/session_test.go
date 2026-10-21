@@ -81,6 +81,52 @@ func TestDetachedPTYAndController(t *testing.T) {
 	}
 }
 
+func TestManagerCloseWaitsForClosingTerminal(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires root")
+	}
+	user, err := identity.Lookup("root")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := NewManager()
+	defer m.Close()
+	dir := t.TempDir()
+	s, err := m.Create(user, dir, "closing", 80, 24, "trap '' HUP; printf ready > ready; exec sleep 60")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := os.Stat(dir + "/ready"); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("terminal did not become ready")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	go s.Close()
+	for {
+		if _, err := m.Get(user, s.info.ID); err != nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("terminal did not start closing")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	m.Close()
+	select {
+	case <-s.exited:
+	default:
+		t.Fatal("manager returned while the closing shell was still running or unreaped")
+	}
+	if err := syscall.Kill(s.info.PID, 0); err != syscall.ESRCH {
+		t.Fatalf("terminal process remains after manager cleanup: %v", err)
+	}
+}
+
 func TestReattachEndedProcessReportsExit(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip("requires root")

@@ -32,6 +32,8 @@ import (
 
 var version = "0.0.0"
 
+var errRestart = errors.New("runtime restart requested")
+
 type config struct {
 	Bind          string `json:"bind,omitempty"`
 	State         string `json:"state"`
@@ -43,7 +45,7 @@ type config struct {
 	ACMEDirectory string `json:"acmeDirectory"`
 	Email         string `json:"email"`
 	PAM           string `json:"pam"`
-	Origin        string `json:"origin"`
+	Origin        string `json:"origin,omitempty"`
 }
 
 func main() {
@@ -136,7 +138,22 @@ func run(args []string) error {
 		if args[0] == "healthcheck" {
 			return healthcheck(value)
 		}
-		return serve(value)
+		bind := value.Bind
+		if err := serve(&value); !errors.Is(err, errRestart) {
+			return err
+		}
+		executable, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		args := append([]string(nil), os.Args...)
+		if value.Bind != bind {
+			if args[len(args)-1] == "--" {
+				args = args[:len(args)-1]
+			}
+			args = append(args, "--bind", value.Bind)
+		}
+		return syscall.Exec(executable, args, os.Environ())
 	case "service":
 		if len(args) < 2 {
 			return errors.New("use service install or service uninstall")
@@ -220,7 +237,7 @@ func runUpdate(args []string) error {
 	fmt.Println("Restarting ends all terminal sessions. Restart when ready:")
 	if _, err := os.Stat("/opt/tuxee/entrypoint.sh"); err == nil {
 		fmt.Println("  On the Docker host: docker restart <container>")
-		fmt.Println("This binary update survives container restarts, but recreation uses the image's version. It does not update the image or runtime packages.")
+		fmt.Println("On next start, Tuxee installs this release's missing runtime prerequisites. Recreation uses the image's version.")
 	} else if service.Available() == nil {
 		serviceName := *name
 		if serviceName == "" {
@@ -305,7 +322,7 @@ func parseConfig(args []string, install bool) (config, string, error) {
 	f.StringVar(&value.ACMEDirectory, "acme-directory", value.ACMEDirectory, "alternate ACME directory, such as Let's Encrypt staging")
 	f.StringVar(&value.Email, "email", value.Email, "optional ACME account email")
 	f.StringVar(&value.PAM, "pam", value.PAM, "host PAM authentication/account service")
-	f.StringVar(&value.Origin, "origin", value.Origin, "external HTTP(S) origin when behind a reverse proxy")
+	f.StringVar(&value.Origin, "origin", value.Origin, "optional public URL override; reverse proxies work without it")
 	if err := f.Parse(args); err != nil {
 		return value, name, err
 	}
@@ -440,7 +457,7 @@ func lockState(path string) (*os.File, error) {
 	}
 	return f, nil
 }
-func serve(value config) error {
+func serve(value *config) error {
 	configs, err := value.listeners()
 	if err != nil {
 		return err
@@ -467,6 +484,16 @@ func serve(value config) error {
 		}
 		defer listener.Close()
 		listeners = append(listeners, listener)
+		if _, port, _ := net.SplitHostPort(config.address); value.Bind != "" && port == "0" {
+			// Keep the selected ephemeral port when the runtime re-executes.
+			value.Bind = listener.Addr().String()
+		}
+	}
+	if err := update.Setup(ctx, version, os.Stderr); err != nil {
+		fmt.Fprintf(os.Stderr, "Tuxee setup failed; will retry on next start: %v\n", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	terminals := terminal.NewManager()
 	defer terminals.Close()
@@ -486,6 +513,8 @@ func serve(value config) error {
 		go tls.Run(ctx)
 	}
 	app := server.New(gate, terminals, tls, value.Origin, web.Assets())
+	restart := make(chan struct{}, 1)
+	app.Restart = func() { restart <- struct{}{} }
 	app.Version = version
 	app.Updates = update.NewChecker(version)
 	go app.Updates.Run(ctx)
@@ -515,6 +544,8 @@ func serve(value config) error {
 	}
 	select {
 	case <-ctx.Done():
+	case <-restart:
+		err = errRestart
 	case err = <-errorsCh:
 		stop()
 	}
@@ -523,6 +554,10 @@ func serve(value config) error {
 	defer cancel()
 	for _, httpServer := range servers {
 		_ = httpServer.Shutdown(shutdown)
+	}
+	terminals.Close()
+	if errors.Is(err, errRestart) && ctx.Err() != nil {
+		return nil
 	}
 	if errors.Is(err, http.ErrServerClosed) || errors.Is(err, net.ErrClosed) {
 		return nil

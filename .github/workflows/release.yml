@@ -55,6 +55,8 @@ jobs:
           npm run build
           mkdir -p bin
           go build -o bin/tuxee ./cmd/tuxee
+          go build -ldflags='-X main.version=0.2.1' -o bin/tuxee-setup ./cmd/tuxee
+          sudo env TUXEE_SETUP_TEST_BINARY="$PWD/bin/tuxee-setup" python3 tests/setup.py
           go test ./internal/... ./cmd/... ./tests
           sudo env TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 "$(command -v go)" test -p 2 ./internal/identity ./tests
           go vet ./internal/... ./cmd/... ./tests
@@ -84,12 +86,21 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}
           outputs: type=local,dest=release
           cache-from: type=gha,scope=release-${{ matrix.arch }}
-      - name: Verify image and binary
+      - name: Export the matching audio runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: audio-runtime
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=local,dest=audio-release
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+      - name: Verify image, binary and audio runtime
         env:
           ARCH: ${{ matrix.arch }}
           DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           mv release/tuxee "release/tuxee-linux-$ARCH"
+          mv audio-release/tuxee-audio.tar.gz "release/tuxee-audio-linux-$ARCH.tar.gz"
           chmod +x "release/tuxee-linux-$ARCH"
           test "$("release/tuxee-linux-$ARCH" version)" = "Tuxee ${TAG#v}"
           # Hosted runners make /usr/local/bin world-writable for tool installation.
@@ -99,12 +110,19 @@ jobs:
           test "$(/usr/local/bin/tuxee version)" = "Tuxee ${TAG#v}"
           docker pull "$IMAGE@$DIGEST"
           test "$(docker run --rm --entrypoint /usr/local/bin/tuxee "$IMAGE@$DIGEST" version)" = "Tuxee ${TAG#v}"
+          docker run --rm --entrypoint /bin/sh -v "$PWD/release:/release:ro" "$IMAGE@$DIGEST" -ec '
+            test "$(cat /usr/local/lib/tuxee/update-version)" = "$1"
+            mkdir /tmp/audio
+            tar -xzf "/release/tuxee-audio-linux-$2.tar.gz" -C /tmp/audio
+            /tmp/audio/usr/local/bin/tuxee-pulseaudio --version
+            /tmp/audio/usr/local/bin/tuxee-pacat --version
+          ' -- "${TAG#v}" "$ARCH"
           mkdir -p digests
           touch "digests/${DIGEST#sha256:}"
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.arch }}
-          path: release/tuxee-linux-*
+          path: release/*
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
@@ -135,7 +153,9 @@ jobs:
         run: |
           test -f release/tuxee-linux-amd64
           test -f release/tuxee-linux-arm64
-          (cd release && sha256sum tuxee-linux-* > checksums.txt)
+          test -f release/tuxee-audio-linux-amd64.tar.gz
+          test -f release/tuxee-audio-linux-arm64.tar.gz
+          (cd release && sha256sum tuxee-linux-* tuxee-audio-linux-*.tar.gz > checksums.txt)
           python3 .github/release-notes.py "$TAG" > release-notes.md
       - name: Prepare draft
         id: release
@@ -168,7 +188,7 @@ jobs:
             }
             core.setOutput('id', release.id);
             core.setOutput('latest', String(latest));
-      - name: Upload verified binaries
+      - name: Upload verified release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" release/* --clobber

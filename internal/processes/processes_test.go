@@ -19,6 +19,15 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "__signal_check_parent" {
+		cmd := exec.Command(identity.Self, "__processes")
+		cmd.Stdin = strings.NewReader(`{"operation":"check-parent-signal"}`)
+		cmd.Stdout = os.Stdout
+		if cmd.Run() != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if len(os.Args) > 1 && os.Args[1] == "__processes" {
 		if Worker() != nil {
 			os.Exit(1)
@@ -27,6 +36,32 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(m.Run())
 }
+
+func TestParentSignalPermission(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires root to compare Linux credentials")
+	}
+	for _, uid := range []uint32{0, 65534} {
+		account := identity.User{UID: uid, GID: uid}
+		_, err := Run(context.Background(), account, Request{Operation: "check-parent-signal"})
+		if uid == 0 && err != nil || uid != 0 && (err == nil || err.Error() != "operation not permitted") {
+			t.Fatalf("UID %d checking root parent: %v", uid, err)
+		}
+	}
+	// The permission check must also accept a non-root user signalling its own runtime.
+	account := identity.User{UID: 65534, GID: 65534}
+	cmd := account.Command(context.Background(), identity.Self, "__signal_check_parent")
+	cmd.Dir = "/"
+	data, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output Response
+	if err := json.Unmarshal(data, &output); err != nil || output.Error != "" {
+		t.Fatalf("non-root parent: %s %v", data, err)
+	}
+}
+
 func fake(pid, parent int, ram uint64, cpu float64) Process {
 	return Process{Ref: Ref{PID: pid, Start: strconv.Itoa(pid + 1000)}, Parent: parent, Name: fmt.Sprintf("worker-%d", pid), State: "S", UID: 1000, RAM: ram, CPU: &cpu, CanSignal: pid > 1}
 }

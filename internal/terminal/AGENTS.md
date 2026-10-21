@@ -16,6 +16,8 @@ Ended processes retain their terminal output until their session is explicitly c
 
 Serialize process-group signals with child reaping. Never signal a retained terminal's numeric PID after it has exited and been reaped.
 
+Manager.Close waits for every session's cleanup, including sessions already removed from the visible inventory by a concurrent Close. Force-killed shells must be reaped and their displays closed before cleanup completes, so runtime re-execution cannot strand child processes.
+
 Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
 
 # Work Guidance
@@ -26,7 +28,7 @@ do not edit or commit it.
 
 # Verification
 
-Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. The root-only real PTY check covers PID retention, takeover, indefinite detachment and explicit termination.
+Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Use `-race` for lifecycle changes.
 
 # Child DOX Index
 
