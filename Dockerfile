@@ -7,6 +7,7 @@ COPY third_party ./third_party
 COPY THIRD_PARTY_NOTICES.md ./
 RUN npm run build
 
+# Keep the exported CGO/PAM binary compatible with Debian 12 native installations.
 FROM golang:1.26.3-bookworm AS backend
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
@@ -21,7 +22,7 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v
 FROM scratch AS binary
 COPY --from=backend /tuxee /tuxee
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
