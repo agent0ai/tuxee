@@ -28,7 +28,7 @@ page.on('websocket', socket => {
     const record = { url: socket.url(), closed: false, snapshots: 0 };
     sockets.push(record);
     socket.on('close', () => { record.closed = true; });
-    socket.on('framereceived', event => { if (JSON.parse(String(event.payload)).type === 'snapshot') record.snapshots++; });
+    socket.on('framereceived', event => { if (typeof event.payload === 'string' && JSON.parse(event.payload).type === 'snapshot') record.snapshots++; });
 });
 const connections = index => sockets.filter(socket => socket.url.includes(`/terminals/${terminals[index].id}/ws`));
 const tab = index => page.locator('.workspace-tab').filter({ hasText: new RegExp(`^Warm ${index}$`) });

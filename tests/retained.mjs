@@ -32,7 +32,7 @@ async function openRetained() {
 async function warning(count) {
     await page.waitForFunction(count => {
         const control = document.querySelector('.user-menu-button');
-        return count ? control?.getAttribute('aria-description')?.startsWith(`${count} running terminal`) : !control?.querySelector('.menu-warning');
+        return count ? control?.getAttribute('aria-description')?.startsWith(`${count} running terminal`) : !control?.getAttribute('aria-description')?.includes('running terminal');
     }, count, { timeout: 15000 });
 }
 async function terminate(name) {
@@ -55,14 +55,19 @@ try {
     // A live transport must not hide a session whose panel was lost.
     await page.evaluate(id => new Promise((resolve, reject) => {
         window.retainedTestSocket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${id}/ws`);
-        window.retainedTestSocket.onmessage = () => resolve();
+        window.retainedTestSocket.binaryType = 'arraybuffer';
+        window.retainedTestSocket.onmessage = event => {
+            const sequence = typeof event.data === 'string' ? JSON.parse(event.data).sequence : Number(new DataView(event.data).getBigUint64(0));
+            if (sequence) retainedTestSocket.send(JSON.stringify({ type: 'rendered', sequence }));
+            resolve();
+        };
         window.retainedTestSocket.onerror = reject;
     }), attached.id);
     await warning(2);
     await menu.click();
     const item = page.getByRole('menuitem', { name: 'Retained terminals', exact: true });
     assert.equal(await item.locator('.menu-warning').count(), 1);
-    assert.equal(await item.getAttribute('aria-description'), await menu.getAttribute('aria-description'));
+    assert.ok((await menu.getAttribute('aria-description')).split('\n').includes(await item.getAttribute('aria-description')));
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await page.getByRole('spinbutton').count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0);
@@ -107,7 +112,7 @@ try {
     // A failed inventory request must warn rather than clear the last known status.
     await page.route(base + '/api/terminals', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Inventory unavailable"}' }));
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-    await page.waitForFunction(() => document.querySelector('.user-menu-button')?.getAttribute('aria-description') === 'Inventory unavailable');
+    await page.waitForFunction(() => document.querySelector('.user-menu-button')?.getAttribute('aria-description')?.split('\n').includes('Inventory unavailable'));
     await page.unroute(base + '/api/terminals');
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await warning(0);
     await menu.click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();

@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	encodingbinary "encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -388,7 +389,7 @@ func TestRealHTTPAndRetention(t *testing.T) {
 	ws.SetReadLimit(32 << 20)
 	read := func(connection *websocket.Conn) terminal.Event {
 		t.Helper()
-		_, data, err := connection.Read(ctx)
+		kind, data, err := connection.Read(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -396,7 +397,12 @@ func TestRealHTTPAndRetention(t *testing.T) {
 			terminal.Event
 			Sequence uint64 `json:"sequence"`
 		}
-		if err = json.Unmarshal(data, &event); err != nil {
+		if kind == websocket.MessageBinary {
+			if len(data) < 9 {
+				t.Fatal("invalid terminal binary frame")
+			}
+			event.Type, event.Data, event.Sequence = "data", data[8:], encodingbinary.BigEndian.Uint64(data)
+		} else if err = json.Unmarshal(data, &event); err != nil {
 			t.Fatal(err)
 		}
 		if event.Sequence != 0 {

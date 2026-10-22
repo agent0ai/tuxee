@@ -47,8 +47,8 @@ page.on('pageerror', error => errors.push(error.message));
 const frames = [];
 page.on('websocket', ws => { ws.on('framesent', event => { frames.push(['sent', String(event.payload).slice(0, 120)]); if (frames.length > 40)
     frames.shift(); }); ws.on('framereceived', event => { let value; try {
-    const data = JSON.parse(String(event.payload));
-    value = { type: data.type, sequence: data.sequence, control: data.control, message: data.message, ...(data.type === 'data' ? { data: Buffer.from(data.data, 'base64').toString() } : {}) };
+    const data = typeof event.payload === 'string' ? JSON.parse(event.payload) : { type: 'data', sequence: Number(event.payload.readBigUInt64BE()), data: event.payload.subarray(8) };
+    value = { type: data.type, sequence: data.sequence, control: data.control, message: data.message, ...(data.type === 'data' ? { data: Buffer.from(data.data).toString() } : {}) };
 }
 catch {
     value = 'unparsed';
@@ -607,6 +607,8 @@ try {
     await page.screenshot({ path: 'test-results/portrait.png' });
     check('portrait two-by-four grid');
     const portraitTerminal = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
+    if (!await page.locator('.workspace-tab-item.active .workspace-menu').isVisible())
+        await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');

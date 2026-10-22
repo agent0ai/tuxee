@@ -18,6 +18,8 @@ Serialize process-group signals with child reaping. Never signal a retained term
 
 Manager.Close waits for every session's cleanup, including sessions already removed from the visible inventory by a concurrent Close. Force-killed shells must be reaped and their displays closed before cleanup completes, so runtime re-execution cannot strand child processes.
 
+Snapshot capture is admitted before allocation: at most two unacknowledged recoveries globally and 32 queued requests. Waiting is context-cancellable; release admission on snapshot acknowledgement or transport closure, including failed capture. Serialized snapshots are limited to 64 MiB separately from each attachment's 1 MiB/512-event live queue. Queue accounting includes events already sent but not rendered. Slow views detach without terminating the PTY; input cancellation never implies that accepted bytes can be replayed.
+
 Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
 
 # Work Guidance
@@ -28,7 +30,7 @@ do not edit or commit it.
 
 # Verification
 
-Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Use `-race` for lifecycle changes.
+Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Snapshot tests cover serialized byte limits, global admission/waiter bounds, cancellation and release on acknowledgement/closure. Use `-race` for lifecycle changes.
 
 # Child DOX Index
 

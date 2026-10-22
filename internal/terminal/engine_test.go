@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"encoding/json"
+	"github.com/dop251/goja"
 	"strings"
 	"testing"
 )
@@ -103,5 +104,23 @@ func TestEmojiColumnWidths(t *testing.T) {
 		if string(update.Reply) != "\x1b[1;4R" {
 			t.Fatalf("%s must occupy two columns; cursor reply %q", emoji, update.Reply)
 		}
+	}
+}
+
+func TestSnapshotSerializedByteLimit(t *testing.T) {
+	e, err := NewEngine(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	ready := make(chan error, 1)
+	e.loop.RunOnLoop(func(vm *goja.Runtime) {
+		ready <- vm.Set("tuxeeEngine", map[string]any{"capture": func() string { return strings.Repeat(" ", MaxSnapshotBytes+1) }, "close": func() {}})
+	})
+	if err := <-ready; err != nil {
+		t.Fatal(err)
+	}
+	if data, err := e.Capture(); err == nil || data != nil {
+		t.Fatal("oversized serialized snapshot was admitted")
 	}
 }

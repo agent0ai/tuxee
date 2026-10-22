@@ -26,7 +26,7 @@ Preserve upstream validation and memory bounds. Bundle runtime.ts into the Go te
 
 # Verification
 
-`node tests/terminal-metrics.mjs` verifies real Chromium column alignment across spaces, bold/italic text, wide/combined characters and emoji, three font stacks, 80/179/240 columns and DPR 1/1.25/2. It checks block pixels/shapes and copied text, canonical snapshot background coverage, and full-width fitting without a scrollbar gutter. An optional recording path replays the supplied Spynel frame at its recorded dimensions and saves `test-results/spynel-replay-fixed.png`.
+`node tests/terminal-metrics.mjs` verifies real Chromium column alignment across spaces, bold/italic text, wide/combined characters and emoji, three font stacks, 80/179/240 columns and DPR 1/1.25/2. It also verifies adjacent/split DEC 2026 frames retain the completed frame and its cursor, and query replies are suppressed without suppressing keyboard input. It checks block pixels/shapes and copied text, canonical snapshot background coverage, and full-width fitting without a scrollbar gutter. An optional recording path replays the supplied Spynel frame at its recorded dimensions and saves `test-results/spynel-replay-fixed.png`.
 
 Run `npm run build` after changing these sources, then `go test ./internal/terminal`. This bundles the same xterm engine for execution inside Go through goja; Node/Deno are not runtime dependencies.
 

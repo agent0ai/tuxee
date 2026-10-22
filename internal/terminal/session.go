@@ -33,8 +33,9 @@ type Event struct {
 	Message  string          `json:"message,omitempty"`
 }
 
-func (e Event) queuedBytes() int {
-	n := len(e.Data)
+// Bytes charges live output; serialized snapshots use separate recovery admission.
+func (e Event) Bytes() int {
+	n := len(e.Data) + len(e.Message) + 64
 	if e.Display != nil {
 		for _, w := range e.Display.Windows {
 			n += len(w.Title) + len(w.Icon) + 64
@@ -53,11 +54,13 @@ type Info struct {
 }
 
 type Manager struct {
-	Audio    audio.Manager
-	mu       sync.Mutex
-	closing  sync.WaitGroup
-	sessions map[string]*Session
-	closed   bool
+	Audio           audio.Manager
+	mu              sync.Mutex
+	closing         sync.WaitGroup
+	sessions        map[string]*Session
+	closed          bool
+	recoveries      chan struct{}
+	recoveryWaiters chan struct{}
 }
 
 type Session struct {
@@ -79,11 +82,12 @@ type Session struct {
 }
 
 type Attachment struct {
-	session *Session
-	ID      string
-	Events  chan Event
-	queued  int
-	closed  bool
+	session         *Session
+	ID              string
+	Events          chan Event
+	queued          int
+	closed          bool
+	releaseSnapshot func()
 }
 
 type inputFrame struct {
@@ -91,7 +95,9 @@ type inputFrame struct {
 	consumed chan error
 }
 
-func NewManager() *Manager { return &Manager{sessions: make(map[string]*Session)} }
+func NewManager() *Manager {
+	return &Manager{sessions: make(map[string]*Session), recoveries: make(chan struct{}, 2), recoveryWaiters: make(chan struct{}, 34)}
+}
 func newID() string {
 	var b [12]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -261,7 +267,37 @@ func (s *Session) Rename(name string) error {
 	return nil
 }
 
-func (s *Session) Attach() (*Attachment, error) {
+func (m *Manager) acquireSnapshot(ctx context.Context) (func(), error) {
+	select {
+	case m.recoveryWaiters <- struct{}{}:
+	default:
+		return nil, errors.New("terminal recovery queue is full")
+	}
+	select {
+	case m.recoveries <- struct{}{}:
+		release := sync.OnceFunc(func() { <-m.recoveries; <-m.recoveryWaiters })
+		if err := ctx.Err(); err != nil {
+			release()
+			return nil, err
+		}
+		return release, nil
+	case <-ctx.Done():
+		<-m.recoveryWaiters
+		return nil, ctx.Err()
+	}
+}
+
+func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
+	release, err := s.manager.acquireSnapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	attached := false
+	defer func() {
+		if !attached {
+			release()
+		}
+	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -270,21 +306,26 @@ func (s *Session) Attach() (*Attachment, error) {
 	if len(s.views) >= 8 {
 		return nil, errors.New("too many terminal attachments")
 	}
-	a := &Attachment{session: s, ID: newID(), Events: make(chan Event, 64)}
+	a := &Attachment{session: s, ID: newID(), Events: make(chan Event, 512), releaseSnapshot: release}
 	snapshot, err := s.engine.Capture()
 	if err != nil {
 		return nil, err
 	}
 	event := Event{Type: "snapshot", Snapshot: snapshot, Display: s.Display.State()}
+	if event.Bytes() > 1<<20 {
+		return nil, errors.New("terminal display metadata is too large")
+	}
 	s.views[a.ID] = a
 	if s.controller == "" {
 		s.controller = a.ID
 	}
 	event.Control = s.controller == a.ID
+	a.queued = event.Bytes()
 	a.Events <- event
 	if s.info.Exited {
-		a.Events <- Event{Type: "exit", Message: "Process exited"}
+		s.sendLocked(a, Event{Type: "exit", Message: "Process exited"})
 	}
+	attached = true
 	return a, nil
 }
 
@@ -306,12 +347,21 @@ func (a *Attachment) Release(event Event) {
 	s := a.session
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	a.queued -= event.queuedBytes()
+	a.queued -= event.Bytes()
+	if event.Type == "snapshot" {
+		a.releaseSnapshot()
+	}
 	if a.queued < 0 {
 		a.queued = 0
 	}
 }
-func (a *Attachment) Close() { s := a.session; s.mu.Lock(); defer s.mu.Unlock(); s.detachLocked(a) }
+func (a *Attachment) Close() {
+	s := a.session
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a.releaseSnapshot()
+	s.detachLocked(a)
+}
 func (s *Session) detachLocked(a *Attachment) {
 	if a.closed {
 		return
@@ -323,7 +373,7 @@ func (s *Session) detachLocked(a *Attachment) {
 	}
 	close(a.Events)
 }
-func (a *Attachment) Write(data []byte) error {
+func (a *Attachment) Write(ctx context.Context, data []byte) error {
 	s := a.session
 	s.mu.Lock()
 	if a.closed || s.closed || s.info.Exited {
@@ -345,6 +395,8 @@ func (a *Attachment) Write(data []byte) error {
 		return err
 	case <-s.done:
 		return errors.New("terminal closed")
+	case <-ctx.Done():
+		return ctx.Err()
 	case <-time.After(10 * time.Second):
 		return errors.New("input acknowledgement timed out; do not replay it")
 	}
@@ -353,7 +405,7 @@ func (s *Session) inputLocked(data []byte) error {
 	return s.enqueueInputLocked(data, nil)
 }
 func (s *Session) enqueueInputLocked(data []byte, consumed chan error) error {
-	if len(data) > 65536 {
+	if len(data) == 0 || len(data) > 65536 {
 		return errors.New("input is too large")
 	}
 	select {
@@ -392,13 +444,13 @@ func (s *Session) sendLocked(a *Attachment, event Event) {
 	if a.closed {
 		return
 	}
-	if a.queued+event.queuedBytes() > 1<<20 {
+	if a.queued+event.Bytes() > 1<<20 {
 		s.detachLocked(a)
 		return
 	}
 	select {
 	case a.Events <- event:
-		a.queued += event.queuedBytes()
+		a.queued += event.Bytes()
 	default:
 		s.detachLocked(a)
 	}

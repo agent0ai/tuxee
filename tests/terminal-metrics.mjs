@@ -107,6 +107,29 @@ try {
                 [0,0,0,1], [1,0,0,0], [0,1,0,0], [1,0,0,1], [0,1,1,0],
             ], 'half blocks and quadrant blocks must preserve their shapes');
         }
+        const frames = await page.evaluate(async () => {
+            const term = window.term;
+            term.resize(80, 12); term.reset(); term.options.cursorBlink = false; term.focus();
+            const write = data => new Promise(resolve => term.write(data, resolve));
+            const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await write('\x1b[?1049h\x1b[2J\x1b[H'); await paint();
+            await write('\x1b[?2026h\x1b[?25l\x1b[HCOMPLETE\x1b[?25h\x1b[?2026l' +
+                '\x1b[?2026h\x1b[?25l\x1b[H\x1b[2KINCOMPLETE');
+            await paint();
+            const read = () => ({text:document.querySelector('.xterm-rows').textContent, cursors:document.querySelectorAll('.xterm-cursor').length});
+            const completed = read();
+            await write('\x1b[?25h\x1b[?20'); await paint(); const split = read();
+            await write('26l'); await paint(); const finished = read();
+            const outgoing = []; const listener = term.onData(data => outgoing.push(data));
+            await write('\x1b[6n\x1b[c'); term.input('\x01'); listener.dispose();
+            return {completed,split,finished,outgoing};
+        });
+        assert.ok(frames.completed.text.includes('COMPLETE') && !frames.completed.text.includes('INCOMPLETE'), 'adjacent synchronized frames must paint the completed frame immediately');
+        assert.equal(frames.completed.cursors, 1, 'completed frame must retain its visible cursor');
+        assert.deepEqual(frames.split, frames.completed, 'split DEC 2026 terminator must not expose an intermediate frame');
+        assert.ok(frames.finished.text.includes('INCOMPLETE'));
+        assert.equal(frames.finished.cursors, 1);
+        assert.deepEqual(frames.outgoing, ['\x01'], 'view suppresses terminal query replies while preserving keyboard input');
         await page.evaluate(async () => {
             const snapshot = await window.canonical('\x1b[?1049h\x1b[48;2;17;25;39m👋' + ' '.repeat(94) + '\r\n👍' + ' '.repeat(94), 96, 25);
             window.restoreTerminal(window.term, snapshot);
@@ -147,5 +170,5 @@ try {
         }
         await context.close();
     }
-    console.log('PASS terminal column widths, emoji/snapshot backgrounds, block geometry, copied text and fitting without a scrollbar gutter across fonts and DPR 1/1.25/2');
+    console.log('PASS synchronized frames/cursor, query isolation, column widths, emoji/snapshot backgrounds, block geometry, copied text and fitting without a scrollbar gutter across fonts and DPR 1/1.25/2');
 } finally { await browser.close(); }

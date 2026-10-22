@@ -1,6 +1,6 @@
 import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
-import { installTerminalView, installTerminalMetrics, installTerminalUnicode, terminalDimensions, restoreTerminal, terminalTheme } from './terminal/state';
+import { installTerminalView, installTerminalMetrics, installTerminalUnicode, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
@@ -28,7 +28,11 @@ export class TerminalView implements View {
     private observer: ResizeObserver;
     private queue: Uint8Array[] = [];
     private pendingBytes = 0;
-    private inFlight = false;
+    private inFlight?: Uint8Array;
+    private displayQueue = Promise.resolve();
+    private uncertainInput = false;
+    private resizing = false;
+    private lastSize = '';
     private starting: Promise<void>;
     private closing = false;
     private events = new AbortController();
@@ -37,7 +41,9 @@ export class TerminalView implements View {
     private host = el('div', 'terminal-host');
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         root.classList.add('terminal-view');
-        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
+        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
+            theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' },
+            linkHandler: { activate: (_event, uri) => { window.open(uri, '_blank', 'noopener,noreferrer'); } } });
         installTerminalUnicode(this.term);
         this.control.append(el('span', '', 'Control'));
         this.control.hidden = true;
@@ -62,7 +68,7 @@ export class TerminalView implements View {
         installTerminalTouch(this.term, this.events.signal);
         this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
         this.term.onData(data => this.input(data));
-        this.term.onBinary(data => this.inputBytes(Uint8Array.from(data, c => c.charCodeAt(0))));
+        this.term.onBinary(data => this.input(data, true));
         this.term.attachCustomKeyEventHandler(event => {
             if (event.key !== 'Enter' || !event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return true;
             // shortcut: CSI-u for Shift+Enter only; broader keyboard modes need shared engine support.
@@ -89,7 +95,16 @@ export class TerminalView implements View {
         this.term.paste(shellPaths(uploaded));
         if (point) animateFileDrop(uploaded, point, this.host);
     }
-    private state(value: string) { this.root.dataset.state = value; }
+    private state(value: string) {
+        this.root.dataset.state = value;
+        this.term.options.disableStdin = !this.canUpload();
+        this.control.hidden = !this.ready || this.controller || this.ended;
+        this.root.classList.toggle('read-only', !this.controller);
+    }
+    private discardInput() {
+        this.uncertainInput ||= this.pendingBytes > 0;
+        this.queue = []; this.pendingBytes = 0; this.inFlight = undefined;
+    }
     private sessionLost() {
         if (this.disposed || this.closing) return;
         this.ended = true; this.ready = false; this.control.hidden = true;
@@ -107,7 +122,6 @@ export class TerminalView implements View {
             restart.disabled = true;
             if (this.panel.terminal === lost) delete this.panel.terminal;
             this.ended = false;
-            this.term.reset();
             this.starting = (async () => {
                 // Retry a failed save without abandoning the replacement shell.
                 if (this.panel.terminal) await this.hooks.changed(true);
@@ -154,72 +168,108 @@ export class TerminalView implements View {
             return;
         this.ready = false;
         this.controller = false;
-        this.queue = [];
-        this.pendingBytes = 0;
-        this.inFlight = false;
+        this.discardInput();
+        this.resizing = false; this.lastSize = '';
         this.state('connecting');
         const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${this.panel.terminal}/ws`);
-        let chain = Promise.resolve();
+        ws.binaryType = 'arraybuffer';
+        let received = 0, queuedBytes = 0, queuedFrames = 0;
+        const current = () => !this.disposed && this.socket === ws && ws.readyState === WebSocket.OPEN;
+        const failed = (error: unknown) => { if (current()) { this.ready = false; this.state('disconnected'); this.notice(error); ws.close(); } };
         ws.onmessage = event => {
-            chain = chain.then(async () => {
-                if (this.disposed || this.socket !== ws)
-                    return;
-                const value = JSON.parse(event.data);
-                if (value.type === 'ack') {
-                    this.inFlight = false;
-                    this.flushInput();
-                    return;
+            if (!current()) return;
+            try {
+                let value, bytes: number;
+                if (event.data instanceof ArrayBuffer) {
+                    bytes = event.data.byteLength;
+                    if (bytes < 9 || bytes > 32776) throw Error('Invalid terminal output frame');
+                    value = { type: 'data', sequence: Number(new DataView(event.data).getBigUint64(0)), data: new Uint8Array(event.data, 8) };
+                } else {
+                    bytes = event.data.length;
+                    if (bytes > (received ? 1 << 20 : MAX_SNAPSHOT_BYTES + (1 << 20))) throw Error('Terminal message is too large');
+                    value = JSON.parse(event.data);
+                    if (!value || typeof value !== 'object') throw Error('Invalid terminal message');
+                    if (value.type !== 'snapshot' && bytes > 1 << 20) throw Error('Terminal message is too large');
+                }
+                const unsequenced = value.type === 'ack' || value.type === 'resize-ack' || (value.type === 'error' && value.sequence === undefined);
+                if (!unsequenced) {
+                    if (!Number.isSafeInteger(value.sequence) || value.sequence !== received + 1 || (!received && value.type !== 'snapshot'))
+                        throw Error('Terminal output is out of order');
+                    received = value.sequence;
                 }
                 switch (value.type) {
-                    case 'display':
-                        this.display.update(value.display);
+                    case 'ack':
+                        if (!this.inFlight || value.sequence !== undefined) throw Error('Unexpected terminal input acknowledgement');
+                        this.pendingBytes -= this.inFlight.length; this.inFlight = undefined; this.flushInput(); return;
+                    case 'resize-ack':
+                        if (!this.resizing || value.sequence !== undefined) throw Error('Unexpected terminal resize acknowledgement');
+                        this.resizing = false; this.resize(); return;
+                    case 'error':
+                        if (typeof value.message !== 'string') throw Error('Invalid terminal error');
+                        this.discardInput(); this.notice(value.message);
+                        if (value.sequence === undefined) return;
                         break;
                     case 'snapshot':
-                        this.display.update(value.display);
-                        restoreTerminal(this.term, value.snapshot);
-                        this.ready = true;
-                        this.controller = value.control;
-                        this.attempt = 0;
-                        this.resize();
-                        break;
-                    case 'data':
-                        await new Promise<void>(resolve => this.term.write(Uint8Array.from(atob(value.data), c => c.charCodeAt(0)), resolve));
-                        break;
-                    case 'resize':
-                        this.term.resize(value.columns, value.rows);
+                        if (received !== 1 || typeof value.control !== 'boolean') throw Error('Unexpected terminal snapshot');
                         break;
                     case 'control':
+                        if (typeof value.control !== 'boolean') throw Error('Invalid terminal control state');
                         this.controller = value.control;
-                        if (this.controller)
-                            this.resize();
+                        if (!this.controller) {
+                            if (this.pendingBytes) this.notice('Control moved; check your last input before continuing');
+                            this.uncertainInput ||= this.pendingBytes > 0;
+                            this.queue = []; this.pendingBytes = this.inFlight?.length ?? 0;
+                        } else { this.lastSize = ''; this.resize(); }
                         break;
-                    case 'exit':
-                        this.display.update();
-                        this.ended = true;
-                        this.state('ended');
+                    case 'resize':
+                        if (!Number.isInteger(value.columns) || value.columns < 2 || value.columns > 500 ||
+                            !Number.isInteger(value.rows) || value.rows < 1 || value.rows > 200) throw Error('Invalid terminal size');
                         break;
-                    case 'closed':
-                        this.sessionLost();
+                    case 'exit': this.ended = true; this.display.update(); break;
+                    case 'closed': this.sessionLost(); return;
+                    case 'display': break;
+                    case 'data':
+                        if (!(value.data instanceof Uint8Array)) throw Error('Invalid terminal output frame');
                         break;
-                    case 'error':
-                        this.inFlight = false;
-                        this.queue = [];
-                        this.pendingBytes = 0;
-                        this.notice(value.message);
-                        break;
+                    default: throw Error('Unknown terminal message');
                 }
-                if (!this.ended)
-                    this.state(this.controller ? 'connected' : 'viewing');
-                this.control.hidden = this.controller || this.ended;
-                this.root.classList.toggle('read-only', !this.controller);
-                if (value.sequence)
+                if (value.type === 'snapshot') bytes = 0; // Recovery has its own size/admission limit.
+                queuedBytes += bytes;
+                if (++queuedFrames > 512 || queuedBytes > 1 << 20) throw Error('Terminal renderer is falling behind');
+                this.state(this.ended ? 'ended' : this.ready ? this.controller ? 'connected' : 'viewing' : 'connecting');
+                this.displayQueue = this.displayQueue.then(async () => {
+                    if (!current()) return;
+                    switch (value.type) {
+                        case 'snapshot':
+                            restoreTerminal(this.term, value.snapshot);
+                            this.display.update(value.display);
+                            this.ready = true; this.controller = value.control; this.attempt = 0;
+                            if (this.uncertainInput) {
+                                this.notice('Connection restored; check your last input before continuing');
+                                this.uncertainInput = false;
+                            }
+                            break;
+                        case 'data':
+                            await new Promise<void>(resolve => this.term.write(value.data, resolve));
+                            break;
+                        case 'resize':
+                            this.term.options.scrollback = retainedScrollback(value.columns, value.rows);
+                            this.term.resize(value.columns, value.rows);
+                            break;
+                        case 'display': this.display.update(value.display); break;
+                    }
+                    if (!current()) return;
                     this.sendControl({ type: 'rendered', sequence: value.sequence });
-            }).catch(error => { this.notice(error); ws.close(); });
+                    queuedFrames--; queuedBytes -= bytes;
+                    this.state(this.ended ? 'ended' : this.controller ? 'connected' : 'viewing');
+                    if (value.type === 'snapshot') this.resize();
+                }).catch(failed);
+            } catch (error) { failed(error); }
         };
         ws.onclose = () => {
             if (this.disposed || this.socket !== ws)
                 return;
-            this.ready = false;
+            this.socket = undefined; this.ready = false; this.discardInput();
             if (this.ended) {
                 this.state('ended');
                 return;
@@ -245,39 +295,53 @@ export class TerminalView implements View {
             }, Math.min(1000 * 2 ** this.attempt++, 15000));
         };
     }
-    private sendControl(value: object) { if (this.socket?.readyState === WebSocket.OPEN)
-        this.socket.send(JSON.stringify(value)); }
-    private input(data: string) { this.inputBytes(new TextEncoder().encode(data)); }
-    private inputBytes(data: Uint8Array) {
-        if (!this.ready || !this.controller || this.ended)
-            return;
-        if (this.pendingBytes + data.length > 256 * 1024) {
-            this.notice('Input is busy; wait before pasting more');
-            return;
+    private sendControl(value: object) {
+        if (this.socket?.readyState === WebSocket.OPEN) {
+            try { this.socket.send(JSON.stringify(value)); }
+            catch { this.socket.close(); }
         }
-        for (let i = 0; i < data.length; i += 32768)
-            this.queue.push(data.slice(i, i + 32768));
-        this.pendingBytes += data.length;
+    }
+    private input(data: string, binary = false) {
+        if (!this.canUpload() || !data.length) return;
+        const available = 256 * 1024 - this.pendingBytes;
+        const busy = () => this.notice('Input is busy; wait before pasting more');
+        if (data.length > available) { busy(); return; }
+        const bytes = new Uint8Array(Math.min(available, data.length * (binary ? 1 : 3)));
+        let length = data.length;
+        if (binary) { for (let i = 0; i < length; i++) bytes[i] = data.charCodeAt(i); }
+        else {
+            const result = new TextEncoder().encodeInto(data, bytes);
+            if (result.read !== data.length) { busy(); return; }
+            length = result.written;
+        }
+        if (this.queue.length + (this.inFlight ? 1 : 0) + Math.ceil(length / 65536) > 512) { busy(); return; }
+        for (let i = 0; i < length; i += 65536) this.queue.push(bytes.subarray(i, Math.min(length, i + 65536)));
+        this.pendingBytes += length;
         this.flushInput();
     }
-    private flushInput() { if (this.inFlight || this.socket?.readyState !== WebSocket.OPEN)
-        return; const value = this.queue.shift(); if (value) {
-        this.pendingBytes -= value.length;
-        this.inFlight = true;
-        this.socket.send(value);
-    } }
+    private flushInput() {
+        if (this.inFlight || !this.canUpload() || this.socket?.readyState !== WebSocket.OPEN) return;
+        this.inFlight = this.queue.shift();
+        if (this.inFlight) {
+            try { this.socket.send(this.inFlight); }
+            catch { this.socket.close(); }
+        }
+    }
     resize = () => { this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {
         if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
         this.term.refresh(0, this.term.rows - 1);
-        if (!this.ready || !this.controller)
+        if (!this.canUpload() || this.resizing)
             return;
         const proposed = terminalDimensions(this.term);
         if (proposed) {
             const columns = Math.max(2, Math.min(500, proposed.cols)), rows = Math.max(1, Math.min(200, proposed.rows));
-            if (this.term.cols !== columns || this.term.rows !== rows)
+            const size = `${columns}x${rows}`;
+            if (this.lastSize !== size && (this.term.cols !== columns || this.term.rows !== rows)) {
+                this.lastSize = size; this.resizing = true;
                 this.sendControl({ type: 'resize', columns, rows });
+            }
         }
     }
     async renamePanel() {

@@ -19,6 +19,8 @@ var compiledEngine = sync.OnceValues(func() (*goja.Program, error) {
 	return goja.Compile("tuxee-terminal.js", engineSource, true)
 })
 
+const MaxSnapshotBytes = 64 << 20
+
 type Engine struct {
 	loop   *eventloop.EventLoop
 	vm     *goja.Runtime
@@ -142,6 +144,9 @@ func decodeUpdate(text string, err error) (DisplayUpdate, error) {
 
 func (e *Engine) Capture() (json.RawMessage, error) {
 	s, err := e.call("capture")
+	if len(s) > MaxSnapshotBytes {
+		return nil, errors.New("terminal snapshot exceeds its byte limit")
+	}
 	return json.RawMessage(s), err
 }
 
