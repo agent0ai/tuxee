@@ -18,7 +18,7 @@ terminals. Also available as a standalone web interface for existing Linux serve
   <tr>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/lightweight-metrics.jpg" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/lightweight-metrics-thumb.jpg" alt="Tuxee metrics infographic: 0% CPU, 10 MB RAM, 41 MB Docker image and 1 second startup time" width="100%">
+        <img src=".github/resources/screenshots/lightweight-metrics-thumb.jpg" alt="Tuxee metrics infographic: 0% CPU, 10 MB RAM, 60 MB Docker image and 1 second startup time" width="100%">
       </a>
     </td>
     <td width="50%" valign="middle">
@@ -40,13 +40,14 @@ terminals. Also available as a standalone web interface for existing Linux serve
   <tr>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/file-managers-persistent-terminals.webp" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/file-managers-persistent-terminals-thumb.webp" alt="Two file managers alongside persistent terminals running htop and Midnight Commander" width="100%">
+        <img src=".github/resources/screenshots/file-managers-persistent-terminals-thumb.webp" alt="File managers and persistent terminals running htop and Codex, alongside Chromium and Visual Studio Code GUI apps" width="100%">
       </a>
     </td>
     <td width="50%" valign="middle">
       <h3>File managers and <b>(persistent!)</b> terminals. That's all you need.</h3>
       <p>Easy access to server files and terminals that don't die when you log out.</p>
       <p>Great for system admins, perfect for running agents.</p>
+      <p><strong>Oh, and GUI apps work great too!</strong></p>
     </td>
   </tr>
   <tr>
