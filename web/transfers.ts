@@ -12,11 +12,13 @@ type Transfer = {
 const transfers = new Map<string, Transfer>();
 function create(id: string, name: string, abort: () => void, owner?: HTMLElement): Transfer {
     const node = el('div', 'transfer');
-    const label = el('span', 'transfer-label', name), progress = el('progress');
+    const label = el('span', 'transfer-label', name), track = el('span', 'transfer-progress'), progress = el('progress');
+    label.id = `transfer-${id}`;
     progress.max = 100;
-    progress.value = 0;
+    progress.setAttribute('aria-labelledby', label.id);
     const cancel = button('Cancel transfer', 'X', abort);
-    node.append(label, progress, cancel);
+    track.append(progress);
+    node.append(label, track, cancel);
     notificationHost('transfers', owner).append(node);
     const value = { node, name, progress, label, cancel, abort };
     transfers.set(id, value);
@@ -65,7 +67,6 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
     const signal = controller.signal, view = create(id, 'Reading files…', abort, owner);
     const directories = new Set<string>();
     lifetime.addEventListener('abort', abort, { once: true });
-    view.progress.removeAttribute('value');
     let total = 0, bytes = 0, completed = 0, sent = 0;
     const update = (loaded = 0) => {
         view.label.textContent = `Uploading · ${completed}/${total} files · ${size(sent + loaded)} / ${size(bytes)}`;
@@ -170,7 +171,6 @@ export async function downloadArchive(path: string, paths: string[], owner?: HTM
     const id = newID(), controller = new AbortController();
     const view = create(id, 'Zipping & downloading · 0 B ZIP', () => controller.abort(), owner);
     view.node.classList.add('archive-transfer');
-    view.progress.removeAttribute('value');
     let token = '', frame: HTMLIFrameElement | undefined;
     try {
         const prepared = await api<{ token: string; name: string }>('/download-archive', 'POST', { path, paths }, controller.signal);

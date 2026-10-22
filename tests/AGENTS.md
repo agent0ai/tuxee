@@ -18,6 +18,8 @@ Keep implementation and checks small and complete.
 
 # Verification
 
+- `node tests/transfer-progress.mjs`: real marked-user uploads, multi-item copy/move and archive round-trips against the built server (`TUXEE_TEST_URL`). Throttle uploads and hold file-operation requests to capture intermediate states, then execute real filesystem operations. Pixel-check the shared 2px track/4px accent fill, byte/item progress, both themes, completion and compact rendering; verify unknown progress uses the disconnect animation in both directions, failed extraction stops it and cancellation publishes no upload. Capture `transfer-*.png`, restore settings and remove the temporary fixture. Run sequentially with other browser suites.
+
 - `npm run test:gui` also verifies the shared component focus border through file selection, keyboard navigation, path editing, real terminal typing and GTK input in both themes, plus compact GUI focus. Check only the focused component is accented, file-list outlines are absent, keyboard row indicators remain, focus leaving panels clears the accent and content geometry stays fixed. Exercise reserved and overlay scrollbar gutters, assert the outer frame clips without added scroll extent, and pixel-check both pixels of all four edges above file, terminal and GUI contents; capture `panel-focus-*.png`.
 
 - Audio logout checks use the real account-menu action, delay the completed logout response and record notifications across navigation to ensure server-initiated audio closure stays silent while capture stops and retained apps survive.
