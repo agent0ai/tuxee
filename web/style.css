@@ -565,6 +565,9 @@ h3 {
   white-space: nowrap;
 }
 .file-filter { min-width: 0; width: 45%; max-width: 240px; padding: 3px 5px; font-size: 12px; }
+.file-footer-separator { flex-shrink: 0; color: var(--line); }
+.file-hidden { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; cursor: pointer; }
+.file-hidden input { margin: 0; accent-color: var(--accent); }
 .file-footer button[aria-expanded=true] { color: var(--accent); }
 .empty {
   padding: 28px 14px;

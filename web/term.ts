@@ -39,6 +39,7 @@ export class TerminalView implements View {
         root.classList.add('terminal-view');
         this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, scrollback: 2000, theme: terminalTheme });
         installTerminalUnicode(this.term);
+        this.control.append(el('span', '', 'Control'));
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);

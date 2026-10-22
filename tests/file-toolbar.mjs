@@ -11,6 +11,8 @@ const password = randomBytes(24).toString('base64url');
 assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
 const dir = await mkdtemp(fields[5] + '/tuxee-toolbar-');
 await mkdir(dir + '/copies'); await writeFile(dir + '/alpha.txt', 'toolbar fixture');
+await mkdir(dir + '/.hidden-folder'); await writeFile(dir + '/.hidden-folder/.nested', 'nested fixture');
+await writeFile(dir + '/.hidden.txt', 'hidden fixture');
 assert.equal(spawnSync('chown', ['-R', `${fields[2]}:${fields[3]}`, dir]).status, 0);
 const state = await mkdtemp('/tmp/tuxee-toolbar-server-');
 const server = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -47,6 +49,32 @@ async function singleRows() {
 try {
  assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'toolbar', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 2 }, workspaces: [{ id: 'toolbar', name: 'Toolbar', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: dir, x: 0, y: 0, w: 1, h: 2 }] }] })).status(), 200);
  await page.goto(base); await file.locator('.file-entry').first().waitFor();
+ const hiddenToggle = file.getByRole('checkbox', { name: 'Hidden', exact: true });
+ const entries = () => file.locator('.file-name span').allTextContents();
+ const filter = file.getByRole('searchbox', { name: 'Filter files' });
+ const filterButton = file.getByRole('button', { name: 'Filter files', exact: true });
+ assert.equal(await hiddenToggle.isChecked(), false);
+ assert.deepEqual(await entries(), ['copies', 'alpha.txt']);
+ assert.equal(await file.locator('.file-status').textContent(), '2/4 items');
+ assert.ok(await file.locator('.file-footer-separator').evaluate(node => node.textContent === '|' && node.previousElementSibling.classList.contains('file-filter') && node.nextElementSibling.textContent === 'Hidden'));
+ await file.locator('.file-list').focus(); await page.keyboard.press('Control+A');
+ assert.equal(await file.locator('.file-status').textContent(), '2/4 items · 2 selected');
+ await hiddenToggle.check(); assert.deepEqual((await entries()).sort(), ['.hidden-folder', '.hidden.txt', 'alpha.txt', 'copies']);
+ await filterButton.click(); await filter.fill('.hidden'); assert.deepEqual(await entries(), ['.hidden-folder', '.hidden.txt']);
+ await hiddenToggle.uncheck(); await file.getByText('No matches', { exact: true }).waitFor();
+ assert.equal(await filter.inputValue(), '.hidden');
+ await hiddenToggle.focus(); await hiddenToggle.press('Space'); assert.equal(await hiddenToggle.isChecked(), true);
+ await filterButton.click();
+ await file.getByRole('button', { name: 'Refresh files', exact: true }).click(); await file.locator('.file-list:not(.loading)').waitFor();
+ assert.equal(await hiddenToggle.isChecked(), true); assert.equal((await entries()).length, 4);
+ await file.locator('.file-name').filter({ hasText: /^\.hidden-folder$/ }).dblclick();
+ await file.locator('.file-name').filter({ hasText: /^\.nested$/ }).waitFor();
+ await hiddenToggle.uncheck(); await file.getByText('Empty folder', { exact: true }).waitFor();
+ await file.getByRole('button', { name: 'Parent directory', exact: true }).click(); await file.locator('.file-entry').first().waitFor();
+ assert.deepEqual(await entries(), ['copies', 'alpha.txt']);
+ await hiddenToggle.check(); await page.reload(); await file.locator('.file-entry').first().waitFor();
+ assert.equal(await hiddenToggle.isChecked(), false); assert.deepEqual(await entries(), ['copies', 'alpha.txt']);
+ console.log('PASS default-hidden files/folders, footer placement/counts, visible selection, text filtering, keyboard toggle, refresh/navigation and reload default');
  const path = page.getByRole('textbox', { name: 'Directory path' });
  const header = page.locator('.panel-header');
  assert.equal(await path.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
@@ -79,6 +107,14 @@ try {
   if (width === 390) {
    await path.tap(); assert.ok(await path.evaluate(node => node === document.activeElement));
    await path.fill('/cancel-mobile-edit'); await path.press('Escape'); assert.equal(await path.inputValue(), dir);
+  }
+  if (width === 320 || width === 390) {
+   await hiddenToggle.tap(); assert.equal(await hiddenToggle.isChecked(), true);
+   await filterButton.tap(); await filter.fill('.hidden'); assert.deepEqual(await entries(), ['.hidden-folder', '.hidden.txt']);
+   assert.ok(await file.locator('.file-footer').evaluate(node => node.scrollWidth <= node.clientWidth));
+   await file.locator('.file-footer').screenshot({ path: `test-results/file-footer-hidden-${width}.png` });
+   await hiddenToggle.tap(); await file.getByText('No matches', { exact: true }).waitFor();
+   await filterButton.tap();
   }
   const [visible, hidden] = await file.locator('.file-actions > button').evaluateAll(nodes => [false, true].map(hidden => nodes.filter(node => node.hidden === hidden && node.title !== 'File actions').map(node => node.title)));
   assert.deepEqual([...visible, ...hidden], names);

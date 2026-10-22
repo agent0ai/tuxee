@@ -35,6 +35,7 @@ export class FileView implements View {
     private filter = '';
     private filterInput = el('input', 'file-filter');
     private filterButton = button('Filter files', 'Search', () => this.showFilter(this.filterInput.hidden));
+    private showHidden = el('input');
     private sort?: { column: 'name' | 'size' | 'modified'; descending: boolean };
     private cancelSelection?: () => void;
     private rowMenus: (() => void)[] = [];
@@ -151,7 +152,12 @@ export class FileView implements View {
             if (e.key === 'Escape') { e.preventDefault(); this.showFilter(false); }
             else if (['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); this.focus(this.focusedPath); }
         };
-        footer.append(this.filterButton, this.filterInput, this.status, button('Properties', 'Info', () => this.properties()));
+        const hiddenSeparator = el('span', 'file-footer-separator', '|'); hiddenSeparator.setAttribute('aria-hidden', 'true');
+        const hiddenLabel = el('label', 'file-hidden');
+        this.showHidden.type = 'checkbox';
+        this.showHidden.onchange = () => this.render();
+        hiddenLabel.append(this.showHidden, 'Hidden');
+        footer.append(this.filterButton, this.filterInput, hiddenSeparator, hiddenLabel, this.status, button('Properties', 'Info', () => this.properties()));
         root.append(actions, header, this.list, footer, this.uploadInput);
         this.resize();
         const fitActions = () => {
@@ -228,7 +234,8 @@ export class FileView implements View {
     refresh = () => this.navigate(this.panel.path);
     private get title() { return this.panel.path.split('/').filter(Boolean).at(-1) || 'Files'; }
     private visibleEntries() {
-        const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry => entry.name.toLocaleLowerCase().includes(query));
+        const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry =>
+            (this.showHidden.checked || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
         if (this.sort) {
             const { column, descending } = this.sort;
             entries.sort((a, b) => ((column === 'size' ? a.size - b.size : column === 'modified' ? Date.parse(a.modified) - Date.parse(b.modified) : nameOrder.compare(a.name, b.name)) || a.name.localeCompare(b.name)) * (descending ? -1 : 1));
@@ -475,7 +482,7 @@ export class FileView implements View {
         this.selectAll.checked = rows.length > 0 && selected === rows.length;
         this.selectAll.indeterminate = selected > 0 && selected < rows.length;
         this.selectAll.disabled = !rows.length;
-        this.status.textContent = `${this.filter ? `${rows.length}/${this.entries.length}` : this.entries.length} items${this.selected.size ? ` · ${this.selected.size} selected` : ''}`;
+        this.status.textContent = `${this.filter || rows.length !== this.entries.length ? `${rows.length}/${this.entries.length}` : this.entries.length} items${this.selected.size ? ` · ${this.selected.size} selected` : ''}`;
     }
     private single() { const values = this.chosen(); if (values.length !== 1)
         throw new Error('Select one item first'); return values[0]; }
