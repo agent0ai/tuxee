@@ -28,7 +28,7 @@ terminals. Also available as a standalone web interface for existing Linux serve
   </tr>
   <tr>
     <td width="50%" valign="middle">
-      <h3>Web interface automatically exposed</h3>
+      <h3>Headless with web interface automatically exposed</h3>
       <p>Log in as a real Linux user.<br>No config needed.</p>
     </td>
     <td width="50%" align="center" valign="middle">
