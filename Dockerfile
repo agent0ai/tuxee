@@ -8,7 +8,7 @@ COPY THIRD_PARTY_NOTICES.md ./
 RUN npm run build
 
 # Keep the exported CGO/PAM binary compatible with Debian 12 native installations.
-FROM golang:1.26.3-bookworm AS backend
+FROM golang:1.26.10-bookworm AS backend
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY go.mod go.sum ./

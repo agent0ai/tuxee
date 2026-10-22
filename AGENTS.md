@@ -159,7 +159,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Verification
 
-- Go 1.26.3 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
+- Go 1.26.10 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
 - Build the embedded frontend and terminal engine with `npm run build`; build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/` and `internal/terminal/engine.js` are generated and ignored by Git. Run the frontend build before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
 - Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:gui`, `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features`, `npm run test:monitoring` and `npm run test:processes` for frontend checks; run browser suites sequentially.

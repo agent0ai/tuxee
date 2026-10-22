@@ -115,7 +115,7 @@ Restarting Tuxee ends its terminal sessions.
 
 ## Advanced: build from source
 
-Requires Linux, Go 1.26.3+, Node 22+, a C compiler and PAM development headers.
+Requires Linux, Go 1.26.10+, Node 22+, a C compiler and PAM development headers.
 On Debian/Ubuntu, install the native build dependencies:
 
 ```sh
