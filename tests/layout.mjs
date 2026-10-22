@@ -21,6 +21,28 @@ for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280
     assert.equal(addCompact(ws, newPanel('files', '/')), false);
 }
 assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/', '/root']);
+for (const [columns, rows, occupied, terminalRect, fileRect] of [
+    [4, 2, [], [0, 0, 4, 2], [0, 0, 1, 2]],
+    [2, 4, [], [0, 0, 2, 4], [0, 0, 1, 4]],
+    [4, 2, [[0, 0, 1, 2]], [1, 0, 3, 2], [1, 0, 1, 2]],
+    [4, 2, [[1, 0, 1, 2], [0, 1, 1, 1]], [2, 0, 2, 2], [2, 0, 1, 2]],
+    [2, 4, [[0, 1, 2, 1]], [0, 2, 2, 2], [0, 2, 1, 2]],
+    [4, 2, [[0, 0, 3, 2], [3, 0, 1, 1]], [3, 1, 1, 1], [3, 1, 1, 1]],
+]) for (const [kind, expected] of [['terminal', terminalRect], ['files', fileRect]]) {
+    const neighbors = occupied.map(([x, y, w, h], i) => ({ ...newPanel('terminal', '/tmp'), terminal: `session-${i}`, x, y, w, h }));
+    const before = structuredClone(neighbors), panel = newPanel(kind, '/new/path');
+    if (kind === 'terminal') panel.terminal = 'retained-session';
+    const metadata = { id: panel.id, kind, path: panel.path, terminal: panel.terminal };
+    const ws = { id: 'add', name: 'Add', columns, rows, active: neighbors[0]?.id || '', panels: [...neighbors] };
+    assert.ok(addCompact(ws, panel));
+    assert.deepEqual([panel.x, panel.y, panel.w, panel.h], expected, `${columns}x${rows}: maximize free ${kind} space`);
+    assert.ok(validGrid(ws));
+    assert.deepEqual(ws.panels.slice(0, -1), before, 'adding in free space leaves neighbors unchanged');
+    assert.ok(neighbors.every((neighbor, i) => ws.panels[i] === neighbor), 'retain mounted panel identities');
+    assert.equal(ws.panels.at(-1), panel);
+    assert.deepEqual({ id: panel.id, kind: panel.kind, path: panel.path, terminal: panel.terminal }, metadata);
+}
+console.log('PASS additions maximize terminal area and file-browser height across empty, fragmented and one-cell gaps');
 for (const edge of ['left', 'right', 'top', 'bottom']) {
     const ws = newWorkspace('test', '/', 390, 844), panel = newPanel('terminal', '/');
     assert.ok(split(ws, ws.panels[0].id, panel, edge));

@@ -20,6 +20,7 @@ const terminal = await terminalResponse.json();
 const neighborResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Neighbor test', columns: 80, rows: 24 });
 assert.equal(neighborResponse.status(), 201);
 const neighbor = await neighborResponse.json();
+const addedTerminals = [];
 const page = await context.newPage(), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
@@ -65,6 +66,38 @@ async function drag(handle, dx, dy, cancel = false) {
 }
 try {
     await mkdir('test-results', { recursive: true });
+    for (const [width, height] of [[1440, 1000], [2560, 1080], [900, 1200], [390, 844]]) {
+        const portrait = height > width;
+        for (const kind of ['files', 'terminal']) {
+            const panels = portrait ? [panel('a', 0, 1, 2, 1)] : [panel('a', 1, 0, 1, 2), panel('b', 0, 1, 1, 1)];
+            await fixture(panels, portrait, 1);
+            await page.setViewportSize({ width, height });
+            await page.waitForFunction(compact => document.querySelector('#app').classList.contains('compact') === compact, width < 760);
+            const originalTerminal = await item('a').locator('.xterm').elementHandle();
+            const created = kind === 'terminal' ? page.waitForResponse(response => response.url().endsWith('/api/terminals') && response.request().method() === 'POST') : undefined;
+            await page.getByRole('button', { name: kind === 'files' ? 'Add file browser' : 'Add terminal', exact: true }).click();
+            if (created) {
+                const response = await created; assert.equal(response.status(), 201);
+                const info = await response.json(); addedTerminals.push(info.id);
+                await page.locator(`.terminal-view[data-terminal="${info.id}"][data-state=connected]`).waitFor();
+            }
+            const added = page.locator('[data-panel]:not([data-panel=a]):not([data-panel=b])');
+            await added.waitFor();
+            const id = await added.getAttribute('data-panel');
+            const expected = [portrait ? 0 : 2, portrait ? 2 : 0, kind === 'files' ? 1 : 2, 2];
+            assert.deepEqual(await rect(id), expected, `${width}x${height} ${kind} uses the largest suitable gap`);
+            for (const p of panels) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h]);
+            assert.ok(await originalTerminal.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')));
+            assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
+            if (width >= 760) assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), '0');
+            if (width === 1440) await page.screenshot({ path: `test-results/add-${kind}-free-space.png` });
+            await page.waitForTimeout(400); await page.reload(); await added.waitFor();
+            assert.deepEqual(await rect(id), expected, 'expanded size persists after reload');
+            assert.equal((await (await api('/me')).json()).settings.workspaces[0].layout, undefined, 'adding resets the saved automatic layout');
+            if (width < 760) assert.equal(await page.locator('[data-panel]:visible').getAttribute('data-panel'), id, 'activate the added compact component');
+        }
+    }
+    console.log('PASS new terminals maximize free area and file browsers grow vertically on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
     const resizeCases = [
         { name: 'east trim', edge: 'e', panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)], dx: .8, dy: 0, expected: [[0, 0, 3, 2], [3, 0, 1, 2]] },
         { name: 'west trim', edge: 'w', panels: [panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 2)], dx: -.8, dy: 0, expected: [[1, 0, 3, 2], [0, 0, 1, 2]] },
@@ -302,5 +335,6 @@ try {
     if (original) await api('/settings', 'PUT', original);
     await api(`/terminals/${terminal.id}`, 'DELETE');
     await api(`/terminals/${neighbor.id}`, 'DELETE');
+    for (const id of addedTerminals) await api(`/terminals/${id}`, 'DELETE');
     await browser.close();
 }

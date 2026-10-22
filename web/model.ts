@@ -133,20 +133,16 @@ export function split(ws: Workspace, targetID: string, panel: Panel, edge: Edge)
     return true;
 }
 export function addCompact(ws: Workspace, panel: Panel): boolean {
-    if (ws.panels.length === 0) {
-        Object.assign(panel, { x: 0, y: 0, w: ws.columns, h: ws.rows });
-        ws.panels.push(panel);
-        return true;
-    }
     // Use existing gaps first, then split the largest panel without moving others.
+    let best: Rect | undefined;
     for (let y = 0; y < ws.rows; y++)
         for (let x = 0; x < ws.columns; x++) {
             if (!ws.panels.some(p => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)) {
-                Object.assign(panel, { x, y, w: 1, h: 1 });
-                ws.panels.push(panel);
-                return true;
+                const rect = expandedRect(ws, { ...panel, x, y, w: 1, h: 1 }, panel.kind === 'files' ? 1 : ws.columns);
+                if (!best || rect.w * rect.h > best.w * best.h) best = rect;
             }
         }
+    if (best) return place(ws, panel, best);
     const largest = [...ws.panels].filter(p => p.w > 1 || p.h > 1).sort((a, b) => b.w * b.h - a.w * a.h)[0];
     if (!largest)
         return false;
