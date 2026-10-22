@@ -365,8 +365,10 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  overflow: hidden;
   box-shadow: 0 3px 12px #0001;
+}
+.grid-stack .grid-stack-item-content.panel {
+  overflow: clip;
 }
 .grid-stack-item-content.panel:focus-within {
   border-color: var(--accent);
@@ -374,9 +376,9 @@ h3 {
 .grid-stack-item-content.panel:focus-within::after {
   content: '';
   position: absolute;
-  inset: -1px;
-  border: 2px solid var(--accent);
-  border-radius: inherit;
+  inset: 0;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
   pointer-events: none;
   z-index: 70;
 }
@@ -1088,7 +1090,7 @@ progress {
 @keyframes file-arrived { from { background: var(--accent-bg); transform: scale(.97); } to { transform: none; } }
 .compact-board .panel-header { cursor: default; }
 .compact-board .grid-stack-item-content.panel { border: 0; border-radius: 0; box-shadow: none; }
-.compact-board .grid-stack-item-content.panel:focus-within::after { inset: 0; }
+.compact-board .grid-stack-item-content.panel:focus-within::after { border-width: 2px; border-radius: 0; }
 
 .topbar > button, .brand, .topbar-right { flex-shrink: 0; }
 .topbar-right { gap: 3px; }

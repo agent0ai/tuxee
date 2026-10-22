@@ -91,15 +91,19 @@ async function clickControl(view, name) {
 }
 async function panelFocus(id, screenshot) {
     const panels = await page.locator('.grid-stack-item-content.panel').evaluateAll(nodes => nodes.map(node => {
-        const style = getComputedStyle(node, '::after');
+        const style = getComputedStyle(node, '::after'), frame = getComputedStyle(node);
         return { id: node.closest('[data-panel]').dataset.panel, focused: node.contains(document.activeElement),
             content: style.content, width: style.borderTopWidth, color: style.borderTopColor,
+            frameWidth: frame.borderTopWidth, overflow: [frame.overflowX, frame.overflowY],
+            client: [node.clientWidth, node.clientHeight], scroll: [node.scrollWidth, node.scrollHeight],
             accent: getComputedStyle(document.querySelector('.add-panel')).color };
     }));
     for (const panel of panels) {
+        assert.deepEqual(panel.overflow, ['clip', 'clip'], 'the shared panel frame must not create a scrollbar');
+        assert.deepEqual(panel.scroll, panel.client, 'focus must not add overflow to the panel frame');
         assert.equal(panel.focused, panel.id === id);
         assert.equal(panel.content, panel.id === id ? '""' : 'none', `focus border for ${panel.id}`);
-        if (panel.id === id) { assert.equal(panel.width, '2px'); assert.equal(panel.color, panel.accent); }
+        if (panel.id === id) { assert.equal(parseFloat(panel.width) + parseFloat(panel.frameWidth), 2); assert.equal(panel.color, panel.accent); }
     }
     if (screenshot) {
         const bounds = await page.locator(`[data-panel="${id}"] .panel`).boundingBox();
@@ -157,6 +161,8 @@ try {
     await page.locator('.terminal-view[data-state=connected]').waitFor();
     const firstPanel = page.locator('[data-panel="shell"]'), first = firstPanel.locator('.terminal-view');
     const terminalDOM = await first.locator('.xterm').elementHandle();
+    // Exercise reserved scrollbar gutters as well as the platform's overlay-scrollbar default.
+    await page.locator('.panel').evaluateAll(nodes => nodes.forEach(node => node.style.scrollbarGutter = 'stable'));
     await shell(first, `printf '%s\\n' "$DISPLAY" > ${fixture}/display.txt`);
     await poll(async () => !!await stat(`${fixture}/display.txt`).catch(() => false), 'ordinary terminal input failed');
     await panelFocus('shell');
