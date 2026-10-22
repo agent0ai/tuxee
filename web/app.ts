@@ -472,7 +472,7 @@ function renderDividers(value: Mounted) {
     const dividers = sharedDividers(ws);
     function handle(axes: Divider[], x: number, y: number, w: number, h: number, junction = false) {
         const movable = axes.filter(d => d.min < d.max);
-        if (!movable.length) return;
+        if (!movable.length || (junction && movable.length < 2)) return;
         const node = el('div', 'workspace-divider');
         node.dataset.divider = axes.map(d => `${d.axis}:${d.before.join(',')}:${d.after.join(',')}`).join('/');
         node.dataset.axis = movable.length === 2 ? 'both' : movable[0].axis;

@@ -142,6 +142,9 @@ select {
 input:focus {
   border-color: var(--accent);
 }
+input:not([type=checkbox], [type=radio], [type=range]):focus {
+  outline: none;
+}
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

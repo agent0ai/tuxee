@@ -113,6 +113,18 @@ try {
     await page.goto(base);
     await page.locator('[name=username]').waitFor();
     assert.equal(await page.locator('.login-intro, .login-note, .eyebrow').count(), 0);
+    for (const name of ['username', 'password']) {
+        const input = page.locator(`[name=${name}]`);
+        await input.focus();
+        assert.deepEqual(await input.evaluate(node => {
+            const style = getComputedStyle(node);
+            return [style.outlineStyle, style.borderWidth, style.borderColor === getComputedStyle(document.querySelector('.login-submit')).backgroundColor];
+        }), ['none', '1px', true], 'focused fields use only their thin accent border');
+    }
+    await page.screenshot({ path: 'test-results/input-focus-login.png' });
+    await page.keyboard.press('Tab');
+    assert.equal(await page.getByRole('button', { name: 'Sign in', exact: true }).evaluate(node => node === document.activeElement && getComputedStyle(node).outlineWidth === '2px'), true, 'buttons retain their keyboard focus outline');
+    check('input focus uses a single border and button keyboard focus stays visible');
     await page.locator('[name=username]').fill(a.name);
     await page.locator('[name=password]').fill('not-the-password');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();

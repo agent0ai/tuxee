@@ -159,11 +159,24 @@ try {
     await page.waitForTimeout(350); await page.reload(); await page.locator('.workspace-divider').waitFor();
     assert.deepEqual(await rect('b'), [2, 0, 2, 2]);
     console.log('PASS live divider resize, snap animation, stable terminal, cancellation, keyboard and persistence');
-    for (const four of [false, true]) {
-        await fixture([panel('a', 0, 0, 2, four ? 1 : 2), panel('b', 2, 0, 2, 1), panel('c', 2, 1, 2, 1), ...(four ? [panel('d', 0, 1, 2, 1)] : [])]);
-        await drag(page.locator('.divider-junction'), grid.width / 4, 90);
-        assert.equal((await rect('a'))[2], 3); assert.equal((await rect('b'))[2], 1); assert.equal((await rect('c'))[2], 1);
-        if (four) assert.deepEqual(await rect('d'), [0, 1, 3, 1]);
+    for (const four of [false, true]) for (const portrait of [false, true]) {
+        const panels = [panel('a', 0, 0, 2, four ? 1 : 2), panel('b', 2, 0, 2, 1), panel('c', 2, 1, 2, 1), ...(four ? [panel('d', 0, 1, 2, 1)] : [])];
+        await fixture(portrait ? panels.map(p => ({ ...p, x: p.y, y: p.x, w: p.h, h: p.w })) : panels, portrait);
+        const handle = page.getByRole('separator', { name: 'Resize panels', exact: true }), box = await handle.boundingBox();
+        for (const theme of ['dark', 'light']) {
+            if (theme === 'light') await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+            for (const offset of [-30, 0, 30]) {
+                await page.mouse.move(box.x + box.width / 2 + (portrait ? offset : 0), box.y + box.height / 2 + (portrait ? 0 : offset));
+                await page.waitForTimeout(150);
+                if (!offset) await page.screenshot({ path: `test-results/divider-hover-${four ? 'four' : 'three'}-${portrait ? 'portrait' : 'landscape'}-${theme}.png` });
+                assert.ok(await handle.evaluate(node => node.matches(':hover') && getComputedStyle(node, '::after').opacity === '0.4'), 'the full divider stays highlighted across the junction');
+            }
+        }
+        assert.equal(await page.locator('.divider-junction').count(), 0, 'a locked axis needs no separate junction handle');
+        const bounds = await page.locator('.grid-stack').boundingBox();
+        await drag(handle, portrait ? 90 : bounds.width / 4, portrait ? bounds.height / 4 : 90);
+        assert.equal((await rect('a'))[portrait ? 3 : 2], 3); assert.equal((await rect('b'))[portrait ? 3 : 2], 1); assert.equal((await rect('c'))[portrait ? 3 : 2], 1);
+        if (four) assert.deepEqual(await rect('d'), portrait ? [1, 0, 1, 3] : [0, 1, 3, 1]);
     }
     await fixture([panel('a', 0, 0, 2, 2), panel('b', 0, 2, 2, 2)], true);
     await drag(page.locator('.workspace-divider'), 0, (await page.locator('.grid-stack').boundingBox()).height / 4);
