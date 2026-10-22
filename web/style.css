@@ -368,6 +368,18 @@ h3 {
   overflow: hidden;
   box-shadow: 0 3px 12px #0001;
 }
+.grid-stack-item-content.panel:focus-within {
+  border-color: var(--accent);
+}
+.grid-stack-item-content.panel:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--accent);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 70;
+}
 .panel-header {
   height: 35px;
   min-height: 35px;
@@ -494,7 +506,7 @@ h3 {
   min-height: 0;
   overflow: auto;
   padding: 0 12px;
-  outline-offset: -2px;
+  outline: none;
 }
 .file-selection-box { position: absolute; pointer-events: none; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); z-index: 1; }
 .file-list.loading {
@@ -1076,6 +1088,7 @@ progress {
 @keyframes file-arrived { from { background: var(--accent-bg); transform: scale(.97); } to { transform: none; } }
 .compact-board .panel-header { cursor: default; }
 .compact-board .grid-stack-item-content.panel { border: 0; border-radius: 0; box-shadow: none; }
+.compact-board .grid-stack-item-content.panel:focus-within::after { inset: 0; }
 
 .topbar > button, .brand, .topbar-right { flex-shrink: 0; }
 .topbar-right { gap: 3px; }

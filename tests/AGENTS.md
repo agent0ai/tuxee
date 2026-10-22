@@ -18,6 +18,8 @@ Keep implementation and checks small and complete.
 
 # Verification
 
+- `npm run test:gui` also verifies the shared component focus border through file selection, keyboard navigation, path editing, real terminal typing and GTK input in both themes, plus compact GUI focus. Check only the focused component is accented, file-list outlines are absent, keyboard row indicators remain, focus leaving panels clears the accent and content geometry stays fixed. Pixel-check both pixels of all four edges above file, terminal and GUI contents; capture `panel-focus-*.png`.
+
 - Audio logout checks use the real account-menu action, delay the completed logout response and record notifications across navigation to ensure server-initiated audio closure stays silent while capture stops and retained apps survive.
 
 - `node tests/terminal-transport.mjs`: a focused Chromium fixture imports the production TerminalView against real PAM/PTY/WebSockets using a marked account; it changes no saved settings and deletes its test terminal. Hold real render callbacks/acknowledgements and inject transport faults to verify immediate notices/control loss, recovery ordering, uncertain-input warnings without replay, byte/frame input limits, coalesced resize, binary output, multi-megabyte history recovery, safe hyperlink activation and retained PID. Test-only CSP bypass allows the fixture bundle; production contains no test hooks. Run sequentially with other account/browser checks. Backend window/compression/protocol and snapshot-admission tests live in internal/server and internal/terminal.

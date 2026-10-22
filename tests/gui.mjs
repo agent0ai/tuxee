@@ -89,6 +89,34 @@ async function clickControl(view, name) {
     const location = await point(view, layout[name].x, layout[name].y);
     await page.mouse.click(location.x, location.y);
 }
+async function panelFocus(id, screenshot) {
+    const panels = await page.locator('.grid-stack-item-content.panel').evaluateAll(nodes => nodes.map(node => {
+        const style = getComputedStyle(node, '::after');
+        return { id: node.closest('[data-panel]').dataset.panel, focused: node.contains(document.activeElement),
+            content: style.content, width: style.borderTopWidth, color: style.borderTopColor,
+            accent: getComputedStyle(document.querySelector('.add-panel')).color };
+    }));
+    for (const panel of panels) {
+        assert.equal(panel.focused, panel.id === id);
+        assert.equal(panel.content, panel.id === id ? '""' : 'none', `focus border for ${panel.id}`);
+        if (panel.id === id) { assert.equal(panel.width, '2px'); assert.equal(panel.color, panel.accent); }
+    }
+    if (screenshot) {
+        const bounds = await page.locator(`[data-panel="${id}"] .panel`).boundingBox();
+        const png = (await page.screenshot({ path: `test-results/${screenshot}.png` })).toString('base64');
+        const pixels = await page.evaluate(async ({ png, bounds }) => {
+            const image = new Image(); image.src = `data:image/png;base64,${png}`; await image.decode();
+            const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+            const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+            const left = Math.round(bounds.x), top = Math.round(bounds.y), right = Math.round(bounds.x + bounds.width), bottom = Math.round(bounds.y + bounds.height);
+            const midX = Math.floor((left + right) / 2), midY = Math.floor((top + bottom) / 2);
+            return [0, 1].flatMap(i => [[left + i, midY], [right - 1 - i, midY], [midX, top + i], [midX, bottom - 1 - i]])
+                .map(([x, y]) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3));
+        }, { png, bounds });
+        const accent = panels.find(panel => panel.id === id).accent.match(/\d+/g).map(Number);
+        for (const pixel of pixels) assert.deepEqual(pixel, accent, 'both pixels of every panel edge must stay visible above its contents');
+    }
+}
 function runX(env, command, args) {
     const result = spawnSync(command, args, { uid, gid, env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -121,7 +149,7 @@ try {
     const terminal = await (await api('/terminals', 'POST', { directory: fields[5], name: 'Terminal', columns: 80, rows: 24 })).json();
     assert.equal((await api('/settings', 'PUT', {
         theme: 'dark', current: 'gui-proof', workspaces: [{ id: 'gui-proof', name: 'GUI proof', columns: 4, rows: 2, active: 'shell', panels: [
-            { id: 'files', kind: 'files', path: fields[5], x: 0, y: 0, w: 1, h: 2 },
+            { id: 'files', kind: 'files', path: fixture, x: 0, y: 0, w: 1, h: 2 },
             { id: 'shell', kind: 'terminal', terminal: terminal.id, path: fields[5], x: 1, y: 0, w: 3, h: 2 },
         ] }],
     })).status(), 200);
@@ -131,6 +159,7 @@ try {
     const terminalDOM = await first.locator('.xterm').elementHandle();
     await shell(first, `printf '%s\\n' "$DISPLAY" > ${fixture}/display.txt`);
     await poll(async () => !!await stat(`${fixture}/display.txt`).catch(() => false), 'ordinary terminal input failed');
+    await panelFocus('shell');
     assert.equal((await api(`/terminals/${terminal.id}/display`)).status(), 409);
     measurements.coldTerminal = await memory();
     assert.ok(!measurements.coldTerminal.some(p => p.name.includes('Xvnc')));
@@ -143,6 +172,33 @@ try {
     const input = JSON.parse(await readFile(`${fixture}/input.json`, 'utf8'));
     assert.equal(input.uid, uid); assert.equal((await stat(`${fixture}/input.json`)).uid, uid);
     appPIDs.push(input.pid); runtimes.push(input.auth.replace('/Xauthority', ''));
+    const panelSizes = () => page.locator('.panel, .panel-body').evaluateAll(nodes => nodes.map(node => [node.clientWidth, node.clientHeight]));
+    const sizes = await panelSizes(), files = page.locator('[data-panel="files"]');
+    for (const theme of ['dark', 'light']) {
+        if (theme === 'light') await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+        await files.getByRole('button', { name: 'Refresh files', exact: true }).click();
+        await files.locator('.file-entry').filter({ hasText: 'display.txt' }).click();
+        await panelFocus('files', `panel-focus-files-${theme}`);
+        await files.locator('.file-list').focus(); await page.keyboard.press('Control+A');
+        await panelFocus('files');
+        assert.equal(await files.locator('.file-list').evaluate(node => getComputedStyle(node).outlineStyle), 'none', 'file list must not have a second focus border');
+        await page.keyboard.press('ArrowDown');
+        assert.equal(await files.locator('.file-entry:focus').evaluate(node => getComputedStyle(node).outlineStyle), 'solid', 'keyboard row focus must remain visible');
+        await files.getByRole('textbox', { name: 'Directory path' }).focus(); await panelFocus('files');
+        await page.getByRole('button', { name: 'User menu', exact: true }).focus(); await panelFocus(undefined);
+        await shell(first, `printf '${theme}' > ${fixture}/focus.txt`);
+        await poll(async () => (await readFile(`${fixture}/focus.txt`, 'utf8').catch(() => '')) === theme, 'terminal input failed after changing focus');
+        await panelFocus('shell', `panel-focus-terminal-${theme}`);
+        await firstPanel.getByRole('button', { name: 'GUI application proof', exact: true }).click();
+        await first.locator('.terminal-display[data-state=connected]').waitFor();
+        await clickControl(first, 'entry');
+        await page.keyboard.press('Control+A'); await page.keyboard.type(`GUI_FOCUS_${theme}`); await page.keyboard.press('Enter');
+        await poll(async () => (await readFile(`${fixture}/input.json`, 'utf8')).includes(`GUI_FOCUS_${theme}`), 'GUI input failed after changing focus');
+        await panelFocus('shell', `panel-focus-gui-${theme}`);
+        assert.deepEqual(await panelSizes(), sizes, 'focus borders must not resize panel contents');
+    }
+    await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+    console.log('PASS shared component focus border for files, terminal typing and real GUI input in both themes, no layout shift, keyboard row focus and focus leaving panels');
     const env = { PATH: '/usr/bin:/bin', HOME: fields[5], DISPLAY: input.display, XAUTHORITY: input.auth };
     assert.notEqual(spawnSync('xdpyinfo', [], { uid: 65534, gid: 65534, env: { ...env, XAUTHORITY: '/dev/null' }, timeout: 2000 }).status, 0);
     const windowID = title => firstPanel.locator('.display-windows button').evaluateAll((buttons, title) => {
@@ -357,6 +413,8 @@ try {
     await page.waitForTimeout(1000);
     const bounds = await second.locator('canvas').boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 391 && bounds.y + bounds.height <= 845);
+    await second.locator('canvas').click({ position: { x: 20, y: 20 } });
+    await panelFocus(await second.locator('..').locator('..').getAttribute('data-panel'), 'panel-focus-gui-mobile');
     await page.screenshot({ path: 'test-results/gui-mobile.png' });
     const firstTab = page.locator('[data-component-name="shell"]');
     if (!await firstTab.isVisible()) await page.getByRole('button', { name: 'More components', exact: true }).click();
