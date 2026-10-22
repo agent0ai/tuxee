@@ -53,12 +53,25 @@ export class FileView implements View {
         this.pathInput.value = panel.path || hooks.user.home;
         this.pathInput.setAttribute('aria-label', 'Directory path');
         this.pathInput.autocomplete = 'off'; this.pathInput.spellcheck = false;
+        let editTimer: number | undefined;
+        const cancelEdit = () => clearTimeout(editTimer);
+        for (const event of ['pointerdown', 'keydown', 'focusin']) document.addEventListener(event, cancelEdit, { capture: true, signal: this.events.signal });
+        for (const event of ['blur', 'resize']) window.addEventListener(event, cancelEdit, { signal: this.events.signal });
+        this.events.signal.addEventListener('abort', cancelEdit, { once: true });
         this.pathInput.onpointerdown = event => {
             if (document.activeElement === this.pathInput) event.stopPropagation();
-            else event.preventDefault(); // Let the header drag until an ordinary release click focuses the path.
+            else event.preventDefault(); // Keep header dragging and double-click expansion available before editing.
         };
-        this.pathInput.onclick = () => this.pathInput.focus();
-        this.pathInput.ondblclick = event => event.stopPropagation();
+        this.pathInput.onclick = event => {
+            if (document.activeElement === this.pathInput) return;
+            if (!this.nav.closest('.panel-header')) this.pathInput.focus();
+            else if (event.detail === 1) editTimer = window.setTimeout(() => { if (this.pathInput.isConnected) this.pathInput.focus(); }, 300);
+        };
+        this.pathInput.ondblclick = event => {
+            cancelEdit();
+            if (document.activeElement === this.pathInput) event.stopPropagation();
+            else event.preventDefault();
+        };
         this.pathInput.onfocus = () => this.pathInput.select();
         this.pathInput.onblur = () => { this.pathInput.value = this.panel.path; this.pathInput.scrollLeft = 0; };
         this.pathInput.onkeydown = event => {

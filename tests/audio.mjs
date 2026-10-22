@@ -319,7 +319,23 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
     await page.reload(); await page.locator('.terminal-display[data-state=connected]').waitFor();
     await page.locator('.display-controls .terminal-tab').click();
     await poll(async () => (await spectrum()).length === 2 && (await spectrum()).every(v => v.rms > .1), 'retained GUI must resume sound after reload');
-    assert.equal((await api('/logout', 'POST')).status(), 200);
+    const logoutNotices = [];
+    await page.exposeFunction('recordLogoutNotice', text => logoutNotices.push(text));
+    await page.evaluate(() => {
+        new MutationObserver(records => {
+            for (const record of records) for (const node of record.addedNodes)
+                if (node instanceof Element && node.matches('.toast')) window.recordLogoutNotice(node.textContent);
+        }).observe(document.querySelector('#notifications'), { childList: true });
+    });
+    await page.route(base + '/api/logout', async route => {
+        const response = await route.fetch();
+        await page.waitForTimeout(500);
+        await route.fulfill({ response });
+    });
+    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
+    await page.locator('[name=username]').waitFor();
+    assert.ok(!logoutNotices.some(text => text.includes('Sound disconnected')), 'logout must close audio silently, even before its HTTP response arrives');
     await poll(async () => !(await audioProcesses()).some(p => p.cmd.includes('/pacat')), 'logout must revoke capture');
     assert.equal((await audioProcesses()).filter(p => p.cmd.includes('/pulseaudio')).length, 1, 'logout must preserve Audio runtime');
     await page.goto(base);
@@ -375,6 +391,7 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
     await writeFile(`test-results/audio-server-${results.protocol}.log`, logs);
     console.error(logs); console.error((await readFile(`${fixture}/chromium.log`, 'utf8').catch(() => '')).slice(-4000)); throw error;
 } finally {
+    await page.unrouteAll({ behavior: 'wait' });
     if (secondTerminal) await api(`/terminals/${secondTerminal.id}`, 'DELETE').catch(() => {});
     if (terminal) await api(`/terminals/${terminal.id}`, 'DELETE').catch(() => {});
     if (original) await api('/settings', 'PUT', original).catch(() => {});

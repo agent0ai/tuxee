@@ -81,15 +81,27 @@ try {
  const box = await path.boundingBox(), x = box.x + box.width / 2, y = box.y + box.height / 2;
  await page.mouse.move(x, y); await page.mouse.down();
  assert.ok(!await path.evaluate(node => node === document.activeElement), 'press must not start editing');
- await page.mouse.up(); assert.ok(await path.evaluate(node => node === document.activeElement));
+ await page.mouse.up(); assert.ok(!await path.evaluate(node => node === document.activeElement), 'release must allow time for a double-click');
+ await path.locator(':scope:focus').waitFor();
  assert.notEqual(await path.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
  assert.ok(await path.evaluate(node => getComputedStyle(node).backgroundColor !== getComputedStyle(node.closest('.panel')).backgroundColor));
- await path.fill('/discarded'); await path.press('Escape'); assert.equal(await path.inputValue(), dir);
+ await path.fill('/discarded');
+ const geometry = () => page.locator('.grid-stack-item').evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute('gs-' + key) ?? (key === 'w' || key === 'h' ? 1 : 0))));
+ const editingGeometry = await geometry();
+ await path.dblclick(); assert.deepEqual(await geometry(), editingGeometry, 'double-click while editing must select text without expanding');
+ assert.equal(await path.inputValue(), '/discarded');
+ await path.press('Escape'); assert.equal(await path.inputValue(), dir);
+ await path.click(); await hiddenToggle.click(); await page.waitForTimeout(400);
+ assert.ok(!await path.evaluate(node => node === document.activeElement), 'a later click must cancel pending editing');
+ await hiddenToggle.uncheck();
+ await path.click();
  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 35, y + 35, { steps: 6 });
- await page.locator('.panel-dragging').waitFor(); await page.keyboard.press('Escape'); await page.mouse.up();
+ await page.locator('.panel-dragging').waitFor(); await page.waitForTimeout(400);
+ assert.ok(!await path.evaluate(node => node === document.activeElement), 'a second press starting a drag must cancel pending editing');
+ await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(400);
  assert.ok(!await path.evaluate(node => node === document.activeElement), 'cancelled drag must not edit');
  await page.waitForTimeout(250);
- await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 40, y + 40, { steps: 6 }); await page.mouse.up();
+ await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 40, y + 40, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(400);
  assert.ok(!await path.evaluate(node => node === document.activeElement), 'completed drag must not edit');
  assert.equal(await path.inputValue(), dir);
  await page.waitForTimeout(250);
@@ -158,8 +170,20 @@ try {
  await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
  await page.setViewportSize({ width: 320, height: 844 }); await singleRows(); await more.click();
  await page.screenshot({ path: 'test-results/file-toolbar-menu-light.png' });
+ await page.keyboard.press('Escape');
+ await page.setViewportSize({ width: 1440, height: 1000 }); await singleRows();
+ for (const theme of ['dark', 'light']) {
+  await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+  await path.dblclick({ delay: 75 }); await page.waitForTimeout(400);
+  assert.deepEqual(await geometry(), [0, 0, 4, 2], 'double-click on the path title must expand the panel');
+  assert.ok(!await path.evaluate(node => node === document.activeElement), 'double-click must not leave delayed editing behind');
+  await page.screenshot({ path: `test-results/file-header-expanded-${theme}.png` });
+  await path.dblclick({ delay: 75 }); await page.waitForTimeout(400);
+  assert.deepEqual(await geometry(), [0, 0, 1, 1], 'double-click on the expanded path title must shrink the panel');
+  assert.ok(!await path.evaluate(node => node === document.activeElement));
+ }
  assert.deepEqual(errors, []);
- console.log('PASS desktop header path, release-to-edit/drag cancellation, mobile path row, navigation/actions overflow, 150px panels, desktop/mobile resize, overflow order/separator, keyboard focus, original menus, real copy and file-picker upload');
+ console.log('PASS delayed header editing, double-click expand/shrink, editing selection, click/drag cancellation, mobile path row, navigation/actions overflow, 150px panels, desktop/mobile resize, overflow order/separator, keyboard focus, original menus, real copy and file-picker upload');
 } catch (error) { await page.screenshot({ path: 'test-results/file-toolbar-failure.png' }); throw error; }
 finally {
  await page.goto('about:blank'); await api('/settings', 'PUT', me.settings); await browser.close();

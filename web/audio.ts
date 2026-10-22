@@ -116,7 +116,7 @@ class UserAudio {
             };
             socket.onclose = () => {
                 if (this.socket !== socket) return;
-                fail('Sound disconnected');
+                this.close();
             };
         } catch (error) { fail(error); }
     }
