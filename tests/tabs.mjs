@@ -43,7 +43,6 @@ const touch = await context.newCDPSession(page);
 const menu = page.locator('.menu-actions.popover-menu');
 const panel = id => page.locator(`[data-panel="${id}"]`);
 const tab = id => page.locator(`[data-component-name="${id}"]`);
-const title = id => panel(id).locator('.panel-title');
 const snapshot = async () => (await (await api('/me')).json()).settings;
 const saved = () => page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT');
 const check = text => console.log('PASS ' + text);
@@ -58,7 +57,7 @@ async function press(target) {
     await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
     return point;
 }
-async function hold(target) {
+async function hold(target, canRename = true) {
     await press(target);
     await page.waitForTimeout(600);
     await menu.waitFor();
@@ -66,7 +65,7 @@ async function hold(target) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), canRename ? ['Activate', 'Rename', 'Close'] : ['Activate', 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -89,27 +88,22 @@ try {
     await page.waitForTimeout(700);
     const terminalID = (await snapshot()).workspaces[0].panels[6].terminal;
     assert.ok(terminalID);
-    const alias = 'Projects <&>';
-    await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).click();
-    let save = saved();
-    await renameDialog('file browser', alias);
-    assert.equal((await save).status(), 200);
-    assert.equal(await title('panel-0').textContent(), alias);
-    assert.equal((await snapshot()).workspaces[0].panels[0].name, alias);
+    assert.equal(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);
+    assert.equal((await snapshot()).workspaces[0].panels[0].name, undefined);
+    let save;
     await panel('panel-6').getByRole('button', { name: 'Rename terminal', exact: true }).click();
     await renameDialog('terminal', 'Build');
     await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Build');
     assert.equal((await (await api(`/terminals/${terminalID}`)).json()).name, 'Build');
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Build');
-    assert.equal(await title('panel-0').textContent(), alias);
     assert.equal((await snapshot()).workspaces[0].panels[0].path, '/tmp');
-    // Navigation retains an override without renaming any filesystem entry.
+    // File labels follow the current folder; only terminal sessions have editable names.
     const path = panel('panel-0').locator('.path-input');
     await path.fill('/var'); save = saved(); await path.press('Enter');
     assert.equal((await save).status(), 200);
-    assert.equal(await title('panel-0').textContent(), alias);
-    check('desktop file/terminal rename icons, saved labels, reload and folder navigation');
+    assert.equal(await path.inputValue(), '/var');
+    check('file paths replace rename controls; terminal names survive reload and file navigation');
 
     const workspace = id => page.locator(`.workspace-tab-item[data-workspace="${id}"]`);
     const workspaceOrder = async () => (await snapshot()).workspaces.map(ws => ws.id);
@@ -216,16 +210,14 @@ try {
     }
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);
     check('visible and overflow workspace/component arrows at 320/390px open menus without activation');
-    await hold(await reveal('panel-0'));
+    await hold(await reveal('panel-0'), false);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled());
     await page.screenshot({ path: 'test-results/tabs-mobile-context.png' });
-    await menu.getByRole('menuitem', { name: 'Rename', exact: true }).tap();
-    save = saved(); await resetDialog('file browser'); assert.equal((await save).status(), 200);
-    assert.equal(await title('panel-0').textContent(), 'var');
-    assert.equal((await snapshot()).workspaces[0].panels[0].name, undefined);
+    await page.keyboard.press('Escape');
+    assert.equal(await tab('panel-0').locator('.component-tab-title').textContent(), 'var');
     await path.fill('/tmp'); save = saved(); await path.press('Enter'); await save;
-    assert.equal(await title('panel-0').textContent(), 'tmp');
-    check('visible mobile long press opens menu without activation; Reset follows current folder');
+    assert.equal(await tab('panel-0').locator('.component-tab-title').textContent(), 'tmp');
+    check('file component menu has no Rename and its label follows the folder');
 
     await hold(await reveal('panel-6'));
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
@@ -287,7 +279,8 @@ try {
     assert.equal((await api(`/terminals/${terminalID}`)).status(), 404);
     await panel('panel-6').waitFor({ state: 'detached' });
     await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
-    assert.ok(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).isVisible());
+    assert.equal(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);
+    assert.ok(await panel('panel-0').locator('.panel-header .path-input').isVisible());
     assert.ok(await page.locator('.workspace-tabs .workspace-menu').first().isVisible());
     assert.equal(await page.locator('.workspace-close, .workspace-rename').count(), 0);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);

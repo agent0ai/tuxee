@@ -11,6 +11,13 @@ const run = (command, args, input) => {
     assert.equal(result.status, 0, `${command} failed`);
     return result.stdout.trim();
 };
+async function freePort() {
+    const listener = http.createServer();
+    await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+    const port = listener.address().port;
+    await new Promise(resolve => listener.close(resolve));
+    return port;
+}
 const user = 'tuxee-poc-proxy';
 if (spawnSync('getent', ['passwd', user]).status !== 0)
     run('useradd', ['-m', '-s', '/bin/bash', '-c', 'Tuxee prototype test', user]);
@@ -37,16 +44,20 @@ try {
     await chown(settingsPath, Number(fields[2]), Number(fields[3]));
     const env = { ...process.env };
     delete env.TUXEE_HTTP_PORT; delete env.TUXEE_HTTPS_PORT;
-    service = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const httpPort = await freePort(), httpsPort = await freePort();
+    const plain = `http://127.0.0.1:${httpPort}`, secure = `https://127.0.0.1:${httpsPort}`;
+    service = spawn('./bin/tuxee', ['serve', '--http-port', String(httpPort), '--https-port', String(httpsPort), '--acme', 'off', '--state', state], { env, stdio: ['ignore', 'pipe', 'inherit'] });
     stopped = new Promise(resolve => service.once('exit', resolve));
-    const backend = await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(Error('server startup timed out')), 10000);
+        let output = '';
         service.stdout.on('data', data => {
-            const match = String(data).match(/listening at (http:\/\/\S+)/);
-            if (match) { clearTimeout(timer); resolve(match[1]); }
+            output += data;
+            if (output.includes('listening at http://') && output.includes('listening at https://')) { clearTimeout(timer); resolve(); }
         });
         service.once('exit', () => { clearTimeout(timer); reject(Error('server stopped')); });
     });
+    let backend = plain;
     run('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', `${state}/key.pem`, '-out', `${state}/cert.pem`, '-days', '1', '-subj', '/CN=localhost']);
     const headers = request => {
         const result = { ...request.headers };
@@ -55,7 +66,8 @@ try {
         return result;
     };
     proxy = https.createServer({ key: await readFile(`${state}/key.pem`), cert: await readFile(`${state}/cert.pem`) }, (request, response) => {
-        const upstream = http.request(new URL(request.url, backend), { method: request.method, headers: headers(request) }, remote => {
+        const transport = backend.startsWith('https:') ? https : http;
+        const upstream = transport.request(new URL(request.url, backend), { method: request.method, headers: headers(request), rejectUnauthorized: false }, remote => {
             response.writeHead(remote.statusCode, remote.headers); remote.pipe(response);
         });
         upstream.on('error', error => response.destroy(error));
@@ -63,7 +75,8 @@ try {
     });
     proxy.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
     proxy.on('upgrade', (request, socket, head) => {
-        const upstream = http.request(new URL(request.url, backend), { headers: headers(request) });
+        const transport = backend.startsWith('https:') ? https : http;
+        const upstream = transport.request(new URL(request.url, backend), { headers: headers(request), rejectUnauthorized: false });
         upstream.on('upgrade', (response, remote, remoteHead) => {
             socket.write(`HTTP/1.1 ${response.statusCode} ${response.statusMessage}\r\n${Object.entries(response.headers).map(([key, value]) => `${key}: ${value}`).join('\r\n')}\r\n\r\n`);
             if (remoteHead.length) socket.write(remoteHead);
@@ -79,13 +92,21 @@ try {
     browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
     await mkdir('test-results', { recursive: true });
     let terminalID;
-    for (const host of ['127.0.0.1', 'localhost']) {
-        forwarded = host === '127.0.0.1';
-        const base = `https://${host}:${proxy.address().port}`;
+    for (const test of [
+        { name: 'direct-http', base: plain, label: 'Plain HTTP', source: 'http' },
+        { name: 'direct-https', base: secure, label: 'Encrypted with a local certificate', source: 'local' },
+        { name: 'forwarded', host: '127.0.0.1', forwarded: true, source: 'http' },
+        { name: 'origin-only', host: 'localhost', source: 'http' },
+        { name: 'reencrypted', host: '127.0.0.1', forwarded: true, tlsBackend: true, source: 'https' },
+    ]) {
+        forwarded = !!test.forwarded;
+        backend = test.tlsBackend ? secure : plain;
+        const base = test.base || `https://${test.host}:${proxy.address().port}`;
+        const encrypted = base.startsWith('https:');
         const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 950 } });
         const page = await context.newPage(), errors = [], connected = [];
         page.on('pageerror', error => errors.push(error.message));
-        page.on('websocket', socket => { assert.ok(socket.url().startsWith('wss://')); socket.on('framereceived', () => connected.push(socket.url())); });
+        page.on('websocket', socket => { assert.ok(socket.url().startsWith(encrypted ? 'wss://' : 'ws://')); socket.on('framereceived', () => connected.push(socket.url())); });
         await page.goto(base);
         if (forwarded) assert.equal(await page.locator('meta[property="og:url"]').getAttribute('content'), base + '/');
         await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
@@ -95,9 +116,29 @@ try {
         assert.equal(loginResponse.status(), 200);
         assert.equal((await loginResponse.request().allHeaders()).origin, base);
         const cookie = (await context.cookies()).find(cookie => cookie.name === 'tuxee_session');
-        assert.ok(cookie?.secure && cookie.httpOnly && cookie.sameSite === 'Strict');
+        assert.ok(cookie && cookie.secure === encrypted && cookie.httpOnly && cookie.sameSite === 'Strict');
         const terminal = page.locator('.terminal-view[data-state=connected]');
         await terminal.waitFor(); await page.locator('.file-view').waitFor();
+        const tls = await (await context.request.get(base + '/api/tls')).json();
+        assert.equal(tls.source, test.source);
+        if (test.source !== 'local') assert.deepEqual(Object.keys(tls), ['source']);
+        async function checkConnection() {
+            await page.getByRole('button', { name: 'User menu', exact: true }).click();
+            await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+            const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
+            await dialog.waitFor();
+            assert.deepEqual(await dialog.locator('.tls-status p').allTextContents(), [test.label || 'Encrypted HTTPS']);
+            assert.equal(await dialog.getByRole('link', { name: 'Download local CA certificate' }).count(), test.source === 'local' ? 1 : 0);
+            await page.screenshot({ path: `test-results/proxy-${test.name}-settings.png` });
+            await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        }
+        await checkConnection();
+        if (!encrypted) {
+            assert.equal(await page.evaluate(() => window.isSecureContext), true, 'HTTP localhost is a secure context, but not TLS');
+            await page.route('**/api/tls', route => route.fulfill({ json: { source: 'local', error: 'Unrelated local CA error' } }));
+            await checkConnection();
+            await page.unroute('**/api/tls');
+        }
         if (await terminal.locator('.terminal-display').isVisible()) await page.locator('.terminal-tab').click();
         const me = await (await context.request.get(base + '/api/me')).json();
         const id = me.settings.workspaces[0].panels.find(panel => panel.kind === 'terminal').terminal;
@@ -113,7 +154,7 @@ try {
         await page.keyboard.type('xterm -title Proxy-GUI &'); await page.keyboard.press('Enter');
         await terminal.locator('.terminal-display[data-state=connected]').waitFor({ timeout: 15000 });
         assert.ok(connected.some(url => url.endsWith('/display/ws')), 'GUI WebSocket delivered no frames');
-        await page.screenshot({ path: `test-results/proxy-${forwarded ? 'forwarded' : 'origin-only'}.png` });
+        await page.screenshot({ path: `test-results/proxy-${test.name}.png` });
         for (const path of ['/api/login', `/api/terminals/${id}/ws`, `/api/terminals/${id}/display/ws`]) {
             const response = await context.request.fetch(base + path, { method: path.endsWith('login') ? 'POST' : 'GET', headers: { Origin: 'https://evil.test' } });
             assert.equal(response.status(), 403, 'foreign origin was accepted');
@@ -126,7 +167,7 @@ try {
         assert.deepEqual(await (await context.request.get(base + '/api/connection')).json(), { authenticated: false });
         assert.deepEqual(errors, []);
         await context.close();
-        console.log(`PASS HTTPS proxy ${host}: real browser Origin, Secure cookie, files, terminal input, GUI WSS, origin/CSRF rejection and logout; forwarded headers ${forwarded ? 'on' : 'off'}`);
+        console.log(`PASS ${test.name}: connection label/CA visibility, browser Origin, cookies, files, terminal input, GUI WebSocket, origin/CSRF rejection and logout`);
     }
 } finally {
     await browser?.close();

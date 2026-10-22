@@ -43,8 +43,7 @@ func start(ctx context.Context, user identity.User, dir, password string) (*proc
 		return nil, err
 	}
 	display := ":" + strconv.Itoa(1000+int(number.Int64()))
-	audio, _ := exec.LookPath("tuxee-pulseaudio")
-	cmd := user.Command(context.Background(), "/bin/sh", "-c", startup, "tuxee-display", dir, audio)
+	cmd := user.Command(context.Background(), "/bin/sh", "-c", startup, "tuxee-display", dir)
 	cmd.Dir = user.Home
 	cmd.Env = append(cmd.Env, "DISPLAY="+display, "XAUTHORITY="+dir+"/Xauthority", "XDG_RUNTIME_DIR="+dir+"/xdg", "XDG_SESSION_TYPE=x11")
 	cmd.Stdin = strings.NewReader(password + "\n")

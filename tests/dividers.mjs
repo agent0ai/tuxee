@@ -278,7 +278,9 @@ try {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.compact-board').waitFor(); await page.locator('[data-component-name=b]').click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click(); await item('b').waitFor({ state: 'detached' });
-    assert.deepEqual(await rect('a'), [1, 0, 1, 1], 'compact closure leaves the saved desktop geometry alone');
+    assert.deepEqual(await rect('a'), [0, 1, 1, 1], 'compact closure preserves the transposed geometry without expansion');
+    await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(350);
+    assert.deepEqual(await rect('a'), [1, 0, 1, 1], 'returning to landscape restores the original geometry');
     assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
     assert.deepEqual(errors, []);
     console.log('PASS close expands only toward the gap, leaves unrelated windows alone and preserves compact geometry and terminal PID');

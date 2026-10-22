@@ -1,5 +1,5 @@
-import { createElement, Volume2, VolumeX, Monitor, X, ChevronDown, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
-const icons = { Volume2, VolumeX, Monitor, X, ChevronDown, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
+import { createElement, Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
+const icons = { Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Cpu, MemoryStick, HardDrive, Network, Search, FilePlus, FolderPlus, SquareTerminal, Hand, Pencil, Copy, ArrowUp, ArrowDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
     node.className = cls;
@@ -40,7 +40,7 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown,
         const data = await response.json();
         if (!response.ok) {
             if (typeof data?.error !== 'string') throw new Error('Unexpected API response');
-            if (response.status === 401 && token && token === csrf)
+            if ((response.status === 401 || response.status === 403) && token && token === csrf)
                 window.dispatchEvent(new Event('tuxee-unauthorized'));
             throw new APIError(data.error || `Request failed (${response.status})`, response.status);
         }
@@ -146,7 +146,7 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
     const control = anchor instanceof HTMLElement ? anchor : undefined;
     // A right-click opens before pointerup; native light-dismiss would immediately close it.
     content.popover = control ? 'auto' : 'manual';
-    content.setAttribute('role', 'menu');
+    if (!content.hasAttribute('role')) content.setAttribute('role', 'menu');
     const events = new AbortController();
     control?.setAttribute('aria-expanded', 'true');
     document.body.append(content);
@@ -169,13 +169,14 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
     closePopover = close;
     content.onkeydown = event => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
+        if (content.getAttribute('role') !== 'menu') return;
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
         const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => !item.hidden);
         const index = items.indexOf(document.activeElement as HTMLButtonElement);
         items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
     };
-    content.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    content.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), button:not(:disabled)')?.focus();
     return { close };
 }
 export function ask(title: string, label: string, initial = '', reset?: string): Promise<string | null> {

@@ -76,7 +76,7 @@ try {
         assert.equal((await denied).status(), 403);
         await other.getByRole('status').filter({ hasText: 'Cannot restart Tuxee: operation not permitted' }).waitFor();
         assert.equal(await other.locator('.connection-overlay').count(), 0);
-        assert.deepEqual(await (await api(1, '/connection')).json(), { authenticated: true });
+        assert.deepEqual(await (await api(1, '/connection')).json(), { authenticated: true, uid: identities[1].user.uid, csrf: identities[1].csrf });
         for (const terminal of terminals) process.kill(terminal.pid, 0);
         assert.equal(starts, 1);
         await other.getByRole('status').filter({ hasText: 'Cannot restart Tuxee' }).getByRole('button', { name: 'Dismiss' }).click();

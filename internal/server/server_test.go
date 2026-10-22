@@ -135,7 +135,7 @@ func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
 	s := New(nil, nil, nil, "", fstest.MapFS{})
 	defer s.Close()
 	ctx, cancel := context.WithCancel(context.Background())
-	s.logins[sha256.Sum256([]byte("token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
+	s.logins[sha256.Sum256([]byte("token"))] = &login{user: identity.User{UID: 1234}, csrf: "csrf", ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
 	expired, expire := context.WithCancel(context.Background())
 	s.logins[sha256.Sum256([]byte("expired"))] = &login{ctx: expired, cancel: expire, expires: time.Now().Add(-time.Hour)}
 	for _, token := range []string{"", "invalid", "token", "expired"} {
@@ -146,10 +146,19 @@ func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, r)
 		var state struct {
-			Authenticated bool `json:"authenticated"`
+			Authenticated bool   `json:"authenticated"`
+			UID           *int   `json:"uid"`
+			CSRF          string `json:"csrf"`
 		}
 		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &state) != nil || state.Authenticated != (token == "token") || w.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("connection with cookie %q: %d %s", token, w.Code, w.Body.String())
+		}
+		if state.Authenticated {
+			if state.UID == nil || *state.UID != 1234 || state.CSRF != "csrf" {
+				t.Fatal("authenticated readiness must identify the account and current request token")
+			}
+		} else if state.UID != nil || state.CSRF != "" {
+			t.Fatal("anonymous readiness must omit account and request token")
 		}
 	}
 	if expired.Err() == nil {
@@ -298,28 +307,20 @@ func TestSettingsLayoutCycle(t *testing.T) {
 		t.Fatal("legacy/custom workspace rejected:", err)
 	}
 }
-func TestFileBrowserNames(t *testing.T) {
-	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "files", Kind: "files", W: 1, H: 1}}}}}
-	panel := &value.Workspaces[0].Panels[0]
-	for _, name := range []string{"", "Projects — server", strings.Repeat("x", 80)} {
-		panel.Name = name
-		if err := validateSettings(&value); err != nil {
-			t.Fatalf("valid browser name rejected: %v", err)
-		}
+func TestLegacyFileBrowserNamesAreIgnored(t *testing.T) {
+	var value Settings
+	if err := json.Unmarshal([]byte(`{"theme":"dark","current":"ws","workspaces":[{"id":"ws","name":"Workspace","columns":4,"rows":2,"panels":[{"id":"files","kind":"files","path":"/tmp","name":"Old alias","w":1,"h":1}]}]}`), &value); err != nil {
+		t.Fatal(err)
 	}
-	for _, name := range []string{strings.Repeat("x", 81), "bad\x00name"} {
-		panel.Name = name
-		if validateSettings(&value) == nil {
-			t.Fatal("invalid browser name accepted")
-		}
-	}
-	panel.Kind, panel.Name = "terminal", "Duplicate name source"
-	if validateSettings(&value) == nil {
-		t.Fatal("terminal names must remain owned by the terminal session")
-	}
-	panel.Name = ""
 	if err := validateSettings(&value); err != nil {
-		t.Fatal("legacy terminal settings rejected:", err)
+		t.Fatal(err)
+	}
+	panel, err := json.Marshal(value.Workspaces[0].Panels[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(panel), `"name"`) || value.Workspaces[0].Panels[0].Path != "/tmp" {
+		t.Fatalf("legacy alias retained or path changed: %s", panel)
 	}
 }
 func TestOriginAndRequestValidation(t *testing.T) {

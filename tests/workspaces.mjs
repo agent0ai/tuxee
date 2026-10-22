@@ -42,7 +42,11 @@ async function settled(index) {
 }
 async function visit(index) { await select(index); await settled(index); }
 try {
-    for (let i = 0; i < 9; i++) terminals.push(await (await api('/terminals', 'POST', { directory: dir, name: `Warm ${i}` })).json());
+    for (let i = 0; i < 9; i++) {
+        const response = await api('/terminals', 'POST', { directory: dir, name: `Warm ${i}`, columns: 80, rows: 24 });
+        assert.equal(response.status(), 201);
+        terminals.push(await response.json());
+    }
     const workspaces = terminals.map((terminal, i) => ({
         id: `warm-${i}`, name: `Warm ${i}`, columns: 4, rows: 2, active: `term-${i}`,
         panels: [
@@ -50,6 +54,24 @@ try {
             ...(i === 0 ? [{ id: 'files', kind: 'files', path: dir, x: 2, y: 0, w: 2, h: 2 }] : []),
         ],
     }));
+    // Load an actual legacy settings file: POST only admits the new eight-cell contract.
+    assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'warm-0', workspaces })).status(), 200);
+    const legacy = { theme: 'dark', current: 'legacy', workspaces: [{
+        id: 'legacy', name: 'Legacy', columns: 8, rows: 2, active: 'term-8',
+        panels: workspaces.map((ws, i) => ({ ...ws.panels[0], x: i % 8, y: Math.floor(i / 8), w: 1, h: 1 })),
+    }] };
+    assert.equal((await api('/settings', 'PUT', legacy)).status(), 400);
+    await writeFile(`${fields[5]}/.config/tuxee/settings.json`, JSON.stringify(legacy));
+    const migrated = (await (await api('/me')).json()).settings;
+    assert.equal(migrated.workspaces.length, 2);
+    assert.ok(migrated.workspaces.every(ws => ws.columns === 4 && ws.rows === 2 && ws.panels.length <= 8));
+    assert.deepEqual(migrated.workspaces.flatMap(ws => ws.panels.map(p => p.terminal)), terminals.map(t => t.id));
+    await page.goto(base);
+    await page.locator('[data-panel=term-8] .terminal-view[data-state=connected]').waitFor();
+    assert.equal((await (await api(`/terminals/${terminals[8].id}`)).json()).pid, terminals[8].pid);
+    await page.waitForTimeout(400); await page.goto('about:blank');
+    sockets.length = 0;
+    console.log('PASS real legacy-file migration preserves all nine terminals and the active overflow panel');
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'warm-0', workspaces })).status(), 200);
     await page.goto(base); await settled(0);
     const first = await page.locator('[data-panel=term-0] .terminal-view').elementHandle();
@@ -67,6 +89,23 @@ try {
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('WARM_OUTPUT'));
     assert.ok((await page.locator('.cm-content').textContent()).includes('unsaved'));
     assert.equal(connections(0).length, 1); assert.equal(connections(0)[0].snapshots, 1);
+    const geometry = () => page.locator('.grid-stack-item').evaluateAll(nodes => nodes.map(node =>
+        ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute(`gs-${key}`) || (key === 'w' || key === 'h' ? 1 : 0)))));
+    const originalGeometry = await geometry();
+    for (const [width, height] of [[5120, 1440], [1024, 768], [900, 1200], [390, 844], [844, 390], [1440, 1000]]) {
+        await visit(1); // Exercise rotation of cached boards as well as the visible board.
+        await page.setViewportSize({ width, height }); await page.waitForTimeout(350);
+        await visit(0); await page.waitForTimeout(350);
+        const saved = (await (await api('/me')).json()).settings.workspaces.find(ws => ws.id === 'warm-0');
+        assert.deepEqual([saved.columns, saved.rows], height > width ? [2, 4] : [4, 2]);
+        assert.equal(saved.panels.length, 2);
+        assert.ok(await first.evaluate(node => node === document.querySelector('[data-panel=term-0] .terminal-view')));
+        assert.ok((await page.locator('.cm-content').textContent()).includes('unsaved'));
+        assert.equal(connections(0).length, 1, 'orientation must not reconnect terminals');
+    }
+    assert.deepEqual(await geometry(), originalGeometry);
+    assert.equal((await (await api(`/terminals/${terminals[0].id}`)).json()).pid, terminals[0].pid);
+    console.log('PASS orientation and screen-size round trips retain geometry, cached views, drafts and terminal connections');
     await visit(1);
     for (let i = 2; i < 8; i++) await visit(i);
     assert.equal(sockets.filter(socket => !socket.closed).length, 8);
@@ -93,6 +132,7 @@ try {
     await page.getByRole('button', { name: 'Close workspace', exact: true }).click();
     await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.status === 404), terminals[2].id);
     assert.ok(connections(2)[0].closed, 'closing an inactive cached workspace cleans up its connection');
+    const beforeReload = sockets.length;
     await page.reload(); await settled(0);
     assert.equal(connections(0).length, 3); assert.equal(connections(0)[2].snapshots, 1);
     await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
@@ -109,7 +149,7 @@ try {
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     csrf = await login();
     await page.waitForFunction(ids => fetch('/api/terminals').then(r => r.json()).then(sessions => sessions.filter(session => ids.includes(session.id)).every(session => !session.attached)), terminals.map(terminal => terminal.id));
-    assert.ok(sockets.every(socket => socket.closed), 'logout closes active and inactive cached connections');
+    assert.ok(sockets.slice(beforeReload).every(socket => socket.closed), 'logout closes active and inactive connections in the current document');
     assert.deepEqual(errors, []);
     console.log('PASS warm workspace reuse, hidden output, FIFO limit, dirty eviction, closure, reload and logout');
 } finally {

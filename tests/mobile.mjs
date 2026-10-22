@@ -20,7 +20,9 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
     method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' },
 });
 const system = await (await api('/system')).json();
-const terminal = await (await api('/terminals', 'POST', { directory: '/tmp', name: 'Terminal' })).json();
+const terminalResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Terminal', columns: 80, rows: 24 });
+assert.equal(terminalResponse.status(), 201);
+const terminal = await terminalResponse.json();
 assert.equal((await api('/settings', 'PUT', {
     theme: 'dark', current: 'mobile',
     workspaces: [{ id: 'mobile', name: 'Mobile', columns: 4, rows: 2, active: 'term', panels: [

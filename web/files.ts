@@ -23,12 +23,14 @@ export class FileView implements View {
     private selected = new Set<string>();
     private list = el('div', 'file-list');
     private pathInput = el('input', 'path-input');
+    private nav = el('form', 'file-nav');
     private status = el('span', 'file-status');
     private disposed = false;
     private events = new AbortController();
     private request?: AbortController;
     private uploadedDirectories = new Set<string>();
     private focusedPath = '';
+    private lastTap?: { path: string; time: number };
     private selectionAnchor = '';
     private filter = '';
     private filterInput = el('input', 'file-filter');
@@ -47,16 +49,35 @@ export class FileView implements View {
             if (!this.request) this.refreshUploaded();
         }, { signal: this.events.signal });
         root.classList.add('file-view');
-        const nav = el('form', 'file-nav');
         this.pathInput.value = panel.path || hooks.user.home;
         this.pathInput.setAttribute('aria-label', 'Directory path');
-        nav.append(button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/')), button('Home directory', 'House', () => this.navigate(hooks.user.home)), button('Refresh files', 'RefreshCw', () => this.refresh()), this.pathInput);
-        nav.onsubmit = e => { e.preventDefault(); this.navigate(this.pathInput.value).catch(this.notice); };
+        this.pathInput.autocomplete = 'off'; this.pathInput.spellcheck = false;
+        this.pathInput.onpointerdown = event => {
+            if (document.activeElement === this.pathInput) event.stopPropagation();
+            else event.preventDefault(); // Let the header drag until an ordinary release click focuses the path.
+        };
+        this.pathInput.onclick = () => this.pathInput.focus();
+        this.pathInput.ondblclick = event => event.stopPropagation();
+        this.pathInput.onfocus = () => this.pathInput.select();
+        this.pathInput.onblur = () => { this.pathInput.value = this.panel.path; this.pathInput.scrollLeft = 0; };
+        this.pathInput.onkeydown = event => {
+            if (event.key === 'Escape') { event.preventDefault(); this.pathInput.blur(); }
+        };
+        this.nav.append(this.pathInput);
+        this.nav.onsubmit = event => {
+            event.preventDefault();
+            this.navigate(this.pathInput.value).then(() => {
+                if (this.pathInput.value === this.panel.path) this.pathInput.blur();
+            }).catch(this.notice);
+        };
+        root.closest('.panel')!.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
-        const actionButtons = [button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Copy selected', 'Copy', () => this.transferPrompt('copy')), button('Move selected', 'MoveRight', () => this.transferPrompt('move')), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const actionButtons = [button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/'), 'file-navigation'), button('Home directory', 'House', () => this.navigate(hooks.user.home), 'file-navigation'), button('Refresh files', 'RefreshCw', () => this.refresh()), button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Copy selected', 'Copy', () => this.transferPrompt('copy')), button('Move selected', 'MoveRight', () => this.transferPrompt('move')), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const separator = el('span', 'file-navigation-separator', '|'); separator.setAttribute('aria-hidden', 'true');
+        const actionItems = [...actionButtons.slice(0, 2), separator, ...actionButtons.slice(2)];
         const more = button('File actions', 'Ellipsis', () => this.menu(more, !this.selected.size, actionButtons.filter(item => item.hidden)));
         more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
-        actions.append(...actionButtons, more);
+        actions.append(...actionItems, more);
         this.uploadInput.type = 'file';
         this.uploadInput.multiple = true;
         this.uploadInput.hidden = true;
@@ -96,6 +117,7 @@ export class FileView implements View {
         this.list.onkeydown = e => this.keydown(e);
         this.list.oncontextmenu = e => { e.preventDefault(); this.clearSelection(); this.menu({ x: e.clientX, y: e.clientY }, true); };
         this.list.onpointerdown = e => this.startSelection(e);
+        this.list.onscroll = this.list.onpointercancel = () => { this.lastTap = undefined; };
         this.list.onclick = e => { if (!(e.target as Element).closest('.file-entry') && !e.ctrlKey && !e.metaKey && !e.shiftKey) this.clearSelection(); };
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         registerFileDrop(dropTarget, {
@@ -130,16 +152,17 @@ export class FileView implements View {
             else if (['Enter', 'ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); this.focus(this.focusedPath); }
         };
         footer.append(this.filterButton, this.filterInput, this.status, button('Properties', 'Info', () => this.properties()));
-        root.append(nav, actions, header, this.list, footer, this.uploadInput);
+        root.append(actions, header, this.list, footer, this.uploadInput);
+        this.resize();
         const fitActions = () => {
             if (!actions.getClientRects().length) return;
             this.closeMenu();
-            actionButtons.forEach(item => { item.hidden = false; });
+            actionItems.forEach(item => { item.hidden = false; });
             const style = getComputedStyle(actions), gap = parseFloat(style.columnGap) || 0;
             const available = actions.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
             // Count the permanent menu button too, so it always retains its space.
-            const count = fittingHeaderItemCount([...actionButtons, more].map(item => item.getBoundingClientRect().width), available, more.getBoundingClientRect().width, gap);
-            actionButtons.forEach((item, index) => { item.hidden = index >= count; });
+            const count = fittingHeaderItemCount([...actionItems, more].map(item => item.getBoundingClientRect().width), available, more.getBoundingClientRect().width, gap);
+            actionItems.forEach((item, index) => { item.hidden = index >= count; });
             if (actionButtons.some(item => item.hidden && item === document.activeElement)) more.focus();
         };
         const observer = new ResizeObserver(fitActions); observer.observe(actions); fitActions();
@@ -147,6 +170,14 @@ export class FileView implements View {
         this.navigate(this.pathInput.value).catch(this.notice);
     }
     private notice = (value: unknown) => notify(value, this.root);
+    resize() {
+        const compact = !!this.root.closest('.compact-board');
+        const parent = compact ? this.root : this.root.closest('.panel')!.querySelector('.panel-header')!;
+        if (this.nav.parentElement !== parent) {
+            if (compact) parent.prepend(this.nav);
+            else parent.insertBefore(this.nav, parent.querySelector('.panel-tools'));
+        }
+    }
     private async navigate(path: string, focusPath?: string) {
         this.cancelSelection?.();
         const focusOwner = document.activeElement;
@@ -161,6 +192,7 @@ export class FileView implements View {
             if (this.disposed || request.signal.aborted)
                 return;
             this.panel.path = response.path;
+            this.pathInput.title = response.path;
             this.hooks.title?.(this.title);
             if (this.pathInput.value === previousInput)
                 this.pathInput.value = response.path;
@@ -194,14 +226,7 @@ export class FileView implements View {
         if (affected && !this.disposed) this.refresh().catch(this.notice);
     }
     refresh = () => this.navigate(this.panel.path);
-    private get title() { return this.panel.name || this.panel.path.split('/').filter(Boolean).at(-1) || 'Files'; }
-    async renamePanel() {
-        const name = await ask('Rename file browser', 'Name', this.title, '');
-        if (name === null) return;
-        if (new TextEncoder().encode(name).length > 80) throw new Error('Name is too long');
-        if (name) this.panel.name = name; else delete this.panel.name;
-        this.hooks.title?.(this.title); this.hooks.changed();
-    }
+    private get title() { return this.panel.path.split('/').filter(Boolean).at(-1) || 'Files'; }
     private visibleEntries() {
         const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry => entry.name.toLocaleLowerCase().includes(query));
         if (this.sort) {
@@ -217,6 +242,7 @@ export class FileView implements View {
         else { this.filter = this.filterInput.value = ''; this.render(); this.focus(this.focusedPath); }
     }
     private render() {
+        this.lastTap = undefined;
         this.cancelSelection?.();
         this.rowMenus.splice(0).forEach(dispose => dispose());
         const entries = this.visibleEntries();
@@ -238,7 +264,7 @@ export class FileView implements View {
             };
             checkbox.onkeydown = event => { if (event.key === ' ') event.stopPropagation(); };
             select.onclick = select.ondblclick = event => event.stopPropagation();
-            select.onpointerdown = event => { event.stopPropagation(); this.startCheckSelection(event, entry.path); };
+            select.onpointerdown = event => { this.lastTap = undefined; event.stopPropagation(); this.startCheckSelection(event, entry.path); };
             select.append(checkbox);
             const name = el('span', 'file-name');
             name.append(icon(entry.directory ? 'Folder' : entry.symlink ? 'Link' : 'File'), el('span', '', entry.name));
@@ -258,9 +284,12 @@ export class FileView implements View {
                 }
                 if (!e.shiftKey) this.selectionAnchor = entry.path;
                 this.paintSelection();
+                // Touch taps can hit different children of the same row, so native dblclick is insufficient.
+                const touch = (e as PointerEvent).pointerType === 'touch';
+                const twice = touch ? this.lastTap?.path === entry.path && e.timeStamp - this.lastTap.time < 400 : e.detail === 2;
+                this.lastTap = touch && !twice ? { path: entry.path, time: e.timeStamp } : undefined;
+                if (twice) (entry.directory ? this.navigate(entry.path) : this.openFile(entry)).catch(this.notice);
             };
-            const open = () => entry.directory ? this.navigate(entry.path) : this.openFile(entry);
-            row.ondblclick = () => open().catch(this.notice);
             this.rowMenus.push(bindContextMenu(row, position => { if (!this.selected.has(entry.path)) {
                 this.selected.clear();
                 this.selected.add(entry.path);

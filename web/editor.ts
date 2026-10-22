@@ -7,6 +7,13 @@ import { ImageViewer, isImage } from './image-viewer';
 export { languageFor } from './editor-page';
 
 const modes = ['text', 'javascript', 'typescript', 'jsx', 'tsx', 'json', 'html', 'css', 'python', 'sql', 'markdown', 'yaml', 'go', 'shell', 'toml'];
+function mediaKind(name: string) {
+    if (isImage(name)) return 'image';
+    const ext = name.split('.').pop()!.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (['mp4','webm','ogv','mov'].includes(ext)) return 'video';
+    if (['mp3','wav','ogg','m4a','flac'].includes(ext)) return 'audio';
+}
 async function languageMode(name: string) {
     if (['javascript','typescript','jsx','tsx'].includes(name)) return (await languages.javascript())[`${name}Language`];
     if (name === 'text') return [];
@@ -35,8 +42,9 @@ export class FileInspector {
     private title = el('span', 'inspector-title');
     private syntax = el('select', 'syntax-select');
     private saveButton = button('Save file', 'Save', () => this.save());
-    private previous = button('Previous file', 'ArrowLeft', () => this.step(-1));
-    private next = button('Next file', 'ArrowRight', () => this.step(1));
+    private previous = button('Previous file', 'ChevronLeft', () => this.step(-1));
+    private next = button('Next file', 'ChevronRight', () => this.step(1));
+    private filePosition = el('span', 'inspector-position');
     private undo = button('Undo', 'Undo2', () => this.history('Mod-z'));
     private redo = button('Redo', 'Redo2', () => this.history('Mod-y'));
     private pageUp = button('Page up', 'ArrowUp', () => this.turnPage(-1));
@@ -60,14 +68,15 @@ export class FileInspector {
     private events = new AbortController();
     private index: number;
     constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: () => void) {
-        this.index = files.findIndex(file => file.path === path);
+        if (mediaKind(path)) this.files = files.filter(file => mediaKind(file.name));
+        this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
         this.root.tabIndex = -1;
         this.syntax.setAttribute('aria-label', 'Syntax');
         for (const name of modes) { const option = el('option', '', name); option.value = name; this.syntax.append(option); }
         this.syntax.onchange = () => this.setLanguage().catch(error => notify(error, host));
         this.pageLabel.setAttribute('aria-live', 'polite');
-        this.toolbar.append(this.previous, this.next, this.undo, this.redo, this.pageUp, this.pageDown, this.pageLabel, this.title, this.syntax, this.saveButton, button('Download file', 'Download', () => download(this.file.path, this.file.name, host)), button('Close file', 'X', () => this.close()));
+        this.filePosition.setAttribute('aria-live', 'polite');
         this.root.append(this.toolbar, this.body); host.append(this.root);
         this.root.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); this.save().catch(error => notify(error, host)); }
@@ -81,13 +90,8 @@ export class FileInspector {
     canClose = async () => !this.saving && (!this.dirty || await confirmAction('Discard changes?', this.file.name, 'Discard'));
     private controls() {
         this.title.textContent = this.file.name + (this.dirty ? ' •' : '');
-        this.previous.hidden = this.next.hidden = !this.media;
-        for (const [control, direction, label] of [[this.previous, -1, 'Previous'], [this.next, 1, 'Next']] as const) {
-            const target = this.neighbor(direction);
-            control.disabled = target === this.index || target < 0 || target >= this.files.length;
-            control.title = `${label} ${isImage(this.file.name) ? 'image' : 'file'}`;
-            control.setAttribute('aria-label', control.title);
-        }
+        this.filePosition.textContent = `${this.index + 1}/${this.files.length}`;
+        this.previous.disabled = this.next.disabled = this.files.length < 2;
         for (const control of [this.syntax, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
         for (const control of [this.pageUp, this.pageDown, this.pageLabel]) control.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
         const busy = this.saving || this.loading;
@@ -112,23 +116,35 @@ export class FileInspector {
         ++this.sequence;
         this.request?.abort();
         this.imageViewer?.dispose(); this.imageViewer = undefined;
+        this.releaseMedia();
         this.editor?.destroy(); this.editor = undefined; this.dirty = false;
         this.page = undefined; this.draft = undefined; this.pageIndex = 0; this.positions = [{ offset: 0, line: 1 }]; this.version = ''; this.loading = false;
         this.body.replaceChildren(); this.title.textContent = this.file.name; this.title.title = this.file.path;
-        const ext = this.file.name.split('.').pop()!.toLowerCase(), url = `/api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
-        this.media = true;
-        if (isImage(this.file.name)) {
+        const kind = mediaKind(this.file.name), url = `/api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
+        this.media = kind !== undefined;
+        if (kind === 'image') {
             this.imageViewer = new ImageViewer(this.body, url, this.file.name);
-            this.toolbar.insertBefore(this.imageViewer.controls, this.title);
-        } else if (ext === 'pdf') {
+        } else if (kind === 'pdf') {
             const frame = el('iframe', 'file-pdf'); frame.title = this.file.name; frame.src = url; this.body.append(frame);
-        } else if (['mp4','webm','ogv','mov','mp3','wav','ogg','m4a','flac'].includes(ext)) {
-            const media = el(['mp4','webm','ogv','mov'].includes(ext) ? 'video' : 'audio', 'file-media');
+        } else if (kind === 'video' || kind === 'audio') {
+            const media = el(kind, 'file-media');
             media.controls = true; media.preload = 'metadata'; media.src = url; media.onerror = () => notify('This browser cannot play the file', this.host); this.body.append(media);
         } else {
-            this.media = false;
             this.body.append(el('div', 'empty', 'Loading…'));
             this.syntax.value = languageFor(this.file.path);
+        }
+        const downloadButton = button('Download file', 'Download', () => download(this.file.path, this.file.name, this.host));
+        this.toolbar.classList.toggle('media-toolbar', this.media);
+        if (this.media) {
+            const navigation = el('div', 'inspector-navigation'), actions = el('div', 'inspector-actions');
+            navigation.append(this.previous, this.filePosition, this.next);
+            if (this.imageViewer?.copyButton) actions.append(this.imageViewer.copyButton);
+            actions.append(downloadButton);
+            this.toolbar.replaceChildren(button('Back to files', 'ArrowLeft', () => this.close()), navigation);
+            if (this.imageViewer) this.toolbar.append(this.imageViewer.controls);
+            this.toolbar.append(actions, this.title);
+        } else {
+            this.toolbar.replaceChildren(this.undo, this.redo, this.pageUp, this.pageDown, this.pageLabel, this.title, this.syntax, this.saveButton, downloadButton, button('Close file', 'X', () => this.close()));
             await this.loadPage(0);
         }
         this.controls();
@@ -213,15 +229,8 @@ export class FileInspector {
         if (direction > 0) this.positions[next] = { offset: this.page.end, line: this.positions[this.pageIndex].line + this.page.lineBreaks };
         await this.loadPage(next);
     }
-    private neighbor(direction: number) {
-        if (!isImage(this.file.name)) return this.index + direction;
-        for (let distance = 1; distance < this.files.length; distance++) {
-            const index = (this.index + direction * distance + this.files.length) % this.files.length;
-            if (isImage(this.files[index].name)) return index;
-        }
-        return this.index;
-    }
-    private async step(direction: number) { const next = this.neighbor(direction); if (next === this.index || next < 0 || next >= this.files.length || !await this.canClose()) return; this.index = next; await this.load(); }
+    private async step(direction: number) { if (this.files.length < 2 || !await this.canClose()) return; this.index = (this.index + direction + this.files.length) % this.files.length; await this.load(); }
     async close() { if (!await this.canClose()) return; this.dispose(); this.closed(); }
-    dispose() { this.sequence++; this.request?.abort(); this.events.abort(); this.editor?.destroy(); this.imageViewer?.dispose(); this.body.querySelectorAll('video,audio').forEach(media => { (media as HTMLMediaElement).pause(); media.removeAttribute('src'); (media as HTMLMediaElement).load(); }); this.root.remove(); }
+    private releaseMedia() { this.body.querySelectorAll<HTMLMediaElement>('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); }
+    dispose() { this.sequence++; this.request?.abort(); this.events.abort(); this.editor?.destroy(); this.imageViewer?.dispose(); this.releaseMedia(); this.root.remove(); }
 }

@@ -1,21 +1,17 @@
 import { api, button, el, icon, modal, size } from './ui';
 import { id, type MonitoringPreferences } from './model';
-import { compactSize, networkFill } from './monitor-values';
+import { compactSize } from './monitor-values';
 import { Processes } from './processes';
 
 type Capacity = { total: number; used: number; available: number; percent: number | null; cache?: number };
 type Disk = Partial<Capacity> & { path: string; device: string; type: string };
 type Network = { name: string; state: string; received: number; sent: number; receiveRate: number | null; sendRate: number | null };
 type Snapshot = { time: string; scope: 'host' | 'container'; cpu: { percent: number | null; cores: number }; memory: Capacity | null; swap: Capacity | null; disks: Disk[]; networks: Network[] };
-type Metric = { label: string; symbol: Parameters<typeof icon>[0]; percent?: number | null; value: string; detail: string; extra?: string; cache?: { percent: number; text: string }; network?: { upload: number; download: number; uploadText: string; downloadText: string } };
+type Metric = { label: string; kind: 'cpu' | 'memory' | 'disk' | 'network'; percent?: number | null; value: string; detail: string; extra?: string; cache?: { percent: number; text: string }; network?: { uploadText: string; downloadText: string } };
 const allNetworks = '/all';
-const networkLabel = (name: string) => name === allNetworks ? 'All' : name;
+const networkLabel = (name: string) => name === allNetworks ? 'NET' : name;
 const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
-const percentage = (value?: number | null, precise = false) => {
-    if (value == null) return '—';
-    if (precise && value > 0 && value < 0.1) return '0%';
-    return `${precise && value > 0 && value < 10 ? value.toFixed(1) : Math.round(value)}%`;
-};
+const percentage = (value?: number | null) => value == null ? '—' : `${Math.round(value)}%`;
 const rate = (value: number | null | undefined) => value == null ? '—' : `${size(value)}/s`;
 
 export class Monitoring {
@@ -31,7 +27,6 @@ export class Monitoring {
     private configuring = false;
     private processes?: Processes;
     private showingProcesses = false;
-    private networks = new Map<string, { upload: number[]; download: number[]; fill: { upload: number; download: number } }>();
 
     constructor(preferences: MonitoringPreferences | undefined, private save: (value: MonitoringPreferences) => Promise<void>) {
         this.preferences = structuredClone(preferences || defaults);
@@ -46,16 +41,6 @@ export class Monitoring {
         try {
             const data = await api<Snapshot>('/metrics', 'GET', undefined, request.signal);
             if (request.signal.aborted) return;
-            // Cached responses and repaints must not add duplicate history samples.
-            if (data.time !== this.data?.time) {
-                const present = new Set(data.networks.map(network => network.name));
-                for (const name of this.networks.keys()) if (!present.has(name)) this.networks.delete(name);
-                for (const network of data.networks) {
-                    const history = this.networks.get(network.name) || { upload: [], download: [], fill: { upload: 0, download: 0 } };
-                    history.fill = { upload: networkFill(network.sendRate, history.upload), download: networkFill(network.receiveRate, history.download) };
-                    this.networks.set(network.name, history);
-                }
-            }
             this.data = data; this.error = '';
         }
         catch (error) { if (request.signal.aborted) return; this.error = error instanceof Error ? error.message : 'Resource monitor unavailable'; }
@@ -72,67 +57,67 @@ export class Monitoring {
     }
     private metrics(): Metric[] {
         const data = this.error ? undefined : this.data, prefs = this.preferences, items: Metric[] = [];
-        if (prefs.cpu) items.push({ label: 'CPU', symbol: 'Cpu', percent: data?.cpu.percent, value: percentage(data?.cpu.percent, true), detail: data ? `${Number(data.cpu.cores.toFixed(2))} cores` : 'Unavailable' });
-        const memory = (label: string, value: Capacity | null | undefined, symbol: Metric['symbol']): Metric => ({
-            label, symbol, percent: value?.percent, value: value?.total === 0 ? 'Off' : compactSize(value?.used, 1024),
+        if (prefs.cpu) items.push({ label: 'CPU', kind: 'cpu', percent: data?.cpu.percent, value: percentage(data?.cpu.percent), detail: data ? `${Number(data.cpu.cores.toFixed(2))} cores` : 'Unavailable' });
+        const memory = (label: string, value: Capacity | null | undefined): Metric => ({
+            label, kind: 'memory', percent: value?.percent, value: value?.total === 0 ? 'Off' : compactSize(value?.used, 1024),
             detail: value ? `Used ${size(value.used)} / ${size(value.total)}` : 'Unavailable',
             extra: value ? `${size(value.available)} available` : undefined,
             cache: value?.cache != null ? { percent: value.total > 0 ? value.cache / value.total * 100 : 0, text: `Cache ${size(value.cache)}` } : undefined,
         });
-        if (prefs.memory) items.push(memory('RAM', data?.memory, 'MemoryStick'));
-        if (prefs.swap) items.push(memory('Swap', data?.swap, 'MemoryStick'));
+        if (prefs.memory) items.push(memory('RAM', data?.memory));
+        if (prefs.swap) items.push(memory('SWAP', data?.swap));
         for (const path of prefs.disks) {
             const disk = data?.disks.find(disk => disk.path === path);
-            items.push({ label: path, symbol: 'HardDrive', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used!)} / ${size(disk.total)}` : 'Unavailable', extra: disk?.total ? `${size(disk.available!)} available · ${disk.type}` : undefined });
+            items.push({ label: path === '/' ? 'DISK' : path, kind: 'disk', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used!)} / ${size(disk.total)}` : 'Unavailable', extra: disk?.total ? `${size(disk.available!)} available · ${disk.type}` : undefined });
         }
         for (const name of prefs.networks) {
             const network = data?.networks.find(network => network.name === name);
             const downloadText = compactSize(network?.receiveRate), uploadText = compactSize(network?.sendRate);
-            const fill = network ? this.networks.get(name)?.fill : undefined;
-            items.push({ label: networkLabel(name), symbol: 'Network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received)} · ↑ ${size(network.sent)} total · ${network.state || 'unknown'}` : undefined, network: { upload: fill?.upload ?? 0, download: fill?.download ?? 0, uploadText, downloadText } });
+            items.push({ label: networkLabel(name), kind: 'network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received)} · ↑ ${size(network.sent)} total · ${network.state || 'unknown'}` : undefined, network: { uploadText, downloadText } });
         }
         return items;
     }
-    private ring(metric: Metric) {
-        const ring = el('span', 'monitor-ring');
-        ring.style.setProperty('--usage', String(metric.percent ?? 0));
-        ring.dataset.level = metric.percent != null && metric.percent >= 90 ? 'high' : metric.percent != null && metric.percent >= 75 ? 'warm' : 'normal';
-        if (metric.cache) {
-            const cache = el('span', 'monitor-cache-ring');
-            cache.style.setProperty('--cache', String(metric.cache.percent)); ring.append(cache);
-        }
-        if (metric.network) {
-            ring.classList.add('monitor-network-ring');
-            ring.style.setProperty('--upload', `${metric.network.upload * 180}deg`);
-            ring.style.setProperty('--download', `${metric.network.download * 180}deg`);
-        }
-        ring.append(icon(metric.symbol)); ring.setAttribute('aria-hidden', 'true');
-        return ring;
-    }
-    private reading(metric: Metric, className: string) {
-        const reading = el('strong', className, metric.value);
-        if (metric.cache) reading.title = 'Estimated non-reclaimable memory';
-        if (metric.network) {
-            reading.classList.add('monitor-network-value');
-            reading.setAttribute('aria-label', metric.detail);
-            reading.replaceChildren(el('span', 'monitor-download', `↓${metric.network.downloadText}`), el('span', 'monitor-upload', `↑${metric.network.uploadText}`));
-        }
+    private reading(value: string) {
+        const reading = el('strong', 'monitor-value'), parts = value.match(/^(\d+)([%BKMGTPEZ])$/);
+        if (parts) reading.append(el('span', 'monitor-number', parts[1]), el('span', 'monitor-unit', parts[2]));
+        else reading.textContent = value;
         return reading;
+    }
+    private widget(metric: Metric, detailed = false) {
+        const chip = el('span', 'monitor-chip'), text = el('span', 'monitor-chip-text');
+        chip.dataset.kind = metric.kind;
+        text.append(el(detailed ? 'h3' : 'span', 'monitor-label', metric.label));
+        if (metric.network) {
+            const reading = el('span', 'monitor-network-value');
+            reading.setAttribute('aria-label', metric.detail);
+            for (const direction of ['download', 'upload'] as const) {
+                const value = el('span', `monitor-${direction}`), arrow = icon(direction === 'download' ? 'ArrowDown' : 'ArrowUp');
+                arrow.setAttribute('aria-hidden', 'true');
+                value.append(arrow, this.reading(metric.network[`${direction}Text`])); reading.append(value);
+            }
+            text.append(reading);
+        } else {
+            const gauge = el('span', 'monitor-gauge');
+            gauge.style.setProperty('--usage', String(metric.percent ?? 0));
+            gauge.style.setProperty('--cache', String(metric.cache?.percent ?? 0));
+            gauge.setAttribute('aria-hidden', 'true'); chip.append(gauge);
+            const reading = this.reading(metric.value);
+            if (metric.cache) reading.title = 'Estimated non-reclaimable memory';
+            text.append(reading);
+        }
+        chip.append(text);
+        return chip;
     }
     private paintSummary(control: HTMLButtonElement) {
         const metrics = this.metrics();
         control.hidden = !this.displayed;
         control.replaceChildren();
         control.dataset.state = this.error ? 'error' : this.data ? 'ready' : 'loading';
-        control.title = this.error || metrics.map(item => `${item.label}: ${item.value}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
+        control.title = this.error || metrics.map(item => `${item.label}: ${item.network ? item.detail : item.value}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
         control.setAttribute('aria-description', control.title);
         const strip = el('span', 'monitor-strip');
         const visible = innerWidth <= 1100 ? 3 : 4;
-        for (const item of metrics.slice(0, visible)) {
-            const chip = el('span', 'monitor-chip'), text = el('span', 'monitor-chip-text');
-            text.append(el('span', 'monitor-label', item.label === '/' ? 'Disk' : item.label), this.reading(item, 'monitor-value'));
-            chip.append(this.ring(item), text); strip.append(chip);
-        }
+        for (const item of metrics.slice(0, visible)) strip.append(this.widget(item));
         if (!metrics.length) strip.append(icon('Activity'));
         if (metrics.length > visible) strip.append(el('span', 'monitor-more', `+${metrics.length - visible}`));
         control.append(strip);
@@ -147,9 +132,8 @@ export class Monitoring {
         if (this.error) { const error = el('p', 'monitor-error', this.error); error.setAttribute('role', 'alert'); content.append(error); }
         const grid = el('div', 'monitor-grid');
         for (const item of this.metrics()) {
-            const card = el('section', 'monitor-card'), title = el('div', 'monitor-card-title');
-            title.append(this.ring(item), el('h3', '', item.label));
-            card.append(title, this.reading(item, 'monitor-reading'), el('p', '', item.detail));
+            const card = el('section', 'monitor-card');
+            card.append(this.widget(item, true), el('p', '', item.detail));
             if (item.cache) {
                 const cache = el('p', 'monitor-cache', item.cache.text); cache.title = 'Estimated reclaimable memory'; card.append(cache);
             }
@@ -237,7 +221,7 @@ export class Monitoring {
         const networks = section('Networks');
         for (const name of new Set([allNetworks, ...(this.data?.networks.map(network => network.name) || []), ...draft.networks])) {
             const network = this.data?.networks.find(network => network.name === name);
-            choice(networks, networkLabel(name), draft.networks.includes(name), checked => select('networks', name, checked), name === allNetworks ? 'Active interfaces' : network?.state || 'Unavailable');
+            choice(networks, networkLabel(name), draft.networks.includes(name), checked => select('networks', name, checked), name === allNetworks ? 'Sum of all active interfaces' : network?.state || 'Unavailable');
         }
         const field = el('label', 'field', 'Refresh'), interval = el('select'); interval.setAttribute('aria-label', 'Resource monitor refresh');
         for (const seconds of [2, 5, 10]) { const option = el('option', '', `${seconds} seconds`); option.value = String(seconds); interval.append(option); }

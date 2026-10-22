@@ -1,9 +1,11 @@
-import { button, el } from './ui';
+import { button, el, notify } from './ui';
 
 export const isImage = (name: string) => /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/i.test(name);
 
 export class ImageViewer {
     readonly controls = el('div', 'image-controls');
+    readonly copyButton = typeof navigator.clipboard?.write === 'function' && typeof ClipboardItem !== 'undefined' && (!ClipboardItem.supports || ClipboardItem.supports('image/png'))
+        ? button('Copy image to clipboard', 'Copy', () => this.copy()) : undefined;
     private viewport = el('div', 'image-viewport');
     private stage = el('div', 'image-stage');
     private image = el('img', 'file-image');
@@ -24,6 +26,7 @@ export class ImageViewer {
         this.controls.setAttribute('role', 'group'); this.controls.setAttribute('aria-label', 'Image zoom');
         this.controls.append(this.out, this.actual, this.into, this.fitButton);
         for (const control of [this.out, this.actual, this.into, this.fitButton]) control.disabled = true;
+        if (this.copyButton) this.copyButton.disabled = true;
         this.actual.textContent = '—';
         this.viewport.tabIndex = 0;
         this.viewport.setAttribute('role', 'region'); this.viewport.setAttribute('aria-label', 'Image viewer');
@@ -33,6 +36,7 @@ export class ImageViewer {
         this.image.addEventListener('load', () => {
             this.ready = true; this.viewport.dataset.ready = 'true';
             this.actual.disabled = this.fitButton.disabled = false; this.fit();
+            if (this.copyButton) this.copyButton.disabled = false;
         }, { signal });
         this.image.addEventListener('error', () => {
             this.viewport.replaceChildren(el('div', 'empty', 'Cannot display image'));
@@ -91,6 +95,23 @@ export class ImageViewer {
     private fitScale() {
         return Math.min(1, this.viewport.clientWidth / this.image.naturalWidth, this.viewport.clientHeight / this.image.naturalHeight);
     }
+    private async copy() {
+        if (!this.ready || !this.copyButton) return;
+        this.copyButton.disabled = true;
+        try {
+            const canvas = el('canvas');
+            canvas.width = this.image.naturalWidth; canvas.height = this.image.naturalHeight;
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Cannot copy image');
+            context.drawImage(this.image, 0, 0);
+            const png = new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Cannot copy image')), 'image/png'));
+            // Start the clipboard write during the click, before asynchronous PNG encoding loses user activation.
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+            if (!this.events.signal.aborted) notify('Image copied', this.viewport);
+        } finally {
+            if (!this.events.signal.aborted) this.copyButton.disabled = false;
+        }
+    }
     private fit() {
         if (!this.ready || !this.viewport.clientWidth || !this.viewport.clientHeight) return;
         this.fitted = true; this.scale = this.fitScale(); this.render();
@@ -124,6 +145,6 @@ export class ImageViewer {
     focus() { this.viewport.focus({ preventScroll: true }); }
     dispose() {
         this.events.abort(); this.resize.disconnect(); this.endDrag();
-        this.image.removeAttribute('src'); this.viewport.remove(); this.controls.remove();
+        this.image.removeAttribute('src'); this.viewport.remove(); this.controls.remove(); this.copyButton?.remove();
     }
 }

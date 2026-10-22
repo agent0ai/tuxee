@@ -22,7 +22,6 @@ import (
 
 type State struct {
 	Ready   bool     `json:"ready"`
-	Audio   bool     `json:"audio,omitempty"`
 	Error   string   `json:"error,omitempty"`
 	Windows []Window `json:"windows"`
 }
@@ -126,9 +125,6 @@ func Prepare(user identity.User) (*Display, error) {
 		return nil, err
 	}
 	d.Env = []string{"DISPLAY=:" + number, "XAUTHORITY=" + dir + "/Xauthority", "XDG_RUNTIME_DIR=" + dir + "/xdg", "XDG_SESSION_TYPE=x11", "DBUS_SESSION_BUS_ADDRESS=unix:path=" + dir + "/bus"}
-	if _, err := exec.LookPath("tuxee-pulseaudio"); err == nil {
-		d.Env = append(d.Env, "PULSE_SERVER=unix:"+dir+"/pulse/native", "PULSE_COOKIE="+dir+"/pulse/cookie")
-	}
 	d.workers.Add(2)
 	go d.accept(d.listener)
 	go d.accept(d.abstract)
@@ -240,8 +236,7 @@ func (d *Display) launch() error {
 		return err
 	}
 	d.backend = p.address
-	_, audioErr := os.Stat(d.dir + "/pulse/native")
-	d.state = State{Ready: true, Audio: audioErr == nil}
+	d.state = State{Ready: true}
 	d.mu.Unlock()
 	d.changed()
 	d.workers.Add(1)
@@ -299,7 +294,6 @@ func (d *Display) stop(message string, idle *time.Timer) {
 	for _, name := range []string{"ready", "vnc", "bus", "passwd"} {
 		os.Remove(d.dir + "/" + name)
 	}
-	os.RemoveAll(d.dir + "/pulse")
 }
 
 func (d *Display) Activate(id uint32) error {

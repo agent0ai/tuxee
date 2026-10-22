@@ -27,9 +27,9 @@ const blocked = workspace([panel('a', 0, 0, 1, 2), panel('b', 1, 0, 1, 2)]);
 assert.equal(sharedDividers(blocked)[0].min, sharedDividers(blocked)[0].max);
 const obstacles = workspace([panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 1), panel('c', 3, 1, 1, 1)]);
 assert.equal(sharedDividers(obstacles)[0].max, 3);
-const split = { columns: 4, rows: 4, panels: [panel('a', 0, 0, 2, 1), panel('b', 2, 0, 2, 1), panel('c', 0, 3, 2, 1), panel('d', 2, 3, 2, 1)] };
+const split = { columns: 2, rows: 4, panels: [panel('a', 0, 0, 1, 1), panel('b', 1, 0, 1, 1), panel('c', 0, 3, 1, 1), panel('d', 1, 3, 1, 1)] };
 assert.equal(sharedDividers(split).length, 2, 'separated gaps stay independent');
-const square = { columns: 4, rows: 4, panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2), panel('c', 0, 2, 2, 2), panel('d', 2, 2, 2, 2)] };
+const square = { columns: 2, rows: 4, panels: [panel('a', 0, 0, 1, 2), panel('b', 1, 0, 1, 2), panel('c', 0, 2, 1, 2), panel('d', 1, 2, 1, 2)] };
 assert.ok(validGrid({ ...square, panels: resizeDividers(square, sharedDividers(square), 1, -1) }));
 const moving = panel('moving', 0, 0, 1, 1);
 for (const rect of [{ x: 1, y: 0, w: 2, h: 1 }, { x: 1, y: 0, w: 2, h: 2 }]) {
@@ -46,7 +46,7 @@ for (const [target, expected] of [
     [[0, 1, 2, 1], [1, 0, 1, 1]], [[1, 0, 1, 2], [0, 1, 1, 1]],
 ]) {
     const a = panel('a', 0, 0, 1, 2), b = panel('b', 1, 1, 1, 1);
-    const ws = { columns: 2, rows: 2, panels: [a, b] }, [x, y, w, h] = target;
+    const ws = { columns: 2, rows: 4, panels: [a, b, panel('fixed', 0, 2, 2, 2)] }, [x, y, w, h] = target;
     const result = dropLayout(ws, a, { x, y, w, h });
     assert.ok(validGrid({ ...ws, panels: result }));
     assert.deepEqual(geometry(result.find(p => p.id === 'b')), expected, 'move B to the nearest free cell');
@@ -69,7 +69,7 @@ console.log('PASS shared dividers and drop relocation: exact four-cell example, 
 let seed = 12345, checked = 0, slowest = 0;
 const random = n => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
 const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-for (const [columns, rows] of [[2, 2], [4, 2], [2, 4], [8, 2]]) for (let sample = 0; sample < 60; sample++) {
+for (const [columns, rows] of [[4, 2], [2, 4]]) for (let sample = 0; sample < 60; sample++) {
     const panels = [panel('0', 0, 0, columns, rows)];
     for (let split = 0; split < 10; split++) {
         const p = panels[random(panels.length)], horizontal = p.w > 1 && (p.h === 1 || random(2));
@@ -101,4 +101,4 @@ for (const [columns, rows] of [[2, 2], [4, 2], [2, 4], [8, 2]]) for (let sample 
         }
     assert.deepEqual(ws, before, 'preview planning never changes saved layout');
 }
-console.log(`PASS ${checked} generated drop/resize cases across four grids; slowest planning call ${slowest.toFixed(1)}ms`);
+console.log(`PASS ${checked} generated drop/resize cases across both eight-cell grids; slowest planning call ${slowest.toFixed(1)}ms`);

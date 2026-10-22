@@ -41,7 +41,7 @@ async function start(target) { const p = await point(target); await touch.send('
 async function move(p) { await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [p] }); }
 async function end(cancel = false) { await touch.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] }); }
 async function ready() { await list.locator('.file-entry').first().waitFor(); await file.locator('.file-list:not(.loading)').waitFor(); }
-async function navigate(path) { await file.locator('.path-input').fill(path); await file.locator('.path-input').press('Enter'); await page.waitForFunction(path => document.querySelector('.path-input')?.value === path && !document.querySelector('.file-list.loading'), path); }
+async function navigate(path) { await page.locator('.path-input').fill(path); await page.locator('.path-input').press('Enter'); await page.waitForFunction(path => document.querySelector('.path-input')?.value === path && !document.querySelector('.file-list.loading'), path); }
 try {
     await page.goto(base); await ready();
     assert.equal(await page.locator('meta[property="og:image"]').getAttribute('content'), base + '/social-preview.jpg');
@@ -49,6 +49,27 @@ try {
     const dimensions = await page.evaluate(async () => Promise.all(['/favicon.png', '/social-preview.jpg'].map(async src => { const img = new Image(); img.src = src; await img.decode(); return [img.naturalWidth, img.naturalHeight]; })));
     assert.deepEqual(dimensions, [[64, 64], [1200, 630]]);
     check('public favicon and social preview bytes, MIME types, dimensions and metadata');
+
+    await touch.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await row('folder').locator('.file-name svg').tap();
+    assert.deepEqual(await selected(), ['folder']);
+    assert.equal(await page.locator('.path-input').inputValue(), dir, 'one tap only selects');
+    await page.waitForTimeout(150);
+    await row('folder').locator('.file-name span').tap();
+    await page.waitForFunction(path => document.querySelector('.path-input').value === path, dir + '/folder', { timeout: 3000 });
+    await navigate(dir); await ready();
+    await row('folder').locator('.file-name').tap(); await page.waitForTimeout(450);
+    await row('folder').locator('.file-name').tap();
+    assert.equal(await page.locator('.path-input').inputValue(), dir, 'separate taps do not open');
+    await row('row-00.txt').locator('.file-name').tap();
+    assert.equal(await file.locator('.file-inspector').count(), 0, 'tapping another row only selects');
+    await row('folder').getByRole('checkbox').tap();
+    await row('folder').locator('.file-name').tap();
+    assert.equal(await page.locator('.path-input').inputValue(), dir, 'checkbox taps do not count toward opening');
+    await all.check(); await all.uncheck();
+    await touch.send('Emulation.clearDeviceMetricsOverride');
+    await page.setViewportSize({ width: 390, height: 844 });
+    check('touch double-tap across icon/text opens a folder after single-tap selection');
 
     await box('row-00.txt').tap(); assert.deepEqual(await selected(), ['row-00.txt']);
     assert.ok(await all.evaluate(input => input.indeterminate));
@@ -72,7 +93,8 @@ try {
     check('select/deselect sweeps include skipped rows, reverse without toggling twice and roll back cancellation');
 
     // Existing selected-item actions must consume exactly the checkbox-selected entries.
-    await file.getByRole('button', { name: 'Copy selected', exact: true }).tap();
+    await file.getByRole('button', { name: 'File actions', exact: true }).tap();
+    await menu.getByRole('menuitem', { name: 'Copy selected', exact: true }).tap();
     const dialog = page.getByRole('dialog', { name: 'Copy selected items', exact: true });
     await dialog.getByRole('textbox').fill(dir + '/folder'); await dialog.getByRole('button', { name: 'Continue', exact: true }).tap();
     await page.waitForFunction(() => !document.querySelector('.transfer:not(.done)'));

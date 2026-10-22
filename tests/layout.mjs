@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/model.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/model.mjs' });
-const { newWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
-for (const [width, height, columns, rows, count] of [[1440, 1000, 4, 2, 3], [2560, 1080, 8, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 4, 2, 2]]) {
+const { newWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
+for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280, 800, 4, 2, 3], [1440, 1000, 4, 2, 3], [1920, 1080, 4, 2, 4], [2560, 1080, 4, 2, 4], [5120, 1440, 4, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 2, 4, 2], [844, 390, 4, 2, 2], [1000, 1000, 4, 2, 2]]) {
     const ws = newWorkspace('test', '/home/test', width, height);
     assert.equal(ws.columns, columns);
     assert.equal(ws.rows, rows);
@@ -31,7 +31,7 @@ for (const edge of ['left', 'right', 'top', 'bottom']) {
     assert.ok(validGrid(ws));
     assert.equal(ws.panels.length, 3);
 }
-const empty = newWorkspace('move', '/', 390, 844);
+const empty = newWorkspace('move', '/', 844, 390);
 const moving = empty.panels[0];
 assert.equal(place(empty, moving, { x: 2, y: 0, w: 2, h: 2 }), false);
 empty.panels.pop();
@@ -41,6 +41,27 @@ assert.equal(place(empty, moving, { x: 3, y: 0, w: 2, h: 2 }), false);
 assert.equal(moving.x, 2);
 assert.ok(validGrid(empty));
 console.log('PASS grid defaults, split bounds, empty-area placement and capacity');
+for (const mode of [0, 1, 2, 3]) {
+    const ws = newWorkspace('Rotate', '/home/test', 2560, 1080);
+    while (ws.panels.length < 8) addCompact(ws, newPanel('terminal', '/home/test'));
+    for (let i = 0; i < mode; i++) cycleLayout(ws, 2560, 1080);
+    const original = structuredClone(ws), identities = [...ws.panels];
+    for (const [width, height] of [[1024, 768], [390, 844], [900, 1200], [844, 390], [5120, 1440]]) {
+        orientWorkspace(ws, width, height);
+        assert.ok(validGrid(ws));
+        assert.equal(ws.columns * ws.rows, 8);
+        assert.equal(ws.columns, width >= height ? 4 : 2);
+        assert.equal(ws.panels.length, 8);
+        assert.ok(ws.panels.every((p, i) => p === identities[i]), 'rotation preserves objects, order and session metadata');
+        if (ws.layout) assert.ok(validGrid({ ...ws, panels: ws.layout.custom }));
+        assert.equal(addCompact(ws, newPanel('files', '/')), false);
+    }
+    assert.deepEqual(ws, original, 'round-trip orientation restores current and custom geometry exactly');
+}
+assert.equal(validGrid({ columns: 8, rows: 2, panels: [] }), false);
+assert.equal(validGrid({ columns: 4, rows: 2, panels: [{ ...newPanel('files', '/'), w: 1.5 }] }), false);
+console.log('PASS eight-panel capacity and reversible orientation through desktop, mobile and ultrawide sizes in every mode');
+
 for (const [width, height] of [[1440, 1000], [2560, 1080], [3440, 1440], [900, 1200]]) {
     const ws = newWorkspace('grid drop', '/', width, height), cw = width / ws.columns, ch = height / ws.rows;
     for (let y = 0; y < ws.rows; y++) for (let x = 0; x < ws.columns; x++) {
@@ -54,7 +75,7 @@ for (const [width, height] of [[1440, 1000], [2560, 1080], [3440, 1440], [900, 1
     for (const [x, y] of [[-1, 50], [width, 50], [50, -1], [50, height]]) assert.equal(gridDrop(ws, x, y, width, height), undefined);
     assert.deepEqual(gridDrop(ws, width - 1, height - 1, width, height), { x: ws.columns - 1, y: ws.rows - 1, w: 1, h: 1 });
 }
-const hole = newWorkspace('small hole', '/', 390, 844), large = hole.panels[0];
+const hole = newWorkspace('small hole', '/', 844, 390), large = hole.panels[0];
 hole.panels = [large, { ...hole.panels[1], x: 2, w: 1 }, { ...newPanel('files', '/'), x: 3, y: 0 }];
 const unchanged = structuredClone(hole);
 assert.equal(place(hole, large, { x: 2, y: 1, w: 2, h: 1 }), false);
@@ -95,7 +116,7 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
     assert.equal(arranged.length,ws.panels.length);
 }
 const single = newWorkspace('center','/',2560,1080); single.panels = [single.panels[0]];
-const centered = rearrange(single,2560,1080)[0]; assert.equal(centered.w,2); assert.equal(centered.x,3);
+const centered = rearrange(single,2560,1080)[0]; assert.equal(centered.w,1); assert.equal(centered.x,1);
 assert.equal(screenSnap(single,1000,100,2560,1080), undefined);
 console.log('PASS screen-edge snapping, neighboring-panel reflow and centered rearrangement');
 
@@ -105,7 +126,7 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
     Object.assign(panel, expandPanel(ws, panel));
     assert.equal(panel.w * panel.h, 1, 'a blocked panel shrinks');
     Object.assign(panel, expandPanel(ws, panel));
-    assert.equal(panel.w * panel.h, ws.panels.length === 3 ? 2 : 4);
+    assert.equal(panel.w * panel.h, ws.panels.length >= 3 ? 2 : 4);
     assert.equal(JSON.stringify(ws.panels.slice(1)), neighbors);
     assert.ok(validGrid(ws));
     ws.panels = [panel]; Object.assign(panel, {x:1,y:1,w:1,h:1});
@@ -114,19 +135,19 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
 console.log('PASS double-click expands into free space in all directions or shrinks, without moving neighbors');
 
 const closeCases = [
-    ['left only', 8, 2, [1, 0, 1, 1], [['terminal', 2, 0, 1, 1]], [[1, 0, 2, 1]]],
-    ['right only', 8, 2, [2, 0, 1, 1], [['terminal', 1, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['left only', 4, 2, [1, 0, 1, 1], [['terminal', 2, 0, 1, 1]], [[1, 0, 2, 1]]],
+    ['right only', 4, 2, [2, 0, 1, 1], [['terminal', 1, 0, 1, 1]], [[1, 0, 2, 1]]],
     ['up only', 2, 4, [0, 1, 1, 1], [['terminal', 0, 2, 1, 1]], [[0, 1, 1, 2]]],
     ['down only', 2, 4, [0, 2, 1, 1], [['terminal', 0, 1, 1, 1]], [[0, 1, 1, 2]]],
-    ['smallest first despite input order', 8, 2, [1, 0, 2, 2], [['terminal', 3, 0, 2, 2], ['terminal', 0, 0, 1, 1]], [[3, 0, 2, 2], [0, 0, 3, 1]]],
-    ['stacked neighbors share the hole', 8, 2, [1, 0, 2, 2], [['terminal', 0, 0, 1, 1], ['terminal', 0, 1, 1, 1]], [[0, 0, 3, 1], [0, 1, 3, 1]]],
-    ['skip a capped smaller neighbor', 8, 2, [2, 0, 2, 2], [['files', 0, 0, 2, 1], ['terminal', 4, 0, 2, 2]], [[0, 0, 2, 1], [2, 0, 4, 2]]],
-    ['skip a blocked smaller neighbor', 8, 2, [1, 0, 2, 1], [['terminal', 0, 0, 1, 2], ['terminal', 1, 1, 3, 1]], [[0, 0, 1, 2], [1, 0, 3, 2]]],
-    ['file two-cell cap', 8, 2, [1, 0, 3, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
-    ['file growth ignores arranger pixel preference', 8, 2, [1, 0, 2, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
-    ['terminal growth ignores arranger pixel preference', 8, 2, [1, 0, 5, 2], [['terminal', 0, 0, 1, 2]], [[0, 0, 6, 2]]],
-    ['oversized manual widths may grow vertically', 8, 2, [0, 1, 5, 1], [['files', 0, 0, 5, 1]], [[0, 0, 5, 2]]],
-    ['corners and separated windows stay put', 8, 2, [1, 0, 1, 1], [['terminal', 2, 1, 1, 1], ['terminal', 4, 0, 1, 2]], [[2, 1, 1, 1], [4, 0, 1, 2]]],
+    ['smallest first despite input order', 4, 2, [1, 0, 2, 2], [['terminal', 3, 0, 1, 2], ['terminal', 0, 0, 1, 1]], [[3, 0, 1, 2], [0, 0, 3, 1]]],
+    ['stacked neighbors share the hole', 4, 2, [1, 0, 2, 2], [['terminal', 0, 0, 1, 1], ['terminal', 0, 1, 1, 1]], [[0, 0, 3, 1], [0, 1, 3, 1]]],
+    ['skip a capped smaller neighbor', 4, 2, [2, 0, 1, 2], [['files', 0, 0, 2, 1], ['terminal', 3, 0, 1, 2]], [[0, 0, 2, 1], [2, 0, 2, 2]]],
+    ['skip a blocked smaller neighbor', 4, 2, [1, 0, 2, 1], [['terminal', 0, 0, 1, 2], ['terminal', 1, 1, 3, 1]], [[0, 0, 1, 2], [1, 0, 3, 2]]],
+    ['file two-cell cap', 4, 2, [1, 0, 3, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
+    ['file growth ignores arranger pixel preference', 4, 2, [1, 0, 2, 2], [['files', 0, 0, 1, 2]], [[0, 0, 2, 2]]],
+    ['terminal growth ignores arranger pixel preference', 4, 2, [1, 0, 3, 2], [['terminal', 0, 0, 1, 2]], [[0, 0, 4, 2]]],
+    ['oversized manual widths may grow vertically', 4, 2, [0, 1, 3, 1], [['files', 0, 0, 3, 1]], [[0, 0, 3, 2]]],
+    ['corners and separated windows stay put', 4, 2, [1, 0, 1, 1], [['terminal', 2, 1, 1, 1], ['terminal', 3, 0, 1, 2]], [[2, 1, 1, 1], [3, 0, 1, 2]]],
     ['standard desktop closes into its other file browser', 4, 2, [0, 1, 2, 1], [['files', 0, 0, 2, 1], ['terminal', 2, 0, 2, 2]], [[0, 0, 2, 2], [2, 0, 2, 2]]],
     ['last panel', 4, 2, [0, 0, 4, 2], [], []],
 ];
@@ -142,7 +163,7 @@ for (const [name, columns, rows, removed, shapes, expected] of closeCases) {
 }
 console.log('PASS close expansion: four directions, smallest-first, shared holes, caps, portrait, unrelated gaps and stable identities');
 let closeChecks = 0;
-for (const [columns, rows] of [[4, 2], [8, 2], [2, 4]]) {
+for (const [columns, rows] of [[4, 2], [2, 4]]) {
     const layouts = [];
     for (let x = 1; x < columns; x++) {
         layouts.push([[0, 0, x, rows], [x, 0, columns - x, rows]]);
@@ -279,8 +300,7 @@ for (const [width, height] of [[1280,800], [1440,1000], [1920,1080], [2560,1080]
 console.log('PASS regular, portrait and ultrawide defaults cycle modes and restore');
 
 const example = fixture(2560, 1080, 4, 4), balanced = rearrange(example, 2560, 1080);
-assert.ok(balanced.filter(p => p.kind === 'files').every(p => p.w === 1 && p.h === 2));
-assert.ok(balanced.filter(p => p.kind === 'terminal').every(p => p.w === 2 && p.h === 1));
+assert.ok(balanced.every(p => p.w === 1 && p.h === 1), 'eight components occupy exactly eight cells');
 for (const [width, height, f, t] of [[1280,800,1,1], [1440,1000,2,2], [1440,1000,2,3], [2560,1080,4,4], [3440,1440,2,2], [3440,1440,3,3], [3440,1440,1,5], [3440,1440,5,1], [900,1200,2,3], [1080,1920,4,2]]) {
     const ws = fixture(width, height, f, t), custom = structuredClone(ws.panels), layouts = [];
     for (let mode = 1; mode <= 3; mode++) {
@@ -296,8 +316,8 @@ for (const [width, height, f, t] of [[1280,800,1,1], [1440,1000,2,2], [1440,1000
     assert.ok(area(layouts[1], 'terminal') >= area(layouts[0], 'terminal'));
     assert.ok(area(layouts[2], 'files') >= area(layouts[0], 'files'));
     if (f === 4 && t === 4) {
-        assert.ok(area(layouts[1], 'terminal') > area(layouts[0], 'terminal'));
-        assert.ok(area(layouts[2], 'files') > area(layouts[0], 'files'));
+        assert.deepEqual(layouts[1], layouts[0], 'a full grid has no spare cells for priorities');
+        assert.deepEqual(layouts[2], layouts[0]);
     }
     const terminal = ws.panels.find(p => p.kind === 'terminal');
     terminal.path = '/new/path'; terminal.terminal = 'live-session';

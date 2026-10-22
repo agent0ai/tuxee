@@ -163,8 +163,8 @@ try {
     check('application palette survives reload and resize');
     await page.screenshot({ path: 'test-results/desktop.png' });
     const file = page.locator('.file-view').first();
-    await file.getByRole('textbox', { name: 'Directory path' }).fill(`${a.home}/tuxee-fixtures`);
-    await file.getByRole('textbox', { name: 'Directory path' }).press('Enter');
+    await file.locator('..').getByRole('textbox', { name: 'Directory path' }).fill(`${a.home}/tuxee-fixtures`);
+    await file.locator('..').getByRole('textbox', { name: 'Directory path' }).press('Enter');
     await file.locator('.file-entry').filter({ hasText: 'private.txt' }).waitFor();
     await file.getByRole('button', { name: 'New folder', exact: true }).click();
     await page.locator('dialog input').fill('browser-folder');
@@ -255,8 +255,8 @@ try {
     check('compact panel expansion');
     const browsers = page.locator('.file-view');
     const targetBrowser = browsers.nth(1);
-    await targetBrowser.getByRole('textbox', { name: 'Directory path' }).fill(`${a.home}/tuxee-fixtures/browser-folder`);
-    await targetBrowser.getByRole('textbox', { name: 'Directory path' }).press('Enter');
+    await targetBrowser.locator('..').getByRole('textbox', { name: 'Directory path' }).fill(`${a.home}/tuxee-fixtures/browser-folder`);
+    await targetBrowser.locator('..').getByRole('textbox', { name: 'Directory path' }).press('Enter');
     await targetBrowser.locator('.empty').waitFor();
     await page.keyboard.down('Control');
     await browsers.first().locator('.file-entry').filter({ hasText: 'upload.txt' }).locator('.file-name').dragTo(targetBrowser.locator('..').locator('.panel-header'));
@@ -518,7 +518,7 @@ try {
     assert.deepEqual(await markerBorder(), defaultBorder, 'reset restores the theme border');
     await previewColor('#ea580c');
     await page.keyboard.press('Escape');
-    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
+    await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), defaultBorder, 'closing discards the preview');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -526,7 +526,7 @@ try {
     await page.screenshot({ path: 'test-results/settings-color-marker.png' });
     await serverName.fill('  Lab <&> 東京  ');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
+    await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.equal(await page.title(), 'Tuxee Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverName, 'Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverColor, '#ea580c');
@@ -576,7 +576,7 @@ try {
     assert.equal(await page.locator('.panel-body.terminal-view').count(), 2);
     assert.deepEqual(await page.getByRole('textbox', { name: 'Directory path' }).evaluateAll(inputs => inputs.map(input => input.value)), ['/', a.home]);
     await page.screenshot({ path: 'test-results/ultrawide.png' });
-    check('ultrawide four-column default');
+    check('ultrawide eight-cell default');
     const widget = page.locator('.grid-stack-item').first(), oldBox = await widget.boundingBox();
     await widget.hover();
     const handle = widget.locator('.panel-resize-se');
@@ -643,14 +643,14 @@ try {
     assert.equal((await markerBorder()).width, '1px');
     const lightDefaultBorder = await markerBorder();
     await page.keyboard.press('Escape');
-    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
+    await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), orangeBorder, 'cancelled reset restores the saved color');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     await serverName.fill('   ');
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     await serverName.press('Enter');
-    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
+    await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.equal(await page.title(), `Tuxee ${hostname}`);
     assert.equal((await (await api('/me')).json()).settings.serverName, undefined);
     assert.equal((await (await api('/me')).json()).settings.serverColor, undefined);
@@ -678,7 +678,8 @@ try {
     await page.getByRole('button', { name: 'More workspaces', exact: true }).waitFor();
     const fullFile = page.locator('.file-view').first();
     const terminalCount = (await (await api('/terminals')).json()).length;
-    await fullFile.getByRole('button', { name: 'Open terminal here', exact: true }).click();
+    await fullFile.getByRole('button', { name: 'File actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Open terminal here', exact: true }).click();
     await fullFile.locator('..').locator('.component-notifications').getByRole('status').filter({ hasText: 'Workspace full' }).waitFor();
     assert.equal((await (await api('/terminals')).json()).length, terminalCount);
     await page.setViewportSize({ width: 900, height: 750 }); await page.waitForTimeout(250);
@@ -739,15 +740,20 @@ try {
         await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
         if (width >= 760) await twoPanelFixture();
         const browser = page.locator('.file-view');
-        assert.equal(await browser.getByRole('textbox', { name: 'Directory path' }).inputValue(), '/');
+        assert.equal(await browser.locator('..').getByRole('textbox', { name: 'Directory path' }).inputValue(), '/');
         const listed = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'list' && response.request().postDataJSON()?.path === directory);
-        await browser.getByRole('textbox', { name: 'Directory path' }).fill(directory);
-        await browser.getByRole('textbox', { name: 'Directory path' }).press('Enter');
+        await browser.locator('..').getByRole('textbox', { name: 'Directory path' }).fill(directory);
+        await browser.locator('..').getByRole('textbox', { name: 'Directory path' }).press('Enter');
         assert.equal((await listed).status(), 200);
         await browser.locator('.file-list:not(.loading)').waitFor();
         await page.waitForFunction(() => document.querySelector('.terminal-view')?.dataset.state === 'connected');
         const created = page.waitForResponse(response => response.url().endsWith('/api/terminals') && response.request().method() === 'POST' && response.request().postDataJSON()?.directory === directory);
-        await browser.getByRole('button', { name: 'Open terminal here', exact: true }).click();
+        const openTerminal = browser.getByRole('button', { name: 'Open terminal here', exact: true });
+        if (await openTerminal.isVisible()) await openTerminal.click();
+        else {
+            await browser.getByRole('button', { name: 'File actions', exact: true }).click();
+            await page.getByRole('menuitem', { name: 'Open terminal here', exact: true }).click();
+        }
         const response = await created; assert.equal(response.status(), 201);
         const terminal = await response.json();
         await page.locator(`.terminal-view[data-terminal="${terminal.id}"][data-state=connected]`).waitFor();
@@ -789,7 +795,7 @@ try {
     assert.equal(await page.locator('.component-controls:visible').count(), 0);
     assert.equal(await page.locator('.component-controls').count(), 1, 'responsive rerenders must remove the previous strip');
     check('mobile add controls stay beside component tabs, create/activate both types, and return to the desktop header on resize');
-    for (const [width, height, columns, rows] of [[1440, 1000, 4, 2], [2560, 1080, 8, 2], [900, 1200, 2, 4]]) {
+    for (const [width, height, columns, rows] of [[1440, 1000, 4, 2], [2560, 1080, 4, 2], [900, 1200, 2, 4]]) {
         await page.waitForTimeout(400); await page.goto('about:blank');
         await page.setViewportSize({ width, height });
         const vertical = rows === 4, hx = columns - 1, hy = rows - 1;
@@ -818,7 +824,7 @@ try {
         await dragTo(movingPanel.locator('.panel-header'), hx + .5, hy + .5);
         await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor();
         await checkGridDragLayers();
-        if (columns === 8) await page.screenshot({ path: 'test-results/grid-drop-small-hole.png' });
+        if (width === 2560) await page.screenshot({ path: 'test-results/grid-drop-small-hole.png' });
         await page.mouse.up(); await page.waitForTimeout(220);
         assert.deepEqual(await movingPanel.evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute(`gs-${key}`) || (key === 'w' || key === 'h' ? 1 : 0)))), [hx, hy, 1, 1]);
         assert.deepEqual(await neighbors(), neighborsBefore);

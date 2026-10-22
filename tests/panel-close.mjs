@@ -103,8 +103,8 @@ try {
         await checkClose(width, 1080, 4, 2, [[0, 0, 2, 2], [2, 0, 2, 1], [2, 1, 2, 1]], [closed], expected,
             width === 1920 && closed === 't0' ? 'close-terminals-stacked' : undefined); checked++;
     }
-    await checkClose(3440, 1440, 8, 2, [[0, 0, 4, 1], [0, 1, 4, 1], [4, 0, 4, 2]], ['t2'], [[0, 0, 8, 1], [0, 1, 8, 1]]); checked++;
-    await checkClose(3440, 1440, 8, 2, [[0, 0, 4, 2], [4, 0, 4, 1], [4, 1, 4, 1]], ['t1', 't2'], [[0, 0, 8, 2]]); checked++;
+    await checkClose(3440, 1440, 4, 2, [[0, 0, 2, 1], [0, 1, 2, 1], [2, 0, 2, 2]], ['t2'], [[0, 0, 4, 1], [0, 1, 4, 1]]); checked++;
+    await checkClose(3440, 1440, 4, 2, [[0, 0, 2, 2], [2, 0, 2, 1], [2, 1, 2, 1]], ['t1', 't2'], [[0, 0, 4, 2]]); checked++;
     for (const closed of ['t0', 't1']) {
         await checkClose(900, 1200, 2, 4, [[0, 0, 2, 2], [0, 2, 2, 2]], [closed], [[0, 0, 2, 4]]); checked++;
     }

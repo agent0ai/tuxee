@@ -184,15 +184,16 @@ else:
  await afterKill; await dialog.locator('.processes[aria-busy=false]').waitFor();
  assert.equal(await liveParent.count(), 0, 'killed process disappears after automatic refresh');
  console.log('PASS real user-scoped tree signals, ignored SIGTERM, Force kill and grouped hidden children');
- // The shared outage overlay keeps an explicit route to recovery controls.
  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+ const beforeOutage = requests;
  await page.route(base + '/api/connection', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"busy"}' }));
  const overlay = page.getByRole('dialog', { name: 'Connection lost, reconnecting...', exact: true }); await overlay.waitFor({ timeout: 12000 });
- await overlay.getByRole('button', { name: 'Processes', exact: true }).click();
- const recovery = page.getByRole('dialog', { name: 'Processes', exact: true }); await recovery.locator('.processes[aria-busy=false]').waitFor();
- assert.ok(await recovery.evaluate(node => node.matches(':modal'))); await recovery.getByRole('button', { name: 'Close dialog', exact: true }).click();
+ assert.equal(await overlay.getByRole('button', { name: 'Processes', exact: true }).count(), 0);
+ assert.equal(await page.getByRole('dialog', { name: 'Processes', exact: true }).count(), 0);
+ assert.equal(requests, beforeOutage, 'outage must not fetch processes');
  await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
- assert.deepEqual(errors, []); console.log('PASS process recovery remains accessible during readiness failure');
+ await openProcesses(); assert.ok(await dialog.locator('tbody tr').count() > 0);
+ assert.deepEqual(errors, []); console.log('PASS processes stay in Resource monitor, without an outage shortcut or standalone modal');
 } catch (error) { await page.screenshot({ path: 'test-results/processes-failure.png' }); throw error; }
 finally {
  if (family) { for (const pid of [...family.children, family.parent]) { try { process.kill(pid, 'SIGKILL'); } catch {} } await workerExit; }

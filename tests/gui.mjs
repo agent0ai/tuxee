@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, chown, readFile, rm, stat, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, chown, copyFile, readFile, rm, stat, readdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 await import('./novnc.mjs');
 
@@ -19,7 +19,8 @@ const state = await mkdtemp('/tmp/tuxee-desktop-test-');
 const fixture = await mkdtemp('/tmp/tuxee-desktop-input-');
 await chown(fixture, uid, gid);
 await mkdir('test-results', { recursive: true });
-const service = spawn('./bin/tuxee', ['serve', '--bind', '127.0.0.1:0', '--acme', 'off', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
+await copyFile('./bin/tuxee', `${state}/tuxee`);
+const service = spawn(`${state}/tuxee`, ['serve', '--bind', '127.0.0.1:0', '--acme', 'off', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => service.once('exit', resolve));
 let logs = '';
 service.stderr.on('data', data => { logs = (logs + data).slice(-16000); });
@@ -95,7 +96,8 @@ function runX(env, command, args) {
 }
 async function dragWindow(from, to, cancel = false, vertical = false) {
     const start = await from.boundingBox(), end = await to.boundingBox();
-    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    const grab = await from.locator('img').count() ? await from.locator('img').boundingBox() : start;
+    await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
     await page.mouse.down();
     await page.mouse.move(vertical ? start.x + start.width / 2 : end.x + (end.x > start.x ? end.width - 1 : 1),
         vertical ? end.y + (end.y > start.y ? end.height - 1 : 1) : start.y + start.height / 2, { steps: 12 });
@@ -185,6 +187,30 @@ try {
     const windowOrder = () => firstPanel.locator('.display-windows .visible-tabs [data-window]').evaluateAll(nodes => nodes.map(n => n.dataset.window));
     const originalOrder = await windowOrder(), liveCanvas = await first.locator('canvas').elementHandle();
     const panelBounds = await firstPanel.boundingBox();
+    for (const direction of [-1, 1]) {
+        const wide = await secondaryTab.locator('..').boundingBox(), small = await primaryTab.locator('..').boundingBox();
+        assert.ok(wide.width > small.width * 3, 'fixture needs unequal tab widths');
+        const handle = await secondaryTab.boundingBox(), x = handle.x + handle.width / 2, y = handle.y + handle.height / 2;
+        const edge = direction < 0 ? wide.x : wide.x + wide.width;
+        const crossing = small.x + small.width / 2 - edge;
+        const shifted = () => primaryTab.locator('..').evaluate(node => new DOMMatrix(node.style.transform).m41);
+        await page.mouse.move(x, y); await page.mouse.down();
+        await page.mouse.move(x + crossing - direction * 2, y, { steps: 4 });
+        assert.equal(await shifted(), 0, 'neighbor moved before the dragged edge reached its midpoint');
+        const target = x + crossing + direction * 2;
+        assert.ok(direction < 0 ? target > small.x + small.width : target < small.x,
+            'pointer must remain outside the neighbor for the edge regression');
+        await page.mouse.move(target, y, { steps: 4 });
+        assert.ok((await shifted()) * direction < 0, 'neighbor did not move when the dragged edge crossed its midpoint');
+        await page.mouse.move(x, y, { steps: 4 });
+        assert.equal(await shifted(), 0, 'reversing the drag did not restore the neighbor');
+        await page.mouse.move(target, y, { steps: 4 });
+        await page.mouse.up(); await page.waitForTimeout(250);
+        assert.deepEqual(await windowOrder(), direction < 0 ? [...originalOrder].reverse() : originalOrder);
+        assert.ok(active().includes(secondWindowID), 'edge reordering changed the active window');
+    }
+    assert.equal(await primaryTab.getAttribute('aria-pressed'), 'false');
+    await primaryTab.locator('img').waitFor();
     await dragWindow(primaryTab, secondaryTab);
     assert.deepEqual(await windowOrder(), [...originalOrder].reverse());
     assert.ok(active().includes(secondWindowID), 'dragging activated another window');
@@ -282,6 +308,7 @@ try {
         return data.entry.x < canvas.w && data['Open many windows'].y < canvas.h;
     }, 'fixture has not resized');
     await clickControl(first, 'Open many windows');
+    await firstPanel.getByRole('button', { name: 'Extra window 32', exact: true }).waitFor();
     const moreWindows = firstPanel.getByRole('button', { name: 'More windows', exact: true });
     await moreWindows.waitFor();
     await moreWindows.click();

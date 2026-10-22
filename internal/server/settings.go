@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,7 +19,6 @@ type Panel struct {
 	ID       string `json:"id"`
 	Kind     string `json:"kind"`
 	Path     string `json:"path"`
-	Name     string `json:"name,omitempty"`
 	Terminal string `json:"terminal,omitempty"`
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
@@ -72,10 +72,14 @@ func LoadSettings(ctx context.Context, user identity.User) (Settings, error) {
 	if err = json.Unmarshal(response.Settings, &value); err != nil {
 		return value, err
 	}
-	err = validateSettings(&value)
+	err = migrateSettings(&value)
 	return value, err
 }
 func validateSettings(value *Settings) error {
+	return validateSettingsGrids(value, false)
+}
+
+func validateSettingsGrids(value *Settings, legacy bool) error {
 	if color := value.ServerColor; color != "" {
 		if len(color) != 7 || color[0] != '#' {
 			return errors.New("color marker must be a six-digit hex color")
@@ -114,8 +118,9 @@ func validateSettings(value *Settings) error {
 	if value.Theme != "dark" && value.Theme != "light" {
 		return errors.New("theme must be dark or light")
 	}
-	if len(value.Workspaces) > 12 {
-		return errors.New("at most 12 workspaces are supported")
+	// Reserve room for splitting the twelve legacy sixteen-panel workspaces without losing sessions.
+	if len(value.Workspaces) > 24 {
+		return errors.New("at most 24 workspaces are supported")
 	}
 	seen := map[string]bool{}
 	current := value.Current == "" && len(value.Workspaces) == 0
@@ -130,7 +135,7 @@ func validateSettings(value *Settings) error {
 		if ws.ID == value.Current {
 			current = true
 		}
-		if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || ws.Columns == 8 && ws.Rows == 2) {
+		if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || legacy && len(value.Workspaces) <= 12 && ws.Columns == 8 && ws.Rows == 2) {
 			return errors.New("invalid workspace grid dimensions")
 		}
 		if len(ws.Panels) > ws.Columns*ws.Rows {
@@ -144,9 +149,6 @@ func validateSettings(value *Settings) error {
 			}
 			seen[panel.ID] = true
 			panelIDs[panel.ID] = true
-			if len(panel.Name) > 80 || strings.ContainsRune(panel.Name, 0) || panel.Name != "" && panel.Kind != "files" {
-				return errors.New("invalid file browser name")
-			}
 			if panel.Path != "" && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
 				return errors.New("invalid panel location")
 			}
@@ -174,6 +176,71 @@ func validateSettings(value *Settings) error {
 		return errors.New("current workspace does not exist")
 	}
 	return nil
+}
+
+func migrateSettings(value *Settings) error {
+	if err := validateSettingsGrids(value, true); err != nil {
+		return err
+	}
+	for i := range len(value.Workspaces) {
+		ws := &value.Workspaces[i]
+		if ws.Columns != 8 {
+			continue
+		}
+		ws.Columns = 4
+		var overflow *Workspace
+		if len(ws.Panels) > 8 {
+			extra := *ws
+			extra.ID, extra.Layout = rand.Text(), nil
+			if len(extra.Name) <= 56 {
+				extra.Name += " (2)"
+			}
+			extra.Panels = append([]Panel(nil), ws.Panels[8:]...)
+			for _, panel := range extra.Panels {
+				if panel.ID == ws.Active && value.Current == ws.ID {
+					value.Current = extra.ID
+				}
+			}
+			ws.Panels, ws.Layout = ws.Panels[:8], nil
+			overflow = &extra
+		}
+		for _, part := range []*Workspace{ws, overflow} {
+			if part == nil {
+				continue
+			}
+			positions := make([]PanelPosition, 0, len(part.Panels))
+			for _, p := range part.Panels {
+				positions = append(positions, PanelPosition{p.ID, p.X / 2, p.Y, (p.X+p.W+1)/2 - p.X/2, p.H})
+			}
+			if validatePanelPositions(positions, 4, 2) != nil {
+				part.Layout = nil
+				for j := range positions {
+					positions[j].X, positions[j].Y, positions[j].W, positions[j].H = j%4, j/4, 1, 1
+				}
+			}
+			active := false
+			for j, p := range positions {
+				part.Panels[j].X, part.Panels[j].Y, part.Panels[j].W, part.Panels[j].H = p.X, p.Y, p.W, p.H
+				active = active || p.ID == part.Active
+			}
+			if !active && len(part.Panels) > 0 {
+				part.Active = part.Panels[0].ID
+			}
+			if layout := part.Layout; layout != nil {
+				for j := range layout.Custom {
+					p := &layout.Custom[j]
+					p.X, p.W = p.X/2, (p.X+p.W+1)/2-p.X/2
+				}
+				if validatePanelPositions(layout.Custom, 4, 2) != nil {
+					part.Layout = nil
+				}
+			}
+		}
+		if overflow != nil {
+			value.Workspaces = append(value.Workspaces, *overflow)
+		}
+	}
+	return validateSettings(value)
 }
 
 func validatePanelPositions(positions []PanelPosition, columns, rows int) error {

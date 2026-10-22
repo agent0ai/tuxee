@@ -9,12 +9,13 @@ import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
+import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { TerminalView, terminateTerminal } from './term';
 import { cancelTransfers, prepareDownloads } from './transfers';
 import { Monitoring } from './monitor';
+import { audio, audioControl } from './audio';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
 import { preventFileNavigation } from './file-drag';
@@ -99,6 +100,7 @@ function setColorMarker(color?: string) {
     else document.documentElement.style.removeProperty('--server-marker-border');
 }
 function showLogin() {
+    audio.available(false);
     updates?.dispose(); updates = undefined;
     monitoring?.dispose(); monitoring = undefined;
     stopTerminalPolling();
@@ -167,12 +169,14 @@ async function load(signal?: AbortSignal) {
         user: User;
         csrf: string;
         settings: Settings;
+        audio: boolean;
     }>('/me', 'GET', undefined, signal);
     if (signal?.aborted) return;
     user = value.user;
     settings = value.settings;
     setCSRF(value.csrf);
     loggedIn = true;
+    audio.available(value.audio);
     updateTitle();
     setColorMarker(settings.serverColor);
     monitoring?.dispose();
@@ -309,6 +313,8 @@ function renderChrome() {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme; changed(); renderChrome();
     }, 'theme-toggle'));
+    const sound = audioControl();
+    right.append(sound.control); chromeDisposers.push(sound.dispose);
     const account = button('User menu', undefined, () => userMenu(account), 'user-menu-button');
     account.replaceChildren(el('span', 'username', user.name), icon('Menu'));
     account.setAttribute('aria-haspopup', 'menu');
@@ -349,7 +355,9 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
     const { ws, board, gridEl, items } = value;
     const before = previousRects || new Map([...items].map(([id, item]) => [id, item.node.getBoundingClientRect()]));
     const compact = isCompact();
-    if (compact !== value.compact) { value.grid?.destroy(false); value.grid = undefined; value.compact = compact; }
+    const rotated = orientWorkspace(ws);
+    if (rotated) changed();
+    if (compact !== value.compact || rotated) { value.grid?.destroy(false); value.grid = undefined; value.compact = compact; }
     board.classList.toggle('compact-board', compact);
     if (!ws.panels.some(p => p.id === ws.active)) ws.active = ws.panels[0]?.id || '';
     for (const [id, item] of items) if (!ws.panels.some(p => p.id === id)) {
@@ -360,9 +368,9 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
         if (!item) {
             const node = el('section', 'grid-stack-item'); node.dataset.panel = panel.id;
             const content = el('div', 'grid-stack-item-content panel'), head = el('header', 'panel-header');
-            const title = el('span', 'panel-title', panel.name || (panel.kind === 'files' ? 'Files' : 'Terminal'));
+            const title = el('span', 'panel-title', panel.kind === 'files' ? 'Files' : 'Terminal');
             const tools = el('div', 'panel-tools');
-            tools.append(button(panel.kind === 'terminal' ? 'Rename terminal' : 'Rename file browser', 'Pencil', () => items.get(panel.id)?.view.renamePanel()));
+            if (panel.kind === 'terminal') tools.append(button('Rename terminal', 'Pencil', () => items.get(panel.id)?.view.renamePanel?.()));
             tools.append(button('Close panel', 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
             head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(value); } };
@@ -578,7 +586,7 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
 function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
     cancelDrag(); finishSlide();
-    const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab') || event.currentTarget as HTMLElement;
+    const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
     const panel = existing || newPanel(kind, user.home);
     const node = existing ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
     node.getAnimations().forEach(animation => animation.cancel());
@@ -757,9 +765,9 @@ function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y
     const item = mounted!.items.get(panel.id)!;
     const actions: TabAction[] = [
         ['Activate', 'ArrowRight', () => activatePanel(panel)],
-        ['Rename', 'Pencil', () => item.view.renamePanel()],
         ['Close', 'X', () => closePanel(panel)],
     ];
+    if (item.view.renamePanel) actions.splice(1, 0, ['Rename', 'Pencil', () => item.view.renamePanel!()]);
     const control = item.tools.querySelector<HTMLButtonElement>('[aria-label="Take control"]');
     if (control && !control.hidden) actions.splice(1, 0, ['Take control', 'Hand', () => control.click()]);
     tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
@@ -949,15 +957,17 @@ async function openSettings() {
     const colors = el('div', 'settings-color'); colors.append(color, reset);
     const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
     const tls = await api('/tls');
+    const https = location.protocol === 'https:';
+    const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
     const details = el('section', 'tls-status');
-    details.append(el('h3', '', 'Connection'), el('p', '', tls.source === 'public' ? `Public certificate · expires ${new Date(tls.expires).toLocaleString()}` : tls.source === 'local' ? 'Encrypted with a local certificate' : 'Plain HTTP'));
-    if (tls.source === 'local') {
+    details.append(el('h3', '', 'Connection'), el('p', '', !https ? 'Plain HTTP' : certificate === 'public' ? `Public certificate · expires ${new Date(tls.expires).toLocaleString()}` : certificate === 'local' ? 'Encrypted with a local certificate' : 'Encrypted HTTPS'));
+    if (certificate === 'local') {
         const link = el('a', 'text-link', 'Download local CA certificate');
         link.href = '/api/tls/ca';
         link.download = 'tuxee-local-ca.crt';
         details.append(link);
     }
-    if (tls.error)
+    if (certificate && tls.error)
         details.append(el('p', 'muted', tls.error));
     const submit = button('Save');
     submit.type = 'submit'; submit.className = 'primary';
@@ -1005,11 +1015,13 @@ visualViewport?.addEventListener('resize', viewport);
 viewport();
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
-window.addEventListener('pagehide', () => { updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
-connection = new BackendConnection(async signal => {
+window.addEventListener('pagehide', () => { audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
+connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
+    else if (session.uid === user.uid) setCSRF(session.csrf);
+    else { showLogin(); location.reload(); }
 }, () => {
     const ended = loggedIn;
     if (!root.querySelector('.login-page')) showLogin();
-    if (ended) notify('Your session ended. Sign in to reconnect.');
+    if (ended) location.reload();
 });

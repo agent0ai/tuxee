@@ -3,7 +3,6 @@ export type Panel = {
     id: string;
     kind: Kind;
     path: string;
-    name?: string;
     terminal?: string;
     x: number;
     y: number;
@@ -50,39 +49,45 @@ export type Hooks = {
     title?: (name: string) => void;
 };
 export type View = {
-    renamePanel: () => Promise<void>;
+    renamePanel?: () => Promise<void>;
     dispose: () => void;
     resize?: () => void;
     canClose?: () => Promise<boolean>;
 };
 export const id = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 export const join = (path: string, name: string) => `${path.replace(/\/$/, '')}/${name}`;
-export function dimensions(width = innerWidth, height = innerHeight): [
-    number,
-    number
-] {
-    if (width >= 1920 && width / height >= 2.2)
-        return [8, 2];
-    if (width >= 760 && height > width)
-        return [2, 4];
-    return [4, 2];
+export function dimensions(width = innerWidth, height = innerHeight): [number, number] {
+    return height > width ? [2, 4] : [4, 2];
+}
+export function orientWorkspace(ws: Workspace, width = innerWidth, height = innerHeight): boolean {
+    const [columns, rows] = dimensions(width, height);
+    if (ws.columns === columns && ws.rows === rows) return false;
+    for (const rect of [...ws.panels, ...ws.layout?.custom || []]) {
+        [rect.x, rect.y, rect.w, rect.h] = [rect.y, rect.x, rect.h, rect.w];
+    }
+    ws.columns = columns; ws.rows = rows;
+    return true;
 }
 export function newPanel(kind: Kind, path: string): Panel { return { id: id(), kind, path, x: 0, y: 0, w: 1, h: 1 }; }
 export function newWorkspace(name: string, home: string, width = innerWidth, height = innerHeight): Workspace {
     const [columns, rows] = dimensions(width, height);
-    const kinds: Kind[] = columns === 8 ? ['files', 'files', 'terminal', 'terminal'] : ['files', 'terminal'];
-    const panels = kinds.map((kind, i) => ({ ...newPanel(kind, i === 0 ? '/' : home), x: columns === 2 ? 0 : i * 2, y: columns === 2 ? i * 2 : 0, w: 2, h: 2 }));
-    if (columns === 4 && width >= 760 && height >= 480) {
+    const panels = [newPanel('files', '/'), newPanel('terminal', home)].map((panel, i) => ({ ...panel, x: columns === 2 ? 0 : i * 2, y: columns === 2 ? i * 2 : 0, w: 2, h: 2 }));
+    if (columns === 4 && width >= 1200 && height >= 700) {
         panels[0].h = 1;
         panels.splice(1, 0, { ...newPanel('files', home), x: 0, y: 1, w: 2, h: 1 });
+        if (width >= 1920 && height >= 1000) {
+            panels[2].h = 1;
+            panels.push({ ...newPanel('terminal', home), x: 2, y: 1, w: 2, h: 1 });
+        }
     }
     return { id: id(), name, columns, rows, panels, active: panels[0].id };
 }
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 export function validGrid(ws: Workspace): boolean {
+    if (!(ws.columns === 4 && ws.rows === 2 || ws.columns === 2 && ws.rows === 4) || ws.panels.length > 8) return false;
     const cells = new Set<string>();
     return ws.panels.every(p => {
-        if (!Number.isInteger(p.x) || !Number.isInteger(p.y) || p.x < 0 || p.y < 0 || p.w < 1 || p.h < 1 || p.x + p.w > ws.columns || p.y + p.h > ws.rows)
+        if (![p.x, p.y, p.w, p.h].every(Number.isInteger) || p.x < 0 || p.y < 0 || p.w < 1 || p.h < 1 || p.x + p.w > ws.columns || p.y + p.h > ws.rows)
             return false;
         for (let y = p.y; y < p.y + p.h; y++)
             for (let x = p.x; x < p.x + p.w; x++) {
@@ -199,7 +204,7 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | u
     });
     type Plan = { panels: Panel[]; moved: number; lost: number; distance: number };
     const cache = new Map<string, Plan | undefined>();
-    // Joint placement on the at-most-16-cell grid avoids greedy moves that needlessly shrink another neighbor.
+    // Joint placement on eight cells avoids greedy moves that needlessly shrink another neighbor.
     function arrange(index: number, used: number): Plan | undefined {
         if (index === blocked.length) return { panels: [], moved: 0, lost: 0, distance: 0 };
         const key = `${index}:${used}`;
@@ -369,7 +374,7 @@ export function rearrange(ws: Workspace, width: number, height: number, mode: 1 
         if (!priority && a.rotatedGroups !== b.rotatedGroups) return a.rotatedGroups < b.rotatedGroups;
         return a.cost < b.cost - 1e-9;
     }
-    // Compare bounded rectangular splits; cache equivalent subproblems on the at-most-16-cell grid.
+    // Compare bounded rectangular splits; cache equivalent subproblems on the eight-cell grid.
     function arrange(start: number, count: number, w: number, h: number): Layout[] {
         if (count > w * h) return [];
         const key = `${start},${count},${w},${h}`;

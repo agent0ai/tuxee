@@ -83,6 +83,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
         const handle = item.firstElementChild as HTMLElement;
         handle.setAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
         handle.setAttribute('aria-description', 'Drag to reorder, or press Alt+Left or Alt+Right.');
+        handle.addEventListener('dragstart', event => event.preventDefault(), { signal });
         handle.addEventListener('keydown', event => {
             if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
             event.preventDefault(); cancel();
@@ -136,9 +137,13 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
                 }
                 e.preventDefault();
                 const offset = Math.max(first[axis] - original[axis], Math.min(delta, last[axis] + last[size] - original[axis] - original[size]));
-                const center = original[axis] + original[size] / 2 + delta;
+                const start = original[axis] + offset, end = start + original[size];
                 order = siblings.filter(tab => tab !== item);
-                const index = order.filter(tab => { const r = rects.get(tab)!; return center > r[axis] + r[size] / 2; }).length;
+                // Compare the facing edge against fixed midpoints so unequal tabs swap early without oscillating.
+                const index = order.filter(tab => {
+                    const r = rects.get(tab)!, edge = r[axis] < original[axis] ? start : end;
+                    return edge > r[axis] + r[size] / 2;
+                }).length;
                 order.splice(index, 0, item);
                 let position = first[axis];
                 for (const tab of order) {

@@ -46,9 +46,6 @@ func terminalDisplay(w http.ResponseWriter, r *http.Request, value *terminal.Ses
 			failure(w, 403, errors.New("WebSocket origin is required"))
 			return
 		}
-	case action == "display/audio" && r.Method == "GET":
-		terminalAudio(w, r, value)
-		return
 	default:
 		failure(w, 404, errors.New("terminal endpoint not found"))
 		return
@@ -78,16 +75,16 @@ func terminalDisplay(w http.ResponseWriter, r *http.Request, value *terminal.Ses
 	<-done
 }
 
-func terminalAudio(w http.ResponseWriter, r *http.Request, value *terminal.Session) {
+func (s *Server) userAudio(w http.ResponseWriter, r *http.Request, session *login) {
 	if r.Header.Get("Origin") == "" {
 		failure(w, 403, errors.New("WebSocket origin is required"))
 		return
 	}
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-	output, closeAudio, err := value.Display.Audio(ctx)
+	packets, closeAudio, err := s.Terminals.Audio.Subscribe(session.user)
 	if err != nil {
-		failure(w, 503, errors.New("display audio is unavailable"))
+		failure(w, 503, err)
 		return
 	}
 	defer closeAudio()
@@ -99,16 +96,29 @@ func terminalAudio(w http.ResponseWriter, r *http.Request, value *terminal.Sessi
 	ctx = connection.CloseRead(ctx)
 	stop := context.AfterFunc(ctx, cancel)
 	defer stop()
-	packet := make([]byte, 3840) // 20 ms; close stalled writers instead of allocating a growing queue.
+	keepalive := time.NewTicker(30 * time.Second)
+	defer keepalive.Stop()
 	for {
-		if _, err := io.ReadFull(output, packet); err != nil {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		writeCtx, stop := context.WithTimeout(ctx, 250*time.Millisecond)
-		err := connection.Write(writeCtx, websocket.MessageBinary, packet)
-		stop()
-		if err != nil {
-			return
+		case <-keepalive.C:
+			pingCtx, stop := context.WithTimeout(ctx, 5*time.Second)
+			err := connection.Ping(pingCtx)
+			stop()
+			if err != nil {
+				return
+			}
+		case packet, ok := <-packets:
+			if !ok {
+				return
+			}
+			writeCtx, stop := context.WithTimeout(ctx, 250*time.Millisecond)
+			err := connection.Write(writeCtx, websocket.MessageBinary, packet)
+			stop()
+			if err != nil {
+				return
+			}
 		}
 	}
 }

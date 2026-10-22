@@ -35,11 +35,14 @@ let me = await (await context.request.get(base + '/api/me')).json();
 const originalSettings = me.settings;
 const api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const page = await context.newPage(), errors = [];
-let connectionRequests = 0;
+let connectionRequests = 0, documentRequests = 0;
 let releaseConnection = () => {};
 let releaseSession = () => {};
 page.on('pageerror', error => errors.push(error.message));
-page.on('request', request => { if (request.url() === base + '/api/connection') connectionRequests++; });
+page.on('request', request => {
+    if (request.url() === base + '/api/connection') connectionRequests++;
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documentRequests++;
+});
 const overlay = page.getByRole('dialog', { name: 'Connection lost, reconnecting...', exact: true });
 async function about() {
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
@@ -69,10 +72,42 @@ try {
         await about();
         await context.setOffline(true); await overlay.waitFor();
         assert.ok(await overlay.evaluate(node => node.matches(':modal')));
+        assert.equal(await overlay.getByRole('button', { name: 'Processes', exact: true }).count(), 0);
+        const motion = await overlay.locator('.connection-progress').evaluate(node => {
+            const animations = node.getAnimations({ subtree: true });
+            animations.forEach(animation => animation.pause());
+            const samples = Array.from({ length: 241 }, (_, index) => index * 10).map(time => {
+                animations.forEach(animation => animation.currentTime = time);
+                const style = getComputedStyle(node, '::after');
+                return { x: parseFloat(style.left), right: parseFloat(style.right), width: parseFloat(style.width), color: style.backgroundColor, image: style.backgroundImage, transform: style.transform };
+            });
+            const track = node.getBoundingClientRect(), marker = getComputedStyle(node, '::after');
+            const belowText = track.top > node.previousElementSibling.getBoundingClientRect().bottom;
+            animations.forEach(animation => animation.play());
+            return { samples, width: track.width, height: track.height, markerHeight: parseFloat(marker.height), belowText };
+        });
+        assert.ok(motion.belowText, 'loading line belongs below the status');
+        assert.ok(motion.width > motion.height * 20 && motion.markerHeight > motion.height);
+        for (const sample of motion.samples) {
+            assert.ok(sample.x >= 0 && sample.right >= 0, 'loading segment must remain within the track');
+            assert.ok(sample.width >= motion.width * .2 - 1 && sample.width <= motion.width * .4 + 1);
+            assert.equal(sample.color, theme === 'dark' ? 'rgb(173, 148, 247)' : 'rgb(121, 83, 191)');
+            assert.equal(sample.image, 'none'); assert.equal(sample.transform, 'none');
+        }
+        assert.ok(Math.abs(Math.max(...motion.samples.map(sample => sample.width)) - motion.width * .4) < 2);
+        for (const index of [0, 120, 240]) assert.ok(Math.abs(motion.samples[index].width - motion.width * .2) < 1);
+        for (const [leading, trailing, start] of [['right', 'x', 0], ['x', 'right', 120]]) {
+            const contact = motion.samples.findIndex((sample, index) => index > start && sample[leading] < .001);
+            assert.ok(contact > start && contact < motion.samples.length - 1);
+            const before = motion.samples[contact][trailing] - motion.samples[contact - 1][trailing];
+            const after = motion.samples[contact + 1][trailing] - motion.samples[contact][trailing];
+            assert.ok(before > motion.width * .001 && after > motion.width * .001, 'tail must keep moving through contact');
+            assert.ok(Math.abs(before - after) < Math.max(before, after) * .2, 'tail speed must remain continuous at contact');
+        }
         assert.ok(await overlay.evaluate(node => getComputedStyle(node, '::backdrop').backdropFilter.includes('blur')));
         await page.keyboard.press('Escape'); assert.ok(await overlay.isVisible());
         await page.keyboard.type('must not reach draft'); assert.equal(await editor.textContent(), draft);
-        await page.screenshot({ path: `test-results/connection-${theme}.png` });
+        await page.screenshot({ path: `test-results/connection-${theme}.png`, animations: 'disabled' });
         await context.setOffline(false); await overlay.waitFor({ state: 'detached' });
         assert.ok(await originalEditor.evaluate(node => node.isConnected), 'recovery must preserve mounted drafts');
         await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -86,7 +121,7 @@ try {
     await page.route(base + '/api/connection', route => route.fulfill({ status: 502, body: 'Bad Gateway' }));
     await overlay.waitFor({ timeout: 12000 });
     assert.ok(await page.evaluate(() => navigator.onLine), 'server outages also occur while the browser is online');
-    assert.equal(await overlay.locator('.connection-spinner').evaluate(node => getComputedStyle(node).animationName), 'none');
+    assert.equal(await overlay.locator('.connection-progress').evaluate(node => getComputedStyle(node, '::after').animationName), 'none');
     assert.ok(await overlay.evaluate(node => node.getBoundingClientRect().right <= innerWidth));
     await page.screenshot({ path: 'test-results/connection-mobile.png' });
     await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
@@ -102,6 +137,8 @@ try {
         { status: 401, contentType: 'text/html', body: '<h1>Proxy unavailable</h1>' },
         { status: 401, contentType: 'application/json', body: '{"error":"Session ended"}' },
         { status: 200, contentType: 'application/json', body: '{}' },
+        { status: 200, contentType: 'application/json', body: '{"authenticated":true}' },
+        { status: 200, contentType: 'application/json', body: '{"authenticated":true,"uid":0,"csrf":""}' },
     ]) {
         await page.route(base + '/api/connection', route => route.fulfill(response));
         await context.setOffline(true); await overlay.waitFor();
@@ -143,9 +180,20 @@ try {
     await warming;
     assert.ok(await overlay.isVisible());
     assert.equal(await page.locator('[name=username]').count(), 0);
+    assert.equal(documentRequests, 1, 'outages and invalid or interrupted session checks must not reload');
+    const reloaded = page.waitForEvent('domcontentloaded', { timeout: 10000 });
     await page.unroute(base + '/api/connection');
+    await reloaded;
     await page.locator('[name=username]').waitFor();
     await overlay.waitFor({ state: 'detached' });
+    assert.equal(documentRequests, 2, 'confirmed session loss must fetch a fresh document exactly once');
+    assert.equal(await page.evaluate(() => performance.getEntriesByType('navigation')[0].type), 'reload');
+    for (let i = 0; i < 2; i++) {
+        const anonymous = page.waitForResponse(base + '/api/connection');
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        assert.deepEqual(await (await anonymous).json(), { authenticated: false });
+    }
+    assert.equal(documentRequests, 2, 'anonymous readiness checks must not create a reload loop');
     const beforeLogin = new Promise(resolve => { releaseSession = resolve; });
     await page.route(base + '/api/connection', async route => {
         await beforeLogin;
@@ -158,6 +206,7 @@ try {
     await page.getByRole('button', { name: 'User menu', exact: true }).waitFor();
     releaseSession(); await page.unroute(base + '/api/connection'); await page.waitForTimeout(100);
     assert.ok(await page.getByRole('button', { name: 'User menu', exact: true }).isVisible(), 'a pre-login probe cannot undo successful login');
+    assert.equal(documentRequests, 2, 'a stale anonymous response after login must not reload');
     assert.equal(await page.locator('.login-error').count(), 0, 'first sign-in after readiness must work');
     // Reload while readiness is unavailable must not turn a temporary bootstrap failure into login.
     await page.route(base + '/api/connection', route => route.fulfill({ status: 404, contentType: 'text/plain', body: '404 page not found' }));
@@ -185,7 +234,7 @@ try {
     assert.equal(await page.locator('[name=password]').inputValue(), '');
     assert.equal(await overlay.count(), 0);
     assert.deepEqual(errors, []);
-    console.log('PASS connection overlay: outage/draft recovery, themes/modal blocking, invalid readiness, interrupted session checks, shutdown/proxy/JSON errors, confirmed expiry and first login after restart');
+    console.log('PASS connection overlay: outage/draft recovery, themes/modal blocking, invalid readiness, interrupted session checks, shutdown/proxy/JSON errors, one fresh document after confirmed expiry without anonymous reload loops, and first login after restart');
 } finally {
     releaseConnection();
     releaseSession();

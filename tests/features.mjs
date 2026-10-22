@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import './editor-page.mjs';
-const user='tuxee-poc-a',fields=spawnSync('getent',['passwd',user],{encoding:'utf8'}).stdout.trim().split(':');
+const user=process.env.TUXEE_TEST_USER||'tuxee-poc-a',fields=spawnSync('getent',['passwd',user],{encoding:'utf8'}).stdout.trim().split(':');
 assert.equal(fields[4],'Tuxee prototype test');
 const password=randomBytes(24).toString('base64url');assert.equal(spawnSync('chpasswd',[],{input:`${user}:${password}\n`}).status,0);
 const home=fields[5],dir=home+'/tuxee-fixtures/features';await rm(dir,{recursive:true,force:true});await mkdir(dir,{recursive:true});
@@ -29,7 +29,7 @@ for(const folder of [controls,controls+'/z-folder'])for(const [name,data,date] o
 for(let i=0;i<70;i++)await writeFile(`${controls}/z-rows/row-${String(i).padStart(2,'0')}.txt`,'row');
 assert.equal(spawnSync('chown',['-R',`${fields[2]}:${fields[3]}`,dir]).status,0);
 const base=process.env.TUXEE_TEST_URL||'https://127.0.0.1:9443',browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
-const context=await browser.newContext({ignoreHTTPSErrors:true,hasTouch:true,viewport:{width:1440,height:1000}});
+const context=await browser.newContext({ignoreHTTPSErrors:true,hasTouch:true,permissions:['clipboard-read','clipboard-write'],viewport:{width:1440,height:1000}});
 await context.request.post(base+'/api/login',{data:{username:user,password},headers:{'X-Tuxee-Client':'web'}});
 let me=await(await context.request.get(base+'/api/me')).json();
 const api=(path,method='GET',data,headers={})=>context.request.fetch(base+'/api'+path,{method,data,headers:{'X-Tuxee-CSRF':me.csrf,'X-Tuxee-Client':'web',...headers}});
@@ -57,7 +57,7 @@ async function dragFiles(source,target,modifierTiming='during',modifier='Control
 }
 try{
  await page.goto(base);await row('alpha.txt').waitFor();await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);
- assert.equal(await page.locator('.panel-header > svg').count(),5);
+ assert.equal(await page.locator('.panel-header > svg, .panel-header .terminal-tab > svg').count(),5);
  await page.waitForFunction(()=>{const spans=[...document.querySelector('[data-panel=terminal-0] .xterm-rows').querySelectorAll('span')];const green=spans.find(s=>s.textContent.includes('@')),blue=spans.find(s=>s.textContent.includes('~'));if(!green||!blue)return false;const g=getComputedStyle(green).color.match(/\d+/g).map(Number),b=getComputedStyle(blue).color.match(/\d+/g).map(Number);return g[1]>g[0]&&g[1]>g[2]&&b[2]>b[0]});check('8020 shell profile renders a green user/host and blue directory');
  const plus=await page.getByRole('button',{name:'New workspace',exact:true}).boundingBox(),tab=await page.locator('.workspace-tab-item.active').boundingBox();assert.ok(plus.x-tab.x-tab.width<15);
  const add=await page.getByRole('button',{name:'Add file browser',exact:true}).boundingBox(),monitor=await page.locator('.topbar .monitor-summary').boundingBox(),theme=await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).boundingBox();assert.ok(add.x>plus.x+plus.width&&add.x+add.width<monitor.x&&monitor.x+monitor.width<theme.x);check('workspace plus follows tabs; component tools precede the monitor and theme control');
@@ -66,7 +66,7 @@ try{
  const list=file.locator('.file-list'),filter=file.getByRole('searchbox',{name:'Filter files'}),filterButton=file.getByRole('button',{name:'Filter files',exact:true});
  await filterButton.click();assert.ok(await filter.evaluate(node=>node===document.activeElement));await filter.fill('ALPHA');assert.deepEqual(await file.locator('.file-name span').allTextContents(),['alpha.txt']);
  await filter.fill('no matching entry');await file.getByText('No matches',{exact:true}).waitFor();await filterButton.click();assert.equal(await filter.isVisible(),false);await row('alpha.txt').waitFor();
- const navigate=async path=>{await file.getByRole('textbox',{name:'Directory path'}).fill(path);const response=page.waitForResponse(r=>r.url().endsWith('/api/files')&&r.request().postDataJSON()?.operation==='list'&&r.request().postDataJSON()?.path===path);await file.getByRole('textbox',{name:'Directory path'}).press('Enter');assert.equal((await response).status(),200);await file.locator('.file-list:not(.loading)').waitFor();};
+ const navigate=async path=>{await file.locator('..').getByRole('textbox',{name:'Directory path'}).fill(path);const response=page.waitForResponse(r=>r.url().endsWith('/api/files')&&r.request().postDataJSON()?.operation==='list'&&r.request().postDataJSON()?.path===path);await file.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');assert.equal((await response).status(),200);await file.locator('.file-list:not(.loading)').waitFor();};
  const names=()=>file.locator('.file-name span').allTextContents(),selected=()=>file.locator('.file-entry[aria-selected=true] .file-name span').allTextContents();
  await navigate(controls);const defaultNames=await names();assert.deepEqual(defaultNames,['z-folder','z-rows','a.txt','b.txt','c.txt']);
  const nameSort=file.getByRole('button',{name:'Sort by Name',exact:true}),sizeSort=file.getByRole('button',{name:'Sort by Size',exact:true}),dateSort=file.getByRole('button',{name:'Sort by Modified',exact:true});
@@ -189,7 +189,7 @@ try{
  await terminal.locator('.panel-header').dblclick();await page.waitForTimeout(220);assert.equal(Number(await terminal.getAttribute('gs-w')||1),1);assert.equal(Number(await terminal.getAttribute('gs-h')||1),1);assert.equal(await page.locator('.panel:visible').count(),5);
  await terminal.locator('.panel-header').dblclick();await page.waitForTimeout(220);assert.equal(await terminal.getAttribute('gs-w'),'2');assert.deepEqual(await page.locator('.grid-stack-item:not([data-panel="terminal-3"])').evaluateAll(nodes=>nodes.map(node=>({id:node.dataset.panel,rect:node.getBoundingClientRect().toJSON()}))),neighbors);
  await page.getByRole('button',{name:'Rearrange workspace',exact:true}).click();await page.waitForTimeout(300);assert.equal(await page.locator('.grid-stack-item').count(),5);assert.ok((await page.locator('[data-panel=files]').boundingBox()).width<=640);check('double-click uses free space or shrinks without touching neighbors; rearrange balances panels');
- await page.getByRole('button',{name:'Add file browser',exact:true}).click();const targetBrowser=page.locator('.file-view').last();await targetBrowser.getByRole('textbox',{name:'Directory path'}).fill(dir+'/destination');await targetBrowser.getByRole('textbox',{name:'Directory path'}).press('Enter');await targetBrowser.locator('.file-entry').filter({hasText:'charlie.txt'}).waitFor();
+ await page.getByRole('button',{name:'Add file browser',exact:true}).click();const targetBrowser=page.locator('.file-view').last();await targetBrowser.locator('..').getByRole('textbox',{name:'Directory path'}).fill(dir+'/destination');await targetBrowser.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');await targetBrowser.locator('.file-entry').filter({hasText:'charlie.txt'}).waitFor();
  assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'),'0','adding a panel starts a new custom layout');
  for(const [name,modifier,timing] of [['alpha.txt','Control','before'],['bravo.txt','Meta','during']]) {
   await row(name).locator('.file-name').click();await dragFiles(row(name).locator('.file-size'),targetBrowser.locator('..').locator('.panel-header'),timing,modifier);await targetBrowser.locator('.file-entry').filter({hasText:name}).waitFor();assert.equal(await readFile(`${dir}/destination/${name}`,'utf8'),await readFile(`${dir}/${name}`,'utf8'));
@@ -240,12 +240,25 @@ try{
  // Save notifications overlap this small panel and would intercept the viewer's wheel input.
  await page.waitForFunction(()=>!document.querySelector('.component-notifications .toast'));
  await row('photo-a.png').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('.file-image')?.naturalWidth===1);
- await file.getByRole('button',{name:'Next image',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
+ const toolbar=file.locator('.inspector-toolbar');
+ assert.equal(await file.locator('.inspector-position').textContent(),'2/5');
+ assert.deepEqual(await toolbar.locator('button').evaluateAll(nodes=>nodes.map(node=>node.title)),['Back to files','Previous file','Next file','Zoom out','Actual size (100%)','Zoom in','Fit image','Copy image to clipboard','Download file']);
+ assert.equal(await toolbar.getByRole('button',{name:'Back to files',exact:true}).locator('svg path').count(),2);
+ assert.equal(await toolbar.getByRole('button',{name:'Previous file',exact:true}).locator('svg path').getAttribute('d'),'m15 18-6-6 6-6');
+ assert.equal(await toolbar.getByRole('button',{name:'Next file',exact:true}).locator('svg path').getAttribute('d'),'m9 18 6-6-6-6');
+ assert.ok(await toolbar.locator('.inspector-navigation,.image-controls,.inspector-actions').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).borderLeftWidth==='1px')));
+ await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
+ assert.equal(await file.locator('.inspector-position').textContent(),'3/5');
  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await file.locator('.inspector-title').textContent(),'photo-z.png');
- await file.getByRole('button',{name:'Next image',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-a.png');
- await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowLeft');assert.equal(await file.locator('.inspector-title').textContent(),'photo-z.png');
+ for(const [name,position] of [['sound.wav','5/5'],['document.pdf','1/5'],['photo-a.png','2/5']]){
+  await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
+ }
+ for(const [name,position] of [['document.pdf','1/5'],['sound.wav','5/5'],['photo-z.png','4/5']]){
+  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowLeft');assert.equal(await file.locator('.inspector-title').textContent(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
+ }
  await file.locator('.image-viewport[data-ready]').waitFor();
  const imageViewport=file.locator('.image-viewport'),image=file.locator('.file-image');
+ assert.equal(await file.locator('.inspector-position').textContent(),'4/5');
  assert.ok(await image.evaluate(node=>node.width<=node.parentElement.parentElement.clientWidth+1&&node.height<=node.parentElement.parentElement.clientHeight+1));
  await file.getByRole('button',{name:'Actual size (100%)',exact:true}).click();assert.equal(await file.locator('.image-scale').textContent(),'100%');
  await file.getByRole('button',{name:'Zoom in',exact:true}).click();await file.getByRole('button',{name:'Zoom in',exact:true}).click();
@@ -278,14 +291,80 @@ try{
  assert.ok((await image.evaluate(node=>node.getBoundingClientRect().width))>fittedWidth);
  await imageViewport.dblclick({position:{x:imageBox.width/2,y:imageBox.height/2}});
  assert.ok(Math.abs((await image.evaluate(node=>node.getBoundingClientRect().width))-fittedWidth)<1);
- await file.getByRole('button',{name:'Previous image',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
- assert.equal(await file.locator('.image-controls').count(),1);await file.getByRole('button',{name:'Close file',exact:true}).click();assert.equal(await file.locator('.image-controls').count(),0);
- await filterButton.click();await filter.fill('photo-a.png');await row('photo-a.png').locator('.file-name').dblclick();
- assert.ok(await file.getByRole('button',{name:'Next image',exact:true}).isDisabled());assert.ok(await file.getByRole('button',{name:'Previous image',exact:true}).isDisabled());
- await file.getByRole('button',{name:'Close file',exact:true}).click();await filterButton.click();
- check('image-only circular navigation, singleton controls, native diagonal scrolling, drag, anchored pinch zoom, fit and viewer cleanup');
- await row('document.pdf').locator('.file-name').dblclick();await file.locator('iframe.file-pdf').waitFor();await page.waitForTimeout(500);await page.screenshot({path:'test-results/features-pdf.png'});const pdfResponse=await api('/preview/document.pdf?path='+encodeURIComponent(dir+'/document.pdf'));assert.equal(pdfResponse.headers()['content-type'],'application/pdf');assert.ok(pdfResponse.headers()['content-disposition'].includes('filename=document.pdf'));assert.ok((await pdfResponse.body()).subarray(0,8).toString().startsWith('%PDF-'));await file.getByRole('button',{name:'Close file',exact:true}).click();
- await row('sound.wav').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('audio')?.readyState>=1);const ranged=await api('/preview/sound.wav?path='+encodeURIComponent(dir+'/sound.wav'),'GET',undefined,{Range:'bytes=0-9'});assert.equal(ranged.status(),206);assert.equal((await ranged.body()).length,10);await file.getByRole('button',{name:'Close file',exact:true}).click();check('images navigate with arrows; PDF and HTML audio previews stream with byte ranges');
+ await page.screenshot({path:'test-results/features-image-toolbar.png'});
+ await file.getByRole('button',{name:'Copy image to clipboard',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('[aria-label="Copy image to clipboard"]').disabled);await file.getByText('Image copied',{exact:true}).last().waitFor();
+ const copied=await page.evaluate(async()=>{
+  const item=(await navigator.clipboard.read())[0],blob=await item.getType('image/png'),bitmap=await createImageBitmap(blob),source=document.querySelector('.file-image');
+  const hash=async image=>{const canvas=document.createElement('canvas');canvas.width=image.naturalWidth||image.width;canvas.height=image.naturalHeight||image.height;const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',ctx.getImageData(0,0,canvas.width,canvas.height).data))).join(',');};
+  const result={width:bitmap.width,height:bitmap.height,sourceWidth:source.naturalWidth,sourceHeight:source.naturalHeight,actual:await hash(bitmap),expected:await hash(source)};bitmap.close();return result;
+ });
+ assert.equal(copied.width,copied.sourceWidth);assert.equal(copied.height,copied.sourceHeight);assert.equal(copied.actual,copied.expected);
+ const downloadImage=page.waitForEvent('download');await toolbar.getByRole('button',{name:'Download file',exact:true}).click();const downloadedImage=await downloadImage;
+ assert.equal(downloadedImage.suggestedFilename(),'photo-z.png');assert.deepEqual(await readFile(await downloadedImage.path()),await readFile(`${dir}/photo-z.png`));
+ const desktop=page.viewportSize();
+ for(const width of [390,320]){
+  await page.setViewportSize({width,height:844});await page.waitForTimeout(300);
+  assert.ok(await toolbar.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
+  for(const control of await toolbar.locator('button').all())assert.ok(await control.isVisible());
+  await page.screenshot({path:`test-results/features-image-toolbar-${width}.png`});
+  if(width===320){await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await page.waitForTimeout(200);await page.screenshot({path:'test-results/features-image-toolbar-light.png'});await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();}
+ }
+ await page.setViewportSize(desktop);await page.waitForTimeout(300);
+ await file.getByRole('button',{name:'Previous file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
+ assert.equal(await file.locator('.image-controls').count(),1);await file.getByRole('button',{name:'Back to files',exact:true}).click();assert.equal(await file.locator('.image-controls').count(),0);
+ for(const name of ['photo-a.png','document.pdf','sound.wav']){
+  await filterButton.click();await filter.fill(name);await row(name).locator('.file-name').dblclick();
+  assert.equal(await file.locator('.inspector-position').textContent(),'1/1');
+  assert.ok(await file.getByRole('button',{name:'Next file',exact:true}).isDisabled());assert.ok(await file.getByRole('button',{name:'Previous file',exact:true}).isDisabled());
+  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await file.locator('.inspector-title').textContent(),name);
+  await file.getByRole('button',{name:'Back to files',exact:true}).click();await filterButton.click();
+ }
+ check('mixed image/PDF/audio circular navigation and counts, filtered singleton controls, native diagonal scrolling, drag, anchored pinch zoom, fit and viewer cleanup');
+ await row('document.pdf').locator('.file-name').dblclick();await file.locator('iframe.file-pdf').waitFor();assert.equal(await toolbar.locator('.image-controls').count(),0);assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);await page.waitForTimeout(500);await page.screenshot({path:'test-results/features-pdf.png'});const pdfResponse=await api('/preview/document.pdf?path='+encodeURIComponent(dir+'/document.pdf'));assert.equal(pdfResponse.headers()['content-type'],'application/pdf');assert.ok(pdfResponse.headers()['content-disposition'].includes('filename=document.pdf'));assert.ok((await pdfResponse.body()).subarray(0,8).toString().startsWith('%PDF-'));await file.getByRole('button',{name:'Back to files',exact:true}).click();
+ await row('sound.wav').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('audio')?.readyState>=1);assert.equal(await toolbar.locator('.image-controls').count(),0);assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);const ranged=await api('/preview/sound.wav?path='+encodeURIComponent(dir+'/sound.wav'),'GET',undefined,{Range:'bytes=0-9'});assert.equal(ranged.status(),206);assert.equal((await ranged.body()).length,10);await file.getByRole('button',{name:'Back to files',exact:true}).click();check('images navigate with arrows; PDF and HTML audio previews stream with byte ranges');
+ const mediaFixtures=await page.evaluate(async()=>{
+  const canvas=document.createElement('canvas');canvas.width=64;canvas.height=48;const ctx=canvas.getContext('2d');ctx.fillStyle='#c82850';ctx.fillRect(0,0,64,48);
+  const webp=canvas.toDataURL('image/webp').split(',')[1],stream=canvas.captureStream(10),recorder=new MediaRecorder(stream,{mimeType:'video/webm'}),chunks=[];
+  recorder.ondataavailable=event=>chunks.push(event.data);
+  const finished=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
+  for(let frame=0;frame<4;frame++){ctx.fillStyle=frame%2?'#c82850':'#303030';ctx.fillRect(0,0,64,48);await new Promise(resolve=>setTimeout(resolve,100));}
+  recorder.stop();await finished;stream.getTracks().forEach(track=>track.stop());
+  return {webp,video:Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()))};
+ });
+ await writeFile(`${dir}/converted.webp`,Buffer.from(mediaFixtures.webp,'base64'));await writeFile(`${dir}/clip.webm`,Buffer.from(mediaFixtures.video));
+ assert.equal(spawnSync('chown',[`${fields[2]}:${fields[3]}`,`${dir}/converted.webp`,`${dir}/clip.webm`]).status,0);await refresh();
+ await row('converted.webp').locator('.file-name').dblclick();await file.locator('.image-viewport[data-ready]').waitFor();
+ await file.getByRole('button',{name:'Copy image to clipboard',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('[aria-label="Copy image to clipboard"]').disabled);await file.getByText('Image copied',{exact:true}).last().waitFor();
+ const webpCopy=await page.evaluate(async()=>{const bitmap=await createImageBitmap(await(await navigator.clipboard.read())[0].getType('image/png'));const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);const result={width:bitmap.width,height:bitmap.height,pixel:Array.from(ctx.getImageData(0,0,1,1).data)};bitmap.close();return result;});
+ assert.equal(webpCopy.width,64);assert.equal(webpCopy.height,48);assert.ok(webpCopy.pixel[0]>190&&webpCopy.pixel[1]<50&&webpCopy.pixel[2]>70);
+ await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();
+ await page.evaluate(()=>{window.savedClipboardItem=window.ClipboardItem;window.ClipboardItem=undefined;});
+ await row('converted.webp').locator('.file-name').dblclick();assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);assert.ok(await toolbar.getByRole('button',{name:'Download file',exact:true}).isVisible());
+ await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();await page.evaluate(()=>{window.ClipboardItem=window.savedClipboardItem;delete window.savedClipboardItem;});
+ await row('clip.webm').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('video')?.readyState>=1);
+ assert.equal(await toolbar.locator('.image-controls').count(),0);assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);assert.ok(await toolbar.getByRole('button',{name:'Download file',exact:true}).isVisible());
+ const video=await file.locator('video').elementHandle();await video.evaluate(node=>{node.muted=true;node.loop=true;return node.play();});
+ await toolbar.getByRole('button',{name:'Next file',exact:true}).click();await file.locator('.image-viewport[data-ready]').waitFor();
+ assert.ok(await video.evaluate(node=>node.paused&&!node.hasAttribute('src')),'navigation stops and releases the preceding video');
+ await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();
+ assert.equal(await file.locator('.file-inspector').count(),0);
+ const mediaOrder=['clip.webm','converted.webp','document.pdf','photo-a.png','photo-b.png','photo-z.png','sound.wav'];
+ for(const start of ['photo-a.png','document.pdf','clip.webm','sound.wav']){
+  await row(start).locator('.file-name').dblclick();let index=mediaOrder.indexOf(start);
+  for(const direction of [1,-1])for(let step=0;step<=mediaOrder.length;step++){
+   const name=mediaOrder[index],isImage=name.endsWith('.png')||name.endsWith('.webp');
+   assert.equal(await file.locator('.inspector-title').textContent(),name);
+   assert.equal(await file.locator('.inspector-position').textContent(),`${index+1}/${mediaOrder.length}`);
+   assert.equal(await toolbar.locator('.image-controls').count(),isImage?1:0);
+   assert.equal(await file.locator('.cm-editor').count(),0,'media navigation must never enter a text file');
+   if(step%2) {await file.locator('.file-inspector').focus();await page.keyboard.press(direction>0?'ArrowRight':'ArrowLeft');}
+   else await toolbar.getByRole('button',{name:direction>0?'Next file':'Previous file',exact:true}).click();
+   index=(index+direction+mediaOrder.length)%mediaOrder.length;
+  }
+  await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();
+ }
+ check('opening an image, PDF, video or audio starts the same seven-media loop in both directions with stable counts, wraparound and no text files');
+ check('media back/chevrons/count and separators, narrow toolbar bounds, original-resolution PNG/WebP clipboard pixels, unsupported clipboard hiding, exact download bytes and video navigation cleanup');
  await row('alpha.txt').locator('.file-name').click({button:'right'});await page.getByRole('menuitem',{name:'Compress…',exact:true}).click();await page.getByRole('combobox',{name:'Archive format'}).selectOption('7z');await page.getByRole('textbox',{name:'Archive name'}).fill('protected.7z');await page.locator('[aria-label="Archive password"]').fill('test-password');await page.getByRole('button',{name:'Compress',exact:true}).click();await row('protected.7z').waitFor();
  await row('protected.7z').locator('.file-name').dblclick();await page.getByRole('textbox',{name:'Extract folder'}).fill('decrypted');await page.locator('[aria-label="Archive password"]').fill('test-password');await page.getByRole('button',{name:'Extract',exact:true}).click();await row('decrypted').waitFor();assert.equal(await readFile(`${dir}/decrypted/alpha.txt`,'utf8'),'alpha');check('browser compression and password-protected extraction round-trip');
  await page.setViewportSize({width:1440,height:1000});await page.waitForTimeout(250);
@@ -320,8 +399,8 @@ try{
  // Exercise the layout cycle through the real settings API, including reload and manual edits.
  await page.waitForTimeout(400);await page.goto('about:blank');await page.setViewportSize({width:2560,height:1080});
  const layoutSettings=await(await api('/me')).json();
- layoutSettings.settings.current='layouts';layoutSettings.settings.workspaces=[{id:'layouts',name:'Layouts',columns:8,rows:2,active:'auto-0',panels:Array.from({length:8},(_,i)=>({id:`auto-${i}`,kind:i%2?'terminal':'files',path:dir,x:i,y:0,w:1,h:2}))}];
- assert.equal((await api('/settings','PUT',layoutSettings.settings)).status(),200);await page.goto(base);await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);await page.waitForTimeout(400);
+ layoutSettings.settings.current='layouts';layoutSettings.settings.workspaces=[{id:'layouts',name:'Layouts',columns:4,rows:2,active:'auto-0',panels:Array.from({length:6},(_,i)=>({id:`auto-${i}`,kind:i%2?'terminal':'files',path:dir,x:i%4,y:Math.floor(i/4),w:1,h:1}))}];
+ assert.equal((await api('/settings','PUT',layoutSettings.settings)).status(),200);await page.goto(base);await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===3);await page.waitForTimeout(400);
  const arrangeButton=page.getByRole('button',{name:'Rearrange workspace',exact:true});
  const layoutLabel=arrangeButton.locator('.layout-label');
  assert.equal(await arrangeButton.getAttribute('title'),'Auto layout');assert.equal(await layoutLabel.evaluate(node=>node.getBoundingClientRect().width),0);
@@ -338,8 +417,8 @@ try{
  for(const mode of [1,2,3]){
   layoutModes.push(await cycle(mode));
   assert.ok(await page.evaluate(()=>window.originalPanel===document.querySelector('[data-panel=auto-1]')&&window.originalTerminal===window.originalPanel.querySelector('.terminal-view')),'layout must preserve mounted terminals');
-  if(mode===1){assert.ok(layoutModes[0].filter(p=>Number(p.id.split('-')[1])%2).every(p=>p.w===2&&p.h===1));await page.screenshot({path:'test-results/layout-balanced-ultrawide.png'});}
-  if(mode===2){await page.reload();await page.waitForFunction(()=>document.querySelector('.layout-cycle')?.dataset.mode==='2');await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);await page.evaluate(()=>{window.originalPanel=document.querySelector('[data-panel=auto-1]');window.originalTerminal=window.originalPanel.querySelector('.terminal-view')});}
+  if(mode===1){assert.equal(layoutModes[0].filter(p=>Number(p.id.split('-')[1])%2).reduce((sum,p)=>sum+p.w*p.h,0),4);await page.screenshot({path:'test-results/layout-balanced-ultrawide.png'});}
+  if(mode===2){await page.reload();await page.waitForFunction(()=>document.querySelector('.layout-cycle')?.dataset.mode==='2');await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===3);await page.evaluate(()=>{window.originalPanel=document.querySelector('[data-panel=auto-1]');window.originalTerminal=window.originalPanel.querySelector('.terminal-view')});}
  }
  const fileArea=panels=>panels.filter(p=>Number(p.id.split('-')[1])%2===0).reduce((sum,p)=>sum+p.w*p.h,0);
  assert.ok(fileArea(layoutModes[1])<fileArea(layoutModes[0]));assert.ok(fileArea(layoutModes[2])>fileArea(layoutModes[0]));
@@ -372,12 +451,12 @@ try{
  assert.equal(await layoutLabel.textContent(),'Custom');assert.equal(await arrangeButton.locator('svg').evaluate(node=>node.style.transform),'rotate(0deg)','manual docking restores the upright Custom icon');
  assert.equal(await arrangeButton.locator('svg').evaluate(node=>getComputedStyle(node).transform),'matrix(1, 0, 0, 1, 0, 0)');
  const editedGeometry=await geometry();await cycle(1);await cycle(2);await cycle(3);assert.deepEqual(await cycle(0),editedGeometry);
- await cycle(1);await page.locator('[data-panel=auto-0] .panel-header').dblclick();assert.equal(await arrangeButton.getAttribute('data-mode'),'0');
+ await cycle(1);await page.locator('[data-panel=auto-0] .panel-header > svg').dblclick();assert.equal(await arrangeButton.getAttribute('data-mode'),'0');
  assert.equal(await arrangeButton.locator('svg').evaluate(node=>node.style.transform),'rotate(0deg)');
  check('cancelled and same-cell edits preserve the mode; changed geometry restores upright Custom and becomes the next custom snapshot');
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(300);assert.equal(await arrangeButton.count(),0);
  if(!await page.locator('[data-component-name=auto-0]').isVisible())await page.getByRole('button',{name:'More components',exact:true}).click();await page.locator('[data-component-name=auto-0]').click();
- const mobileFiles=page.locator('[data-panel=auto-0] .file-view');await mobileFiles.getByRole('textbox',{name:'Directory path'}).fill(controls);await mobileFiles.getByRole('textbox',{name:'Directory path'}).press('Enter');await page.waitForFunction(()=>document.querySelector('[data-component-name=auto-0] .component-tab-title')?.textContent==='controls');
+ const mobileFiles=page.locator('[data-panel=auto-0] .file-view');await mobileFiles.locator('..').getByRole('textbox',{name:'Directory path'}).fill(controls);await mobileFiles.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');await page.waitForFunction(()=>document.querySelector('[data-component-name=auto-0] .component-tab-title')?.textContent==='controls');
  assert.equal(await page.locator('[data-component-name=auto-0] > svg').count(),1);
  assert.ok(await page.locator('.component-tabs .visible-tabs > .component-tab-item').count()>=2);
  assert.equal(await page.locator('.component-tabs .visible-tabs > .component-tab-item').nth(1).evaluate(node=>getComputedStyle(node,'::before').opacity),'0.2');
@@ -390,7 +469,7 @@ try{
  assert.equal((await api('/settings','PUT',portraitSettings)).status(),200);await page.setViewportSize({width:900,height:1200});await page.goto(base);await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===3);
  const portraitLayout=await cycle(1);assert.ok(portraitLayout.filter(p=>Number(p.id.split('-')[1])%2).every(p=>p.y>=2));await page.screenshot({path:'test-results/layout-balanced-portrait.png'});
  const portraitTerminals=await cycle(2),portraitFiles=await cycle(3);assert.ok(fileArea(portraitTerminals)<fileArea(portraitLayout));assert.ok(fileArea(portraitFiles)>fileArea(portraitLayout));check('portrait Balanced leaves space for both types; each priority visibly redistributes it');
- for(const [width,height,columns,files,terminals] of [[1280,800,4,1,1],[1920,1080,4,2,2],[2560,1080,8,2,2],[3440,1440,8,2,2],[5120,1440,8,2,2],[3440,1440,4,2,2]]){
+ for(const [width,height,columns,files,terminals] of [[1280,800,4,1,1],[1920,1080,4,2,2],[2560,1080,4,2,2],[3440,1440,4,2,2],[5120,1440,4,2,2]]){
   await page.waitForTimeout(400);await page.goto('about:blank');await page.setViewportSize({width,height});
   const current=(await(await api('/me')).json()).settings;
   const panels=[...portrait.panels.filter(p=>p.kind==='files').slice(0,files),...portrait.panels.filter(p=>p.kind==='terminal').slice(0,terminals)].map((p,i)=>({...p,x:i*columns/(files+terminals),y:0,w:columns/(files+terminals),h:2}));
@@ -401,7 +480,7 @@ try{
   for(const mode of [1,2,3,0]){
    const next=await cycle(mode);
    if(mode)automatic.push(next);else assert.deepEqual(next,original);
-   if(width===3440&&columns===8&&mode)await page.screenshot({path:`test-results/layout-default-wide-${mode}.png`});
+   if(width===3440&&mode)await page.screenshot({path:`test-results/layout-default-wide-${mode}.png`});
   }
   assert.ok(fileArea(automatic[1])<=fileArea(automatic[0]));
   // Modes may coincide when expanding into spare cells leaves the same useful geometry.

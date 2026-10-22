@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"tuxee/internal/audio"
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
 	"tuxee/internal/monitor"
@@ -247,7 +248,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/connection" && r.Method == "GET" {
-		jsonResponse(w, 200, map[string]bool{"authenticated": session != nil})
+		state := map[string]any{"authenticated": session != nil}
+		if session != nil {
+			state["uid"] = session.user.UID
+			state["csrf"] = session.csrf
+		}
+		jsonResponse(w, 200, state)
 		return
 	}
 	if session == nil {
@@ -268,6 +274,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case r.URL.Path == "/api/audio" && r.Method == "GET":
+		s.userAudio(w, r, session)
 	case r.URL.Path == "/api/restart" && r.Method == "POST":
 		if s.Restart == nil {
 			failure(w, 503, errors.New("runtime restart is unavailable"))
@@ -329,7 +337,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 500, err)
 			return
 		}
-		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings})
+		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available()})
 	case r.URL.Path == "/api/logout" && r.Method == "POST":
 		s.mu.Lock()
 		delete(s.logins, key)
@@ -391,15 +399,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/api/terminals/"):
 		s.terminalRoute(w, r, session)
 	case r.URL.Path == "/api/tls" && r.Method == "GET":
-		if s.TLS == nil {
-			jsonResponse(w, 200, map[string]string{"source": "http"})
+		direct := r.TLS != nil && s.TLS != nil
+		for name := range r.Header {
+			name = strings.ToLower(name)
+			if name == "forwarded" || name == "via" || strings.HasPrefix(name, "x-forwarded-") {
+				direct = false
+				break
+			}
+		}
+		if direct {
+			jsonResponse(w, 200, s.TLS.Status(r.TLS.ServerName))
 			return
 		}
-		host := r.Host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
+		// A proxy's browser-facing certificate is not the backend certificate.
+		source := "http"
+		if r.TLS != nil {
+			source = "https"
 		}
-		jsonResponse(w, 200, s.TLS.Status(host))
+		jsonResponse(w, 200, map[string]string{"source": source})
 	case r.URL.Path == "/api/tls/ca" && r.Method == "GET" && s.TLS != nil:
 		w.Header().Set("Content-Type", "application/x-pem-file")
 		w.Header().Set("Content-Disposition", `attachment; filename="tuxee-local-ca.crt"`)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
+	"tuxee/internal/audio"
 	"tuxee/internal/desktop"
 	"tuxee/internal/identity"
 )
@@ -52,6 +53,7 @@ type Info struct {
 }
 
 type Manager struct {
+	Audio    audio.Manager
 	mu       sync.Mutex
 	closing  sync.WaitGroup
 	sessions map[string]*Session
@@ -129,8 +131,14 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if err != nil {
 		return nil, err
 	}
+	audioEnv, releaseAudio, err := m.Audio.Environment(user)
+	if err != nil {
+		engine.Close()
+		return nil, err
+	}
 	display, err := desktop.Prepare(user)
 	if err != nil {
+		releaseAudio()
 		engine.Close()
 		return nil, err
 	}
@@ -138,6 +146,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	defer func() {
 		if !created {
 			display.Close()
+			releaseAudio()
 		}
 	}()
 	args := []string{"-l"}
@@ -146,6 +155,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	}
 	cmd := user.Command(context.Background(), user.Shell, args...)
 	cmd.Dir = directory
+	cmd.Env = append(cmd.Env, audioEnv...)
 	if display != nil {
 		cmd.Env = append(cmd.Env, display.Env...)
 	}
@@ -194,6 +204,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		s.info.Exited = true
 		s.mu.Unlock()
 		display.Close()
+		releaseAudio()
 		close(s.exited)
 	}()
 	return s, nil
@@ -231,6 +242,7 @@ func (m *Manager) Close() {
 		s.Close()
 	}
 	m.closing.Wait()
+	m.Audio.Close()
 }
 func (s *Session) Info() Info {
 	s.mu.Lock()

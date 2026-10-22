@@ -89,18 +89,27 @@ export class TerminalView implements View {
         this.display.update();
         clearTimeout(this.reconnect);
         const socket = this.socket; this.socket = undefined; socket?.close();
-        if (this.root.querySelector('.terminal-recovery')) return;
+        this.root.querySelector('.terminal-recovery')?.remove();
         this.host.hidden = true;
         this.root.classList.add('session-lost');
         const recovery = el('div', 'terminal-recovery'), message = el('p', '', 'Terminal session lost');
         message.setAttribute('role', 'status');
-        recovery.append(message, button('Restart terminal', undefined, () => {
-            delete this.panel.terminal;
+        const lost = this.panel.terminal;
+        const restart = button('Restart terminal', undefined, () => {
+            restart.disabled = true;
+            if (this.panel.terminal === lost) delete this.panel.terminal;
             this.ended = false;
-            recovery.remove(); this.root.classList.remove('session-lost');
-            this.host.hidden = false; this.term.reset();
-            this.starting = this.start().catch(this.notice);
-        }, 'primary restart-terminal'));
+            this.term.reset();
+            this.starting = (async () => {
+                // Retry a failed save without abandoning the replacement shell.
+                if (this.panel.terminal) await this.hooks.changed(true);
+                await this.start();
+                if (this.ended || this.disposed || this.closing) return;
+                recovery.remove(); this.root.classList.remove('session-lost');
+                this.host.hidden = false;
+            })().catch(error => { this.ended = true; this.notice(error); }).finally(() => { restart.disabled = false; });
+        }, 'primary restart-terminal');
+        recovery.append(message, restart);
         this.root.append(recovery);
     }
     private async start() {
