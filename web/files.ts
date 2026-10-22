@@ -128,7 +128,9 @@ export class FileView implements View {
         this.list.setAttribute('aria-label', 'Files');
         this.list.setAttribute('aria-multiselectable', 'true');
         this.list.tabIndex = 0;
-        this.list.onkeydown = e => this.keydown(e);
+        this.list.onkeydown = e => { this.list.classList.add('keyboard-focus'); this.keydown(e); };
+        // Drag handlers prevent default pointer focus, so track keyboard focus explicitly.
+        this.list.addEventListener('pointerdown', () => this.list.classList.remove('keyboard-focus'), { capture: true, signal: this.events.signal });
         this.list.oncontextmenu = e => { e.preventDefault(); this.clearSelection(); this.menu({ x: e.clientX, y: e.clientY }, true); };
         this.list.onpointerdown = e => this.startSelection(e);
         this.list.onscroll = this.list.onpointercancel = () => { this.lastTap = undefined; };

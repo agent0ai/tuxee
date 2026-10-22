@@ -515,8 +515,27 @@ h3 {
   background: var(--raised);
 }
 .file-entry[aria-selected=true] {
+  position: relative;
   background: var(--accent-bg);
 }
+.file-entry[aria-selected=true]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.file-entry[aria-selected=true] + .file-entry[aria-selected=true] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.file-entry[aria-selected=true] + .file-entry[aria-selected=true]::before { border-top-width: 0; }
+.file-entry[aria-selected=true]:has(+ .file-entry[aria-selected=true]) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.file-entry[aria-selected=true]:has(+ .file-entry[aria-selected=true])::before { border-bottom-width: 0; }
 .file-name {
   display: flex;
   align-self: stretch;
@@ -1085,7 +1104,6 @@ progress {
 .compact .file-columns { padding-inline: 8px; }
 .compact .file-footer button { min-width: 28px; min-height: 32px; }
 .compact .file-filter { font-size: 16px; }
-.compact .file-entry { border-radius: 0; }
 .compact .terminal-host > .xterm { padding: 2px 0 0; }
 .panel-header, .add-panel { touch-action: none; }
 .panel-dragging, .panel-settling { z-index: 100 !important; }
@@ -1094,7 +1112,8 @@ progress {
 .new-panel-drag { display: grid; place-content: center; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; }
 .component-notifications, .component-transfers { position: absolute; right: 8px; bottom: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100% - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 60; }
 .component-transfers { bottom: 58px; }
-.file-entry:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+.file-entry:focus { outline: none; }
+.file-list.keyboard-focus .file-entry:focus { outline: 1px solid var(--accent); outline-offset: -3px; }
 
 .workspace-controls { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; gap: 4px; }
 .workspace-controls > button { flex-shrink: 0; }

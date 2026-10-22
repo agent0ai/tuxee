@@ -42,6 +42,38 @@ async function move(p) { await touch.send('Input.dispatchTouchEvent', { type: 't
 async function end(cancel = false) { await touch.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] }); }
 async function ready() { await list.locator('.file-entry').first().waitFor(); await file.locator('.file-list:not(.loading)').waitFor(); }
 async function navigate(path) { await page.locator('.path-input').fill(path); await page.locator('.path-input').press('Enter'); await page.waitForFunction(path => document.querySelector('.path-input')?.value === path && !document.querySelector('.file-list.loading'), path); }
+async function checkSelectionGroups(screenshot) {
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(300); // Let the browser's native touch highlight fade before capturing selection colors.
+    const png = await page.screenshot(screenshot ? { path: `test-results/${screenshot}.png` } : {});
+    const failures = await list.evaluate(async (list, png) => {
+        const image = new Image(); image.src = `data:image/png;base64,${png}`; await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+        const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+        const pixel = (x, y) => [...ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data].slice(0, 3);
+        const color = property => { ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(property); ctx.fillRect(0, 0, 1, 1); return pixel(0, 0); };
+        const border = color('--accent'), fill = color('--accent-bg'), failures = [];
+        const bounds = list.getBoundingClientRect();
+        const selected = row => row?.getAttribute('aria-selected') === 'true';
+        for (const row of list.querySelectorAll('.file-entry[aria-selected=true]')) {
+            const r = row.getBoundingClientRect(), start = !selected(row.previousElementSibling), end = !selected(row.nextElementSibling);
+            const style = getComputedStyle(row), radii = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].map(corner => parseFloat(style[`border${corner}Radius`]));
+            if (JSON.stringify(radii) !== JSON.stringify([start ? 5 : 0, start ? 5 : 0, end ? 5 : 0, end ? 5 : 0])) failures.push({ name: row.textContent, radii, start, end });
+            if (row.matches(':focus') && style.outlineStyle !== 'none') failures.push({ name: row.textContent, outline: style.outlineStyle });
+            if (r.top < bounds.top || r.bottom > bounds.bottom) continue;
+            for (const [label, x, y, expected] of [
+                ['left border', r.left, r.y + r.height / 2, border], ['right border', r.right - 1, r.y + r.height / 2, border],
+                ['top edge', r.x + r.width / 2, r.y, start ? border : fill], ['bottom edge', r.x + r.width / 2, r.bottom - 1, end ? border : fill],
+                ...(start ? [] : [['joined left corner', r.x + 2, r.y, fill], ['joined right corner', r.right - 3, r.y, fill]]),
+            ]) {
+                const actual = pixel(x, y);
+                if (actual.some((value, i) => Math.abs(value - expected[i]) > 8)) failures.push({ name: row.textContent, label, actual, expected });
+            }
+        }
+        return failures;
+    }, png.toString('base64'));
+    assert.deepEqual(failures, [], 'selection groups have continuous one-pixel borders, flat joins and rounded outer corners');
+}
 try {
     await page.goto(base); await ready();
     assert.equal(await page.locator('meta[property="og:image"]').getAttribute('content'), base + '/social-preview.jpg');
@@ -49,6 +81,41 @@ try {
     const dimensions = await page.evaluate(async () => Promise.all(['/favicon.png', '/social-preview.jpg'].map(async src => { const img = new Image(); img.src = src; await img.decode(); return [img.naturalWidth, img.naturalHeight]; })));
     assert.deepEqual(dimensions, [[64, 64], [1200, 630]]);
     check('public favicon and social preview bytes, MIME types, dimensions and metadata');
+
+    await mkdir('test-results', { recursive: true });
+    const groupNames = ['folder', 'row-00.txt', 'row-01.txt', 'row-03.txt', 'row-04.txt', 'row-06.txt'];
+    for (const theme of ['dark', 'light']) {
+        if (theme === 'light') await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+        for (const width of [1280, 390, 320]) {
+            await page.setViewportSize({ width, height: 844 });
+            await page.waitForFunction(compact => document.querySelector('.board').classList.contains('compact-board') === compact, width < 760);
+            if (width < 760) {
+                await all.check(); await all.uncheck();
+                for (const name of groupNames) await box(name).tap();
+            } else {
+                await row(groupNames[0]).click();
+                for (const name of groupNames.slice(1)) await row(name).click({ modifiers: ['Control'] });
+            }
+            assert.deepEqual(await selected(), groupNames);
+            await checkSelectionGroups(`file-selection-groups-${theme}-${width}`);
+        }
+    }
+    await box('row-00.txt').tap(); await checkSelectionGroups(); // Split a group, leaving two single rows.
+    await box('row-00.txt').tap(); await box('row-02.txt').tap(); await checkSelectionGroups(); // Merge neighboring groups.
+    await file.getByRole('button', { name: 'Filter files', exact: true }).tap();
+    await file.getByRole('searchbox').fill('row-0'); await checkSelectionGroups();
+    await file.getByRole('searchbox').press('Escape');
+    await file.locator('[data-column=name]').click(); await checkSelectionGroups();
+    await file.locator('[data-column=name]').click();
+    await list.evaluate(node => { node.scrollTop = node.scrollHeight; });
+    await checkSelectionGroups();
+    await file.locator('[data-column=name]').click();
+    await all.check(); await all.uncheck();
+    await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await row('row-00.txt').focus(); await page.keyboard.press('ArrowDown');
+    assert.ok(await row('row-01.txt').evaluate(node => node.matches(':focus-visible') && getComputedStyle(node).outlineStyle === 'solid'), 'keyboard row focus stays visible');
+    check('separate rounded selection groups, seam/border pixels, split/merge/filter/sort, desktop and 320/390px screenshots in both themes');
 
     await touch.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await row('folder').locator('.file-name svg').tap();
@@ -180,7 +247,7 @@ try {
         await page.setViewportSize({ width, height });
         await page.waitForFunction(compact => document.querySelector('.board').classList.contains('compact-board') === compact, compact);
         assert.equal(await file.locator('.file-select:visible').count(), compact ? await list.locator('.file-entry').count() + 1 : 0);
-        assert.equal(await file.getByRole('checkbox').count(), compact ? await list.locator('.file-entry').count() + 1 : 0, 'desktop checkboxes must also be absent from the accessibility tree');
+        assert.equal(await file.getByRole('checkbox', { name: /^Select / }).count(), compact ? await list.locator('.file-entry').count() + 1 : 0, 'desktop selection checkboxes must also be absent from the accessibility tree');
         assert.deepEqual(await selected(), beforeResize, 'resizing preserves selection');
     }
     await row('row-00.txt').click();
