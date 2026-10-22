@@ -63,6 +63,13 @@ export class TerminalView implements View {
         this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.inputBytes(Uint8Array.from(data, c => c.charCodeAt(0))));
+        this.term.attachCustomKeyEventHandler(event => {
+            if (event.key !== 'Enter' || !event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return true;
+            // shortcut: CSI-u for Shift+Enter only; broader keyboard modes need shared engine support.
+            event.preventDefault(); event.stopPropagation();
+            if (event.type === 'keydown') this.term.input('\x1b[13;2u');
+            return false;
+        });
         this.observer = new ResizeObserver(() => this.resize());
         this.observer.observe(this.host);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });

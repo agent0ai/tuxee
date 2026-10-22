@@ -54,6 +54,8 @@ Use one terminal header with rename/close, no status/header duplication or modif
 
 Terminal touch scrolling belongs to terminal/interaction.ts. Text selection and copying use the terminal’s native selection; do not add a separate output-selection action, snapshot dialog or text-extraction helper.
 
+term.ts encodes exactly Shift+Enter outside IME composition as `CSI 13;2u` through xterm's public input API, once per keydown. Consume the chord's default/propagation; preserve other modifiers and the shared input queue/controller checks. This is a single key mapping, not negotiated enhanced-keyboard support.
+
 The terminal takeover button shows the Hand icon followed by `Control`; keep `Take control` as its tooltip and accessible label.
 
 When a saved terminal is missing (404 on initial load or reconnect) or the backend explicitly closes its session, hide its renderer and show a uniform theme-colored recovery surface. Center “Terminal session lost” with the standard primary Restart terminal button below it, on desktop and mobile. Restart creates/persists a new session before restoring the terminal surface. Keep recovery visible and disable its button while starting; creation/save failures report locally and re-enable retry. Retry a failed save using the already-created replacement shell, never create duplicates. Normal process exit retains its output; connection failures continue reconnecting instead of displaying this missing-session view.

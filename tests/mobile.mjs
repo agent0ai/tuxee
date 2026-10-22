@@ -27,7 +27,7 @@ assert.equal((await api('/settings', 'PUT', {
     theme: 'dark', current: 'mobile',
     workspaces: [{ id: 'mobile', name: 'Mobile', columns: 4, rows: 2, active: 'term', panels: [
         { id: 'term', kind: 'terminal', terminal: terminal.id, path: '/tmp', x: 0, y: 0, w: 2, h: 2 },
-        ...[0, 1].map(y => ({ id: `files-${y}`, kind: 'files', name: `A long file browser title ${y}`, path: '/tmp', x: 2, y, w: 2, h: 1 })),
+        ...[0, 1].map(y => ({ id: `files-${y}`, kind: 'files', path: '/tmp', x: 2, y, w: 2, h: 1 })),
     ] }],
 })).status(), 200);
 await context.clearCookies();
@@ -103,6 +103,42 @@ try {
     assert.equal(await page.evaluate(() => visualViewport.scale), 1);
     assert.ok(Math.abs(await page.locator('#app').evaluate(node => node.clientHeight) - 844) < 2);
     check('hostname title, login metadata/link, touch login, 16px inputs, visual-viewport keyboard simulation and login-to-workspace height');
+
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(250);
+        const code = `import os,tty,termios,select
+old=termios.tcgetattr(0)
+data=b''
+try:
+ tty.setraw(0)
+ os.write(1,b'KEYS_READY_${width}\\r\\n')
+ while not data.endswith(b'\\x04') and select.select([0],[],[],10)[0]:
+  data+=os.read(0,4096)
+finally:
+ termios.tcsetattr(0,termios.TCSANOW,old)
+print('KEYS_RESULT_${width}_'+data.hex(),flush=True)`;
+        await command(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(code).toString('base64')}'))"`);
+        await page.waitForFunction(width => document.querySelector('.xterm-rows')?.textContent.includes(`KEYS_READY_${width}`), width);
+        const keys = [
+            ['Enter', '\r'], ['Shift+Enter', '\x1b[13;2u'], ['Alt+Enter', '\x1b\r'],
+            ['Control+Enter', '\r'], ['Control+Shift+Enter', '\r'], ['Alt+Shift+Enter', '\x1b\r'],
+            ...'abcefghijklmnopqrstuvwxyz'.split('').map(key => ['Control+' + key.toUpperCase(), String.fromCharCode(key.charCodeAt(0) - 96)]),
+            ['Control+Space', '\0'], ['Control+Backspace', '\b'], ['Control+Delete', '\x1b[3;5~'],
+            ...['Up', 'Down', 'Right', 'Left'].map((key, i) => ['Control+Arrow' + key, `\x1b[1;5${'ABCD'[i]}`]),
+            ['Shift+Tab', '\x1b[Z'], ['Alt+A', '\x1ba'], ['Alt+B', '\x1bb'], ['F1', '\x1bOP'], ['F5', '\x1b[15~'],
+        ];
+        for (const [key] of keys) {
+            await page.keyboard.press(key);
+        }
+        await page.keyboard.down('Shift');
+        await page.keyboard.down('Enter'); await page.keyboard.down('Enter');
+        await page.keyboard.up('Enter'); await page.keyboard.up('Shift');
+        await page.keyboard.press('Control+D');
+        await page.waitForFunction(width => document.querySelector('.xterm-rows')?.textContent.includes(`KEYS_RESULT_${width}_`), width);
+        const result = (await rows.textContent()).match(new RegExp(`KEYS_RESULT_${width}_([0-9a-f]+)`));
+        assert.equal(result?.[1], Buffer.from(keys.map(([, data]) => data).join('') + '\x1b[13;2u\x1b[13;2u\x04').toString('hex'));
+    }
+    check('desktop/mobile PTYs receive distinct Shift+Enter, Ctrl+A–Z, modified navigation, Alt/function keys and one sequence per repeated keydown');
 
     const heightBefore = await page.locator('#app').evaluate(node => node.clientHeight);
     await touch.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 });
