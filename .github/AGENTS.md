@@ -2,16 +2,17 @@ Parent DOX: [project](../AGENTS.md).
 
 # Purpose
 
-Tag-triggered binary and Docker Hub releases, and repository presentation assets.
+Tag-triggered binary and Docker Hub releases, repository sponsorship and presentation assets.
 
 # Ownership
 
-Own Actions workflows and release-note generation. Root owns Dockerfile and
+Own Actions workflows, release-note generation and `FUNDING.yml`. Root owns Dockerfile and
 installer; internal/update owns the release-asset contract.
 `resources/` owns optimized README screenshots, infographics and their thumbnails.
 
 # Local Contracts
 
+- `FUNDING.yml` uses Agent Zero's sponsorship configuration (`github: agent0ai`).
 - Push `vMAJOR.MINOR.PATCH` to release. Build on native amd64/arm64 runners.
   Docker's Bookworm backend builds both the image and exported binary, with the
   tag injected into `main.version`. Never publish unversioned development builds.

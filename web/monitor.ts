@@ -1,6 +1,6 @@
 import { api, button, el, icon, modal, size } from './ui';
 import { id, type MonitoringPreferences } from './model';
-import { compactSize } from './monitor-values';
+import { compactNumber, compactSize } from './monitor-values';
 import { Processes } from './processes';
 
 type Capacity = { total: number; used: number; available: number; percent: number | null; cache?: number };
@@ -11,7 +11,7 @@ type Metric = { label: string; kind: 'cpu' | 'memory' | 'disk' | 'network'; perc
 const allNetworks = '/all';
 const networkLabel = (name: string) => name === allNetworks ? 'NET' : name;
 const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
-const percentage = (value?: number | null) => value == null ? '—' : `${Math.round(value)}%`;
+const percentage = (value?: number | null) => value == null ? '—' : `${compactNumber(value)}%`;
 const rate = (value: number | null | undefined) => value == null ? '—' : `${size(value)}/s`;
 
 export class Monitoring {
@@ -78,7 +78,7 @@ export class Monitoring {
         return items;
     }
     private reading(value: string) {
-        const reading = el('strong', 'monitor-value'), parts = value.match(/^(\d+)([%BKMGTPEZ])$/);
+        const reading = el('strong', 'monitor-value'), parts = value.match(/^(\d+(?:\.\d)?)([%BKMGTPEZ])$/);
         if (parts) reading.append(el('span', 'monitor-number', parts[1]), el('span', 'monitor-unit', parts[2]));
         else reading.textContent = value;
         return reading;

@@ -81,6 +81,8 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
 - Use `main` as the primary Git branch.
+- Root `LICENSE` uses Agent Zero's MIT license with Tuxee's repository URL (`https://github.com/agent0ai/tuxee`); preserve separate third-party licenses and reuse notices.
+- Tuxee is developed in-house. `CONTRIBUTING.md` politely asks others not to open pull requests; critical security fixes are the only accepted external contributions.
 - The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker and public branding assets separate.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
 - Keep the UI free of promotional/descriptive microcopy except the About tagline. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
@@ -103,7 +105,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-- [.github/AGENTS.md](.github/AGENTS.md): Version-tag release builds, commit notes, GitHub/Docker Hub publication and README resources.
+- [.github/AGENTS.md](.github/AGENTS.md): Version-tag release builds, commit notes, GitHub/Docker Hub publication, sponsorship configuration and README resources.
 
 - [internal/AGENTS.md](internal/AGENTS.md): Linux identity, file operations, terminal lifecycle, transport, TLS, and service implementation.
 - [web/AGENTS.md](web/AGENTS.md): Embedded frontend and browser dependency builds.
@@ -112,7 +114,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - [docker/AGENTS.md](docker/AGENTS.md): Docker runtime files, example configuration and startup-folder documentation.
 - [docs/AGENTS.md](docs/AGENTS.md): Installation, releases and user/developer documentation.
 - [assets/AGENTS.md](assets/AGENTS.md): Original logo artwork and its optimized UI/README copies.
-- Root owns README.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
+- Root owns README.md, LICENSE, CONTRIBUTING.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
 
 
 ## Tuxee purpose and requested scope

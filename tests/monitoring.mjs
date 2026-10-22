@@ -63,13 +63,17 @@ try {
  let cpuPercent=0.24;
  await page.route(base+'/api/metrics',async route=>{const response=await route.fetch(),data=await response.json();data.cpu.percent=cpuPercent;await route.fulfill({response,json:data});});
  const cpuWidth=(await summary.locator('.monitor-chip').first().boundingBox()).width;
- for(const [value,label] of [[0.24,'0%'],[0.099,'0%'],[0.5,'1%'],[0,'0%'],[10.4,'10%'],[99.9,'100%'],[null,'—']]){
+ for(const [value,label] of [[0.24,'0.2%'],[0.099,'0.1%'],[0.001,'0%'],[0.5,'0.5%'],[0,'0%'],[1,'1.0%'],[9.94,'9.9%'],[9.95,'10%'],[10.49,'10%'],[99.9,'100%'],[null,'—']]){
   cpuPercent=value;await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   await page.waitForFunction(text=>document.querySelector('.monitor-summary .monitor-value')?.textContent===text,label);
   assert.equal(await dialog.locator('.monitor-value').first().textContent(),label);
+  for(const widget of [summary,dialog]) {
+   assert.equal(await widget.locator('.monitor-value').first().locator('.monitor-unit').count(),value===null?0:1);
+   assert.ok(await widget.locator('.monitor-value').first().evaluate(node=>node.scrollWidth<=node.clientWidth));
+  }
   assert.equal((await summary.locator('.monitor-chip').first().boundingBox()).width,cpuWidth);
  }
- await page.unroute(base+'/api/metrics');check('integer CPU readings and stable widths in the widget and details');
+ await page.unroute(base+'/api/metrics');check('CPU decimals below ten, zero rounding, separate units and stable widths in the widget and details');
  const MiB=1024**2;
  const defaultMemory={total:1024*MiB,used:64*MiB,available:960*MiB,cache:896*MiB,percent:6.25};
  let memory=defaultMemory;
@@ -127,6 +131,10 @@ try {
  assert.equal(await ramCard.locator('.monitor-value').textContent(),'960M');
  assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 0 B');
  assert.equal(await ramCard.locator('.monitor-gauge').evaluate(node=>node.style.getPropertyValue('--cache')),'0');
+ for(const [used,label] of [[1,'1.0M'],[1.5,'1.5M'],[9.94,'9.9M'],[9.95,'10M'],[1024,'1.0G']]) {
+  memory={...defaultMemory,used:used*MiB,available:(1024-used)*MiB,cache:0,percent:used/1024*100};await memorySample();
+  for(const widget of [ramChip,ramCard]) assert.equal(await widget.locator('.monitor-value').textContent(),label);
+ }
  memory=null;await memorySample();assert.equal(await ramCard.locator('.monitor-value').textContent(),'—');assert.equal(await ramCard.locator('.monitor-gauge').evaluate(node=>node.style.getPropertyValue('--usage')),'0');
  await page.unroute(base+'/api/metrics');check('hard RAM headlines, purple used/green cache/free stacks in header and modal, binary units and unavailable/zero cache in both themes');
  await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();
@@ -170,16 +178,16 @@ try {
   }
   assert.deepEqual(await summary.locator('.monitor-chip').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width)),widths);
  }
- for(const [value,label] of [[999,'999B'],[12000,'12K'],[999e6,'999M'],[7.8e6,'8M'],[1e21,'1Z'],[null,'—']]) await networkSample(value,value,label,label);
+ for(const [value,label] of [[0.001,'0B'],[999,'999B'],[12000,'12K'],[999e6,'999M'],[7.8e6,'7.8M'],[1e21,'1.0Z'],[null,'—']]) await networkSample(value,value,label,label);
  await networkSample(528.5390883183117,910.6452389215688,'529B','911B');
  const networkDetail=networkCard.locator('p');
  assert.equal(await networkDetail.textContent(),'Download 529 B/s · Upload 911 B/s');
  assert.equal(await summary.locator('.monitor-network-value').getAttribute('aria-label'),'Download 529 B/s · Upload 911 B/s');
- await networkSample(1536.123456,0,'2K','0B');
+ await networkSample(1536.123456,0,'1.5K','0B');
  assert.equal(await networkDetail.textContent(),'Download 1.5 KB/s · Upload 0 B/s');
- await networkSample(1,100,'1B','100B');
+ await networkSample(1,100,'1.0B','100B');
  networkPresent=false;await networkSample(0,0,'—','—');
- networkPresent=true;await networkSample(891,1000,'891B','1K');
+ networkPresent=true;await networkSample(9940,1000,'9.9K','1.0K');
  for(const theme of ['dark','light']) {
   for(const width of [1440,1101,1100,900,760,390,320]) {
    await page.setViewportSize({width,height:1000});
@@ -195,7 +203,7 @@ try {
   await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await summary.click();
  }
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await page.unroute(base+'/api/metrics');
- check('integer network rates, accessible details, direction arrows, no ratio gauges, missing interfaces and stable bounded widgets in both themes');
+ check('network decimals below ten, accessible details, direction arrows, no ratio gauges, missing interfaces and stable bounded widgets in both themes');
  const beforeHidden=polls;await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(5200);assert.equal(polls,beforeHidden);
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForResponse(r=>r.url()===base+'/api/metrics');assert.ok(polls>beforeHidden);check('hidden tabs pause monitoring and resume on visibility');
  await openFromMenu();assert.ok(await displaySwitch.isChecked());await setDisplay(false);
