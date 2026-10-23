@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -53,6 +55,24 @@ func TestUpdateChecksRequireSessionAndCSRF(t *testing.T) {
 	}
 	if status.Current != "1.0.0" || status.Available || !strings.HasPrefix(status.Command, "sudo '") || !strings.HasSuffix(status.Command, "' update") {
 		t.Fatal(status)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.Symlink(executable, filepath.Join(dir, "tuxee")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	w = request("GET", true, false)
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || status.Command != "sudo tuxee update" {
+		t.Fatal("matching PATH", status, err)
+	}
+	s.logins[sha256.Sum256([]byte("token"))].user.UID = 0
+	w = request("GET", true, false)
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || status.Command != "tuxee update" {
+		t.Fatal("root command", status, err)
 	}
 	if w := request("PUT", true, true); w.Code != 404 {
 		t.Fatal("unexpected update mutation", w.Code)

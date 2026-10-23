@@ -36,8 +36,11 @@ sudo tuxee update --name my-tuxee
 By default the command updates the executable it was invoked from, resolving
 symlinks. `--name` selects that managed service's executable instead. The default
 installer and Docker image share one binary between PATH and the server; named
-services retain their separate installation paths. About displays the exact
-command for the running server's path, adding sudo for non-root users.
+services retain their separate installation paths. About and CLI restart hints
+use `tuxee` when PATH lookup resolves through
+symlinks to the same installation; otherwise they show its quoted absolute path.
+About adds sudo for non-root users. The lookup checks the calling process's PATH;
+customized user shells and sudo may have different paths.
 
 The updater checks the latest stable release and compares semantic versions.
 Equal/newer installed versions stay unchanged. Downloads are bounded, checked
@@ -56,8 +59,21 @@ execute the running inode via `/proc/self/exe`, so they stay on the same version
 after replacement. Configuration, user files and terminals are unchanged by
 the update. **Restarting ends all terminal sessions.**
 
-When ready, run `sudo tuxee restart` (with `--name` for a named service), or stop
-and relaunch the original foreground command. Updates never restart automatically.
+When ready, run `sudo tuxee restart` (with `--name` for a named installation).
+This uses the same runtime cleanup/re-exec as the UI for foreground, systemd and
+Docker deployments. Use `--state /path` to select among instances sharing a binary.
+All systemd controls now live under `tuxee service`, including `tuxee service restart`.
+Older running servers need one restart through the UI or their service/supervisor
+before they support the new CLI trigger. Updates never restart automatically.
+
+Update results print a blank line, green success or red failure, another blank
+line, the reminder that changes take effect after restarting and that restarting
+kills all running terminals, then `Restart using:` with the command in yellow.
+Failures return a nonzero exit status, so `tuxee update && tuxee restart` only
+requests restart after a successful update command (including already up to date).
+Use `sudo tuxee update && sudo tuxee restart` outside a root shell. Colors are
+omitted for redirected output, `NO_COLOR`, and `TERM=dumb`.
+
 An executable's successful version check does not establish every runtime
 behavior of a release; an explicit older installer version is available if needed.
 
@@ -80,8 +96,9 @@ account database is recreated according to the existing ROOT_PASSWORD contract.
 `tuxee update` also works as root inside a writable container. It replaces
 the binary. On the next server start, that binary runs its embedded
 [`update.sh`](../internal/update/update.sh) to install missing release prerequisites.
-Use `docker restart <container>` from the host when ready. That update survives
-restarts of the same container; recreation uses the selected image's binary.
+Run `tuxee restart` inside the container when ready. It restarts Tuxee while
+leaving the container and `/init` hooks running. That update survives restarts of
+the same container; recreation uses the selected image's binary.
 No binary-override volume or Docker socket access is needed.
 
 For 0.2.1, setup installs the minimal private audio runtime in existing Tuxee

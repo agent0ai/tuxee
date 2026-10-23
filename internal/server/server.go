@@ -314,7 +314,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 500, err)
 			return
 		}
-		command := "'" + strings.ReplaceAll(path, "'", "'\\''") + "' update"
+		command := update.Command(path) + " update"
 		if session.user.UID != 0 {
 			command = "sudo " + command
 		}

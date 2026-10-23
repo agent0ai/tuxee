@@ -105,9 +105,9 @@ func Install(name, state string, config []byte) error {
 	active := exec.Command("systemctl", "is-active", "--quiet", name+".service").Run() == nil
 	fmt.Printf("Installed %s.service; enabled at boot. Configuration: %s\n", name, p.config)
 	if active {
-		fmt.Printf("Service is running; apply changes with tuxee restart --name %s\n", name)
+		fmt.Printf("Service is running; apply changes with tuxee service restart --name %s\n", name)
 	} else {
-		fmt.Printf("Service is stopped; start it with tuxee start --name %s\n", name)
+		fmt.Printf("Service is stopped; start it with tuxee service start --name %s\n", name)
 	}
 	return nil
 }

@@ -39,16 +39,17 @@ state and the service unit. Repeating the command is safe; unrelated files
 are refused.
 
 The running server keeps its old version until restarted. When ready, restart
-the default service:
+the running Tuxee instance:
 
 ```sh
-sudo /usr/local/bin/tuxee restart
+sudo tuxee restart
 ```
 
-Restarting ends all terminal sessions. For a foreground server, stop it and run
-`/usr/local/bin/tuxee serve` with its original options. Custom executable paths
-and custom-named service copies are separate installations; this command updates
-only the default installation.
+Restarting ends all terminal sessions. The command works for foreground, systemd
+and Docker deployments. Older running versions need one restart through the UI,
+`sudo tuxee service restart`, or their existing supervisor before they support
+the new CLI runtime restart. Custom executable paths and custom-named service
+copies are separate installations; the installer updates only the default installation.
 
 ## Manual binary installation
 
@@ -106,7 +107,7 @@ On a system with a running systemd manager, register boot startup and start:
 
 ```sh
 sudo tuxee service install
-sudo tuxee start
+sudo tuxee service start
 ```
 
 Other systems can run `tuxee serve` through their existing supervisor.
@@ -142,7 +143,7 @@ To install the source build as a boot service:
 
 ```sh
 sudo ./bin/tuxee service install
-sudo ./bin/tuxee start
+sudo ./bin/tuxee service start
 ```
 
 See the [developer guide](guide.md#build-and-run) for isolated local runs and

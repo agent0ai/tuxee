@@ -53,7 +53,7 @@ try {
             ? "trap '' HUP; xterm -title Tuxee-restart-test & echo $! > gui-pid; printf ready > ready; wait"
             : "trap '' HUP; printf ready > ready; exec sleep 300";
         const response = await api(i, '/terminals', 'POST', { name: 'Restart test', directory: users[i].home, columns: 80, rows: 24, command });
-        assert.equal(response.status(), 201); terminals.push(await response.json());
+        assert.equal(response.status(), 201, await response.text()); terminals.push(await response.json());
         assert.equal((await api(i, '/settings', 'PUT', { theme: 'dark', current: 'restart', workspaces: [{ id: 'restart', name: 'Restart test', columns: 4, rows: 2, active: 'files', panels: [
             { id: 'files', kind: 'files', path: users[i].home, x: 0, y: 0, w: 2, h: 2 },
             { id: 'terminal', kind: 'terminal', terminal: terminals[i].id, x: 2, y: 0, w: 2, h: 2 },
@@ -146,12 +146,51 @@ try {
     }
     await page.reload(); await page.getByText('Terminal session lost', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
+
+    const deniedCLI = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8', uid: users[1].uid, gid: users[1].gid });
+    assert.equal(deniedCLI.status, 1);
+    assert.match(deniedCLI.stderr, /Restart failed: operation not permitted/);
+    assert.equal((await api(0, '/connection')).status(), 200);
+
+    const cliTerminals = [];
+    for (let i = 0; i < users.length; i++) {
+        const response = await api(i, '/terminals', 'POST', { name: 'CLI restart', directory: users[i].home, columns: 80, rows: 24, command: 'exec sleep 300' });
+        assert.equal(response.status(), 201); cliTerminals.push(await response.json());
+    }
+    await copyFile('bin/tuxee', `${dir}/next`);
+    await rename(`${dir}/next`, `${dir}/runtime`);
+    const cli = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8' });
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.equal(cli.stdout, '\nRestarting Tuxee kills all running terminals and GUI applications and signs everyone out.\n\nRestart requested.\n');
+    await writeFile('test-results/cli-restart-output.txt', cli.stdout);
+    for (const p of pages) await p.locator('[name=username]').waitFor({ timeout: 20000 });
+    assert.equal(starts, 3); assert.equal(service.exitCode, null);
+    assert.equal(addresses[2], base);
+    for (const terminal of cliTerminals) assert.throws(() => process.kill(terminal.pid, 0), { code: 'ESRCH' });
+    for (let i = 0; i < users.length; i++) {
+        assert.deepEqual(await (await api(i, '/connection')).json(), { authenticated: false });
+        identities[i] = await login(i);
+    }
+
+    const selfRestart = await api(0, '/terminals', 'POST', { name: 'Restart from own terminal', directory: users[0].home, columns: 80, rows: 24,
+        command: `while [ ! -e '${dir}/restart-now' ]; do sleep 0.05; done; exec '${dir}/runtime' restart` });
+    assert.equal(selfRestart.status(), 201);
+    const ownTerminal = await selfRestart.json();
+    await writeFile(`${dir}/restart-now`, 'go');
+    for (let i = 0; starts < 4 && i < 200; i++) await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(starts, 4); assert.equal(service.exitCode, null);
+    assert.equal(addresses[3], base);
+    assert.throws(() => process.kill(ownTerminal.pid, 0), { code: 'ESRCH' });
+    for (let i = 0; i < users.length; i++) identities[i] = await login(i);
+    assert.equal(unrelated.exitCode, null);
+    console.log('PASS CLI restart after binary replacement, Linux permission denial, all-user cleanup, same PID/port, and restart from its own terminal');
+
     await api(0, '/terminals', 'POST', { name: 'Shutdown race', directory: users[0].home, columns: 80, rows: 24, command: "trap '' HUP; printf ready > shutdown-ready; exec sleep 300" });
     for (let i = 0; i < 100 && await readFile(`${users[0].home}/shutdown-ready`, 'utf8').catch(() => '') !== 'ready'; i++) await page.waitForTimeout(20);
     assert.equal(await readFile(`${users[0].home}/shutdown-ready`, 'utf8'), 'ready');
     assert.equal((await api(0, '/restart', 'POST', {})).status(), 202);
     service.kill('SIGTERM'); await stopped;
-    assert.equal(starts, 2, 'shutdown during terminal cleanup must cancel the pending restart');
+    assert.equal(starts, 4, 'shutdown during terminal cleanup must cancel the pending restart');
     assert.equal(service.exitCode, 0);
     console.log(`PASS restart menu for all users, Linux permission denial without interruption, CSRF/origin admission, cancellation/draft protection, desktop/mobile confirmation, real re-exec of updated binary, all-user terminal cleanup${gui ? ' including GUI' : ' (GUI unavailable)'}, loader → login, preserved settings, unrelated Linux processes and shutdown during restart`);
 } finally {

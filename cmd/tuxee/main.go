@@ -74,7 +74,10 @@ func main() {
 		if errors.Is(err, flag.ErrHelp) {
 			return
 		}
-		fmt.Fprintln(os.Stderr, "tuxee:", err)
+		var reported reportedError
+		if !errors.As(err, &reported) {
+			fmt.Fprintln(os.Stderr, "tuxee:", err)
+		}
 		os.Exit(1)
 	}
 }
@@ -88,8 +91,10 @@ func help() {
   tuxee service install [--name tuxee] [serve options]
                                          Install and enable a systemd unit
   tuxee service uninstall [--name tuxee]  Unregister; preserve configuration/state
-  tuxee start|stop|restart|status|logs [--name tuxee]
+  tuxee service start|stop|restart|status|logs [--name tuxee]
                                          Use the system service manager
+  tuxee restart [--name tuxee] [--state directory]
+                                         Restart the running Tuxee runtime
   tuxee version                          Print version
   tuxee update [--check] [--name tuxee]    Check/install the latest stable release
   tuxee upgrade [--check] [--name tuxee]   Alias for update
@@ -119,7 +124,7 @@ func run(args []string) error {
 		}
 		fmt.Printf("Installed Tuxee %s: %s\nRun: sudo tuxee serve\n", version, update.CommandPath)
 		if service.Available() == nil {
-			fmt.Println("Start at boot: sudo tuxee service install\nStart now: sudo tuxee start")
+			fmt.Println("Start at boot: sudo tuxee service install\nStart now: sudo tuxee service start")
 			fmt.Println("Apply an update to the existing default service: sudo tuxee restart")
 		} else {
 			fmt.Println("No running systemd manager; use tuxee serve with your existing supervisor.")
@@ -134,6 +139,8 @@ func run(args []string) error {
 		return runUpdate(args[1:])
 	case "ports":
 		return runPorts(args[1:], os.Stdout)
+	case "restart":
+		return runRestart(args[1:])
 	case "serve", "healthcheck":
 		value, _, err := parseConfig(args[1:], false)
 		if err != nil {
@@ -160,7 +167,7 @@ func run(args []string) error {
 		return syscall.Exec(executable, args, os.Environ())
 	case "service":
 		if len(args) < 2 {
-			return errors.New("use service install or service uninstall")
+			return errors.New("use service install|uninstall|start|stop|restart|status|logs")
 		}
 		if args[1] == "install" {
 			value, name, err := parseConfig(args[2:], true)
@@ -177,37 +184,56 @@ func run(args []string) error {
 			}
 			return service.Uninstall(name)
 		}
-		return errors.New("use service install or service uninstall")
-	case "start", "stop", "restart", "status", "logs":
-		name, err := serviceName(args[1:])
+		name, err := serviceName(args[2:])
 		if err != nil {
 			return err
 		}
-		return service.Lifecycle(args[0], name)
+		return service.Lifecycle(args[1], name)
 	default:
 		return fmt.Errorf("unknown command %q; use tuxee help", args[0])
 	}
 }
 
-func runUpdate(args []string) error {
+func runUpdate(args []string) (err error) {
 	f := flag.NewFlagSet("update", flag.ContinueOnError)
 	check := f.Bool("check", false, "only check the latest stable release")
 	name := f.String("name", "", "update this named managed service installation")
+	target, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	restartCommand := func() string {
+		command := update.Command(target) + " restart"
+		if *name != "" && service.ValidateName(*name) == nil {
+			command += " --name " + *name
+		}
+		if os.Geteuid() != 0 {
+			command = "sudo " + command
+		}
+		return command
+	}
+	defer func() {
+		if err != nil && !errors.Is(err, flag.ErrHelp) {
+			if *check {
+				fmt.Fprintln(os.Stderr, "\n"+colored(os.Stderr, "31", "Update check failed: "+err.Error()))
+			} else {
+				updateResult(os.Stderr, "Update failed: "+err.Error(), restartCommand(), true)
+			}
+			err = reportedError{err}
+		}
+	}()
 	if err := f.Parse(args); err != nil {
 		return err
 	}
 	if f.NArg() != 0 {
 		return errors.New("unexpected update arguments")
 	}
-	target, err := os.Executable()
-	if err != nil {
-		return err
-	}
 	if *name != "" {
-		target, err = service.Executable(*name)
+		selected, err := service.Executable(*name)
 		if err != nil {
 			return err
 		}
+		target = selected
 	}
 	client := update.NewClient()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -234,23 +260,12 @@ func runUpdate(args []string) error {
 		return err
 	}
 	if !applied {
-		fmt.Println("No newer stable release; installation unchanged.")
+		updateResult(os.Stdout, "Tuxee is up to date; installation unchanged.", restartCommand(), false)
 		return nil
 	}
-	fmt.Printf("Installed %s. Running Tuxee processes keep their current version until restarted.\n", release.Tag)
-	fmt.Println("Restarting ends all terminal sessions. Restart when ready:")
+	updateResult(os.Stdout, "Successfully updated Tuxee to "+release.Tag+".", restartCommand(), false)
 	if _, err := os.Stat("/opt/tuxee/entrypoint.sh"); err == nil {
-		fmt.Println("  On the Docker host: docker restart <container>")
-		fmt.Println("On next start, Tuxee installs this release's missing runtime prerequisites. Recreation uses the image's version.")
-	} else if service.Available() == nil {
-		serviceName := *name
-		if serviceName == "" {
-			serviceName = "tuxee"
-		}
-		fmt.Printf("  sudo tuxee restart --name %s (for that managed service)\n", serviceName)
-		fmt.Println("  For a foreground process: stop it and repeat its original serve command.")
-	} else {
-		fmt.Println("  Stop the foreground process and repeat its original serve command, or restart it through your supervisor.")
+		fmt.Println("\nOn next start, Tuxee installs missing runtime prerequisites. Recreating the container uses the image's version.")
 	}
 	return nil
 }
@@ -531,12 +546,21 @@ func serve(value *config) error {
 		go tls.Run(ctx)
 	}
 	app := server.New(gate, terminals, tls, value.Origin, web.Assets())
+	defer app.Close()
 	restart := make(chan struct{}, 1)
 	app.Restart = func() { restart <- struct{}{} }
+	restartSignal := make(chan os.Signal, 1)
+	signal.Notify(restartSignal, syscall.SIGUSR1)
+	// Ignore late duplicate requests across exec, until the new runtime is ready.
+	defer signal.Ignore(syscall.SIGUSR1)
+	unregister, err := registerRuntime(runtimeDirectory, value.State)
+	if err != nil {
+		return err
+	}
+	defer unregister()
 	app.Version = version
 	app.Updates = update.NewChecker(version)
 	go app.Updates.Run(ctx)
-	defer app.Close()
 	go app.Prune(ctx)
 	errorsCh := make(chan error, len(listeners))
 	var servers []*http.Server
@@ -564,9 +588,12 @@ func serve(value *config) error {
 	case <-ctx.Done():
 	case <-restart:
 		err = errRestart
+	case <-restartSignal:
+		err = errRestart
 	case err = <-errorsCh:
 		stop()
 	}
+	unregister()
 	app.Close()
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

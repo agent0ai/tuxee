@@ -61,17 +61,19 @@ Trixie validation on arm64 includes the exact GUI-stage source build, exact runt
 
 ```sh
 sudo ./bin/tuxee service install --hosts admin.example.com
-sudo ./bin/tuxee start
-sudo ./bin/tuxee status
-sudo ./bin/tuxee restart
-sudo ./bin/tuxee logs
-sudo ./bin/tuxee stop
+sudo ./bin/tuxee service start
+sudo ./bin/tuxee service status
+sudo ./bin/tuxee service restart
+sudo ./bin/tuxee service logs
+sudo ./bin/tuxee service stop
 sudo ./bin/tuxee service uninstall
 ```
 
-Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc/tuxee/config.json` on first installation, registers `/etc/systemd/system/tuxee.service`, and enables boot startup. It reports whether the service is running; `start` is explicit. Repeat installation preserves existing configuration and rejects unrelated units. Use `tuxee ports` for listening ports, or edit the existing configuration for other settings, then restart to apply. Uninstall unregisters the service and preserves the binary, configuration, certificate state and all user files.
+Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc/tuxee/config.json` on first installation, registers `/etc/systemd/system/tuxee.service`, and enables boot startup. It reports whether the service is running; `service start` is explicit. Repeat installation preserves existing configuration and rejects unrelated units. Use `tuxee ports` for listening ports, or edit the existing configuration for other settings, then restart to apply. Uninstall unregisters the service and preserves the binary, configuration, certificate state and all user files.
 
 Use `--name tuxee-poc` consistently to install/test a separate service identity. Its configuration, binary and default state paths use that name. Lifecycle commands delegate to systemctl/journalctl. Machines without a running systemd manager can use foreground or Docker operation.
+
+`tuxee restart` requests the same runtime restart as the UI in foreground, systemd and Docker deployments. It is noninteractive and obeys the caller's Linux signal permissions; use `sudo` when needed. It identifies the running installation across binary replacement, supports `--name` for a named managed installation, and requires `--state /path` when multiple instances share that binary. It fails without changing anything when no matching instance is available. `tuxee service restart` separately asks systemd to restart the service, including starting a stopped service. Older running versions need one restart through the UI or their existing service/supervisor before the new CLI restart can be used.
 
 Every signed-in account can choose **Restart Tuxee** immediately above **Log out** in the user menu. Restart requires the same Linux permission as signalling the Tuxee process directly; a denied request shows an error and leaves the runtime and sessions running. The action does not invoke `sudo`. The confirmation explains that this restarts only the Tuxee runtime, ends every user's terminals and GUI applications, and signs everyone out. Unsaved editor changes require confirmation and saved layouts remain. The disconnected loader stays visible until Tuxee returns and confirms the session ended, then the browser reloads the page so login uses the current frontend. This works for foreground, systemd and Docker deployments, uses the currently installed executable, and leaves Linux, unrelated processes and Docker init hooks running. To restart Linux, use `reboot`; for containers, use the deployment's container restart controls or terminate the container's PID 1 as appropriate.
 

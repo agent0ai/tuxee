@@ -157,6 +157,14 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
     @unittest.skipUnless(os.environ.get("TUXEE_SETUP_TEST_BINARY"), "supply a 0.2.1 test binary for server startup checks")
     def test_server_startup_and_completion_markers(self):
         self.copy_executable(Path(os.environ["TUXEE_SETUP_TEST_BINARY"]), "/usr/local/lib/tuxee/tuxee")
+        # This mount-free chroot needs the real child's startup identity; restart tests use live procfs.
+        self.write("/proc/sys/kernel/random/boot_id", Path("/proc/sys/kernel/random/boot_id").read_text())
+        (self.root / "proc/self").mkdir()
+        (self.root / "proc/self/exe").symlink_to("/usr/local/lib/tuxee/tuxee")
+
+        def capture_child_identity():
+            (self.root / "proc/self/stat").write_text(Path("/proc/self/stat").read_text())
+
         # Keep the ordinary release checker inside the fixture too.
         self.write("/etc/hosts", "127.0.0.1 api.github.com\n")
         environment = {"PATH": os.environ["PATH"], "LANG": "C"}
@@ -167,7 +175,8 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
             with (self.root / "server.log").open("w+") as log:
                 process = subprocess.Popen(command + ["serve", "--http", "--bind", "127.0.0.1:0",
                                                      "--state", "/var/lib/tuxee"],
-                                           stdout=log, stderr=log, env=environment)
+                                           stdout=log, stderr=log, env=environment,
+                                           preexec_fn=capture_child_identity)
                 try:
                     deadline = time.monotonic() + 10
                     while time.monotonic() < deadline:

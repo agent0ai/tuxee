@@ -8,6 +8,8 @@ Native systemd registration and lifecycle commands.
 
 Own unit generation, stable executable installation, and delegation to systemctl/journalctl. The CLI owns configuration values.
 
+Systemd actions are exposed as `tuxee service start|stop|restart|status|logs`; top-level `tuxee restart` belongs to the CLI's deployment-independent runtime lifecycle.
+
 # Local Contracts
 
 Require a running systemd manager before installation or lifecycle changes. Use a named, marked unit and refuse unrelated files. Install atomically; preserve existing configuration and all state on uninstall. Run as root because PAM and per-user process credentials require it. No custom background supervisor.

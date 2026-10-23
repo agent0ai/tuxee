@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
@@ -10,7 +11,8 @@ assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
 assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
 const state = await mkdtemp('/tmp/tuxee-update-ui-');
-const service = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
+await symlink(resolve('bin/tuxee'), `${state}/tuxee`);
+const service = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { env: { ...process.env, PATH: `${state}:${process.env.PATH}` }, stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => service.once('exit', resolve));
 const base = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(Error('server startup timed out')), 10000);
@@ -26,7 +28,7 @@ assert.equal((await context.request.post(base + '/api/login', { data: { username
 const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const real = await (await api('/update')).json();
-assert.match(real.command, /^sudo '.*' update$/);
+assert.equal(real.command, 'sudo tuxee update');
 const page = await context.newPage(), errors = [], external = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:')) external.push(request.url()); });
