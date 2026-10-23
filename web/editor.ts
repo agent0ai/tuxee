@@ -8,7 +8,7 @@ import { languageFor, PageDraft, pageLimitError, pageWrapping, type TextPage } f
 import { ImageViewer, isImage } from './image-viewer';
 export { languageFor } from './editor-page';
 
-const modes = ['text', 'javascript', 'typescript', 'jsx', 'tsx', 'json', 'html', 'xml', 'css', 'python', 'sql', 'markdown', 'yaml', 'go', 'shell', 'toml'];
+const modes = ['css', 'go', 'html', 'javascript', 'json', 'jsx', 'markdown', 'python', 'shell', 'sql', 'text', 'toml', 'tsx', 'typescript', 'xml', 'yaml'];
 const undoCommand = historyKeymap.find(binding => binding.key === 'Mod-z')!.run;
 const redoCommand = historyKeymap.find(binding => binding.key === 'Mod-y')!.run;
 function mediaKind(name: string) {
