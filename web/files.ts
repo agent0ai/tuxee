@@ -24,6 +24,7 @@ export class FileView implements View {
     private list = el('div', 'file-list');
     private pathInput = el('input', 'path-input');
     private nav = el('form', 'file-nav');
+    private modified = el('span', 'file-modified', '•');
     private status = el('span', 'file-status');
     private disposed = false;
     private events = new AbortController();
@@ -51,7 +52,7 @@ export class FileView implements View {
         }, { signal: this.events.signal });
         root.classList.add('file-view');
         this.pathInput.value = panel.path || hooks.user.home;
-        this.pathInput.setAttribute('aria-label', 'Directory path');
+        this.pathInput.setAttribute('aria-label', 'File or directory path');
         this.pathInput.autocomplete = 'off'; this.pathInput.spellcheck = false;
         let editTimer: number | undefined;
         const cancelEdit = () => clearTimeout(editTimer);
@@ -73,16 +74,15 @@ export class FileView implements View {
             else event.preventDefault();
         };
         this.pathInput.onfocus = () => this.pathInput.select();
-        this.pathInput.onblur = () => { this.pathInput.value = this.panel.path; this.pathInput.scrollLeft = 0; };
+        this.pathInput.onblur = () => { this.pathInput.value = this.pathInput.title || this.panel.path; this.pathInput.scrollLeft = 0; };
         this.pathInput.onkeydown = event => {
             if (event.key === 'Escape') { event.preventDefault(); this.pathInput.blur(); }
         };
-        this.nav.append(this.pathInput);
+        this.modified.hidden = true; this.modified.title = 'Unsaved changes'; this.modified.setAttribute('aria-label', 'Unsaved changes');
+        this.nav.append(this.pathInput, this.modified);
         this.nav.onsubmit = event => {
             event.preventDefault();
-            this.navigate(this.pathInput.value).then(() => {
-                if (this.pathInput.value === this.panel.path) this.pathInput.blur();
-            }).catch(this.notice);
+            this.openPath(this.pathInput.value).catch(this.notice);
         };
         root.closest('.panel')!.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
@@ -191,6 +191,37 @@ export class FileView implements View {
         this.navigate(this.pathInput.value).catch(this.notice);
     }
     private notice = (value: unknown) => notify(value, this.root);
+    private showPath = (path: string, dirty = false) => {
+        if (this.pathInput.title === path && this.modified.hidden === !dirty) return;
+        this.pathInput.title = path;
+        if (document.activeElement !== this.pathInput) this.pathInput.value = path;
+        this.modified.hidden = !dirty;
+        this.hooks.title?.((path.split('/').filter(Boolean).at(-1) || 'Files') + (dirty ? ' •' : ''));
+    };
+    private async openPath(path: string) {
+        this.request?.abort();
+        const request = this.request = new AbortController();
+        try {
+            const { entry } = await api('/files', 'POST', { operation: 'stat', path }, request.signal);
+            if (request.signal.aborted || this.disposed) return;
+            if (entry.directory) {
+                const navigate = async () => {
+                    if (request.signal.aborted || this.disposed) return;
+                    this.request = undefined;
+                    if (!await this.navigate(entry.path)) return;
+                    this.inspector?.dispose(); this.inspector = undefined;
+                    this.showPath(this.panel.path);
+                };
+                if (this.inspector) await this.inspector.leave(navigate);
+                else await navigate();
+            } else await this.openFile(entry, request.signal);
+            if (this.pathInput.value === path || this.pathInput.value === this.pathInput.title) this.pathInput.blur();
+        } catch (error) {
+            if (!request.signal.aborted) throw error;
+        } finally {
+            if (this.request === request) this.request = undefined;
+        }
+    }
     resize() {
         const compact = !!this.root.closest('.compact-board');
         const parent = compact ? this.root : this.root.closest('.panel')!.querySelector('.panel-header')!;
@@ -213,9 +244,8 @@ export class FileView implements View {
             if (this.disposed || request.signal.aborted)
                 return;
             this.panel.path = response.path;
-            this.pathInput.title = response.path;
-            this.hooks.title?.(this.title);
-            if (this.pathInput.value === previousInput)
+            if (!this.inspector) this.showPath(response.path);
+            if (!this.inspector && this.pathInput.value === previousInput)
                 this.pathInput.value = response.path;
             this.entries = response.entries || [];
             if (previousPath !== response.path) { this.selected.clear(); this.filter = this.filterInput.value = ''; this.selectionAnchor = ''; }
@@ -226,6 +256,7 @@ export class FileView implements View {
             this.hooks.changed();
             if (response.truncated)
                 this.status.textContent += ' · First 10,000 entries';
+            return true;
         }
         catch (error) {
             if (!request.signal.aborted) {
@@ -247,7 +278,6 @@ export class FileView implements View {
         if (affected && !this.disposed) this.refresh().catch(this.notice);
     }
     refresh = () => this.navigate(this.panel.path);
-    private get title() { return this.panel.path.split('/').filter(Boolean).at(-1) || 'Files'; }
     private visibleEntries() {
         const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry =>
             (this.showHidden.checked || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
@@ -550,16 +580,31 @@ export class FileView implements View {
             await Promise.all([...instances].map(view => view.refresh().catch(() => {})));
         }
     }
-    private async openFile(entry = this.single()) {
+    private async openFile(entry = this.single(), signal?: AbortSignal) {
+        if (!signal) this.request?.abort();
         if (entry.directory) return this.navigate(entry.path, '');
-        if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) return this.archiveDialog(true);
         if (this.inspector && !await this.inspector.canClose()) return;
+        if (this.disposed || signal?.aborted) return;
+        if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) return this.archiveDialog(true, entry);
+        this.request?.abort(); this.request = undefined;
+        const parent = entry.path.split('/').slice(0, -1).join('/') || '/';
+        const files = parent === this.panel.path ? this.visibleEntries().filter(file => !file.directory) : [];
+        if (!files.some(file => file.path === entry.path)) files.push(entry);
+        if (parent !== this.panel.path) {
+            this.panel.path = parent; this.entries = []; this.selected.clear(); this.filter = this.filterInput.value = '';
+            this.hooks.changed();
+        }
         this.inspector?.dispose();
-        this.inspector = new FileInspector(this.root, this.visibleEntries().filter(file => !file.directory), entry.path, () => { this.inspector = undefined; this.focus(entry.path); this.refresh().catch(this.notice); });
+        this.inspector = new FileInspector(this.root, files, entry.path, async path => {
+            if (!await this.navigate(path.split('/').slice(0, -1).join('/') || '/')) return;
+            const restoreFocus = document.activeElement === document.body || this.root.contains(document.activeElement);
+            this.inspector?.dispose(); this.inspector = undefined; this.showPath(this.panel.path);
+            if (restoreFocus) this.focus(path);
+        }, this.showPath);
     }
     canClose = () => this.inspector?.canClose() ?? Promise.resolve(true);
-    private async archiveDialog(extract = false) {
-        const entries = extract ? [this.single()] : this.chosen();
+    private async archiveDialog(extract = false, entry?: Entry) {
+        const entries = extract ? [entry || this.single()] : this.chosen();
         if (!entries.length) throw new Error('Select files first');
         const capabilities = await api('/files', 'POST', { operation: 'archive-formats', path: this.panel.path });
         const content = el('form', 'form'), filename = el('input'), format = el('select'), password = el('input');

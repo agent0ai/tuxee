@@ -11,7 +11,8 @@ const { EditorState, PageDraft, languageFor, pageLimitError, pageWrapping } = aw
 for (const [path, mode] of [
     ['/root/.bashrc', 'shell'], ['/root/.profile', 'shell'], ['/root/.env', 'shell'],
     ['/root/.config.json', 'json'], ['/root/.thing.unknown', 'text'],
-    ['/root/.config/README', 'text'], ['/root/README', 'text'], ['/root/file.md', 'markdown']
+    ['/root/.config/README', 'text'], ['/root/README', 'text'], ['/root/file.md', 'markdown'],
+    ['/root/config.xml', 'xml'], ['/root/config.XML', 'xml']
 ]) assert.equal(languageFor(path), mode, path);
 
 for (const [content, valid] of [

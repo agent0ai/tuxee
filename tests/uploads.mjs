@@ -87,9 +87,9 @@ async function expectFile(path, contents) {
     assert.equal(await readFile(path, 'utf8'), contents);
 }
 async function navigate(path) {
-    await file.getByRole('textbox', { name: 'Directory path' }).fill(path);
+    await file.getByRole('textbox', { name: 'File or directory path' }).fill(path);
     const response = page.waitForResponse(r => r.url().endsWith('/api/files') && r.request().postDataJSON()?.operation === 'list');
-    await file.getByRole('textbox', { name: 'Directory path' }).press('Enter'); await response;
+    await file.getByRole('textbox', { name: 'File or directory path' }).press('Enter'); await response;
 }
 async function uploadedRows(path) {
     for (const id of ['uploads-a', 'uploads-b'])

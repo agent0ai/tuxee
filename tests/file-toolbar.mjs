@@ -75,7 +75,7 @@ try {
  await hiddenToggle.check(); await page.reload(); await file.locator('.file-entry').first().waitFor();
  assert.equal(await hiddenToggle.isChecked(), false); assert.deepEqual(await entries(), ['copies', 'alpha.txt']);
  console.log('PASS default-hidden files/folders, footer placement/counts, visible selection, text filtering, keyboard toggle, refresh/navigation and reload default');
- const path = page.getByRole('textbox', { name: 'Directory path' });
+ const path = page.getByRole('textbox', { name: 'File or directory path' });
  const header = page.locator('.panel-header');
  assert.equal(await path.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
  const box = await path.boundingBox(), x = box.x + box.width / 2, y = box.y + box.height / 2;

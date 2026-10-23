@@ -13,6 +13,8 @@ for(const name of ['folder-a','folder-b','destination'])await mkdir(`${dir}/${na
 for(const [name,data] of [['alpha.txt','alpha'],['bravo.txt','bravo'],['charlie.txt','charlie'],['script.js','const initial = 1;\n'],['windows.txt','original\r\nsecond\r\n'],['folder-a/inside.txt','nested']])await writeFile(`${dir}/${name}`,data);
 const markdown='# Heading\n\n## Subheading\n\n- List item\n\n1. Ordered item\n\n`inline code`\n\n```js\nconst fenced = 1;\n```\n\n[Link](https://example.invalid)\n\n> Quote\n\n**Bold** and *italic* and ~~removed~~\n';
 await writeFile(`${dir}/syntax.md`,markdown);
+const xml='<?xml version="1.0"?>\n<!-- configuration -->\n<config xmlns:app="urn:tuxee"><app:item enabled="true"><![CDATA[a < b]]></app:item></config>\n';
+await writeFile(`${dir}/syntax.xml`,xml);
 const pagedText = Array.from({length:22000},(_,i)=>`line ${i}\r\n`).join('');
 await writeFile(`${dir}/paged.txt`,pagedText);
 await writeFile(`${dir}/wrapped.txt`,'w'.repeat(2001)+'\r\nlast\n');
@@ -41,6 +43,7 @@ const settings={theme:'dark',current:'features',workspaces:[{id:'features',name:
 assert.equal((await api('/settings','PUT',settings)).status(),200);
 const page=await context.newPage(),errors=[],external=[];page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(!request.url().startsWith(base)&&!['data:','blob:','chrome-extension:','chrome:'].includes(new URL(request.url()).protocol))external.push(request.url())});
 const check=message=>console.log('PASS '+message),file=page.locator('.file-view').first(),row=name=>file.locator('.file-entry').filter({has:page.locator('.file-name span',{hasText:new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')})});
+async function openedName() { return (await file.locator('..').locator('.path-input').inputValue()).split('/').pop(); }
 async function processStopped(pid) {
  for(let i=0;i<100;i++){if(spawnSync('kill',['-0',String(pid)]).status!==0)return;await new Promise(resolve=>setTimeout(resolve,25));}
  assert.fail(`terminal process ${pid} is still alive`);
@@ -66,7 +69,7 @@ try{
  const list=file.locator('.file-list'),filter=file.getByRole('searchbox',{name:'Filter files'}),filterButton=file.getByRole('button',{name:'Filter files',exact:true});
  await filterButton.click();assert.ok(await filter.evaluate(node=>node===document.activeElement));await filter.fill('ALPHA');assert.deepEqual(await file.locator('.file-name span').allTextContents(),['alpha.txt']);
  await filter.fill('no matching entry');await file.getByText('No matches',{exact:true}).waitFor();await filterButton.click();assert.equal(await filter.isVisible(),false);await row('alpha.txt').waitFor();
- const navigate=async path=>{await file.locator('..').getByRole('textbox',{name:'Directory path'}).fill(path);const response=page.waitForResponse(r=>r.url().endsWith('/api/files')&&r.request().postDataJSON()?.operation==='list'&&r.request().postDataJSON()?.path===path);await file.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');assert.equal((await response).status(),200);await file.locator('.file-list:not(.loading)').waitFor();};
+ const navigate=async path=>{await file.locator('..').getByRole('textbox',{name:'File or directory path'}).fill(path);const response=page.waitForResponse(r=>r.url().endsWith('/api/files')&&r.request().postDataJSON()?.operation==='list'&&r.request().postDataJSON()?.path===path);await file.locator('..').getByRole('textbox',{name:'File or directory path'}).press('Enter');assert.equal((await response).status(),200);await file.locator('.file-list:not(.loading)').waitFor();};
  const names=()=>file.locator('.file-name span').allTextContents(),selected=()=>file.locator('.file-entry[aria-selected=true] .file-name span').allTextContents();
  await navigate(controls);const defaultNames=await names();assert.deepEqual(defaultNames,['z-folder','z-rows','a.txt','b.txt','c.txt']);
  const nameSort=file.getByRole('button',{name:'Sort by Name',exact:true}),sizeSort=file.getByRole('button',{name:'Sort by Size',exact:true}),dateSort=file.getByRole('button',{name:'Sort by Modified',exact:true});
@@ -143,9 +146,9 @@ try{
   await clickRow('a.txt',area);assert.deepEqual(await selected(),['a.txt']);
   assert.ok(await row('a.txt').evaluate(node=>node===document.activeElement));
   assert.equal(await file.locator('.file-selection-box').count(),0);
-  await clickRow('a.txt',area,2);await file.locator('.cm-content').waitFor();assert.equal(await file.locator('.inspector-title').textContent(),'a.txt');
+  await clickRow('a.txt',area,2);await file.locator('.cm-content').waitFor();assert.equal(await openedName(),'a.txt');
   assert.equal(await readFile(controls+'/a.txt','utf8'),'a');
-  await file.getByRole('button',{name:'Close file',exact:true}).click();await file.locator('.file-inspector').waitFor({state:'detached'});await file.locator('.file-list:not(.loading)').waitFor();
+  await file.getByRole('button',{name:'Back to files',exact:true}).click();await file.locator('.file-inspector').waitFor({state:'detached'});await file.locator('.file-list:not(.loading)').waitFor();
   await clickRow('z-folder',area,2);await page.waitForFunction(path=>document.querySelector('.path-input').value===path,controls+'/z-folder');await file.locator('.file-list:not(.loading)').waitFor();
   await file.getByRole('button',{name:'Parent directory',exact:true}).click();await page.waitForFunction(path=>document.querySelector('.path-input').value===path,controls);await file.locator('.file-list:not(.loading)').waitFor();
  }
@@ -189,7 +192,7 @@ try{
  await terminal.locator('.panel-header').dblclick();await page.waitForTimeout(220);assert.equal(Number(await terminal.getAttribute('gs-w')||1),1);assert.equal(Number(await terminal.getAttribute('gs-h')||1),1);assert.equal(await page.locator('.panel:visible').count(),5);
  await terminal.locator('.panel-header').dblclick();await page.waitForTimeout(220);assert.equal(await terminal.getAttribute('gs-w'),'2');assert.deepEqual(await page.locator('.grid-stack-item:not([data-panel="terminal-3"])').evaluateAll(nodes=>nodes.map(node=>({id:node.dataset.panel,rect:node.getBoundingClientRect().toJSON()}))),neighbors);
  await page.getByRole('button',{name:'Rearrange workspace',exact:true}).click();await page.waitForTimeout(300);assert.equal(await page.locator('.grid-stack-item').count(),5);assert.ok((await page.locator('[data-panel=files]').boundingBox()).width<=640);check('double-click uses free space or shrinks without touching neighbors; rearrange balances panels');
- await page.getByRole('button',{name:'Add file browser',exact:true}).click();const targetBrowser=page.locator('.file-view').last();await targetBrowser.locator('..').getByRole('textbox',{name:'Directory path'}).fill(dir+'/destination');await targetBrowser.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');await targetBrowser.locator('.file-entry').filter({hasText:'charlie.txt'}).waitFor();
+ await page.getByRole('button',{name:'Add file browser',exact:true}).click();const targetBrowser=page.locator('.file-view').last();await targetBrowser.locator('..').getByRole('textbox',{name:'File or directory path'}).fill(dir+'/destination');await targetBrowser.locator('..').getByRole('textbox',{name:'File or directory path'}).press('Enter');await targetBrowser.locator('.file-entry').filter({hasText:'charlie.txt'}).waitFor();
  assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'),'0','adding a panel starts a new custom layout');
  for(const [name,modifier,timing] of [['alpha.txt','Control','before'],['bravo.txt','Meta','during']]) {
   await row(name).locator('.file-name').click();await dragFiles(row(name).locator('.file-size'),targetBrowser.locator('..').locator('.panel-header'),timing,modifier);await targetBrowser.locator('.file-entry').filter({hasText:name}).waitFor();assert.equal(await readFile(`${dir}/destination/${name}`,'utf8'),await readFile(`${dir}/${name}`,'utf8'));
@@ -202,9 +205,9 @@ try{
  await page.setViewportSize({width:2560,height:1080});await page.waitForTimeout(250);
  await row('script.js').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await file.locator('.code-keyword').first().waitFor();assert.equal(await file.getByRole('combobox',{name:'Syntax'}).inputValue(),'javascript');
  assert.equal(await file.getByRole('button',{name:'Page up',exact:true}).count(),0);assert.equal(await file.getByRole('button',{name:'Page down',exact:true}).count(),0);assert.equal(await file.locator('.inspector-page').isVisible(),false);
- assert.equal(await file.locator('.inspector-title').evaluate(node=>getComputedStyle(node).textAlign),'center');
- await file.locator('.cm-content').click();await page.keyboard.press('Control+a');await page.keyboard.insertText('const edited = 42;\n');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.inspector-title')?.textContent==='script.js');assert.equal(await readFile(`${dir}/script.js`,'utf8'),'const edited = 42;\n');
- for(const mode of ['python','go','shell','toml','yaml','sql','markdown','html','css','json','typescript','jsx','tsx','text']) await file.getByRole('combobox',{name:'Syntax'}).selectOption(mode);await file.getByRole('button',{name:'Close file',exact:true}).click();check('bundled syntax editor auto-detects, switches syntax and saves real user files');
+ assert.equal(await file.locator('.inspector-title').count(),0);assert.equal(await file.locator('..').locator('.path-input').inputValue(),dir+'/script.js');
+ await file.locator('.cm-content').click();await page.keyboard.press('Control+a');await page.keyboard.insertText('const edited = 42;\n');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('[aria-label=\"Save file\"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');assert.equal(await readFile(`${dir}/script.js`,'utf8'),'const edited = 42;\n');
+ for(const mode of ['python','go','shell','toml','yaml','sql','markdown','html','xml','css','json','typescript','jsx','tsx','text']) await file.getByRole('combobox',{name:'Syntax'}).selectOption(mode);await file.getByRole('button',{name:'Back to files',exact:true}).click();check('bundled syntax editor auto-detects, switches syntax and saves real user files');
  await row('syntax.md').locator('.file-name').dblclick();await file.locator('.code-heading').first().waitFor();assert.equal(await file.getByRole('combobox',{name:'Syntax'}).inputValue(),'markdown');
  const syntax=file.getByRole('combobox',{name:'Syntax'}),content=file.locator('.cm-content');
  for(const theme of ['dark','light']){
@@ -217,13 +220,26 @@ try{
  await syntax.selectOption('text');await page.waitForFunction(()=>!document.querySelector('.cm-content [class*="code-"]'));
  await syntax.selectOption('markdown');await content.locator('.code-heading').first().waitFor();
  assert.ok(await file.getByRole('button',{name:'Save file',exact:true}).isDisabled());assert.equal(await readFile(`${dir}/syntax.md`,'utf8'),markdown);
- await file.getByRole('button',{name:'Close file',exact:true}).click();await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();
+ await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();
  check('Markdown headings, lists, inline/fenced code, links and emphasis are styled in both themes and after syntax switching');
- await row('script.js').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await page.keyboard.press('Control+a');await page.keyboard.insertText('unsaved');await file.getByRole('button',{name:'Close file',exact:true}).click();await page.locator('dialog').getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await file.locator('.file-inspector').count(),1);await file.getByRole('button',{name:'Close file',exact:true}).click();await page.keyboard.press('Enter');await file.locator('.file-inspector').waitFor({state:'detached'});assert.equal(await readFile(`${dir}/script.js`,'utf8'),'const edited = 42;\n');check('unsaved changes require explicit discard');
- await row('binary.dat').locator('.file-name').dblclick();await file.getByText('binary or non-UTF-8 file; download it to view',{exact:true}).waitFor();assert.equal(await file.locator('.cm-editor').count(),0);await file.getByRole('button',{name:'Close file',exact:true}).click();
+ await row('syntax.xml').locator('.file-name').dblclick();await content.locator('.code-type').first().waitFor();assert.equal(await syntax.inputValue(),'xml');
+ for(const theme of ['dark','light']){
+  if(await page.locator('html').getAttribute('data-theme')!==theme)await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();
+  for(const [kind,text] of [['type','app:item'],['comment','configuration'],['string','true']]){
+   const token=content.locator('.code-'+kind).filter({hasText:text}).first();await token.waitFor();
+   assert.ok(await token.evaluate(node=>getComputedStyle(node).color!==getComputedStyle(node.closest('.cm-content')).color),`XML ${kind} needs visible color in ${theme}`);
+  }
+ }
+ await syntax.selectOption('text');await page.waitForFunction(()=>!document.querySelector('.cm-content [class*="code-"]'));
+ await syntax.selectOption('xml');await content.locator('.code-type').first().waitFor();
+ assert.ok(await file.getByRole('button',{name:'Save file',exact:true}).isDisabled());assert.equal(await readFile(`${dir}/syntax.xml`,'utf8'),xml);
+ await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();
+ check('XML auto-detection, namespace tags, comments, attribute values and manual syntax selection in both themes preserve file contents');
+ await row('script.js').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await page.keyboard.press('Control+a');await page.keyboard.insertText('unsaved');await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.locator('dialog').getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await file.locator('.file-inspector').count(),1);await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.keyboard.press('Enter');await file.locator('.file-inspector').waitFor({state:'detached'});assert.equal(await readFile(`${dir}/script.js`,'utf8'),'const edited = 42;\n');check('unsaved changes require explicit discard');
+ await row('binary.dat').locator('.file-name').dblclick();await file.getByText('binary or non-UTF-8 file; download it to view',{exact:true}).waitFor();assert.equal(await file.locator('.cm-editor').count(),0);await file.getByRole('button',{name:'Back to files',exact:true}).click();
  await row('wrapped.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();assert.equal(await file.locator('br.editor-soft-break').count(),2);
  await page.keyboard.press('Control+End');await page.keyboard.insertText('tail');await file.getByRole('button',{name:'Undo',exact:true}).click();assert.ok(await file.getByRole('button',{name:'Save file',exact:true}).isDisabled());await file.getByRole('button',{name:'Redo',exact:true}).click();
- await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.inspector-title')?.textContent==='wrapped.txt');assert.equal(await readFile(`${dir}/wrapped.txt`,'utf8'),'w'.repeat(2001)+'\r\nlast\ntail');await file.getByRole('button',{name:'Close file',exact:true}).click();
+ await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('[aria-label=\"Save file\"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');assert.equal(await readFile(`${dir}/wrapped.txt`,'utf8'),'w'.repeat(2001)+'\r\nlast\ntail');await file.getByRole('button',{name:'Back to files',exact:true}).click();
  await row('paged.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();
  await file.locator('.inspector-page').getByText('Page 1',{exact:true}).waitFor();
  assert.equal(await file.getByRole('button',{name:'Previous file',exact:true}).count(),0);assert.equal(await file.getByRole('button',{name:'Next file',exact:true}).count(),0);assert.ok(await file.getByRole('button',{name:'Page up',exact:true}).isDisabled());
@@ -234,27 +250,27 @@ try{
  await file.getByRole('button',{name:'Page down',exact:true}).click();await page.locator('dialog').getByRole('button',{name:'Save and continue',exact:true}).click();await file.locator('.inspector-page').getByText('Page 3',{exact:true}).waitFor();
  assert.equal(await readFile(`${dir}/paged.txt`,'utf8'),pagedText.slice(0,middle.page.offset)+'inserted-'+pagedText.slice(middle.page.offset));assert.ok(await file.getByRole('button',{name:'Page down',exact:true}).isDisabled());
  await file.getByRole('button',{name:'Page up',exact:true}).click();await file.locator('.inspector-page').getByText('Page 2',{exact:true}).waitFor();assert.ok((await file.locator('.cm-content').textContent()).startsWith('inserted-'));
- await file.getByRole('button',{name:'Close file',exact:true}).click();check('binary rejection, visual wrapping, undo/redo and paged saves preserve every untouched byte');
- await row('windows.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await page.keyboard.press('Control+End');await page.keyboard.insertText('third');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('.inspector-title')?.textContent==='windows.txt');assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'original\r\nsecond\r\nthird\r\n');
- await writeFile(`${dir}/windows.txt`,'changed elsewhere\r\n');await page.keyboard.insertText('stale');const staleResponse=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='write');await page.keyboard.press('Control+s');assert.equal((await staleResponse).status(),400);assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'changed elsewhere\r\n');await file.getByRole('button',{name:'Close file',exact:true}).click();await page.keyboard.press('Enter');await file.locator('.file-inspector').waitFor({state:'detached'});check('editor preserves CRLF and rejects stale saves without losing external changes');
+ await file.getByRole('button',{name:'Back to files',exact:true}).click();check('binary rejection, visual wrapping, undo/redo and paged saves preserve every untouched byte');
+ await row('windows.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await page.keyboard.press('Control+End');await page.keyboard.insertText('third');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('[aria-label=\"Save file\"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'original\r\nsecond\r\nthird\r\n');
+ await writeFile(`${dir}/windows.txt`,'changed elsewhere\r\n');await page.keyboard.insertText('stale');const staleResponse=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='write');await page.keyboard.press('Control+s');assert.equal((await staleResponse).status(),400);assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'changed elsewhere\r\n');await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.keyboard.press('Enter');await file.locator('.file-inspector').waitFor({state:'detached'});check('editor preserves CRLF and rejects stale saves without losing external changes');
  // Save notifications overlap this small panel and would intercept the viewer's wheel input.
  await page.waitForFunction(()=>!document.querySelector('.component-notifications .toast'));
  await row('photo-a.png').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('.file-image')?.naturalWidth===1);
  const toolbar=file.locator('.inspector-toolbar');
  assert.equal(await file.locator('.inspector-position').textContent(),'2/5');
- assert.deepEqual(await toolbar.locator('button').evaluateAll(nodes=>nodes.map(node=>node.title)),['Back to files','Previous file','Next file','Zoom out','Actual size (100%)','Zoom in','Fit image','Copy image to clipboard','Download file']);
+ assert.deepEqual(await toolbar.locator('button').evaluateAll(nodes=>nodes.map(node=>node.title)),['Back to files','Previous file','Next file','Zoom out','Actual size (100%)','Zoom in','Fit image','Copy image to clipboard','Download file','File tools']);
  assert.equal(await toolbar.getByRole('button',{name:'Back to files',exact:true}).locator('svg path').count(),2);
  assert.equal(await toolbar.getByRole('button',{name:'Previous file',exact:true}).locator('svg path').getAttribute('d'),'m15 18-6-6 6-6');
  assert.equal(await toolbar.getByRole('button',{name:'Next file',exact:true}).locator('svg path').getAttribute('d'),'m9 18 6-6-6-6');
- assert.ok(await toolbar.locator('.inspector-navigation,.image-controls,.inspector-actions').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).borderLeftWidth==='1px')));
- await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
+ assert.ok(await toolbar.locator('.image-controls,.inspector-actions').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).borderLeftWidth==='1px')));
+ await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await openedName(),'photo-b.png');
  assert.equal(await file.locator('.inspector-position').textContent(),'3/5');
- await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await file.locator('.inspector-title').textContent(),'photo-z.png');
+ await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await openedName(),'photo-z.png');
  for(const [name,position] of [['sound.wav','5/5'],['document.pdf','1/5'],['photo-a.png','2/5']]){
-  await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
+  await file.getByRole('button',{name:'Next file',exact:true}).click();assert.equal(await openedName(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
  }
  for(const [name,position] of [['document.pdf','1/5'],['sound.wav','5/5'],['photo-z.png','4/5']]){
-  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowLeft');assert.equal(await file.locator('.inspector-title').textContent(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
+  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowLeft');assert.equal(await openedName(),name);assert.equal(await file.locator('.inspector-position').textContent(),position);
  }
  await file.locator('.image-viewport[data-ready]').waitFor();
  const imageViewport=file.locator('.image-viewport'),image=file.locator('.file-image');
@@ -305,18 +321,18 @@ try{
  for(const width of [390,320]){
   await page.setViewportSize({width,height:844});await page.waitForTimeout(300);
   assert.ok(await toolbar.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
-  for(const control of await toolbar.locator('button').all())assert.ok(await control.isVisible());
+  assert.ok(await toolbar.getByRole('button',{name:'Back to files',exact:true}).isVisible());if(await toolbar.getByRole('button',{name:'File tools',exact:true}).isVisible()){await toolbar.getByRole('button',{name:'File tools',exact:true}).click();assert.ok(await page.getByRole('dialog',{name:'File tools',exact:true}).getByRole('button',{name:'Download file',exact:true}).isVisible());await page.keyboard.press('Escape');}
   await page.screenshot({path:`test-results/features-image-toolbar-${width}.png`});
   if(width===320){await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await page.waitForTimeout(200);await page.screenshot({path:'test-results/features-image-toolbar-light.png'});await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();}
  }
  await page.setViewportSize(desktop);await page.waitForTimeout(300);
- await file.getByRole('button',{name:'Previous file',exact:true}).click();assert.equal(await file.locator('.inspector-title').textContent(),'photo-b.png');
- assert.equal(await file.locator('.image-controls').count(),1);await file.getByRole('button',{name:'Back to files',exact:true}).click();assert.equal(await file.locator('.image-controls').count(),0);
+ await file.getByRole('button',{name:'Previous file',exact:true}).click();assert.equal(await openedName(),'photo-b.png');
+ assert.equal(await file.locator('.image-controls').count(),1);await file.getByRole('button',{name:'Back to files',exact:true}).click();await file.locator('.file-inspector').waitFor({state:'detached'});assert.equal(await file.locator('.image-controls').count(),0);
  for(const name of ['photo-a.png','document.pdf','sound.wav']){
   await filterButton.click();await filter.fill(name);await row(name).locator('.file-name').dblclick();
   assert.equal(await file.locator('.inspector-position').textContent(),'1/1');
   assert.ok(await file.getByRole('button',{name:'Next file',exact:true}).isDisabled());assert.ok(await file.getByRole('button',{name:'Previous file',exact:true}).isDisabled());
-  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await file.locator('.inspector-title').textContent(),name);
+  await file.locator('.file-inspector').focus();await page.keyboard.press('ArrowRight');assert.equal(await openedName(),name);
   await file.getByRole('button',{name:'Back to files',exact:true}).click();await filterButton.click();
  }
  check('mixed image/PDF/audio circular navigation and counts, filtered singleton controls, native diagonal scrolling, drag, anchored pinch zoom, fit and viewer cleanup');
@@ -347,13 +363,13 @@ try{
  await toolbar.getByRole('button',{name:'Next file',exact:true}).click();await file.locator('.image-viewport[data-ready]').waitFor();
  assert.ok(await video.evaluate(node=>node.paused&&!node.hasAttribute('src')),'navigation stops and releases the preceding video');
  await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();
- assert.equal(await file.locator('.file-inspector').count(),0);
+ await file.locator('.file-inspector').waitFor({state:'detached'});
  const mediaOrder=['clip.webm','converted.webp','document.pdf','photo-a.png','photo-b.png','photo-z.png','sound.wav'];
  for(const start of ['photo-a.png','document.pdf','clip.webm','sound.wav']){
   await row(start).locator('.file-name').dblclick();let index=mediaOrder.indexOf(start);
   for(const direction of [1,-1])for(let step=0;step<=mediaOrder.length;step++){
    const name=mediaOrder[index],isImage=name.endsWith('.png')||name.endsWith('.webp');
-   assert.equal(await file.locator('.inspector-title').textContent(),name);
+   assert.equal(await openedName(),name);
    assert.equal(await file.locator('.inspector-position').textContent(),`${index+1}/${mediaOrder.length}`);
    assert.equal(await toolbar.locator('.image-controls').count(),isImage?1:0);
    assert.equal(await file.locator('.cm-editor').count(),0,'media navigation must never enter a text file');
@@ -456,7 +472,7 @@ try{
  check('cancelled and same-cell edits preserve the mode; changed geometry restores upright Custom and becomes the next custom snapshot');
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(300);assert.equal(await arrangeButton.count(),0);
  if(!await page.locator('[data-component-name=auto-0]').isVisible())await page.getByRole('button',{name:'More components',exact:true}).click();await page.locator('[data-component-name=auto-0]').click();
- const mobileFiles=page.locator('[data-panel=auto-0] .file-view');await mobileFiles.locator('..').getByRole('textbox',{name:'Directory path'}).fill(controls);await mobileFiles.locator('..').getByRole('textbox',{name:'Directory path'}).press('Enter');await page.waitForFunction(()=>document.querySelector('[data-component-name=auto-0] .component-tab-title')?.textContent==='controls');
+ const mobileFiles=page.locator('[data-panel=auto-0] .file-view');await mobileFiles.locator('..').getByRole('textbox',{name:'File or directory path'}).fill(controls);await mobileFiles.locator('..').getByRole('textbox',{name:'File or directory path'}).press('Enter');await page.waitForFunction(()=>document.querySelector('[data-component-name=auto-0] .component-tab-title')?.textContent==='controls');
  assert.equal(await page.locator('[data-component-name=auto-0] > svg').count(),1);
  assert.ok(await page.locator('.component-tabs .visible-tabs > .component-tab-item').count()>=2);
  assert.equal(await page.locator('.component-tabs .visible-tabs > .component-tab-item').nth(1).evaluate(node=>getComputedStyle(node,'::before').opacity),'0.2');

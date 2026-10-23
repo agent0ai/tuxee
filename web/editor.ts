@@ -1,12 +1,16 @@
 import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages } from './vendor/code-editor/library.js';
-import { api, button, confirmAction, el, notify, scopeNotifications } from './ui';
+import { xml } from './vendor/code-editor/xml.js';
+import { api, button, confirmAction, el, notify, popover, scopeNotifications } from './ui';
+import { fittingHeaderItemCount } from './overflow';
 import { download } from './transfers';
 import type { DraggedFile } from './file-drag';
 import { languageFor, PageDraft, pageLimitError, pageWrapping, type TextPage } from './editor-page';
 import { ImageViewer, isImage } from './image-viewer';
 export { languageFor } from './editor-page';
 
-const modes = ['text', 'javascript', 'typescript', 'jsx', 'tsx', 'json', 'html', 'css', 'python', 'sql', 'markdown', 'yaml', 'go', 'shell', 'toml'];
+const modes = ['text', 'javascript', 'typescript', 'jsx', 'tsx', 'json', 'html', 'xml', 'css', 'python', 'sql', 'markdown', 'yaml', 'go', 'shell', 'toml'];
+const undoCommand = historyKeymap.find(binding => binding.key === 'Mod-z')!.run;
+const redoCommand = historyKeymap.find(binding => binding.key === 'Mod-y')!.run;
 function mediaKind(name: string) {
     if (isImage(name)) return 'image';
     const ext = name.split('.').pop()!.toLowerCase();
@@ -17,6 +21,7 @@ function mediaKind(name: string) {
 async function languageMode(name: string) {
     if (['javascript','typescript','jsx','tsx'].includes(name)) return (await languages.javascript())[`${name}Language`];
     if (name === 'text') return [];
+    if (name === 'xml') return StreamLanguage.define(xml);
     if (['go','shell','toml'].includes(name)) return StreamLanguage.define((await languages[name]())[name]);
     if (name === 'sql') return (await languages.sql()).sql();
     return (await languages[name]())[`${name}Language`];
@@ -39,7 +44,14 @@ export class FileInspector {
     private root = el('section', 'file-inspector');
     private toolbar = el('div', 'inspector-toolbar');
     private body = el('div', 'inspector-body');
-    private title = el('span', 'inspector-title');
+    private back = button('Back to files', 'ArrowLeft', () => this.close());
+    private separator = el('span', 'file-navigation-separator', '|');
+    private more = button('File tools', 'Ellipsis', () => this.menu());
+    private toolbarItems: HTMLElement[] = [];
+    private overflow: HTMLElement[] = [];
+    private closeMenu = () => {};
+    private resize = new ResizeObserver(() => this.fitToolbar());
+    private pagination = el('div', 'inspector-pagination');
     private syntax = el('select', 'syntax-select');
     private saveButton = button('Save file', 'Save', () => this.save());
     private previous = button('Previous file', 'ChevronLeft', () => this.step(-1));
@@ -67,7 +79,7 @@ export class FileInspector {
     private request?: AbortController;
     private events = new AbortController();
     private index: number;
-    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: () => void) {
+    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void) {
         if (mediaKind(path)) this.files = files.filter(file => mediaKind(file.name));
         this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
@@ -77,30 +89,80 @@ export class FileInspector {
         this.syntax.onchange = () => this.setLanguage().catch(error => notify(error, host));
         this.pageLabel.setAttribute('aria-live', 'polite');
         this.filePosition.setAttribute('aria-live', 'polite');
+        this.separator.setAttribute('aria-hidden', 'true');
+        this.more.setAttribute('aria-haspopup', 'dialog');
+        this.pagination.append(this.pageUp, this.pageLabel, this.pageDown);
         this.root.append(this.toolbar, this.body); host.append(this.root);
+        this.resize.observe(this.toolbar);
         this.root.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); this.save().catch(error => notify(error, host)); }
             else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); this.close().catch(error => notify(error, host)); }
             else if (this.media && !['INPUT','SELECT','BUTTON'].includes((event.target as Element).tagName) && ['ArrowLeft','ArrowRight'].includes(event.key)) { event.preventDefault(); this.step(event.key === 'ArrowLeft' ? -1 : 1).catch(error => notify(error, host)); }
         };
         window.addEventListener('beforeunload', event => { if (this.dirty) event.preventDefault(); }, { signal: this.events.signal });
-        this.load();
+        this.load().catch(error => notify(error, host));
     }
     private get file() { return this.files[this.index]; }
-    canClose = async () => !this.saving && (!this.dirty || await confirmAction('Discard changes?', this.file.name, 'Discard'));
+    canClose = async () => !this.root.inert && !this.saving && (!this.dirty || await confirmAction('Discard changes?', this.file.name, 'Discard'));
     private controls() {
-        this.title.textContent = this.file.name + (this.dirty ? ' •' : '');
+        this.changed(this.file.path, this.dirty);
         this.filePosition.textContent = `${this.index + 1}/${this.files.length}`;
         this.previous.disabled = this.next.disabled = this.files.length < 2;
         for (const control of [this.syntax, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
-        for (const control of [this.pageUp, this.pageDown, this.pageLabel]) control.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
+        this.pagination.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
         const busy = this.saving || this.loading;
-        this.undo.disabled = this.redo.disabled = busy;
+        // Query the bundled commands without applying their transactions.
+        const state = this.editor && { state: this.editor.state, dispatch: () => {} };
+        this.undo.disabled = busy || !state || !undoCommand(state);
+        this.redo.disabled = busy || !state || !redoCommand(state);
+        this.syntax.disabled = busy;
         this.saveButton.disabled = !this.dirty || busy;
         this.pageUp.disabled = busy || this.pageIndex === 0;
         this.pageDown.disabled = busy || !this.page || this.page.end >= this.page.total;
         this.pageLabel.textContent = `Page ${this.pageIndex + 1}`;
         this.body.setAttribute('aria-busy', String(busy));
+        this.fitToolbar();
+    }
+    private fitToolbar() {
+        if (!this.toolbar.getClientRects().length) return;
+        this.closeMenu();
+        this.toolbarItems.forEach(item => item.classList.remove('toolbar-hidden'));
+        const items = this.toolbarItems.filter(item => !item.hidden);
+        this.more.hidden = false;
+        const style = getComputedStyle(this.toolbar), gap = parseFloat(style.columnGap) || 0;
+        const available = this.toolbar.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+            - this.back.offsetWidth - this.separator.offsetWidth - gap * 2;
+        const widths = items.map(item => {
+            const style = getComputedStyle(item);
+            return item.getBoundingClientRect().width + parseFloat(style.marginLeft) + parseFloat(style.marginRight);
+        });
+        const count = fittingHeaderItemCount(widths, available, this.more.offsetWidth, gap);
+        this.overflow = items.slice(count);
+        for (const item of this.overflow) {
+            if (item.contains(document.activeElement)) this.more.focus();
+            item.classList.add('toolbar-hidden');
+        }
+        this.more.hidden = !this.overflow.length;
+    }
+    private menu() {
+        const content = el('div', 'menu-actions inspector-menu');
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'File tools');
+        scopeNotifications(content, this.host);
+        for (const item of this.overflow) {
+            const controls = item.matches('button,select') ? [item] : [...item.children];
+            for (const source of controls) {
+                if (source instanceof HTMLButtonElement) {
+                    const action = button(source.title, undefined, () => { this.closeMenu(); source.click(); });
+                    action.replaceChildren(...[...source.childNodes].map(node => node.cloneNode(true)), el('span', '', source.title));
+                    action.disabled = source.disabled; content.append(action);
+                } else if (source instanceof HTMLSelectElement) {
+                    const select = source.cloneNode(true) as HTMLSelectElement; select.value = source.value;
+                    select.onchange = () => { source.value = select.value; this.closeMenu(); source.dispatchEvent(new Event('change')); };
+                    const label = el('label', 'field', 'Syntax'); label.append(select); content.append(label);
+                } else content.append(source.cloneNode(true));
+            }
+        }
+        ({ close: this.closeMenu } = popover(this.more, content));
     }
     private history(key: string) {
         if (!this.editor || this.saving || this.loading) return;
@@ -119,7 +181,8 @@ export class FileInspector {
         this.releaseMedia();
         this.editor?.destroy(); this.editor = undefined; this.dirty = false;
         this.page = undefined; this.draft = undefined; this.pageIndex = 0; this.positions = [{ offset: 0, line: 1 }]; this.version = ''; this.loading = false;
-        this.body.replaceChildren(); this.title.textContent = this.file.name; this.title.title = this.file.path;
+        this.body.replaceChildren();
+        this.changed(this.file.path, false);
         const kind = mediaKind(this.file.name), url = `/api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
         this.media = kind !== undefined;
         if (kind === 'image') {
@@ -140,13 +203,12 @@ export class FileInspector {
             navigation.append(this.previous, this.filePosition, this.next);
             if (this.imageViewer?.copyButton) actions.append(this.imageViewer.copyButton);
             actions.append(downloadButton);
-            this.toolbar.replaceChildren(button('Back to files', 'ArrowLeft', () => this.close()), navigation);
-            if (this.imageViewer) this.toolbar.append(this.imageViewer.controls);
-            this.toolbar.append(actions, this.title);
+            this.toolbarItems = [navigation, ...(this.imageViewer ? [this.imageViewer.controls] : []), actions];
         } else {
-            this.toolbar.replaceChildren(this.undo, this.redo, this.pageUp, this.pageDown, this.pageLabel, this.title, this.syntax, this.saveButton, downloadButton, button('Close file', 'X', () => this.close()));
-            await this.loadPage(0);
+            this.toolbarItems = [this.undo, this.redo, this.syntax, downloadButton, this.saveButton, this.pagination];
         }
+        this.toolbar.replaceChildren(this.back, this.separator, ...this.toolbarItems, this.more);
+        if (!this.media) await this.loadPage(0);
         this.controls();
         if (this.imageViewer) this.imageViewer.focus();
         else if (!this.editor) this.root.focus();
@@ -176,7 +238,8 @@ export class FileInspector {
                 EditorView.updateListener.of(update => {
                     if (!update.docChanged) return;
                     this.draft!.changes = this.draft!.changes.compose(update.changes);
-                    this.dirty = this.draft!.dirty(update.state.doc); this.controls();
+                    this.dirty = this.draft!.dirty(update.state.doc);
+                    this.controls();
                 })
             ] });
             this.editor?.destroy(); this.body.replaceChildren();
@@ -230,7 +293,13 @@ export class FileInspector {
         await this.loadPage(next);
     }
     private async step(direction: number) { if (this.files.length < 2 || !await this.canClose()) return; this.index = (this.index + direction + this.files.length) % this.files.length; await this.load(); }
-    async close() { if (!await this.canClose()) return; this.dispose(); this.closed(); }
+    async leave(action: () => Promise<void>) {
+        if (!await this.canClose() || this.events.signal.aborted) return;
+        this.root.inert = true;
+        try { await action(); }
+        finally { this.root.inert = false; }
+    }
+    close() { return this.leave(() => this.closed(this.file.path)); }
     private releaseMedia() { this.body.querySelectorAll<HTMLMediaElement>('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); }
-    dispose() { this.sequence++; this.request?.abort(); this.events.abort(); this.editor?.destroy(); this.imageViewer?.dispose(); this.releaseMedia(); this.root.remove(); }
+    dispose() { this.sequence++; this.request?.abort(); this.events.abort(); this.resize.disconnect(); this.closeMenu(); this.editor?.destroy(); this.imageViewer?.dispose(); this.releaseMedia(); this.root.remove(); }
 }

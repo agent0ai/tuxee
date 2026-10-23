@@ -10,6 +10,8 @@ Own the CodeMirror 6 JavaScript chunks copied from the8020/uui commit b14a6096fe
 
 The novnc child owns the pinned noVNC desktop client; integration stays in web/display.ts.
 
+`code-editor/xml.js` is the unchanged standalone `mode/xml.js` from `@codemirror/legacy-modes` 6.5.4, matching the version already covered by the CodeMirror notices. editor.ts wraps it with the bundled StreamLanguage; it does not introduce another CodeMirror instance or modify the matched chunks.
+
 # Local Contracts
 
 Keep vendor chunks intact and matched; only apply the documented noVNC resource-lifetime and framebuffer-size fixes described in its child contract. Build resolves all local language imports into the self-contained index. No CDN or remote imports. Verbatim licenses live in third_party/CODEMIRROR-LICENSES.txt; source attribution lives in THIRD_PARTY_NOTICES.md.

@@ -7,7 +7,7 @@ export type TextPage = { offset: number; end: number; total: number; lineBreaks:
 
 export function languageFor(path: string): string {
     const name = path.split('/').pop()!, extension = name.split('.').pop()!.toLowerCase();
-    return ({ js:'javascript', mjs:'javascript', cjs:'javascript', ts:'typescript', jsx:'jsx', tsx:'tsx', json:'json', html:'html', htm:'html', css:'css', py:'python', sql:'sql', md:'markdown', yaml:'yaml', yml:'yaml', go:'go', sh:'shell', bash:'shell', toml:'toml' } as Record<string,string>)[extension]
+    return ({ js:'javascript', mjs:'javascript', cjs:'javascript', ts:'typescript', jsx:'jsx', tsx:'tsx', json:'json', html:'html', htm:'html', xml:'xml', css:'css', py:'python', sql:'sql', md:'markdown', yaml:'yaml', yml:'yaml', go:'go', sh:'shell', bash:'shell', toml:'toml' } as Record<string,string>)[extension]
         || (name.startsWith('.') && !name.slice(1).includes('.') ? 'shell' : 'text');
 }
 

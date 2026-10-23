@@ -12,6 +12,8 @@ Own worker requests, streaming file transfer, collision policy, atomic configura
 
 The server must execute the worker through identity.User.Command. All filesystem syscalls then use that user's credentials, including supplementary groups. Paths may access any location allowed by Linux; the home is a default, not an artificial jail. Stream data and reject explicit destination collisions. Copying a path onto itself creates a sibling named `name (copy).ext`, then numbered variants; allocate and publish this in the user worker with atomic no-replace semantics. Same-path moves/renames are no-ops. Copy/move/rename responses return the resulting destination path. Uploads and mkdir with unique=true allocate `name (1).ext` / `folder (1)` and further numbered siblings in the worker using atomic no-replace creation/publication, including collisions with symlinks. Return the actual path. Default explicit creation still rejects collisions. mkdir parents=true ensures an existing directory or creates missing parents; reject combining parents and unique. Upload cancellation removes only its own temporary file. Copy failures preserve sources; cross-filesystem move removes the source only after a successful copy.
 
+Listing and stat share metadata: preserve symlink identity/link text and mark links to directories as directories so direct path navigation agrees with listed entries. Broken links remain symlinks without a directory flag.
+
 Launch file workers from `identity.Self` so an on-disk binary update cannot change the helper protocol of a running server.
 
 # Work Guidance
@@ -20,7 +22,7 @@ Never pre-check permissions as root and then perform the operation as root. Do n
 
 # Verification
 
-Run `go test ./internal/files -v`. Worker tests cover incomplete/cancelled uploads, collision preservation, numbered file/folder names, concurrent unique uploads, directory preparation, symlink copying, same-directory duplication/naming/cancellation, and directory-into-descendant rejection. Real credential boundaries are checked by identity tests. `TUXEE_SYSTEM_TEST=1 go test ./tests` verifies cleanup of failed copies containing read-only directories as an unprivileged user; browser tests cover HTTP file operations and cancellation.
+Run `go test ./internal/files -v`. Worker tests cover incomplete/cancelled uploads, collision preservation, numbered file/folder names, concurrent unique uploads, directory preparation, symlink copying and consistent stat/list metadata, same-directory duplication/naming/cancellation, and directory-into-descendant rejection. Real credential boundaries are checked by identity tests. `TUXEE_SYSTEM_TEST=1 go test ./tests` verifies cleanup of failed copies containing read-only directories as an unprivileged user; browser tests cover HTTP file operations and cancellation.
 
 Run package tests as a regular user too. Fixtures that remove directory write access must restore it through `t.Cleanup` before `t.TempDir` cleanup.
 

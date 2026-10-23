@@ -193,11 +193,6 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 				continue
 			}
 			value := metadata(filepath.Join(r.Path, entry.Name()), info)
-			if value.Symlink {
-				if target, e := os.Stat(value.Path); e == nil {
-					value.Directory = target.IsDir()
-				}
-			}
 			response.Entries = append(response.Entries, value)
 		}
 		sort.Slice(response.Entries, func(i, j int) bool {
@@ -308,6 +303,9 @@ func metadata(path string, info os.FileInfo) Entry {
 	value.Changed = time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec)
 	if value.Symlink {
 		value.Link, _ = os.Readlink(path)
+		if target, err := os.Stat(path); err == nil {
+			value.Directory = target.IsDir()
+		}
 	}
 	return value
 }

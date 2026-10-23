@@ -190,7 +190,7 @@ try {
         assert.equal(await files.locator('.file-list').evaluate(node => getComputedStyle(node).outlineStyle), 'none', 'file list must not have a second focus border');
         await page.keyboard.press('ArrowDown');
         assert.equal(await files.locator('.file-entry:focus').evaluate(node => getComputedStyle(node).outlineStyle), 'solid', 'keyboard row focus must remain visible');
-        await files.getByRole('textbox', { name: 'Directory path' }).focus(); await panelFocus('files');
+        await files.getByRole('textbox', { name: 'File or directory path' }).focus(); await panelFocus('files');
         await page.getByRole('button', { name: 'User menu', exact: true }).focus(); await panelFocus(undefined);
         await shell(first, `printf '${theme}' > ${fixture}/focus.txt`);
         await poll(async () => (await readFile(`${fixture}/focus.txt`, 'utf8').catch(() => '')) === theme, 'terminal input failed after changing focus');

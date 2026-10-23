@@ -10,6 +10,46 @@ import (
 	"testing"
 )
 
+func TestStatAndListAgreeOnSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "folder"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "file"), []byte("text"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{"folder", "file", "missing"} {
+		path := filepath.Join(dir, target+"-link")
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+		response, _, err := execute(context.Background(), Request{Operation: "stat", Path: path}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !response.Entry.Symlink || response.Entry.Directory != (target == "folder") || response.Entry.Link != target {
+			t.Fatalf("incorrect symlink metadata: %+v", response.Entry)
+		}
+		listing, _, err := execute(context.Background(), Request{Operation: "list", Path: dir}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, entry := range listing.Entries {
+			if entry.Path != path {
+				continue
+			}
+			found = true
+			if entry != *response.Entry {
+				t.Fatalf("stat/list disagree: %+v %+v", response.Entry, entry)
+			}
+		}
+		if !found {
+			t.Fatal("symlink missing from directory listing")
+		}
+	}
+}
+
 func TestUploadCollisionAndInterruption(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "file")
