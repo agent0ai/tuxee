@@ -28,7 +28,7 @@ export class TerminalView implements View {
     private observer: ResizeObserver;
     private queue: Uint8Array[] = [];
     private pendingBytes = 0;
-    private inFlight?: Uint8Array;
+    private inFlight: number[] = [];
     private displayQueue = Promise.resolve();
     private uncertainInput = false;
     private resizing = false;
@@ -103,7 +103,7 @@ export class TerminalView implements View {
     }
     private discardInput() {
         this.uncertainInput ||= this.pendingBytes > 0;
-        this.queue = []; this.pendingBytes = 0; this.inFlight = undefined;
+        this.queue = []; this.pendingBytes = 0; this.inFlight = [];
     }
     private sessionLost() {
         if (this.disposed || this.closing) return;
@@ -199,8 +199,8 @@ export class TerminalView implements View {
                 }
                 switch (value.type) {
                     case 'ack':
-                        if (!this.inFlight || value.sequence !== undefined) throw Error('Unexpected terminal input acknowledgement');
-                        this.pendingBytes -= this.inFlight.length; this.inFlight = undefined; this.flushInput(); return;
+                        if (!this.inFlight.length || value.sequence !== undefined) throw Error('Unexpected terminal input acknowledgement');
+                        this.pendingBytes -= this.inFlight.shift()!; this.flushInput(); return;
                     case 'resize-ack':
                         if (!this.resizing || value.sequence !== undefined) throw Error('Unexpected terminal resize acknowledgement');
                         this.resizing = false; this.resize(); return;
@@ -218,7 +218,7 @@ export class TerminalView implements View {
                         if (!this.controller) {
                             if (this.pendingBytes) this.notice('Control moved; check your last input before continuing');
                             this.uncertainInput ||= this.pendingBytes > 0;
-                            this.queue = []; this.pendingBytes = this.inFlight?.length ?? 0;
+                            this.queue = []; this.pendingBytes = this.inFlight.reduce((sum, bytes) => sum + bytes, 0);
                         } else { this.lastSize = ''; this.resize(); }
                         break;
                     case 'resize':
@@ -314,17 +314,20 @@ export class TerminalView implements View {
             if (result.read !== data.length) { busy(); return; }
             length = result.written;
         }
-        if (this.queue.length + (this.inFlight ? 1 : 0) + Math.ceil(length / 65536) > 512) { busy(); return; }
+        if (this.queue.length + this.inFlight.length + Math.ceil(length / 65536) > 512) { busy(); return; }
         for (let i = 0; i < length; i += 65536) this.queue.push(bytes.subarray(i, Math.min(length, i + 65536)));
         this.pendingBytes += length;
         this.flushInput();
     }
     private flushInput() {
-        if (this.inFlight || !this.canUpload() || this.socket?.readyState !== WebSocket.OPEN) return;
-        this.inFlight = this.queue.shift();
-        if (this.inFlight) {
-            try { this.socket.send(this.inFlight); }
-            catch { this.socket.close(); }
+        if (!this.canUpload() || this.socket?.readyState !== WebSocket.OPEN) return;
+        let bytes = this.inFlight.reduce((sum, length) => sum + length, 0);
+        // Match the server's bounded pipeline so typing never waits one round trip per key.
+        while (this.queue.length && this.inFlight.length < 64 && bytes + this.queue[0].length <= 65536) {
+            const frame = this.queue.shift()!;
+            bytes += frame.length; this.inFlight.push(frame.length);
+            try { this.socket.send(frame); }
+            catch { this.socket.close(); return; }
         }
     }
     resize = () => { this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };

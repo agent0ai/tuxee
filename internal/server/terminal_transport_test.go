@@ -349,6 +349,97 @@ func TestTerminalBlockedInputStillDrainsOutput(t *testing.T) {
 	}
 }
 
+func TestTerminalInputPipeline(t *testing.T) {
+	for _, mode := range []string{"ordered", "frames", "bytes"} {
+		t.Run(mode, func(t *testing.T) {
+			command := "exec sleep 60"
+			if mode == "ordered" {
+				command = "dd bs=64 count=1 iflag=fullblock 2>/dev/null; exec sleep 60"
+			}
+			_, session, address := terminalFixture(t, "read -r; stty -echo -icanon; printf READY; "+command)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			c := dialTerminal(t, ctx, address)
+			var output []byte
+			readyAck := false
+			for !readyAck || !bytes.Contains(output, []byte("READY")) {
+				event, seq, err := readTerminalFrame(ctx, c)
+				if err != nil {
+					t.Fatal(err)
+				}
+				output = append(output, event.Data...)
+				if seq != 0 {
+					if err := terminalAck(ctx, c, seq); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if event.Type == "snapshot" {
+					if err := c.Write(ctx, websocket.MessageBinary, []byte("\n")); err != nil {
+						t.Fatal(err)
+					}
+				}
+				readyAck = readyAck || event.Type == "ack"
+			}
+			payload := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!?"
+			var frames [][]byte
+			switch mode {
+			case "ordered":
+				for _, value := range []byte(payload) {
+					frames = append(frames, []byte{value})
+				}
+			case "frames":
+				// The first write fills the unread raw PTY, keeping all 64 slots occupied.
+				frames = append(frames, bytes.Repeat([]byte("x"), 32768))
+				for range 64 {
+					frames = append(frames, []byte("x"))
+				}
+			case "bytes":
+				frames = [][]byte{bytes.Repeat([]byte("x"), 65536), []byte("x")}
+			}
+			for _, frame := range frames {
+				if err := c.Write(ctx, websocket.MessageBinary, frame); err != nil {
+					t.Fatal(err)
+				}
+			}
+			output = nil
+			acks, rejected := 0, false
+			for {
+				event, seq, err := readTerminalFrame(ctx, c)
+				if err != nil {
+					if mode == "ordered" || !rejected || ctx.Err() != nil {
+						t.Fatalf("pipeline closed unexpectedly: %v (acks=%d, rejected=%v)", err, acks, rejected)
+					}
+					break
+				}
+				if event.Type == "error" {
+					if event.Message != "terminal input window is unavailable" {
+						t.Fatal(event.Message)
+					}
+					rejected = true
+				}
+				if event.Type == "ack" {
+					acks++
+				}
+				output = append(output, event.Data...)
+				if seq != 0 {
+					if err := terminalAck(ctx, c, seq); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if mode == "ordered" && acks == len(frames) && len(output) >= len(payload) {
+					if string(output) != payload {
+						t.Fatalf("input reordered or duplicated: %q", output)
+					}
+					break
+				}
+			}
+			if session.Info().Exited {
+				t.Fatal("input transport terminated the retained PTY")
+			}
+		})
+	}
+}
+
 func TestTerminalSnapshotCompression(t *testing.T) {
 	_, _, address := terminalFixture(t, "exec sleep 60")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

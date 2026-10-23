@@ -156,7 +156,8 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		}()
 		rendered := make(chan terminalAckRequest)
 		go func() { defer cancel(); _ = terminalOutput(ctx, connection, attachment, rendered) }()
-		var inputPending atomic.Bool
+		inputQueue := make(chan []byte, 64)
+		var inputFrames, inputBytes atomic.Int64
 		ready := false
 		notice := func(err error) {
 			data, _ := json.Marshal(terminal.Event{Type: "error", Message: err.Error()})
@@ -164,30 +165,47 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			defer stop()
 			_ = connection.Write(writeCtx, websocket.MessageText, data)
 		}
+		// One writer preserves input order without blocking render acknowledgements or heartbeats.
+		go func() {
+			defer cancel()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case data := <-inputQueue:
+					if ctx.Err() != nil {
+						return
+					}
+					if err := attachment.Write(ctx, data); err != nil {
+						notice(err)
+						return
+					}
+					inputBytes.Add(-int64(len(data)))
+					inputFrames.Add(-1)
+					writeCtx, stop := context.WithTimeout(ctx, 10*time.Second)
+					err := connection.Write(writeCtx, websocket.MessageText, []byte(`{"type":"ack"}`))
+					stop()
+					if err != nil {
+						return
+					}
+				}
+			}
+		}()
 		for {
 			kind, data, err := connection.Read(ctx)
 			if err != nil {
 				return
 			}
 			if kind == websocket.MessageBinary {
-				if !ready || len(data) == 0 || !inputPending.CompareAndSwap(false, true) {
+				if !ready || len(data) == 0 || inputFrames.Add(1) > 64 || inputBytes.Add(int64(len(data))) > 65536 {
 					notice(errors.New("terminal input window is unavailable"))
 					return
 				}
-				// PTY consumption must not block render acknowledgements needed to drain output.
-				go func(data []byte) {
-					if err := attachment.Write(ctx, data); err != nil {
-						notice(err)
-						cancel()
-						return
-					}
-					inputPending.Store(false)
-					writeCtx, stop := context.WithTimeout(ctx, 10*time.Second)
-					defer stop()
-					if connection.Write(writeCtx, websocket.MessageText, []byte(`{"type":"ack"}`)) != nil {
-						cancel()
-					}
-				}(data)
+				select {
+				case inputQueue <- data:
+				case <-ctx.Done():
+					return
+				}
 				continue
 			}
 			var input struct {

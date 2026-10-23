@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
@@ -63,7 +63,7 @@ try {
     await page.waitForFunction(() => typeof window.mount === 'function');
     await page.evaluate(({me,id}) => mount(me,id), {me,id:info.id});
     const connected = () => page.waitForFunction(() => document.querySelector('#terminal').dataset.state === 'connected').catch(async error => { console.error({errors, state:await page.locator('#terminal').getAttribute('data-state'), notices:await page.locator('.toast').allTextContents(), connections,trace:trace.slice(-25)}); throw error; });
-    const idle = () => page.waitForFunction(() => !view.inFlight && !view.resizing && view.queue.length === 0);
+    const idle = () => page.waitForFunction(() => !view.inFlight.length && !view.resizing && view.queue.length === 0);
     const input = text => page.evaluate(text => view.term.input(text), text);
     await connected(); await idle();
     await input("printf 'BINARY_%s\\n' WORKS\n");
@@ -138,11 +138,16 @@ try {
     });
     assert.equal(sent.filter(Buffer.isBuffer).length,byteFrames,'oversized pastes rejected whole');
     await input('x');
-    await page.waitForFunction(() => !!view.inFlight);
+    await page.waitForFunction(() => !!view.inFlight.length);
     await input('x'.repeat(262144));
     assert.deepEqual(await page.evaluate(()=>[view.queue.length,view.pendingBytes]),[0,1],'in-flight bytes count against the paste budget');
     await page.evaluate(() => { for(let i=0;i<600;i++) view.term.input('x'); });
-    assert.deepEqual(await page.evaluate(()=>[view.queue.length,view.pendingBytes]),[511,512]);
+    assert.deepEqual(await page.evaluate(()=>[view.queue.length,view.inFlight.length,view.pendingBytes]),[448,64,512]);
+    for(let i=0; heldAcks.length<64 && i<100; i++) await page.waitForTimeout(20);
+    assert.equal(heldAcks.length,64,'the input window must pipeline tiny frames without waiting for a round trip');
+    // Drain the burst's echo before deliberately holding a render callback below.
+    await page.waitForFunction(()=>Array.from({length:view.term.buffer.active.length},(_,i)=>view.term.buffer.active.getLine(i).translateToString(true)).join('').includes('x'.repeat(64)));
+    await page.evaluate(()=>view.displayQueue);
     // Control loss drops queued keys immediately, even with a render callback held.
     await page.evaluate(() => {
         const write=view.term.write.bind(view.term);
@@ -161,16 +166,42 @@ try {
             if(value.type==='snapshot') other.send(JSON.stringify({type:'take-control'}));
         };
     },info.id);
-    await page.locator('#terminal[data-state=viewing]').waitFor();
-    assert.deepEqual(await page.evaluate(()=>[view.queue.length,view.pendingBytes,view.term.options.disableStdin]),[0,1,true]);
+    await page.locator('#terminal[data-state=viewing]').waitFor().catch(async error => {
+        console.error({state:await page.locator('#terminal').getAttribute('data-state'),trace:trace.slice(-30),notices:await page.locator('.toast').allTextContents()}); throw error;
+    });
+    assert.deepEqual(await page.evaluate(()=>[view.queue.length,view.pendingBytes,view.term.options.disableStdin]),[0,64,true]);
     holdAcks=false; for(const ack of heldAcks) client.send(ack); heldAcks=[];
-    await page.waitForFunction(()=>!view.inFlight);
+    await page.waitForFunction(()=>!view.inFlight.length);
     await observer.close();
     await page.evaluate(async()=>{releaseControlDraw();await view.displayQueue;});
     await page.getByRole('button',{name:'Take control',exact:true}).click();
     await connected(); await idle();
     await input('\x15'); await idle();
     console.log('PASS paste byte/frame limits, immediate control loss, and input gates');
+
+    const paste = '界a'.repeat(40000), suffix = 'Z!';
+    const expectedHash = createHash('sha256').update(paste + suffix).digest('hex');
+    const receiver = `import os,tty,termios,hashlib
+old=termios.tcgetattr(0)
+try:
+ tty.setraw(0)
+ os.write(1,b'PASTE_READY\\r\\n')
+ data=b''
+ while len(data)<160002: data+=os.read(0,160002-len(data))
+ os.write(1,('PASTE_HASH_'+hashlib.sha256(data).hexdigest()+'\\r\\n').encode())
+finally: termios.tcsetattr(0,termios.TCSANOW,old)
+`;
+    await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(receiver).toString('base64')}'))"\n`);
+    await page.waitForFunction(()=>document.querySelector('.xterm-rows').textContent.includes('PASTE_READY'));
+    await idle(); holdAcks=true;
+    await input(paste); await input(suffix);
+    for(let i=0; !heldAcks.length && i<100; i++) await page.waitForTimeout(20);
+    assert.equal(heldAcks.length,1);
+    assert.deepEqual(await page.evaluate(()=>[view.inFlight,view.queue.map(frame=>frame.length),view.pendingBytes]),[[65536],[65536,28928,2],160002]);
+    holdAcks=false; for(const ack of heldAcks) client.send(ack); heldAcks=[];
+    await idle();
+    await page.waitForFunction(hash=>document.querySelector('.xterm-rows').textContent.includes('PASTE_HASH_'+hash),expectedHash);
+    console.log('PASS 160 KB Unicode paste and following input preserve exact bytes across the 64 KiB window');
 
     holdResize=true; const resizeBefore=resizeRequests.length;
     await page.locator('#terminal').evaluate(node=>node.style.width='600px');
