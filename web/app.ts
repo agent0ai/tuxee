@@ -618,7 +618,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     const startX = event.clientX, startY = event.clientY;
     let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined;
     const dropTabs = workspaceTabs;
-    const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; tab.classList.remove('component-drop-hover'); });
+    const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; });
     const events = new AbortController();
     trigger.setPointerCapture(event.pointerId);
     function finish(cancelled = false) {
@@ -671,10 +671,6 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         if (!active) {
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             renderVacancies(value, existing);
-            if (existing) for (const tab of dropTabs) {
-                const target = settings.workspaces.find(ws => ws.id === tab.dataset.workspace)!;
-                tab.dataset.componentDrop = target !== ws && target.panels.length < 8 ? 'allowed' : 'blocked';
-            }
             if (!existing) {
                 node.append(icon(kind === 'files' ? 'Folder' : 'SquareTerminal'));
                 Object.assign(node.style, { position: 'fixed', left: `${origin.x}px`, top: `${origin.y}px`, width: `${origin.width}px`, height: `${origin.height}px` });
@@ -683,7 +679,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         }
         node.style.transform = `translate(${dx}px, ${dy}px)`;
         workspaceTarget = undefined;
-        dropTabs.forEach(tab => tab.classList.remove('component-drop-hover'));
+        clearTabs();
         if (existing) {
             const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
@@ -693,7 +689,8 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
             const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
             if (tab) {
                 workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
-                tab.classList.add('component-drop-hover'); where = undefined; hidePreview(); return;
+                tab.dataset.componentDrop = workspaceTarget !== ws && workspaceTarget!.panels.length < 8 ? 'allowed' : 'blocked';
+                where = undefined; hidePreview(); return;
             }
         }
         const grid = value.gridEl.getBoundingClientRect(), cellW = grid.width / ws.columns, cellH = grid.height / ws.rows;
@@ -762,6 +759,12 @@ function addPanel(kind: Kind, path = user.home, terminal?: TerminalInfo, near?: 
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
     if (!addCompact(ws, panel, near)) throw new Error('Workspace full');
+    ws.active = panel.id; layoutChanged(ws); render();
+}
+function addSplitPanel(kind: Kind, target: Panel) {
+    const ws = current(), panel = newPanel(kind, user.home);
+    const edge = target.w > target.h || target.w === target.h && target.kind === 'files' ? 'right' : 'bottom';
+    if (!split(ws, target.id, panel, edge)) return;
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function stopPanel(panel: Panel, value?: Mounted) {
@@ -864,6 +867,8 @@ function activatePanel(panel: Panel) { current().active = panel.id; changed(); r
 function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }, header = false) {
     const item = mounted!.items.get(panel.id)!;
     const actions: (TabAction | TabSubmenu)[] = header ? [] : [['Activate', 'ArrowRight', () => activatePanel(panel)]];
+    for (const [kind, label, name] of [['terminal', 'Add terminal', 'SquareTerminal'], ['files', 'Add file browser', 'FolderPlus']] as const)
+        actions.push([label, name, () => addSplitPanel(kind, panel), panel.w === 1 && panel.h === 1]);
     actions.push({ label: 'Move to workspace', items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || ws.panels.length >= 8, description: ws === current() ? 'Current workspace' : ws.panels.length >= 8 ? 'Workspace full' : '', action: () => movePanel(panel, ws) })) });
     if (item.view.renamePanel) actions.push(['Rename', 'Pencil', () => item.view.renamePanel!()]);
     actions.push(['Close', 'X', () => closePanel(panel)]);
@@ -871,7 +876,7 @@ function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y
     if (!header && control && !control.hidden) actions.splice(1, 0, ['Take control', 'Hand', () => control.click()]);
     tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
 }
-type TabAction = [string, Parameters<typeof icon>[0], () => unknown];
+type TabAction = [string, Parameters<typeof icon>[0], () => unknown, boolean?];
 type TabSubmenu = { label: string; items: { label: string; disabled: boolean; description: string; action: () => unknown }[] };
 function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (TabAction | TabSubmenu)[], position?: { x: number; y: number }) {
     const content = el('div', 'menu-actions');
@@ -901,9 +906,9 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
             children.addEventListener('keydown', event => { if (event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); expand(false); } });
             content.append(toggle, children); continue;
         }
-        const [label, name, action] = entry;
+        const [label, name, action, disabled = false] = entry;
         const control = button(label, name, () => { close(); return action(); });
-        control.disabled = label === 'Activate' && active;
+        control.disabled = disabled || label === 'Activate' && active;
         control.append(el('span', '', label)); control.setAttribute('role', 'menuitem'); content.append(control);
     }
     const rect = tab.getBoundingClientRect();

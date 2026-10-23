@@ -50,10 +50,23 @@ async function moveMenu(target) {
     await menu.getByRole('menuitem', { name: target, exact: true }).click();
 }
 async function drag(id, name, finish = true) {
+    await item(id).evaluate(node => Promise.allSettled(node.getAnimations().map(animation => animation.finished)));
     const head = await item(id).locator('.panel-header').boundingBox(), target = await tab(name).boundingBox();
-    await page.mouse.move(head.x + 20, head.y + head.height / 2); await page.mouse.down();
+    await page.mouse.move(head.x + 20, head.y + head.height / 2);
+    const tabStyles = () => page.locator('.workspace-tab-item').evaluateAll(tabs => tabs.map(tab => {
+        const style = getComputedStyle(tab);
+        return { id: tab.dataset.workspace, border: style.border, background: style.backgroundColor, opacity: style.opacity, shadow: style.boxShadow };
+    }));
+    const before = await tabStyles();
+    await page.mouse.down();
     await page.mouse.move(head.x + 40, head.y + 30, { steps: 4 });
+    assert.equal(await page.locator('[data-component-drop]').count(), 0, 'starting a drag does not mark workspace tabs');
+    assert.deepEqual(await tabStyles(), before, 'unhovered tabs retain their normal appearance');
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+    const hovered = await tab(name).locator('..').getAttribute('data-workspace');
+    assert.equal(await page.locator('[data-component-drop]').count(), 1, 'only the hovered tab is marked');
+    assert.deepEqual((await tabStyles()).filter(tab => tab.id !== hovered), before.filter(tab => tab.id !== hovered));
+    assert.notEqual(await tab(name).locator('..').evaluate(tab => getComputedStyle(tab).borderStyle), 'dashed');
     if (finish) await page.mouse.up();
 }
 try {
@@ -85,7 +98,7 @@ try {
     console.log('PASS blank-space menu places a component at the closest cell and expands it without replacing neighbors');
 
     await headerMenu('shell');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Move to workspace', 'Rename', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Move to workspace', 'Rename', 'Close']);
     await menu.getByRole('menuitem', { name: 'Move to workspace', exact: true }).press('ArrowRight');
     assert.ok(await menu.getByRole('menuitem', { name: 'Origin', exact: true }).isDisabled());
     assert.ok(await menu.getByRole('menuitem', { name: 'Full', exact: true }).isDisabled());
@@ -94,9 +107,14 @@ try {
     const terminalTab = item('shell').locator('.terminal-tab');
     await terminalTab.focus(); await terminalTab.press('Shift+F10'); await menu.waitFor(); await page.keyboard.press('Escape');
     assert.ok(await terminalTab.evaluate(node => node === document.activeElement), 'header context menu must restore keyboard focus');
+    await drag('shell', 'Origin', false);
+    assert.equal(await tab('Origin').locator('..').getAttribute('data-component-drop'), 'blocked');
+    await page.mouse.move(grid.x + grid.width / 2, grid.y + grid.height / 2, { steps: 8 });
+    assert.equal(await page.locator('[data-component-drop]').count(), 0, 'leaving a tab clears its highlight');
+    await page.keyboard.press('Escape'); await page.mouse.up();
     await drag('shell', 'Full', false);
     assert.equal(await tab('Full').locator('..').getAttribute('data-component-drop'), 'blocked');
-    assert.ok(await tab('Full').locator('..').evaluate(node => node.classList.contains('component-drop-hover')));
+    assert.notEqual(await tab('Full').locator('..').evaluate(node => getComputedStyle(node).boxShadow), 'none');
     await page.screenshot({ path: 'test-results/component-drop-full.png' });
     await page.mouse.up(); await page.waitForTimeout(250);
     assert.equal((await snapshot()).workspaces[0].panels.find(panel => panel.id === 'shell').terminal, terminal.id);
@@ -158,9 +176,11 @@ try {
     await page.mouse.move(head.x + 20, head.y + 10); await page.mouse.down(); await page.mouse.move(head.x + 40, head.y + 40, { steps: 4 });
     await page.mouse.move(moreBox.x + moreBox.width / 2, moreBox.y + moreBox.height / 2, { steps: 10 });
     await page.locator('.overflow-tabs:popover-open').waitFor();
+    assert.equal(await page.locator('[data-component-drop]').count(), 0, 'opening overflow does not mark all its tabs');
     const target = await tab('Fresh').boundingBox();
     await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
     assert.equal(await tab('Fresh').locator('..').getAttribute('data-component-drop'), 'allowed');
+    assert.equal(await page.locator('[data-component-drop]').count(), 1);
     await page.screenshot({ path: 'test-results/component-drop-overflow.png' });
     await page.keyboard.press('Escape'); await page.mouse.up();
     await page.waitForTimeout(350);
@@ -187,7 +207,92 @@ try {
     await page.mouse.click(fullGrid.x + 1, fullGrid.y + 1, { button: 'right' });
     assert.ok(await menu.getByRole('menuitem', { name: 'Add terminal', exact: true }).isDisabled());
     assert.ok(await menu.getByRole('menuitem', { name: 'Add file browser', exact: true }).isDisabled());
+    await page.keyboard.press('Escape');
+
+    const geometry = ({ x, y, w, h }) => [x, y, w, h];
+    for (const [name, columns, rows, w, h, kind, addition, expectedTarget, expectedNew, compact = false] of [
+        ['terminal-square', 4, 2, 2, 2, 'terminal', 'terminal', [0, 0, 2, 1], [0, 1, 2, 1]],
+        ['terminal-square-files', 4, 2, 2, 2, 'terminal', 'files', [0, 0, 2, 1], [0, 1, 2, 1]],
+        ['files-square', 4, 2, 2, 2, 'files', 'files', [0, 0, 1, 2], [1, 0, 1, 2]],
+        ['files-square-terminal', 4, 2, 2, 2, 'files', 'terminal', [0, 0, 1, 2], [1, 0, 1, 2]],
+        ['wide', 4, 2, 4, 2, 'terminal', 'files', [0, 0, 2, 2], [2, 0, 2, 2]],
+        ['wide-odd', 4, 2, 3, 2, 'terminal', 'terminal', [0, 0, 1, 2], [1, 0, 2, 2]],
+        ['tall-odd', 2, 4, 2, 3, 'files', 'files', [0, 0, 2, 1], [0, 1, 2, 2]],
+        ['tall', 2, 4, 2, 4, 'files', 'terminal', [0, 0, 2, 2], [0, 2, 2, 2]],
+        ['thin', 4, 2, 1, 2, 'terminal', 'files', [0, 0, 1, 1], [0, 1, 1, 1]],
+        ['short', 4, 2, 2, 1, 'files', 'terminal', [0, 0, 1, 1], [1, 0, 1, 1]],
+        ['compact', 2, 4, 2, 2, 'terminal', 'files', [0, 0, 2, 1], [0, 1, 2, 1], true],
+        ['terminal-cell', 4, 2, 1, 1, 'terminal', 'files', null, null],
+        ['files-cell', 4, 2, 1, 1, 'files', 'terminal', null, null],
+    ]) {
+        await page.goto('about:blank');
+        await page.setViewportSize(compact ? { width: 390, height: 844 } : columns === 4 ? { width: 1440, height: 1000 } : { width: 900, height: 1200 });
+        const target = panel('target', 0, 0, w, h, kind);
+        const neighbor = w < columns ? panel('fixed', w, 0, columns - w, rows) : h < rows ? panel('fixed', 0, h, columns, rows - h) : undefined;
+        const panels = neighbor ? [target, neighbor] : [target];
+        const layout = { mode: 1, custom: panels.map(({ id, x, y, w, h }) => ({ id, x, y, w, h })) };
+        const settings = { theme: 'dark', current: 'split', workspaces: [{ ...ws('split', 'Split', panels), columns, rows, layout }] };
+        assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
+        await page.goto(base); await item('target').waitFor();
+        if (kind === 'terminal') await item('target').locator('[data-state=connected]').waitFor();
+        const targetDOM = await item('target').elementHandle(), neighborDOM = neighbor && await item('fixed').elementHandle();
+        let draft;
+        if (name === 'files-square') {
+            await item('target').locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
+            const editor = item('target').locator('.cm-content'); await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('split draft');
+            draft = await editor.elementHandle();
+        }
+        const connected = sockets.length;
+        if (compact) await page.locator('[data-component-menu=target]').click(); else await headerMenu('target');
+        const actions = await menu.getByRole('menuitem').allTextContents();
+        assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to workspace') + 1), ['Add terminal', 'Add file browser', 'Move to workspace']);
+        if (!expectedTarget) {
+            for (const label of ['Add terminal', 'Add file browser']) assert.ok(await menu.getByRole('menuitem', { name: label, exact: true }).isDisabled());
+            await page.keyboard.press('Escape');
+            assert.deepEqual((await snapshot()).workspaces[0].panels.map(geometry), panels.map(geometry));
+            continue;
+        }
+        const saved = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === panels.length + 1);
+        await menu.getByRole('menuitem', { name: addition === 'terminal' ? 'Add terminal' : 'Add file browser', exact: true }).click(); await saved;
+        const result = (await snapshot()).workspaces[0], added = result.panels.find(panel => !panels.some(before => before.id === panel.id));
+        assert.deepEqual(geometry(result.panels.find(panel => panel.id === target.id)), expectedTarget, name);
+        assert.deepEqual(geometry(added), expectedNew, name); assert.equal(added.kind, addition);
+        assert.equal(result.layout, undefined, 'splitting switches to Custom'); assert.equal(result.active, added.id);
+        assert.ok(await targetDOM.evaluate(node => node === document.querySelector('[data-panel=target]')), 'reuse the clicked component');
+        if (neighbor) {
+            assert.deepEqual(geometry(result.panels.find(panel => panel.id === neighbor.id)), geometry(neighbor));
+            assert.ok(await neighborDOM.evaluate(node => node === document.querySelector('[data-panel=fixed]')), 'reuse neighboring components');
+        }
+        if (draft) {
+            assert.ok(await draft.evaluate(node => node === document.querySelector('[data-panel=target] .cm-content')));
+            assert.match(await draft.textContent(), /split draft/);
+            assert.equal(await readFile(dir + '/draft.txt', 'utf8'), 'original\n');
+        }
+        if (addition === 'terminal') {
+            await item(added.id).locator('[data-state=connected]').waitFor();
+            sessions.push(await item(added.id).locator('[data-terminal]').getAttribute('data-terminal'));
+        }
+        if (kind === 'terminal') {
+            assert.equal(sockets.length, connected, 'splitting keeps the existing terminal connection');
+            assert.equal((await (await api('/terminals')).json()).find(info => info.id === terminal.id).pid, terminal.pid);
+        }
+        if (!compact) {
+            await page.locator('.grid-stack-item').evaluateAll(nodes => Promise.allSettled(nodes.flatMap(node => node.getAnimations()).map(animation => animation.finished)));
+            const before = await item('target').boundingBox(), after = await item(added.id).boundingBox();
+            assert.ok(expectedNew[0] > 0 ? before.x + before.width <= after.x + 1 : before.y + before.height <= after.y + 1, `${name}: split panes do not overlap after settling`);
+        }
+        if (name === 'terminal-square' || name === 'files-square') await page.screenshot({ path: `test-results/component-split-${name}.png` });
+        if (name === 'wide') {
+            await page.reload(); await item(added.id).waitFor();
+            const restored = (await snapshot()).workspaces[0];
+            assert.deepEqual(restored.panels.map(geometry), result.panels.map(geometry));
+            assert.equal(restored.layout, undefined);
+        }
+    }
+    console.log('PASS header split additions, square type preferences, long/odd/thin panes, compact actions, disabled cells, Custom persistence and live component/draft preservation');
     assert.deepEqual(errors, []);
+} catch (error) {
+    await page.screenshot({ path: 'test-results/component-failure.png' }); throw error;
 } finally {
     await page.goto('about:blank'); await api('/settings', 'PUT', original);
     for (const id of sessions) await api(`/terminals/${id}`, 'DELETE');
