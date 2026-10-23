@@ -34,6 +34,15 @@ await page.addInitScript(() => {
 const panel = (id, x, y, w, h) => ({ id, kind: id === 'a' ? 'terminal' : 'files', path: '/tmp', ...(id === 'a' ? { terminal: terminal.id } : {}), x, y, w, h });
 const item = id => page.locator(`[data-panel="${id}"]`);
 const rect = id => item(id).evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute('gs-' + key) || (key === 'w' || key === 'h' ? 1 : 0))));
+async function resizePoint(handle) {
+    return handle.evaluate(node => {
+        const r = node.getBoundingClientRect();
+        for (const [x, y] of [[r.right - 2, r.bottom - 2], [r.left + 2, r.bottom - 2], [r.left + r.width / 2, r.top + r.height / 2]]) {
+            if (document.elementFromPoint(x, y) === node) return { x, y };
+        }
+        throw Error('no exposed resize grip: ' + node.className);
+    });
+}
 async function fixture(panels, portrait = false, mode = 0) {
     await page.waitForTimeout(350); await page.goto('about:blank');
     await page.setViewportSize(portrait ? { width: 900, height: 1200 } : { width: 1440, height: 1000 });
@@ -99,9 +108,12 @@ try {
     }
     console.log('PASS new terminals maximize free area and file browsers grow vertically on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
     const resizeCases = [
-        { name: 'east trim', edge: 'e', panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)], dx: .8, dy: 0, expected: [[0, 0, 3, 2], [3, 0, 1, 2]] },
-        { name: 'west trim', edge: 'w', panels: [panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 2)], dx: -.8, dy: 0, expected: [[1, 0, 3, 2], [0, 0, 1, 2]] },
-        { name: 'portrait south trim', edge: 's', portrait: true, panels: [panel('a', 0, 0, 2, 2), panel('b', 0, 2, 2, 2)], dx: 0, dy: .8, expected: [[0, 0, 2, 3], [0, 3, 2, 1]] },
+        { name: 'exposed east edge', edge: 'e', panels: [panel('a', 0, 0, 1, 2), panel('b', 3, 0, 1, 2)], dx: .8, dy: 0, expected: [[0, 0, 2, 2], [3, 0, 1, 2]] },
+        { name: 'exposed west edge', edge: 'w', panels: [panel('a', 3, 0, 1, 2), panel('b', 0, 0, 1, 2)], dx: -.8, dy: 0, expected: [[2, 0, 2, 2], [0, 0, 1, 2]] },
+        { name: 'exposed south edge', edge: 's', portrait: true, panels: [panel('a', 0, 0, 2, 1), panel('b', 0, 3, 2, 1)], dx: 0, dy: .8, expected: [[0, 0, 2, 2], [0, 3, 2, 1]] },
+        { name: 'east corner trim', edge: 'se', panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)], dx: .8, dy: 0, expected: [[0, 0, 3, 2], [3, 0, 1, 2]] },
+        { name: 'west corner trim', edge: 'sw', panels: [panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 2)], dx: -.8, dy: 0, expected: [[1, 0, 3, 2], [0, 0, 1, 2]] },
+        { name: 'portrait south corner trim', edge: 'se', portrait: true, panels: [panel('a', 0, 0, 2, 2), panel('b', 0, 2, 2, 2)], dx: 0, dy: .8, expected: [[0, 0, 2, 3], [0, 3, 2, 1]] },
         { name: 'relocate', edge: 'se', panels: [panel('a', 0, 0, 1, 1), panel('b', 1, 0, 1, 1), panel('c', 2, 0, 2, 2)], dx: .8, dy: 0, expected: [[0, 0, 2, 1], [1, 1, 1, 1], [2, 0, 2, 2]] },
         { name: 'move and shrink', edge: 'se', panels: [panel('a', 0, 0, 1, 1), panel('b', 1, 0, 2, 1), panel('c', 0, 1, 2, 1), panel('d', 3, 0, 1, 2)], dx: 1.8, dy: 0, expected: [[0, 0, 3, 1], [2, 1, 1, 1], [0, 1, 2, 1], [3, 0, 1, 2]] },
         { name: 'southwest', edge: 'sw', panels: [panel('a', 2, 0, 2, 1), panel('b', 1, 0, 1, 1), panel('c', 0, 0, 1, 2)], dx: -.8, dy: 0, expected: [[1, 0, 3, 1], [1, 1, 1, 1], [0, 0, 1, 2]] },
@@ -117,10 +129,10 @@ try {
         await item('b').locator('.terminal-view[data-state=connected]').waitFor();
         const originals = await Promise.all(['a', 'b'].map(id => item(id).locator('.xterm').elementHandle()));
         const bounds = await page.locator('.grid-stack').boundingBox();
-        const grip = await item('a').locator(`.panel-resize-${test.edge}`).boundingBox();
-        await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
-        await page.mouse.move(grip.x + grip.width / 2 + test.dx * bounds.width / (test.portrait ? 2 : 4),
-            grip.y + grip.height / 2 + test.dy * bounds.height / (test.portrait ? 4 : 2), { steps: 6 });
+        const grip = await resizePoint(item('a').locator(`.panel-resize-${test.edge}`));
+        await page.mouse.move(grip.x, grip.y); await page.mouse.down();
+        await page.mouse.move(grip.x + test.dx * bounds.width / (test.portrait ? 2 : 4),
+            grip.y + test.dy * bounds.height / (test.portrait ? 4 : 2), { steps: 6 });
         const preview = page.locator('.dock-preview[data-edge=resize]'); await preview.waitFor();
         assert.equal(await preview.evaluate(node => node.classList.contains('invalid')), !!test.invalid, test.name);
         for (const p of panels) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h], 'preview preserves saved geometry');
@@ -146,9 +158,9 @@ try {
     }
     for (const cancel of ['Escape', 'blur', 'pointercancel', 'resize']) {
         await fixture([panel('a', 0, 0, 1, 1), panel('b', 1, 0, 1, 1)], false, 1);
-        const bounds = await page.locator('.grid-stack').boundingBox(), grip = await item('a').locator('.panel-resize-se').boundingBox();
-        await page.mouse.move(grip.x + 6, grip.y + 6); await page.mouse.down();
-        await page.mouse.move(grip.x + 6 + bounds.width * .2, grip.y + 6, { steps: 4 });
+        const bounds = await page.locator('.grid-stack').boundingBox(), grip = await resizePoint(item('a').locator('.panel-resize-se'));
+        await page.mouse.move(grip.x, grip.y); await page.mouse.down();
+        await page.mouse.move(grip.x + bounds.width * .2, grip.y, { steps: 4 });
         await page.locator('.dock-preview[data-edge=resize]:not(.invalid)').waitFor();
         if (cancel === 'Escape') await page.keyboard.press('Escape');
         else if (cancel === 'pointercancel') await item('a').locator('.panel-resize-se').dispatchEvent('pointercancel');
@@ -162,9 +174,9 @@ try {
     assert.equal((await (await api(`/terminals/${neighbor.id}`)).json()).pid, neighbor.pid);
     await fixture([panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)]);
     const fileNode = await item('b').locator('.file-view').elementHandle();
-    const fileGrip = await item('b').locator('.panel-resize-sw').boundingBox(), fileGrid = await page.locator('.grid-stack').boundingBox();
-    await page.mouse.move(fileGrip.x + 6, fileGrip.y + 6); await page.mouse.down();
-    await page.mouse.move(fileGrip.x + 6 - fileGrid.width * .2, fileGrip.y + 6, { steps: 5 }); await page.mouse.up();
+    const fileGrip = await resizePoint(item('b').locator('.panel-resize-sw')), fileGrid = await page.locator('.grid-stack').boundingBox();
+    await page.mouse.move(fileGrip.x, fileGrip.y); await page.mouse.down();
+    await page.mouse.move(fileGrip.x - fileGrid.width * .2, fileGrip.y, { steps: 5 }); await page.mouse.up();
     await page.waitForTimeout(220);
     assert.deepEqual(await rect('a'), [0, 0, 1, 2]); assert.deepEqual(await rect('b'), [1, 0, 3, 2]);
     assert.ok(await fileNode.evaluate(node => node === document.querySelector('[data-panel=b] .file-view')));

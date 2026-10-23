@@ -360,6 +360,8 @@ h3 {
   isolation: isolate;
 }
 .grid-stack-item-content.panel {
+  /* Content, including scrollbars, wins over resize handles at the frame. */
+  z-index: 20;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -1080,12 +1082,12 @@ h3 {
 
 .panel-resize { position: absolute; z-index: 10; touch-action: none; user-select: none; }
 .panel-resize-e, .panel-resize-w { top: 15px; bottom: 20px; width: 10px; cursor: ew-resize; }
-.panel-resize-e { right: 5px; }
-.panel-resize-w { left: 5px; }
-.panel-resize-s { left: 20px; right: 20px; bottom: 5px; height: 10px; cursor: ns-resize; }
-.panel-resize-se, .panel-resize-sw { width: 13px; height: 13px; bottom: 7px; }
-.panel-resize-se { right: 7px; cursor: se-resize; }
-.panel-resize-sw { left: 7px; transform: scaleX(-1); cursor: sw-resize; }
+.panel-resize-e { right: -5px; }
+.panel-resize-w { left: -5px; }
+.panel-resize-s { left: 20px; right: 20px; bottom: -5px; height: 10px; cursor: ns-resize; }
+.panel-resize-se, .panel-resize-sw { width: 13px; height: 13px; bottom: -5px; }
+.panel-resize-se { right: -5px; cursor: se-resize; }
+.panel-resize-sw { left: -5px; transform: scaleX(-1); cursor: sw-resize; }
 .panel-resize-se::after, .panel-resize-sw::after { content: ''; position: absolute; inset: 4px 1px 1px 4px; background: repeating-linear-gradient(135deg, transparent 0 2px, var(--muted) 2px 3px, transparent 3px 5px); clip-path: polygon(100% 0,100% 100%,0 100%); opacity: .6; }
 .compact-board .panel-resize { display: none; }
 .grid-vacancy { position: absolute; z-index: 110; pointer-events: none; padding: 5px; opacity: 0; transition: opacity .12s; }
