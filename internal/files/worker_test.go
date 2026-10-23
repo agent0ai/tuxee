@@ -7,7 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestStatAndListAgreeOnSymlinks(t *testing.T) {
@@ -23,6 +27,14 @@ func TestStatAndListAgreeOnSymlinks(t *testing.T) {
 		if err := os.Symlink(target, path); err != nil {
 			t.Fatal(err)
 		}
+		// An old atime exercises readlink's access-time update on relatime mounts.
+		old := time.Unix(1, 0)
+		if err := unix.UtimesNanoAt(unix.AT_FDCWD, path, []unix.Timespec{
+			unix.NsecToTimespec(old.UnixNano()),
+			{Nsec: unix.UTIME_OMIT},
+		}, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			t.Fatal(err)
+		}
 		response, _, err := execute(context.Background(), Request{Operation: "stat", Path: path}, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -30,6 +42,15 @@ func TestStatAndListAgreeOnSymlinks(t *testing.T) {
 		if !response.Entry.Symlink || response.Entry.Directory != (target == "folder") || response.Entry.Link != target {
 			t.Fatalf("incorrect symlink metadata: %+v", response.Entry)
 		}
+		if !response.Entry.Accessed.Equal(old) {
+			t.Fatalf("stat access time: got %v, want %v", response.Entry.Accessed, old)
+		}
+		info, err := os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		atime := info.Sys().(*syscall.Stat_t).Atim
+		wantAccessed := time.Unix(atime.Sec, atime.Nsec)
 		listing, _, err := execute(context.Background(), Request{Operation: "list", Path: dir}, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -40,7 +61,14 @@ func TestStatAndListAgreeOnSymlinks(t *testing.T) {
 				continue
 			}
 			found = true
-			if entry != *response.Entry {
+			if !entry.Accessed.Equal(wantAccessed) {
+				t.Fatalf("list access time: got %v, want %v", entry.Accessed, wantAccessed)
+			}
+			// Access times are snapshots: resolving the link may change atime
+			// between stat and list without changing the other metadata.
+			statEntry := *response.Entry
+			statEntry.Accessed = entry.Accessed
+			if entry != statEntry {
 				t.Fatalf("stat/list disagree: %+v %+v", response.Entry, entry)
 			}
 		}

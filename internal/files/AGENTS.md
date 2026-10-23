@@ -14,6 +14,8 @@ The server must execute the worker through identity.User.Command. All filesystem
 
 Listing and stat share metadata: preserve symlink identity/link text and mark links to directories as directories so direct path navigation agrees with listed entries. Broken links remain symlinks without a directory flag.
 
+Access times reflect each operation's filesystem snapshot. Resolving or reading a symlink can advance its access time; stat/list tests must verify those snapshots separately from stable metadata.
+
 Launch file workers from `identity.Self` so an on-disk binary update cannot change the helper protocol of a running server.
 
 # Work Guidance
