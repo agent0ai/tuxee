@@ -40,8 +40,8 @@ const item = id => page.locator(`[data-panel="${id}"]`);
 const rect = id => item(id).evaluate(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute('gs-' + key) || (key === 'w' || key === 'h' ? 1 : 0))));
 async function resizePoint(handle) {
     return handle.evaluate(node => {
-        const r = node.getBoundingClientRect();
-        for (const [x, y] of [[r.right - 2, r.bottom - 2], [r.left + 2, r.bottom - 2], [r.left + r.width / 2, r.top + r.height / 2]]) {
+        const r = node.getBoundingClientRect(), frame = node.parentElement.querySelector('.panel').getBoundingClientRect();
+        for (const [x, y] of [[frame.right - 6, frame.bottom - 6], [frame.left + 6, frame.bottom - 6], [r.right - 2, r.bottom - 2], [r.left + 2, r.bottom - 2], [r.left + r.width / 2, r.top + r.height / 2]]) {
             if (document.elementFromPoint(x, y) === node) return { x, y };
         }
         throw Error('no exposed resize grip: ' + node.className);
@@ -100,10 +100,26 @@ try {
                 }
                 for (const id of ['a', 'b']) for (const edge of ['se', 'sw']) {
                     const handle = item(id).locator(`.panel-resize-${edge}`);
-                    const frame = await item(id).locator('.panel').boundingBox(), grip = await handle.boundingBox();
-                    assert.ok(Math.abs(grip.y + grip.height - frame.y - frame.height) < 1, `${label}: corner aligns with frame bottom`);
-                    assert.ok(Math.abs(edge === 'se' ? grip.x + grip.width - frame.x - frame.width : grip.x - frame.x) < 1, `${label}: corner aligns with frame side`);
-                    const point = await resizePoint(handle);
+                    const hits = await handle.evaluate((node, edge) => {
+                        const frame = node.parentElement.querySelector('.panel').getBoundingClientRect();
+                        const point = (x, y) => ({ x: edge === 'se' ? frame.right - x : frame.left + x, y: frame.bottom - y });
+                        const hit = (x, y) => { const p = point(x, y); return document.elementFromPoint(p.x, p.y); };
+                        return {
+                            inside: [[4, 4], [6, 6], [9, 2], [2, 9]].every(([x, y]) => hit(x, y) === node),
+                            outside: [[-3, 3], [3, -3], [-3, -3], [-3, 10], [10, -3]].every(([x, y]) => {
+                                const target = hit(x, y);
+                                return target === node || target?.classList.contains('workspace-divider');
+                            }),
+                            content: !hit(12, 12)?.closest('.panel-resize, .workspace-divider'),
+                            graphic: getComputedStyle(node, '::after').content,
+                            point: point(6, 6),
+                        };
+                    }, edge);
+                    assert.ok(hits.inside, `${label}: ${id}/${edge} grabs across the inside of the corner`);
+                    assert.ok(hits.outside, `${label}: ${id}/${edge} grabs across the outer margin or defers to a shared divider`);
+                    assert.ok(hits.content, `${label}: content beyond the diagonal target remains interactive`);
+                    assert.equal(hits.graphic, 'none', `${label}: no corner graphic`);
+                    const point = hits.point;
                     if (width === 1440 && (id === 'a' && edge === 'se' || id === 'b' && edge === 'sw')) {
                         const before = await rect(id);
                         await page.mouse.move(point.x, point.y); await page.mouse.down();
@@ -117,7 +133,7 @@ try {
                     await page.screenshot({ path: `test-results/resize-corners-${theme}.png` });
             }
         }
-        console.log(`PASS ${theme} corner alignment, hit targets and resizing across five window sizes, 75–200% emulated zoom and 1/1.25/2 device scales`);
+        console.log(`PASS ${theme} bare corners, inner/outer hit targets and resizing across five window sizes, 75–200% emulated zoom and 1/1.25/2 device scales`);
     }
     await display.send('Emulation.clearDeviceMetricsOverride'); await display.detach();
     for (const [width, height] of [[1440, 1000], [2560, 1080], [900, 1200], [390, 844]]) {

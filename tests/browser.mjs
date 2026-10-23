@@ -599,11 +599,10 @@ try {
     check('ultrawide eight-cell default');
     const widget = page.locator('.grid-stack-item').first(), oldBox = await widget.boundingBox();
     await widget.hover();
-    const handle = widget.locator('.panel-resize-se');
-    const hb = await handle.boundingBox();
-    await page.mouse.move(hb.x + hb.width - 2, hb.y + hb.height - 2);
+    const hb = await widget.locator('.panel').boundingBox();
+    await page.mouse.move(hb.x + hb.width - 6, hb.y + hb.height - 6);
     await page.mouse.down();
-    await page.mouse.move(hb.x - oldBox.width * .38, hb.y + hb.height / 2, { steps: 10 });
+    await page.mouse.move(hb.x + hb.width - 6 - oldBox.width * .38, hb.y + hb.height - 6, { steps: 10 });
     const liveRect = await widget.boundingBox();
     await page.mouse.up();
     const resizeFrames = await widget.evaluate(node => node.getAnimations()[0]?.effect.getKeyframes());

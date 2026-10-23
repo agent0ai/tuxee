@@ -458,8 +458,8 @@ try{
  assert.deepEqual(await geometry(),unchangedGeometry,'dropping in the same cells keeps geometry');
  assert.equal(await arrangeButton.getAttribute('data-mode'),'1','same-cell drop preserves automatic mode');
  assert.equal(await layoutLabel.textContent(),'Balanced');assert.equal(await arrangeButton.locator('svg').evaluate(node=>node.style.transform),'rotate(90deg)');
- const resizeGrip=await page.locator('[data-panel=auto-0] .panel-resize-se').boundingBox();
- await page.mouse.move(resizeGrip.x+resizeGrip.width-2,resizeGrip.y+resizeGrip.height-2);await page.mouse.down();await page.mouse.move(resizeGrip.x+resizeGrip.width-14,resizeGrip.y+resizeGrip.height-14,{steps:6});await page.mouse.up();await page.waitForTimeout(220);
+ const resizeGrip=await page.locator('[data-panel=auto-0] .panel').boundingBox();
+ await page.mouse.move(resizeGrip.x+resizeGrip.width-6,resizeGrip.y+resizeGrip.height-6);await page.mouse.down();await page.mouse.move(resizeGrip.x+resizeGrip.width-18,resizeGrip.y+resizeGrip.height-18,{steps:6});await page.mouse.up();await page.waitForTimeout(220);
  assert.deepEqual(await geometry(),unchangedGeometry,'a small resize snaps back to the same cells');
  assert.equal(await arrangeButton.getAttribute('data-mode'),'1','unchanged resize preserves automatic mode');
  await page.waitForTimeout(220);sourceBox=await page.locator('[data-panel=auto-0] .panel-header').boundingBox();const swapBox=await page.locator('[data-panel=auto-1]').boundingBox();
