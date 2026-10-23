@@ -29,6 +29,9 @@ page.on('request', request => { if (request.method() === 'GET' && request.url().
 page.on('response', response => { if (response.request().method() === 'POST' && response.url() === base + '/api/processes') lastKillResponse = performance.now(); });
 const dialog = page.getByRole('dialog', { name: 'Resource monitor', exact: true });
 const fixtures = JSON.parse(await readFile('.test-state/process-fixtures.json', 'utf8'));
+const preview = (text, limit) => Array.from(text).length > limit ? Array.from(text).slice(0, limit - 1).join('') + '…' : text;
+const commandLine = preview('/usr/bin/node /srv/app.js --label=<b>plain text</b> ' + '🐧'.repeat(250), 250);
+for (const key of ['container', 'containerCore']) fixtures[key].rows.find(row => row.pid === 2).commandLine = commandLine;
 let fixture = 'container', worker, family, workerExit;
 async function openProcesses() { await page.getByRole('button', { name: 'User menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Resource monitor', exact: true }).click(); await dialog.getByRole('tab', { name: 'Processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
 async function refresh() { await dialog.getByRole('button', { name: 'Refresh processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
@@ -42,6 +45,12 @@ try {
  });
  await page.goto(base); await page.locator('.topbar').waitFor(); assert.equal(requests, 0);
  await openProcesses(); assert.equal(requests, 1);
+ const commandLabel = dialog.locator('tr[data-pid="2"] .process-label');
+ assert.equal(await commandLabel.locator('span').textContent(), '2 • container-start');
+ assert.equal(await commandLabel.locator('small').textContent(), preview(commandLine, 100));
+ assert.equal(await commandLabel.locator('small').getAttribute('title'), commandLine);
+ assert.equal(await commandLabel.locator('b').count(), 0, 'arguments render as plain text');
+ assert.equal(await dialog.locator('tr[data-pid="1"] .process-label small').textContent(), '—');
  const processTab = dialog.getByRole('tab', { name: 'Processes', exact: true });
  await processTab.focus(); await page.keyboard.press('ArrowLeft');
  assert.ok(await dialog.getByRole('tabpanel', { name: 'Resources', exact: true }).isVisible());
@@ -151,6 +160,7 @@ try {
   fixture = 'container'; await page.setViewportSize({ width, height: 844 }); await refresh();
   assert.ok(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth));
   assert.ok(await dialog.locator('.process-scroll').evaluate(node => node.scrollWidth <= node.clientWidth));
+  assert.ok(await commandLabel.evaluate(node => node.querySelector('small').getBoundingClientRect().top >= node.querySelector('span').getBoundingClientRect().bottom), 'command line stays on the second line on phones');
   await page.screenshot({ path: `test-results/processes-mobile-${width}.png` });
  }
  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -194,6 +204,12 @@ else:
  assert.ok(foreign?.estimatedRAM && foreign.totalEstimatedRAM, 'cross-user process explicitly uses RSS estimate');
  assert.equal(foreign.fileRAM, null, 'unreadable file PSS is unavailable');
  console.log('PASS real 106-process shared allocation:', Math.round(row.totalRAM/1024**2), 'MiB, with cross-user RSS fallback');
+ const expectedCommand = preview(worker.spawnargs.join(' ').replace(/\s+/gu, ' ').trim(), 250);
+ assert.equal(row.commandLine, expectedCommand);
+ const liveCommand = dialog.locator(`tr[data-pid="${family.parent}"] .process-label small`);
+ assert.equal(await liveCommand.textContent(), preview(expectedCommand, 100));
+ assert.equal(await liveCommand.getAttribute('title'), expectedCommand);
+ assert.ok(liveSnapshot.rows.every(row => Array.from(row.commandLine || '').length <= 250), 'API bounds command lines');
  // Refresh the UI after the explicit API snapshot replaced its token.
  await refresh(); await liveParent.check();
  assert.ok(await dialog.locator('.process-group input:checked').count() >= 1);

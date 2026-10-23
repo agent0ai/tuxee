@@ -31,6 +31,10 @@ const settings = { theme: 'dark', current: 'uploads', monitoring: { hidden: true
 ] };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
 const page = await context.newPage(), errors = [], external = [], published = [], lists = [];
+const activeUploads = new Set(); let maxUploads = 0;
+page.on('request', request => { if (request.url().includes('/api/upload?')) { activeUploads.add(request); maxUploads = Math.max(maxUploads, activeUploads.size); } });
+page.on('response', response => activeUploads.delete(response.request()));
+page.on('requestfailed', request => activeUploads.delete(request));
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => {
     if (request.url() === base + '/api/files' && request.postDataJSON()?.operation === 'list') lists.push(request.postDataJSON().path);
@@ -93,7 +97,18 @@ async function uploadedRows(path) {
     assert.deepEqual(lists, [home + '/uploads', home + '/uploads'], 'refresh each matching browser once and leave unrelated folders alone');
     assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => document.activeElement === node), 'automatic refresh preserves terminal focus');
 }
-let session, releaseList = () => {};
+async function openUploadSettings() {
+    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    return page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
+}
+async function saveUploadSettings(count) {
+    await (await openUploadSettings()).selectOption(String(count));
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
+    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, count);
+}
+let session, releaseList = () => {}, releaseUploads = () => {};
 try {
     await page.goto(base); await terminal.locator('[data-state=connected]').waitFor();
     session = await terminal.locator('[data-terminal]').getAttribute('data-terminal');
@@ -109,7 +124,11 @@ try {
     await mkdir(folder + '/nested/empty', { recursive: true });
     for (let i = 0; i < 105; i++) await writeFile(`${folder}/file-${i}.txt`, `entry ${i}\n`);
     await writeFile(folder + '/nested/deep.txt', 'nested bytes'); await writeFile(loose, 'loose bytes');
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 100, downloadThroughput: -1, uploadThroughput: -1 });
     await drop(file.locator('.file-list'), [folder, loose]); await done(file);
+    assert.equal(maxUploads, 4, 'folder uploads should fill four slots without exceeding the batch limit');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     assert.equal((await readdir(fixture + '/bundle')).length, 106);
     for (let i = 0; i < 105; i++) assert.equal(await readFile(`${fixture}/bundle/file-${i}.txt`, 'utf8'), `entry ${i}\n`);
     assert.equal(await readFile(fixture + '/bundle/nested/deep.txt', 'utf8'), 'nested bytes');
@@ -126,6 +145,48 @@ try {
     assert.equal(await readFile(fixture + '/loose (1).txt', 'utf8'), 'loose bytes');
     assert.equal(await readFile(fixture + '/loose.txt', 'utf8'), 'loose bytes');
     check('repeat uploads allocate numbered files/folders and preserve originals');
+
+    await saveUploadSettings(8);
+    await (await openUploadSettings()).selectOption('1');
+    const rejectSave = route => route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), uploadConcurrency: 9 }) });
+    await page.route('**/api/settings', rejectSave);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('parallel uploads must be between 1 and 8', { exact: true }).waitFor();
+    await page.unroute('**/api/settings', rejectSave);
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, 8);
+    const configuredFiles = Array.from({ length: 24 }, (_, i) => ({ name: `configured-${i}.bin`, mimeType: 'application/octet-stream', buffer: Buffer.alloc(4096, i) }));
+    let arrivals = 0, firstWave;
+    const ready = new Promise(resolve => { firstWave = resolve; });
+    const held = new Promise(resolve => { releaseUploads = resolve; });
+    const holdUploads = async route => {
+        const response = await route.fetch();
+        if (++arrivals <= 8) {
+            if (arrivals === 8) firstWave();
+            await held;
+        } else await new Promise(resolve => setTimeout(resolve, 100));
+        await route.fulfill({ response });
+    };
+    await page.route('**/api/upload?*', holdUploads);
+    maxUploads = 0;
+    await file.locator('input[type=file]').setInputFiles(configuredFiles);
+    await Promise.race([ready, new Promise((_, reject) => setTimeout(() => reject(Error('eight uploads did not start')), 10000))]);
+    assert.equal(maxUploads, 8, 'failed save must preserve eight concurrent uploads');
+    await saveUploadSettings(1);
+    activeUploads.clear(); maxUploads = 0; releaseUploads();
+    await done(file);
+    assert.equal(maxUploads, 8, 'a running batch must keep the limit captured at its start');
+    await page.unroute('**/api/upload?*', holdUploads);
+    for (const item of configuredFiles) assert.deepEqual(await readFile(`${fixture}/${item.name}`), item.buffer);
+    maxUploads = 0;
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 100, downloadThroughput: -1, uploadThroughput: -1 });
+    await file.locator('input[type=file]').setInputFiles(configuredFiles.slice(0, 4).map(item => ({ ...item, name: 'serial-' + item.name })));
+    await done(file);
+    assert.equal(maxUploads, 1, 'the saved setting must apply to the next batch');
+    for (const item of configuredFiles.slice(0, 4)) assert.deepEqual(await readFile(`${fixture}/serial-${item.name}`), item.buffer);
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await saveUploadSettings(4);
+    check('saved parallelism controls real uploads, failed saves preserve it, and running batches retain their starting limit');
 
     const before = await page.evaluate(() => window.batchCount), url = page.url();
     await drop(page.locator('.topbar'), [loose]); await page.waitForTimeout(300);
@@ -237,26 +298,38 @@ try {
 
     const slowTerminalFile = source + '/slow-terminal.bin';
     await writeFile(slowTerminalFile, Buffer.alloc(256 * 1024, 4));
+    const fastTerminalFile = source + '/fast-terminal.txt';
+    await writeFile(fastTerminalFile, 'finished first');
+    const completionOrder = [];
+    const recordCompletion = response => {
+        if (response.url().includes('/api/upload?')) completionOrder.push(new URL(response.url()).searchParams.get('path').split('/').at(-1));
+    };
+    page.on('response', recordCompletion);
     const beforeSlowUpload = new Set(await readdir(home + '/uploads'));
     await navigate(home + '/uploads');
     await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
-    await drop(terminal.locator('.terminal-host'), [slowTerminalFile]);
-    await transfer(terminal).filter({ hasText: '0/1 files' }).waitFor();
+    await drop(terminal.locator('.terminal-host'), [slowTerminalFile, fastTerminalFile]);
+    await transfer(terminal).getByRole('button', { name: 'Cancel transfer', disabled: false }).waitFor();
     await file.getByRole('button', { name: 'Filter files', exact: true }).click();
     await filter.fill('keep typing'); await done(terminal);
     assert.ok(await filter.evaluate(node => document.activeElement === node), 'terminal upload completion stole focus');
     assert.equal(await filter.inputValue(), 'keep typing');
     const addedSlowFiles = (await readdir(home + '/uploads')).filter(name => !beforeSlowUpload.has(name));
-    assert.equal(addedSlowFiles.length, 1);
-    const slowPath = home + '/uploads/' + addedSlowFiles[0]; published.push(slowPath);
+    page.off('response', recordCompletion);
+    assert.deepEqual(completionOrder, ['fast-terminal.txt', 'slow-terminal.bin']);
+    assert.equal(addedSlowFiles.length, 2);
+    const slowPath = home + '/uploads/' + addedSlowFiles.find(name => name.startsWith('slow-terminal'));
+    const fastPath = home + '/uploads/' + addedSlowFiles.find(name => name.startsWith('fast-terminal'));
+    published.push(slowPath, fastPath);
     assert.deepEqual(await readFile(slowPath), Buffer.alloc(256 * 1024, 4));
+    assert.equal(await readFile(fastPath, 'utf8'), 'finished first');
     await filter.press('Escape');
     await input.focus(); await page.keyboard.type(`> '${fixture}/slow-path'`); await page.keyboard.press('Enter');
-    await expectFile(fixture + '/slow-path', slowPath + '\n');
+    await expectFile(fixture + '/slow-path', slowPath + '\n' + fastPath + '\n');
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await navigate(fixture);
-    check('terminal upload completion pastes into its target without stealing focus from another field');
+    check('out-of-order uploads paste paths in source order without stealing focus from another field');
 
     await mkdir(fixture + '/other'); await chown(fixture + '/other', uid, gid);
     await cdp.send('Network.enable');
@@ -265,7 +338,7 @@ try {
         { name: 'snapshot.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(256 * 1024, 3) },
         { name: 'snapshot.txt', mimeType: 'text/plain', buffer: Buffer.from('original directory') },
     ]);
-    await transfer(file).filter({ hasText: '0/2 files' }).waitFor();
+    await transfer(file).getByRole('button', { name: 'Cancel transfer', disabled: false }).waitFor();
     await navigate(fixture + '/other'); await done(file);
     assert.equal((await readFile(fixture + '/snapshot.bin')).length, 256 * 1024);
     assert.equal(await readFile(fixture + '/snapshot.txt', 'utf8'), 'original directory');
@@ -276,21 +349,39 @@ try {
 
     await cdp.send('Network.enable');
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
-    await file.locator('input[type=file]').setInputFiles([
-        { name: 'kept.txt', mimeType: 'text/plain', buffer: Buffer.from('completed before cancellation') },
-        { name: 'cancel.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(8 * 1024 * 1024, 7) },
-        { name: 'never.txt', mimeType: 'text/plain', buffer: Buffer.from('must not upload') },
-    ]);
-    await transfer(file).filter({ hasText: '1/3 files' }).waitFor();
+    const cancelled = Array.from({ length: 4 }, (_, i) => `cancel-${i}.bin`);
+    await writeFile(source + '/kept.txt', 'completed before cancellation');
+    await writeFile(source + '/never.txt', 'must not upload');
+    for (const name of cancelled) await writeFile(`${source}/${name}`, Buffer.alloc(8 * 1024 * 1024, 7));
+    await file.locator('input[type=file]').setInputFiles(['kept.txt', ...cancelled, 'never.txt'].map(name => `${source}/${name}`));
+    await transfer(file).filter({ hasText: '1/6 files' }).waitFor();
     await transfer(file).getByRole('button', { name: 'Cancel transfer' }).click();
     await transfer(file).filter({ hasText: 'Cancelled' }).waitFor();
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await page.waitForTimeout(300);
-    await assert.rejects(stat(fixture + '/cancel.bin')); await assert.rejects(stat(fixture + '/never.txt'));
+    for (const name of [...cancelled, 'never.txt']) await assert.rejects(stat(`${fixture}/${name}`));
     await file.locator('.file-entry').filter({ hasText: 'kept.txt' }).waitFor();
     assert.equal(await readFile(fixture + '/kept.txt', 'utf8'), 'completed before cancellation');
     assert.ok(!(await readdir(fixture)).some(name => name.startsWith('.tuxee-upload-')));
-    check('cancelling a bundle removes active staging and stops queued files');
+    check('cancelling a bundle aborts all four active requests, preserves completed files and stops queued files');
+
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
+    await writeFile(source + '/incomplete.txt', 'short');
+    const failUpload = async route => {
+        if (new URL(route.request().url()).searchParams.get('path')?.endsWith('/incomplete.txt')) {
+            await route.continue({ headers: { ...route.request().headers(), 'x-tuxee-size': '100' } });
+        } else await route.continue();
+    };
+    await page.route('**/api/upload?*', failUpload);
+    await file.locator('input[type=file]').setInputFiles(['incomplete.txt', ...cancelled.slice(0, 3), 'never.txt'].map(name => `${source}/${name}`));
+    await transfer(file).filter({ hasText: 'incomplete upload' }).waitFor();
+    assert.doesNotMatch(await transfer(file).innerText(), /Cancelled|Done/);
+    await page.unroute('**/api/upload?*', failUpload);
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await page.waitForTimeout(300);
+    for (const name of ['incomplete.txt', ...cancelled, 'never.txt']) await assert.rejects(stat(`${fixture}/${name}`));
+    assert.ok(!(await readdir(fixture)).some(name => name.startsWith('.tuxee-upload-')));
+    check('a real server upload failure aborts sibling requests and the queue, cleans staging and retains the original error');
     await api(`/terminals/${session}`, 'DELETE');
     await terminal.locator('[data-state=ended]').waitFor();
     const beforeRejected = await page.evaluate(() => window.batchCount);
@@ -310,6 +401,7 @@ try {
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
 } finally {
     releaseList();
+    releaseUploads();
     await page.waitForTimeout(350);
     await page.goto('about:blank');
     await api('/settings', 'PUT', original);

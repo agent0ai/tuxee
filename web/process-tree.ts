@@ -1,5 +1,5 @@
 export type ProcessRow = {
-    id: string; parentID: string; pid: number; start: string; parent: number; name: string; uid: number; state: string;
+    id: string; parentID: string; pid: number; start: string; parent: number; name: string; commandLine?: string; uid: number; state: string;
     cpu: number | null; ram: number | null; fileRAM: number | null; estimatedRAM?: boolean;
     totalCPU: number | null; totalRAM: number | null; totalFileRAM: number | null; totalEstimatedRAM?: boolean;
     count: number; targets: number; ownTargets: number; unknownCPU?: boolean; targetCPU: number; targetRAM: number | null; targetEstimatedRAM?: boolean; canSignal: boolean; group?: boolean; zombies?: number;

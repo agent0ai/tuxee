@@ -92,6 +92,9 @@ try {
   assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 896.0 MB');
   assert.match(await ramCard.textContent(),/Used 64.0 MB \/ 1.0 GB/);
   assert.match(await summary.getAttribute('aria-description'),/Cache 896.0 MB/);
+  assert.ok(await summary.locator('.monitor-label, .monitor-value, .monitor-number, .monitor-unit, .monitor-gauge').evaluateAll(nodes=>nodes.every(node=>node.closest('[title]')===node.closest('.monitor-summary'))),'every part of every header metric must use the shared summary tooltip');
+  assert.equal(await ramCard.locator('.monitor-value').getAttribute('title'),'Estimated non-reclaimable memory');
+  assert.equal(await ramCard.locator('.monitor-cache').getAttribute('title'),'Estimated reclaimable memory');
   for(const item of [ramChip,ramCard]) {
    const gauge=item.locator('.monitor-gauge');
    assert.equal(await gauge.evaluate(node=>node.style.getPropertyValue('--usage')),'6.25');

@@ -102,7 +102,7 @@ export class Monitoring {
             gauge.style.setProperty('--cache', String(metric.cache?.percent ?? 0));
             gauge.setAttribute('aria-hidden', 'true'); chip.append(gauge);
             const reading = this.reading(metric.value);
-            if (metric.cache) reading.title = 'Estimated non-reclaimable memory';
+            if (detailed && metric.cache) reading.title = 'Estimated non-reclaimable memory';
             text.append(reading);
         }
         chip.append(text);

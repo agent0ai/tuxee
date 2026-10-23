@@ -53,7 +53,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 			failure(w, 429, errors.New("process sampling is busy"))
 			return
 		}
-		output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "list", AllowCore: allowCore})
+		output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "list", AllowCore: allowCore, Sort: sortBy})
 		if err != nil {
 			failure(w, 400, err)
 			return

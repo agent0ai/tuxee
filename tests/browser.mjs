@@ -508,6 +508,10 @@ try {
     await page.locator('.user-menu-button .username').click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await page.getByRole('spinbutton').count(), 0);
+    const parallelUploads = page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
+    assert.equal(await parallelUploads.inputValue(), '4');
+    assert.deepEqual(await parallelUploads.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['1', '2', '3', '4', '5', '6', '7', '8']);
+    await parallelUploads.selectOption('8');
     const hostname = await page.locator('meta[name="tuxee-hostname"]').getAttribute('content');
     const serverName = page.getByRole('textbox', { name: 'Server name', exact: true });
     assert.equal(await serverName.getAttribute('maxlength'), '64');
@@ -532,8 +536,11 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), defaultBorder, 'closing discards the preview');
+    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, undefined);
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    assert.equal(await parallelUploads.inputValue(), '4');
+    await parallelUploads.selectOption('8');
     await previewColor('#ea580c');
     await page.screenshot({ path: 'test-results/settings-color-marker.png' });
     await serverName.fill('  Lab <&> 東京  ');
@@ -542,6 +549,7 @@ try {
     assert.equal(await page.title(), 'Tuxee Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverName, 'Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverColor, '#ea580c');
+    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, 8);
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await page.waitForTimeout(400);
     await page.reload();
@@ -645,6 +653,7 @@ try {
     const token = (await loginResponse.json()).csrf;
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverName, undefined);
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverColor, undefined);
+    assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.uploadConcurrency, undefined);
     const denied = await other.request.post(`${base}/api/files`, { data: { operation: 'list', path: `${a.home}/tuxee-fixtures` }, headers: { 'X-Tuxee-CSRF': token } });
     assert.equal(denied.status(), 400);
     assert.equal((await other.request.get(`${base}/api/terminals/${retained.id}`)).status(), 404);
@@ -652,6 +661,7 @@ try {
     check('cross-user file and terminal denial');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    assert.equal(await parallelUploads.inputValue(), '8', 'parallel uploads persists across reload and login');
     await serverName.fill('   ');
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     assert.equal((await markerBorder()).width, '1px');
@@ -673,6 +683,7 @@ try {
     assert.deepEqual(await markerBorder(), lightDefaultBorder, 'saved reset survives reload');
     check('trimmed per-user server name persists across reload/login, stays private at logout and clears to hostname');
     check('color marker previews, resets, cancels, persists per user and restores standard borders in both themes');
+    check('parallel uploads defaults to four, discards unsaved edits and persists per user across reload/login');
     // Crowded tabs use the same UUI fitting rule on desktop and mobile.
     await page.waitForTimeout(300);
     const savedSettings = (await (await api('/me')).json()).settings;

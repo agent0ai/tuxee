@@ -46,12 +46,13 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
-	ServerName  string      `json:"serverName,omitempty"`
-	ServerColor string      `json:"serverColor,omitempty"`
-	Theme       string      `json:"theme"`
-	Current     string      `json:"current"`
-	Workspaces  []Workspace `json:"workspaces"`
-	Monitoring  *Monitoring `json:"monitoring,omitempty"`
+	ServerName        string      `json:"serverName,omitempty"`
+	ServerColor       string      `json:"serverColor,omitempty"`
+	UploadConcurrency *int        `json:"uploadConcurrency,omitempty"`
+	Theme             string      `json:"theme"`
+	Current           string      `json:"current"`
+	Workspaces        []Workspace `json:"workspaces"`
+	Monitoring        *Monitoring `json:"monitoring,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -80,6 +81,9 @@ func validateSettings(value *Settings) error {
 }
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
+	if n := value.UploadConcurrency; n != nil && (*n < 1 || *n > 8) {
+		return errors.New("parallel uploads must be between 1 and 8")
+	}
 	if color := value.ServerColor; color != "" {
 		if len(color) != 7 || color[0] != '#' {
 			return errors.New("color marker must be a six-digit hex color")

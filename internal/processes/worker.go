@@ -15,6 +15,7 @@ import (
 type Request struct {
 	Operation string `json:"operation"`
 	AllowCore bool   `json:"allowCore,omitempty"`
+	Sort      string `json:"sort,omitempty"`
 	Targets   []Ref  `json:"targets,omitempty"`
 	Signal    int    `json:"signal,omitempty"`
 }
@@ -38,6 +39,9 @@ func Worker() error {
 	switch input.Operation {
 	case "list":
 		output.Snapshot, err = Sample(ctx, input.AllowCore)
+		if err == nil {
+			err = output.Snapshot.readCommandLines(ctx, "/proc", input.Sort)
+		}
 	case "signal":
 		output.Results, err = Signal(ctx, input.Targets, input.Signal, input.AllowCore)
 	case "check-parent-signal":

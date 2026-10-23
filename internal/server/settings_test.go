@@ -7,6 +7,36 @@ import (
 	"testing"
 )
 
+func TestUploadConcurrencySettings(t *testing.T) {
+	for _, raw := range []string{"null", "1", "4", "8", "0", "9", "-1", "1.5", `"4"`} {
+		t.Run(raw, func(t *testing.T) {
+			var value Settings
+			err := json.Unmarshal([]byte(`{"theme":"dark","workspaces":[],"uploadConcurrency":`+raw+`}`), &value)
+			if err == nil {
+				err = validateSettings(&value)
+			}
+			valid := raw == "null" || raw == "1" || raw == "4" || raw == "8"
+			if (err == nil) != valid {
+				t.Fatalf("unexpected validation result: %v", err)
+			}
+			if valid {
+				data, err := json.Marshal(value)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var restored Settings
+				if err = json.Unmarshal(data, &restored); err != nil || !reflect.DeepEqual(value, restored) {
+					t.Fatalf("setting did not round-trip: %s, %v", data, err)
+				}
+			}
+		})
+	}
+	value := Settings{Theme: "dark", Workspaces: []Workspace{}}
+	if err := validateSettings(&value); err != nil || value.UploadConcurrency != nil {
+		t.Fatalf("missing setting must retain the frontend default: %v", err)
+	}
+}
+
 func TestEightCellSettings(t *testing.T) {
 	for _, grid := range [][2]int{{4, 2}, {2, 4}, {8, 2}, {4, 4}, {2, 2}} {
 		value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: grid[0], Rows: grid[1], Panels: []Panel{}}}}

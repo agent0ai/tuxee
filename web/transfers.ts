@@ -60,17 +60,22 @@ export async function upload(path: string, file: File, signal: AbortSignal, uniq
 }
 export type UploadSource = File | FileSystemEntry;
 type UploadItem = { name: string; file?: File; children?: UploadItem[] };
+type UploadJob = { parent: string; item: UploadItem; root?: number };
+let uploadConcurrency = 4;
+export function setUploadConcurrency(value = 4) { uploadConcurrency = value; }
 export async function uploadBatch(destination: string, sources: UploadSource[], owner: HTMLElement, lifetime: AbortSignal, ensureDirectory = false): Promise<DraggedFile[]> {
     if (!sources.length) return [];
     lifetime.throwIfAborted();
+    const concurrency = uploadConcurrency;
     const id = newID(), controller = new AbortController(), abort = () => controller.abort();
     const signal = controller.signal, view = create(id, 'Reading files…', abort, owner);
     const directories = new Set<string>();
+    const queue: UploadJob[] = [], active = new Map<UploadJob, Promise<UploadJob>>();
     lifetime.addEventListener('abort', abort, { once: true });
     let total = 0, bytes = 0, completed = 0, sent = 0;
-    const update = (loaded = 0) => {
-        view.label.textContent = `Uploading · ${completed}/${total} files · ${size(sent + loaded)} / ${size(bytes)}`;
-        view.progress.value = bytes ? (sent + loaded) / bytes * 100 : total ? completed / total * 100 : 0;
+    const update = () => {
+        view.label.textContent = `Uploading · ${completed}/${total} files · ${size(sent)} / ${size(bytes)}`;
+        view.progress.value = bytes ? sent / bytes * 100 : total ? completed / total * 100 : 0;
     };
     async function collect(source: UploadSource): Promise<UploadItem> {
         signal.throwIfAborted();
@@ -96,11 +101,12 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
         if (item.children) {
             ({ path } = await api<{ path: string }>('/files', 'POST', { operation: 'mkdir', path, unique: true }, signal));
             directories.add(path.slice(0, path.lastIndexOf('/')) || '/');
-            for (const child of item.children) await send(path, child);
+            for (const child of item.children) queue.push({ parent: path, item: child });
         } else {
-            path = await upload(path, item.file!, signal, true, update);
+            let loaded = 0;
+            path = await upload(path, item.file!, signal, true, value => { sent += value - loaded; loaded = value; update(); });
             directories.add(path.slice(0, path.lastIndexOf('/')) || '/');
-            sent += item.file!.size; completed++; update();
+            sent += item.file!.size - loaded; completed++; update();
         }
         return { path, name: path.slice(path.lastIndexOf('/') + 1), directory: !!item.children };
     }
@@ -110,11 +116,25 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
         signal.throwIfAborted(); update();
         if (ensureDirectory) await api('/files', 'POST', { operation: 'mkdir', path: destination, parents: true }, signal);
         const uploaded: DraggedFile[] = [];
-        for (const item of items) uploaded.push(await send(destination, item));
+        items.forEach((item, root) => queue.push({ parent: destination, item, root }));
+        while (queue.length || active.size) {
+            signal.throwIfAborted();
+            while (queue.length && active.size < concurrency) {
+                const job = queue.shift()!;
+                active.set(job, send(job.parent, job.item).then(result => {
+                    if (job.root !== undefined) uploaded[job.root] = result;
+                    return job;
+                }));
+            }
+            active.delete(await Promise.race(active.values()));
+        }
         finish(id);
         return uploaded;
     } catch (error) {
-        finish(id, signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Upload failed');
+        const message = signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Upload failed';
+        abort();
+        await Promise.allSettled(active.values());
+        finish(id, message);
         throw error;
     } finally {
         lifetime.removeEventListener('abort', abort);

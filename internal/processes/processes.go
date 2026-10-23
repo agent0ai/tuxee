@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"golang.org/x/sys/unix"
 )
@@ -31,6 +32,7 @@ type Process struct {
 	Ref
 	Parent       int      `json:"parent"`
 	Name         string   `json:"name"`
+	CommandLine  string   `json:"commandLine,omitempty"`
 	UID          uint32   `json:"uid"`
 	State        string   `json:"state"`
 	CPU          *float64 `json:"cpu"`
@@ -83,6 +85,60 @@ func readAt(dir *os.File, name string) ([]byte, error) {
 		return nil, errors.New("process record too large")
 	}
 	return data, err
+}
+
+func readCommandLine(root string, ref Ref) string {
+	dir, err := os.Open(filepath.Join(root, strconv.Itoa(ref.PID)))
+	if err != nil {
+		return ""
+	}
+	defer dir.Close()
+	stat, err := readAt(dir, "stat")
+	if err != nil {
+		return ""
+	}
+	p, err := parseStat(stat)
+	if err != nil || p.Ref != ref || p.State == "Z" {
+		return ""
+	}
+	fd, err := unix.Openat(int(dir.Fd()), "cmdline", unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return ""
+	}
+	f := os.NewFile(uintptr(fd), "cmdline")
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 4097))
+	if err != nil {
+		return ""
+	}
+	truncated := len(data) > 4096
+	data = data[:min(len(data), 4096)]
+	words := strings.FieldsFunc(string(data), func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) })
+	preview := []rune(strings.Join(words, " "))
+	if len(preview) > 250 || truncated && len(preview) > 0 {
+		return string(preview[:min(len(preview), 249)]) + "…"
+	}
+	return string(preview)
+}
+
+func (s *Snapshot) readCommandLines(ctx context.Context, root, sortBy string) error {
+	// Only read arguments for displayed processes, under the worker's credentials.
+	visible := make(map[Ref]bool)
+	for _, row := range s.View(sortBy).Rows {
+		if !row.Group && row.Zombies == 0 {
+			visible[row.Ref] = true
+		}
+	}
+	for i := range s.Processes {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		p := &s.Processes[i]
+		if visible[p.Ref] {
+			p.CommandLine = readCommandLine(root, p.Ref)
+		}
+	}
+	return nil
 }
 
 func parseStat(data []byte) (Process, error) {

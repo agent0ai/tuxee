@@ -13,7 +13,7 @@ import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type 
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { TerminalView, terminateTerminal } from './term';
-import { cancelTransfers, prepareDownloads } from './transfers';
+import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
 import { audio, audioControl } from './audio';
 import { BackendConnection } from './connection';
@@ -113,6 +113,7 @@ function showLogin() {
     clearTimeout(saveTimer);
     disposeViews();
     cancelTransfers();
+    setUploadConcurrency();
     root.replaceChildren();
     document.documentElement.dataset.theme = 'dark';
     const page = el('div', 'login-page');
@@ -175,6 +176,7 @@ async function load(signal?: AbortSignal) {
     if (signal?.aborted) return;
     user = value.user;
     settings = value.settings;
+    setUploadConcurrency(settings.uploadConcurrency);
     setCSRF(value.csrf);
     loggedIn = true;
     audio.available(value.audio);
@@ -1077,6 +1079,13 @@ async function openSettings() {
     color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
     const colors = el('div', 'settings-color'); colors.append(color, reset);
     const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
+    const uploads = el('select');
+    for (let n = 1; n <= 8; n++) {
+        const option = el('option', '', n === 4 ? '4 (default)' : String(n));
+        option.value = String(n); uploads.append(option);
+    }
+    uploads.value = String(settings.uploadConcurrency ?? 4);
+    const uploadsLabel = el('label', 'field', 'Parallel uploads'); uploadsLabel.append(uploads); content.append(uploadsLabel);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';
     const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
@@ -1102,11 +1111,13 @@ async function openSettings() {
         submit.disabled = true;
         const previous = settings.serverName;
         const previousColor = settings.serverColor;
+        const previousUploads = settings.uploadConcurrency;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
+        settings.uploadConcurrency = Number(uploads.value);
         serverName.value = settings.serverName;
-        try { await save(); updateTitle(); dialog.close(); }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; notify(error, content); }
+        try { await save(); setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close(); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

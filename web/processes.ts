@@ -95,9 +95,14 @@ export class Processes {
                 }, 'process-fold');
                 fold.setAttribute('aria-expanded', 'true'); line.append(fold);
             } else line.append(el('span', 'process-fold-space'));
-            const text = el('span', 'process-label', row.group ? `${row.count.toLocaleString()} processes` : row.name);
+            const text = el('span', 'process-label');
+            text.append(el('span', '', row.group ? label : `${row.pid} • ${row.name}`));
             text.title = row.group ? label : `PID ${row.pid} · UID ${row.uid} · ${row.state}`;
-            if (!row.group) text.append(el('small', '', String(row.pid)));
+            if (!row.group) {
+                const command = Array.from(row.commandLine || '—');
+                const subtitle = el('small', '', command.length > 100 ? command.slice(0, 99).join('') + '…' : command.join(''));
+                subtitle.title = row.commandLine || ''; text.append(subtitle);
+            }
             line.append(text); name.append(line);
             const cpu = el('td', 'process-number'), ram = el('td', 'process-number');
             cpu.append(el('span', '', percent(row.totalCPU))); ram.append(el('span', '', memory(row.totalRAM, true)));

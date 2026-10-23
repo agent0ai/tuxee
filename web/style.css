@@ -1282,7 +1282,8 @@ h3 {
 .process-fold svg { width: 14px; height: 14px; transition: transform .12s; }
 .process-fold[aria-expanded=false] svg { transform: rotate(-90deg); }
 .process-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.process-label small { display: block; color: var(--muted); font-size: 10px; }
+.process-label > span, .process-label small { display: block; overflow: hidden; text-overflow: ellipsis; }
+.process-label small { color: var(--muted); font-size: 10px; }
 .process-number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .process-number small { color: var(--muted); font-size: 11px; }
 .process-group .process-label { color: var(--muted); }
@@ -1318,8 +1319,7 @@ h3 {
  .process-table tbody tr { border-bottom: 1px solid var(--line); }
  .process-table tbody tr:last-child { border: 0; }
  .process-table .process-number { padding-block: 0 6px; }
- .process-number small, .process-label small { display: inline; }
- .process-label small { margin-inline-start: 6px; }
+ .process-number small { display: inline; }
  .process-zombies { min-height: 34px; align-items: center; }
 }
 .process-kill-counts { flex-basis: 100%; color: var(--muted); font-size: 12px; }

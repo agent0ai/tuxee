@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -64,6 +65,98 @@ func TestParentSignalPermission(t *testing.T) {
 
 func fake(pid, parent int, ram uint64, cpu float64) Process {
 	return Process{Ref: Ref{PID: pid, Start: strconv.Itoa(pid + 1000)}, Parent: parent, Name: fmt.Sprintf("worker-%d", pid), State: "S", UID: 1000, RAM: &ram, FileRAM: new(uint64), CPU: &cpu, CanSignal: pid > 1}
+}
+
+func TestCommandLines(t *testing.T) {
+	root := t.TempDir()
+	writeProcess := func(p Process, command string) {
+		t.Helper()
+		dir := filepath.Join(root, strconv.Itoa(p.PID))
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		fields := strings.Fields(strings.Repeat("0 ", 22))
+		fields[0], fields[1], fields[19] = p.State, strconv.Itoa(p.Parent), p.Start
+		for name, value := range map[string]string{
+			"stat":    fmt.Sprintf("%d (%s) %s", p.PID, p.Name, strings.Join(fields, " ")),
+			"cmdline": command,
+		} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(value), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	p := fake(42, 1, 0, 0)
+	for _, test := range []struct{ name, raw, want string }{
+		{"arguments", "/usr/bin/node\x00/srv/app.js\x00--port\x003000\x00", "/usr/bin/node /srv/app.js --port 3000"},
+		{"controls", "\x00 bash\x00-c\x00\t echo\n hello\r\x1b\x00", "bash -c echo hello"},
+		{"empty", "\x00\x00", ""},
+		{"exact limit", strings.Repeat("a", 250), strings.Repeat("a", 250)},
+		{"long", strings.Repeat("a", 32768), strings.Repeat("a", 249) + "…"},
+		{"unicode", strings.Repeat("🐧", 251), strings.Repeat("🐧", 249) + "…"},
+		{"invalid UTF-8", "node\x00\xff.js\x00", "node �.js"},
+		{"read bound", "node\x00" + strings.Repeat(" ", 4096) + "unread", "node…"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			writeProcess(p, test.raw)
+			if got := readCommandLine(root, p.Ref); got != test.want {
+				t.Fatalf("preview %q, want %q", got, test.want)
+			}
+		})
+	}
+	if got := readCommandLine(root, Ref{PID: p.PID, Start: "stale"}); got != "" {
+		t.Fatal("read arguments from a reused PID")
+	}
+	p.State = "Z"
+	writeProcess(p, "zombie")
+	if readCommandLine(root, p.Ref) != "" {
+		t.Fatal("read zombie arguments")
+	}
+	p.State = "S"
+	writeProcess(p, "node")
+	commandPath := filepath.Join(root, "42", "cmdline")
+	if err := os.Remove(commandPath); err != nil {
+		t.Fatal(err)
+	}
+	if readCommandLine(root, p.Ref) != "" || readCommandLine(root, Ref{PID: 999, Start: "missing"}) != "" {
+		t.Fatal("missing command or process should have no preview")
+	}
+	if err := os.Symlink(filepath.Join(root, "42", "stat"), commandPath); err != nil {
+		t.Fatal(err)
+	}
+	if readCommandLine(root, p.Ref) != "" {
+		t.Fatal("followed command-line symlink")
+	}
+	if err := os.Remove(commandPath); err != nil {
+		t.Fatal(err)
+	}
+	for _, sortBy := range []string{"ram", "cpu"} {
+		s := Snapshot{Processes: []Process{fake(1, 0, 0, 0)}}
+		for pid := 2; pid < 107; pid++ {
+			p := fake(pid, 1, uint64(pid), float64(107-pid))
+			s.Processes = append(s.Processes, p)
+			writeProcess(p, "node\x00/srv/app.js\x00")
+		}
+		visible := map[int]bool{}
+		for _, row := range s.View(sortBy).Rows {
+			if !row.Group && row.PID != 1 {
+				visible[row.PID] = true
+			}
+		}
+		if err := s.readCommandLines(context.Background(), root, sortBy); err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range s.Processes {
+			if (p.CommandLine != "") != visible[p.PID] {
+				t.Fatalf("%s: unexpected command availability for PID %d", sortBy, p.PID)
+			}
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if err := s.readCommandLines(ctx, root, sortBy); err != context.Canceled {
+			t.Fatal("ignored cancellation", err)
+		}
+	}
 }
 
 func TestStatAndRates(t *testing.T) {
