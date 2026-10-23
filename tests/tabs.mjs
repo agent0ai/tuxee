@@ -58,6 +58,7 @@ async function press(target) {
     return point;
 }
 async function hold(target, canRename = true) {
+    const component = await target.evaluate(node => node.hasAttribute('data-component-name'));
     await press(target);
     await page.waitForTimeout(600);
     await menu.waitFor();
@@ -65,7 +66,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), canRename ? ['Activate', 'Rename', 'Close'] : ['Activate', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Move to workspace'] : []), ...(canRename ? ['Rename'] : []), 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });

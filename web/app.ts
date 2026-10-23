@@ -29,13 +29,14 @@ let connection: BackendConnection | undefined;
 let updates: Updates | undefined;
 let terminalSessions: TerminalInfo[] = [], terminalError = '';
 let terminalRequest: AbortController | undefined, terminalTimer: ReturnType<typeof setTimeout> | undefined;
-type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
+type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { owner: Mounted; node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
 let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animation | undefined;
 const warmWorkspaces = new Map<string, Mounted>();
 const MAX_WARM_WORKSPACES = 8;
 let track: HTMLElement, viewportRoot: HTMLElement;
 let dragging = false, cancelDrag = () => {};
 let chromeDisposers: (() => void)[] = [];
+let workspaceTabs: HTMLElement[] = [];
 const preview = el('div', 'dock-preview');
 let previewRemoval: ReturnType<typeof setTimeout> | undefined;
 type DropTarget = { layout: Panel[]; rect: Rect } | { target: Panel; edge: Edge | 'center' };
@@ -197,6 +198,27 @@ async function load(signal?: AbortSignal) {
     prepareDownloads();
 }
 function isCompact() { return innerWidth < 760 || innerHeight < 480; }
+function mountWorkspace(ws: Workspace): Mounted {
+    const value: Mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), compact: isCompact(), items: new Map() };
+    value.board.dataset.workspace = ws.id;
+    value.board.append(value.gridEl);
+    value.board.oncontextmenu = event => {
+        if (value.compact || dragging || event.defaultPrevented || (event.target as Element).closest('.panel')) return;
+        event.preventDefault(); event.stopPropagation();
+        const rect = value.gridEl.getBoundingClientRect();
+        const near = { x: (event.clientX - rect.x) / rect.width * ws.columns, y: (event.clientY - rect.y) / rect.height * ws.rows };
+        const content = el('div', 'menu-actions');
+        let close = () => {};
+        for (const [kind, label, name] of [['terminal', 'Add terminal', 'SquareTerminal'], ['files', 'Add file browser', 'FolderPlus']] as const) {
+            const control = button(label, name, () => { close(); addPanel(kind, user.home, undefined, near); });
+            control.append(el('span', '', label)); control.setAttribute('role', 'menuitem');
+            control.disabled = ws.panels.length >= 8; content.append(control);
+        }
+        ({ close } = popover({ x: event.clientX, y: event.clientY }, content));
+    };
+    warmWorkspaces.set(ws.id, value);
+    return value;
+}
 function render(direction = 0) {
     document.documentElement.dataset.theme = settings.theme;
     const ws = current();
@@ -217,10 +239,7 @@ function render(direction = 0) {
                 if (outgoing === oldest) outgoing = undefined;
                 destroyWorkspace(oldest);
             }
-            mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), compact: isCompact(), items: new Map() };
-            mounted.board.dataset.workspace = ws.id;
-            mounted.board.append(mounted.gridEl);
-            warmWorkspaces.set(ws.id, mounted);
+            mounted = mountWorkspace(ws);
         }
         mounted.board.inert = false;
         mounted.board.style.left = '0';
@@ -273,6 +292,7 @@ function renderChrome() {
         tabs.append(group);
     }
     const tabItems = [...tabs.children] as HTMLElement[];
+    workspaceTabs = tabItems;
     tabs.replaceChildren();
     const workspaces = el('div', 'workspace-controls');
     workspaces.append(tabs, button('New workspace', 'Plus', createWorkspace));
@@ -370,25 +390,26 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             const content = el('div', 'grid-stack-item-content panel'), head = el('header', 'panel-header');
             const title = el('span', 'panel-title', panel.kind === 'files' ? 'Files' : 'Terminal');
             const tools = el('div', 'panel-tools');
-            if (panel.kind === 'terminal') tools.append(button('Rename terminal', 'Pencil', () => items.get(panel.id)?.view.renamePanel?.()));
+            if (panel.kind === 'terminal') tools.append(button('Rename terminal', 'Pencil', () => item!.view.renamePanel?.()));
             tools.append(button('Close panel', 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
-            head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(value); } };
+            head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const owner = item!.owner, ws = owner.ws, before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(owner); } };
             head.onpointerdown = event => {
-                if (!value.compact && !(event.target as Element).closest('button:not(.terminal-tab)')) beginDrag(event, panel.kind, panel);
+                if (!item!.owner.compact && !(event.target as Element).closest('button:not(.terminal-tab)')) beginDrag(event, panel.kind, panel);
             };
+            bindContextMenu(head, position => componentMenu(panel, head, position, true));
             scopeNotifications(tools, content);
             tools.onpointerdown = event => event.stopPropagation();
             const body = el('div', 'panel-body');
             content.append(head, body); node.append(content); gridEl.append(node);
             for (const edge of ['e', 's', 'w', 'se', 'sw']) {
                 const grip = el('div', `panel-resize panel-resize-${edge}`);
-                grip.onpointerdown = event => beginPanelResize(value, panel, edge, event);
+                grip.onpointerdown = event => beginPanelResize(item!.owner, panel, edge, event);
                 node.append(grip);
             }
             const hooks = { user, changed, close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks);
-            item = { node, view, tools, title }; items.set(panel.id, item);
+            item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         item.node.hidden = compact && panel.id !== ws.active;
         for (const key of ['x', 'y', 'w', 'h'] as const) item.node.setAttribute(`gs-${key}`, String(panel[key]));
@@ -585,6 +606,7 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
 }
 function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
+    if (existing && mounted.items.get(existing.id)?.node.dataset.moving) return;
     cancelDrag(); finishSlide();
     const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
     const panel = existing || newPanel(kind, user.home);
@@ -592,7 +614,9 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     node.getAnimations().forEach(animation => animation.cancel());
     const origin = existing ? node.getBoundingClientRect() : new DOMRect(event.clientX, event.clientY, 180, 100);
     const startX = event.clientX, startY = event.clientY;
-    let active = false, where: DropTarget | undefined;
+    let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined;
+    const dropTabs = workspaceTabs;
+    const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; tab.classList.remove('component-drop-hover'); });
     const events = new AbortController();
     trigger.setPointerCapture(event.pointerId);
     function finish(cancelled = false) {
@@ -603,7 +627,12 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         const stopClick = (click: Event) => { click.preventDefault(); click.stopImmediatePropagation(); };
         trigger.addEventListener('click', stopClick, { capture: true, once: true });
         setTimeout(() => trigger.removeEventListener('click', stopClick, true), 100);
-        dragging = false; hidePreview(); value.board.classList.remove('docking');
+        dragging = false; hidePreview(); value.board.classList.remove('docking'); clearTabs();
+        document.querySelector<HTMLElement>('.overflow-tabs:popover-open')?.hidePopover();
+        if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && workspaceTarget.panels.length < 8) {
+            movePanel(existing, workspaceTarget).catch(error => notify(error, node));
+            return;
+        }
         const before = ws.panels.map(p => ({ ...p }));
         let applied = false;
         if (!cancelled && where) {
@@ -627,10 +656,12 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         }
     }
     cancelDrag = () => finish(true);
-    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { signal: events.signal });
+    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { capture: true, signal: events.signal });
     trigger.addEventListener('pointercancel', () => finish(true), { signal: events.signal });
     trigger.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
     trigger.addEventListener('pointerup', () => finish(), { signal: events.signal });
+    window.addEventListener('blur', () => finish(true), { signal: events.signal });
+    window.addEventListener('resize', () => finish(true), { signal: events.signal });
     trigger.addEventListener('pointermove', move => {
         const dx = move.clientX - startX, dy = move.clientY - startY;
         if (!active && Math.hypot(dx, dy) < 5) return;
@@ -638,6 +669,10 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         if (!active) {
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             renderVacancies(value, existing);
+            if (existing) for (const tab of dropTabs) {
+                const target = settings.workspaces.find(ws => ws.id === tab.dataset.workspace)!;
+                tab.dataset.componentDrop = target !== ws && target.panels.length < 8 ? 'allowed' : 'blocked';
+            }
             if (!existing) {
                 node.append(icon(kind === 'files' ? 'Folder' : 'SquareTerminal'));
                 Object.assign(node.style, { position: 'fixed', left: `${origin.x}px`, top: `${origin.y}px`, width: `${origin.width}px`, height: `${origin.height}px` });
@@ -645,6 +680,20 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
             }
         }
         node.style.transform = `translate(${dx}px, ${dy}px)`;
+        workspaceTarget = undefined;
+        dropTabs.forEach(tab => tab.classList.remove('component-drop-hover'));
+        if (existing) {
+            const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
+            if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
+                if (more.getAttribute('aria-expanded') !== 'true') more.click();
+                where = undefined; hidePreview(); return;
+            }
+            const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
+            if (tab) {
+                workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
+                tab.classList.add('component-drop-hover'); where = undefined; hidePreview(); return;
+            }
+        }
         const grid = value.gridEl.getBoundingClientRect(), cellW = grid.width / ws.columns, cellH = grid.height / ws.rows;
         where = undefined;
         const snap = screenSnap(ws, move.clientX - grid.left, move.clientY - grid.top, grid.width, grid.height);
@@ -707,10 +756,10 @@ function layoutChanged(ws: Workspace, before?: Panel[]) {
     changed();
     if (ws === current()) updateLayoutButton();
 }
-function addPanel(kind: Kind, path = user.home, terminal?: TerminalInfo) {
+function addPanel(kind: Kind, path = user.home, terminal?: TerminalInfo, near?: { x: number; y: number }) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
-    if (!addCompact(ws, panel)) throw new Error('Workspace full');
+    if (!addCompact(ws, panel, near)) throw new Error('Workspace full');
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function stopPanel(panel: Panel, value?: Mounted) {
@@ -718,9 +767,58 @@ function stopPanel(panel: Panel, value?: Mounted) {
     const view = value?.items.get(panel.id)?.view;
     (view instanceof TerminalView ? view.close() : terminateTerminal(panel)).catch(notify).finally(() => refreshTerminals());
 }
+async function movePanel(panel: Panel, target: Workspace) {
+    const source = [...warmWorkspaces.values()].find(value => value.items.has(panel.id)), item = source?.items.get(panel.id);
+    if (!source || !item || source.ws === target || item.node.dataset.closing || item.node.dataset.moving) return;
+    if (target.panels.length >= 8) throw new Error('Workspace full');
+    const node = item.node, style = node.getAttribute('style'), from = node.getBoundingClientRect();
+    node.dataset.moving = 'true';
+    let flight: HTMLElement | undefined;
+    try {
+        const tab = [...document.querySelectorAll<HTMLElement>('.workspace-tab-item')].find(tab => tab.dataset.workspace === target.id && tab.checkVisibility())
+            || document.querySelector<HTMLElement>('.workspace-tabs .overflow-toggle');
+        if (tab && from.width && from.height && duration(220)) {
+            const to = tab.getBoundingClientRect();
+            flight = el('div', 'grid-stack component-flight');
+            Object.assign(flight.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px` });
+            Object.assign(node.style, { left: '0', top: '0', width: '100%', height: '100%', transform: 'none' });
+            node.classList.remove('panel-dragging');
+            flight.append(node); document.body.append(flight);
+            await flight.animate([{ transform: 'none', opacity: .9 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 0 }],
+                { duration: duration(220), easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' }).finished.catch(() => {});
+        }
+        while (!warmWorkspaces.has(target.id) && warmWorkspaces.size >= MAX_WARM_WORKSPACES) {
+            const oldest = [...warmWorkspaces.values()].find(value => value !== mounted && value !== source)!;
+            if (!await canLeave(oldest)) return;
+            if (warmWorkspaces.get(oldest.ws.id) === oldest) destroyWorkspace(oldest);
+        }
+        if (!loggedIn || warmWorkspaces.get(source.ws.id) !== source || !settings.workspaces.includes(target) || !source.ws.panels.includes(panel)) return;
+        const plan = structuredClone(target), incoming = { ...panel }, vacated = { ...panel };
+        orientWorkspace(plan);
+        if (!addCompact(plan, incoming)) throw new Error('Workspace full');
+        const destination = warmWorkspaces.get(target.id) || mountWorkspace(target);
+        if (target.columns !== plan.columns || target.rows !== plan.rows) { destination.grid?.destroy(false); destination.grid = undefined; }
+        target.columns = plan.columns; target.rows = plan.rows;
+        for (const next of plan.panels) Object.assign(target.panels.find(p => p.id === next.id) || panel, next);
+        source.gridEl.append(node); source.grid?.removeWidget(node, false, false); source.items.delete(panel.id);
+        source.ws.panels = source.ws.panels.filter(p => p !== panel);
+        if (source.ws.active === panel.id) source.ws.active = source.ws.panels[0]?.id || '';
+        target.panels.push(panel); target.active = panel.id;
+        item.owner = destination; destination.items.set(panel.id, item);
+        if (!source.compact) expandAfterClose(source.ws, vacated, source.ws.panels.filter(p => !source.items.get(p.id)?.node.dataset.closing));
+        layoutChanged(source.ws); layoutChanged(target);
+    } finally {
+        style === null ? node.removeAttribute('style') : node.setAttribute('style', style);
+        node.style.transform = ''; node.classList.remove('panel-dragging'); delete node.dataset.moving;
+        if (warmWorkspaces.get(item.owner.ws.id) === item.owner) item.owner.gridEl.append(node);
+        else node.remove();
+        flight?.remove();
+        if (loggedIn) render();
+    }
+}
 async function closePanel(panel: Panel) {
     const value = mounted, item = value?.items.get(panel.id);
-    if (!value || !item || item.node.dataset.closing) return;
+    if (!value || !item || item.node.dataset.closing || item.node.dataset.moving) return;
     if (item.view.canClose && !await item.view.canClose()) return;
     item.node.dataset.closing = 'true';
     const animation = item.node.animate([{ opacity: 1, transform: 'scale(1)', transformOrigin: 'center' }, { opacity: 0, transform: 'scale(.96)', transformOrigin: 'center' }], { duration: duration(160), fill: 'forwards' });
@@ -761,32 +859,55 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
     ], position);
 }
 function activatePanel(panel: Panel) { current().active = panel.id; changed(); render(); }
-function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }) {
+function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }, header = false) {
     const item = mounted!.items.get(panel.id)!;
-    const actions: TabAction[] = [
-        ['Activate', 'ArrowRight', () => activatePanel(panel)],
-        ['Close', 'X', () => closePanel(panel)],
-    ];
-    if (item.view.renamePanel) actions.splice(1, 0, ['Rename', 'Pencil', () => item.view.renamePanel!()]);
+    const actions: (TabAction | TabSubmenu)[] = header ? [] : [['Activate', 'ArrowRight', () => activatePanel(panel)]];
+    actions.push({ label: 'Move to workspace', items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || ws.panels.length >= 8, description: ws === current() ? 'Current workspace' : ws.panels.length >= 8 ? 'Workspace full' : '', action: () => movePanel(panel, ws) })) });
+    if (item.view.renamePanel) actions.push(['Rename', 'Pencil', () => item.view.renamePanel!()]);
+    actions.push(['Close', 'X', () => closePanel(panel)]);
     const control = item.tools.querySelector<HTMLButtonElement>('[aria-label="Take control"]');
-    if (control && !control.hidden) actions.splice(1, 0, ['Take control', 'Hand', () => control.click()]);
+    if (!header && control && !control.hidden) actions.splice(1, 0, ['Take control', 'Hand', () => control.click()]);
     tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
 }
 type TabAction = [string, Parameters<typeof icon>[0], () => unknown];
-function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: TabAction[], position?: { x: number; y: number }) {
+type TabSubmenu = { label: string; items: { label: string; disabled: boolean; description: string; action: () => unknown }[] };
+function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (TabAction | TabSubmenu)[], position?: { x: number; y: number }) {
     const content = el('div', 'menu-actions');
     content.setAttribute('aria-label', title);
-    const item = mounted?.items.get(tab.dataset.componentName || tab.dataset.componentMenu || '');
+    const item = mounted?.items.get(tab.dataset.componentName || tab.dataset.componentMenu || tab.closest<HTMLElement>('[data-panel]')?.dataset.panel || '');
     if (item) scopeNotifications(content, item.node.querySelector<HTMLElement>('.panel')!);
     let close = () => {};
-    for (const [label, name, action] of actions) {
+    for (const entry of actions) {
+        if (!Array.isArray(entry)) {
+            const children = el('div', 'menu-actions menu-submenu'); children.hidden = true;
+            children.setAttribute('role', 'menu'); children.setAttribute('aria-label', entry.label);
+            const toggle = button(entry.label, 'MoveRight', () => expand(children.hidden));
+            toggle.append(el('span', '', entry.label), icon('ChevronRight')); toggle.setAttribute('role', 'menuitem'); toggle.setAttribute('aria-haspopup', 'menu'); toggle.setAttribute('aria-expanded', 'false');
+            const expand = (open: boolean) => {
+                children.hidden = !open; toggle.setAttribute('aria-expanded', String(open));
+                if (open) {
+                    content.style.top = `${Math.max(4, Math.min(parseFloat(content.style.top), innerHeight - content.offsetHeight - 4))}px`;
+                    children.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+                } else toggle.focus();
+            };
+            for (const target of entry.items) {
+                const choice = button(target.label, 'LayoutPanelTop', () => { close(); return target.action(); });
+                choice.append(el('span', '', target.label)); choice.disabled = target.disabled; choice.title = target.description || target.label;
+                choice.setAttribute('role', 'menuitem'); children.append(choice);
+            }
+            toggle.addEventListener('keydown', event => { if (event.key === 'ArrowRight') { event.preventDefault(); expand(true); } });
+            children.addEventListener('keydown', event => { if (event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); expand(false); } });
+            content.append(toggle, children); continue;
+        }
+        const [label, name, action] = entry;
         const control = button(label, name, () => { close(); return action(); });
         control.disabled = label === 'Activate' && active;
         control.append(el('span', '', label)); control.setAttribute('role', 'menuitem'); content.append(control);
     }
     const rect = tab.getBoundingClientRect();
     const host = tab.closest('.component-tab-item') ? '.component-tabs' : '.workspace-tabs';
-    const returnFocus = tab.closest('.overflow-tabs') ? document.querySelector<HTMLElement>(`${host} .overflow-toggle`)! : tab;
+    const returnFocus = tab.closest('.overflow-tabs') ? document.querySelector<HTMLElement>(`${host} .overflow-toggle`)!
+        : tab.classList.contains('panel-header') ? document.activeElement as HTMLElement : tab;
     ({ close } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
 }
 async function closeWorkspace(ws = current()) {

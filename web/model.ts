@@ -132,7 +132,20 @@ export function split(ws: Workspace, targetID: string, panel: Panel, edge: Edge)
         ws.panels.push(panel);
     return true;
 }
-export function addCompact(ws: Workspace, panel: Panel): boolean {
+export function addCompact(ws: Workspace, panel: Panel, near?: { x: number; y: number }): boolean {
+    if (near) {
+        const cells = Array.from({ length: ws.columns * ws.rows }, (_, i) => ({ x: i % ws.columns, y: Math.floor(i / ws.columns), w: 1, h: 1 }));
+        cells.sort((a, b) => Math.hypot(a.x + .5 - near.x, a.y + .5 - near.y) - Math.hypot(b.x + .5 - near.x, b.y + .5 - near.y));
+        for (const cell of cells) {
+            const layout = dropLayout(ws, panel, cell);
+            if (!layout) continue;
+            for (const next of layout) Object.assign(ws.panels.find(p => p.id === next.id) || panel, next);
+            ws.panels.push(panel);
+            Object.assign(panel, expandedRect(ws, panel, panel.kind === 'files' ? 1 : ws.columns));
+            return true;
+        }
+        return false;
+    }
     // Use existing gaps first, then split the largest panel without moving others.
     let best: Rect | undefined;
     for (let y = 0; y < ws.rows; y++)

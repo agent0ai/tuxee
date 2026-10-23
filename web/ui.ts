@@ -172,7 +172,7 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
         if (content.getAttribute('role') !== 'menu') return;
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
-        const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => !item.hidden);
+        const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => item.checkVisibility());
         const index = items.indexOf(document.activeElement as HTMLButtonElement);
         items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
     };

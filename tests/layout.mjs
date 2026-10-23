@@ -43,6 +43,21 @@ for (const [columns, rows, occupied, terminalRect, fileRect] of [
     assert.deepEqual({ id: panel.id, kind: panel.kind, path: panel.path, terminal: panel.terminal }, metadata);
 }
 console.log('PASS additions maximize terminal area and file-browser height across empty, fragmented and one-cell gaps');
+for (const [columns, rows] of [[4, 2], [2, 4]]) {
+    const ws = { id: 'near', name: 'Near', columns, rows, active: '', panels: [] };
+    const files = newPanel('files', '/');
+    assert.ok(addCompact(ws, files, { x: columns - .1, y: rows - .1 }));
+    assert.deepEqual([files.x, files.y, files.w, files.h], [columns - 1, 0, 1, rows]);
+    while (ws.panels.length < 8) {
+        const panel = newPanel('terminal', '/');
+        assert.ok(addCompact(ws, panel, { x: columns / 2, y: rows / 2 }));
+        assert.ok(validGrid(ws));
+    }
+    const before = structuredClone(ws);
+    assert.equal(addCompact(ws, newPanel('files', '/'), { x: 0, y: 0 }), false);
+    assert.deepEqual(ws, before, 'full-workspace context placement must not mutate neighbors');
+}
+console.log('PASS closest-cell additions, expansion and full-workspace rejection in both orientations');
 for (const edge of ['left', 'right', 'top', 'bottom']) {
     const ws = newWorkspace('test', '/', 390, 844), panel = newPanel('terminal', '/');
     assert.ok(split(ws, ws.panels[0].id, panel, edge));
