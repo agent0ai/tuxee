@@ -145,6 +145,19 @@ input:focus {
 input:not([type=checkbox], [type=radio], [type=range]):focus {
   outline: none;
 }
+@media (forced-colors: none) {
+  :where(:root:not([data-theme=light])) input:where([type=checkbox]:not([role=switch])) {
+    width: 13px;
+    height: 13px;
+    padding: 0;
+  }
+  :where(:root:not([data-theme=light])) input:where([type=checkbox]:not([role=switch])):not(:checked):not(:indeterminate) {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--muted);
+    border-radius: 2px;
+  }
+}
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
