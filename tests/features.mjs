@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdir, writeFile, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
+import { chown, mkdir, writeFile, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import './editor-page.mjs';
 const user=process.env.TUXEE_TEST_USER||'tuxee-poc-a',fields=spawnSync('getent',['passwd',user],{encoding:'utf8'}).stdout.trim().split(':');
 assert.equal(fields[4],'Tuxee prototype test');
 const password=randomBytes(24).toString('base64url');assert.equal(spawnSync('chpasswd',[],{input:`${user}:${password}\n`}).status,0);
 const home=fields[5],dir=home+'/tuxee-fixtures/features';await rm(dir,{recursive:true,force:true});await mkdir(dir,{recursive:true});
+await chown(home+'/tuxee-fixtures',Number(fields[2]),Number(fields[3]));
 for(const name of ['folder-a','folder-b','destination'])await mkdir(`${dir}/${name}`);
 for(const [name,data] of [['alpha.txt','alpha'],['bravo.txt','bravo'],['charlie.txt','charlie'],['script.js','const initial = 1;\n'],['windows.txt','original\r\nsecond\r\n'],['folder-a/inside.txt','nested']])await writeFile(`${dir}/${name}`,data);
 const markdown='# Heading\n\n## Subheading\n\n- List item\n\n1. Ordered item\n\n`inline code`\n\n```js\nconst fenced = 1;\n```\n\n[Link](https://example.invalid)\n\n> Quote\n\n**Bold** and *italic* and ~~removed~~\n';
@@ -29,6 +30,7 @@ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R
 const controls=dir+'/controls';await mkdir(controls+'/z-folder',{recursive:true});await mkdir(controls+'/z-rows');
 for(const folder of [controls,controls+'/z-folder'])for(const [name,data,date] of [['a.txt','a',3],['b.txt','bbb',1],['c.txt','cc',2]]){await writeFile(`${folder}/${name}`,data);await utimes(`${folder}/${name}`,new Date(2020,0,date),new Date(2020,0,date));}
 for(let i=0;i<70;i++)await writeFile(`${controls}/z-rows/row-${String(i).padStart(2,'0')}.txt`,'row');
+const profile=dir+'/.tuxee.profile.sh';await writeFile(profile,await readFile(fileURLToPath(new URL('../docker/tuxee.profile.sh',import.meta.url))));
 assert.equal(spawnSync('chown',['-R',`${fields[2]}:${fields[3]}`,dir]).status,0);
 const base=process.env.TUXEE_TEST_URL||'https://127.0.0.1:9443',browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
 const context=await browser.newContext({ignoreHTTPSErrors:true,hasTouch:true,permissions:['clipboard-read','clipboard-write'],viewport:{width:1440,height:1000}});
@@ -37,7 +39,6 @@ let me=await(await context.request.get(base+'/api/me')).json();
 const api=(path,method='GET',data,headers={})=>context.request.fetch(base+'/api'+path,{method,data,headers:{'X-Tuxee-CSRF':me.csrf,'X-Tuxee-Client':'web',...headers}});
 for (const terminal of await(await api('/terminals')).json()) if (!terminal.attached) await api(`/terminals/${terminal.id}`,'DELETE');
 await api('/terminals','POST',{directory:home,name:'Detached regression',columns:80,rows:24});
-const profile=fileURLToPath(new URL('../docker/tuxee.profile.sh',import.meta.url));
 const promptSession=await(await api('/terminals','POST',{directory:home,name:'Prompt',command:`exec /bin/bash --noprofile --rcfile '${profile.replaceAll("'", "'\\''")}' -i`,columns:80,rows:24})).json();
 const settings={theme:'dark',current:'features',workspaces:[{id:'features',name:'Features',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:dir,x:0,y:0,w:2,h:2},...Array.from({length:4},(_,i)=>({id:`terminal-${i}`,terminal:i===0?promptSession.id:undefined,kind:'terminal',path:home,x:2+i%2,y:Math.floor(i/2),w:1,h:1}))]}]};
 assert.equal((await api('/settings','PUT',settings)).status(),200);
@@ -84,7 +85,7 @@ try{
  }
  check('editable footer filter and three-state Name/Size/Modified sorting; sorting survives folder navigation');
  await row('a.txt').locator('.file-name').click();const bounds=await list.boundingBox();await page.mouse.click(bounds.x+10,bounds.y+200);assert.deepEqual(await selected(),[]);
- await page.mouse.click(bounds.x+10,bounds.y+200,{button:'right'});assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['New file','New folder','Properties']);
+ await page.mouse.click(bounds.x+10,bounds.y+200,{button:'right'});assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['New file','New folder','Paste','Properties']);
  await page.getByRole('menuitem',{name:'New file',exact:true}).click();await page.getByLabel('File name',{exact:true}).fill('created.txt');await page.getByRole('button',{name:'Continue',exact:true}).click();await row('created.txt').waitFor();assert.equal((await stat(controls+'/created.txt')).size,0);assert.equal((await stat(controls+'/created.txt')).uid,Number(fields[2]));
  await page.mouse.click(bounds.x+10,bounds.y+240,{button:'right'});await page.getByRole('menuitem',{name:'New folder',exact:true}).click();await page.getByLabel('Folder name',{exact:true}).fill('created-folder');await page.getByRole('button',{name:'Continue',exact:true}).click();await row('created-folder').waitFor();assert.ok((await stat(controls+'/created-folder')).isDirectory());
  await file.getByRole('button',{name:'New file',exact:true}).click();await page.getByLabel('File name',{exact:true}).fill('a.txt');const collision=page.waitForResponse(r=>r.url().includes('/api/upload?'));await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await collision).status(),400);assert.equal(await readFile(controls+'/a.txt','utf8'),'a');

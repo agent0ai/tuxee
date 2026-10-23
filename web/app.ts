@@ -12,6 +12,7 @@ import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, noti
 import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
+import { clearFileCut } from './file-clipboard';
 import { TerminalView, terminateTerminal } from './term';
 import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
@@ -101,6 +102,7 @@ function setColorMarker(color?: string) {
     else document.documentElement.style.removeProperty('--server-marker-border');
 }
 function showLogin() {
+    clearFileCut();
     audio.available(false);
     updates?.dispose(); updates = undefined;
     monitoring?.dispose(); monitoring = undefined;
@@ -1152,7 +1154,7 @@ visualViewport?.addEventListener('resize', viewport);
 viewport();
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
-window.addEventListener('pagehide', () => { audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
+window.addEventListener('pagehide', () => { clearFileCut(); audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
     else if (session.uid === user.uid) setCSRF(session.csrf);

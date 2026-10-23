@@ -566,6 +566,11 @@ h3 {
   border-bottom-right-radius: 0;
 }
 .file-entry[aria-selected=true]:has(+ .file-entry[aria-selected=true])::before { border-bottom-width: 0; }
+.file-entry.file-cut > .file-name,
+.file-entry.file-cut > .file-size,
+.file-entry.file-cut > .file-date {
+  opacity: .5;
+}
 .file-name {
   display: flex;
   align-self: stretch;

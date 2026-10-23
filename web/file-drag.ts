@@ -40,7 +40,16 @@ export function registerUploadInput(node: HTMLElement, handlers: {
     over: () => void;
     leave: () => void;
     upload: (sources: UploadSource[], point?: { clientX: number; clientY: number }) => void;
+    paste?: (data: DataTransfer) => boolean;
 }, signal: AbortSignal) {
+    const paste = (data: DataTransfer) => {
+        const sources = uploadSources(data, true);
+        if (sources.length) {
+            if (handlers.accept()) handlers.upload(sources);
+            return true;
+        }
+        return handlers.accept() && !!handlers.paste?.(data);
+    };
     node.addEventListener('dragover', event => {
         if (!event.dataTransfer?.types.includes('Files')) return;
         event.preventDefault(); event.stopPropagation();
@@ -58,14 +67,13 @@ export function registerUploadInput(node: HTMLElement, handlers: {
     }, { signal });
     node.addEventListener('paste', event => {
         const target = event.target as Element;
-        if (target.closest('input, textarea, [contenteditable]') && !target.classList.contains('xterm-helper-textarea')) return;
+        if (target.closest('input:not([type=checkbox]), textarea, [contenteditable]') && !target.classList.contains('xterm-helper-textarea')) return;
         if (!event.clipboardData) return;
-        const sources = uploadSources(event.clipboardData, true);
-        if (!sources.length) return;
+        if (!paste(event.clipboardData)) return;
         event.preventDefault(); event.stopImmediatePropagation();
-        if (handlers.accept()) handlers.upload(sources);
     }, { signal, capture: true });
     signal.addEventListener('abort', handlers.leave, { once: true });
+    return paste;
 }
 
 export function registerFileDrop(node: HTMLElement, handlers: DropTarget, signal: AbortSignal) {

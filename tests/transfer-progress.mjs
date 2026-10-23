@@ -101,7 +101,8 @@ try {
     for (const [operation, destination] of [['copy', 'copies'], ['move', 'moved']]) {
         await row('alpha.txt').click(); await row('beta.txt').click({ modifiers: ['Control'] });
         const waiting = hold(operation, 2);
-        await file.getByRole('button', { name: operation === 'copy' ? 'Copy selected' : 'Move selected', exact: true }).click();
+        await row('alpha.txt').click({ button: 'right' });
+        await page.getByRole('menuitem', { name: operation === 'copy' ? 'Copy to…' : 'Move to…', exact: true }).click();
         await page.getByRole('dialog').getByRole('textbox').fill(`${dir}/${destination}`);
         await page.getByRole('button', { name: 'Continue', exact: true }).click(); await waiting;
         assert.equal(await progress.evaluate(node => node.value), 50);

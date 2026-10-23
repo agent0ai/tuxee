@@ -30,7 +30,7 @@ const api = (path, method, data) => context.request.fetch(base + '/api' + path, 
 const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
 page.setDefaultTimeout(10000);
 const file = page.locator('.file-view'), more = file.getByRole('button', { name: 'File actions', exact: true }), menu = page.locator('.menu-actions.popover-menu');
-const names = ['Parent directory', 'Home directory', 'Refresh files', 'New folder', 'New file', 'Upload files', 'Download selected', 'Copy selected', 'Move selected', 'Open terminal here'];
+const names = ['Parent directory', 'Home directory', 'Refresh files', 'New folder', 'New file', 'Upload files', 'Download selected', 'Cut', 'Copy', 'Paste', 'Open terminal here'];
 async function singleRows() {
  await page.waitForTimeout(150); // Wait for the workspace's debounced viewport reconciliation.
  await page.locator('.grid-stack-item').evaluateAll(nodes => Promise.all(nodes.flatMap(node => node.getAnimations().map(animation => animation.finished.catch(() => {})))));
@@ -133,7 +133,7 @@ try {
   await more.click(); await menu.waitFor();
   const items = await menu.getByRole('menuitem').allTextContents();
   assert.deepEqual(items.slice(0, hidden.length), hidden);
-  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Properties']);
+  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Paste', 'Properties'].filter(label => !hidden.includes(label)));
   assert.equal(await menu.getByRole('separator').count(), hidden.length ? 1 : 0);
   if (hidden.length) assert.ok(await menu.getByRole('separator').evaluate(node => {
    const rect = node.getBoundingClientRect();
@@ -148,7 +148,7 @@ try {
  await file.locator('..').evaluate(node => node.style.width = '150px'); await singleRows();
  assert.ok((await page.locator('.path-input').boundingBox()).width > 0);
  await file.locator('.file-entry').filter({ hasText: 'alpha.txt' }).click();
- await more.click(); await menu.getByRole('menuitem', { name: 'Copy selected', exact: true }).click();
+ await more.click(); await menu.getByRole('menuitem', { name: 'Copy to…', exact: true }).click();
  const copy = page.getByRole('dialog', { name: 'Copy selected items', exact: true });
  await copy.getByRole('textbox').fill(dir + '/copies');
  const copied = page.waitForResponse(response => response.url() === base + '/api/files' && response.request().postDataJSON()?.operation === 'copy');
@@ -159,7 +159,7 @@ try {
  await (await chooser).setFiles({ name: 'uploaded.txt', mimeType: 'text/plain', buffer: Buffer.from('overflow upload') });
  await file.locator('.file-entry').filter({ hasText: 'uploaded.txt' }).waitFor();
  assert.equal(await readFile(dir + '/uploaded.txt', 'utf8'), 'overflow upload');
- await more.click(); await menu.getByRole('menuitem', { name: 'Move selected', exact: true }).focus(); await page.keyboard.press('Escape');
+ await more.click(); await menu.getByRole('menuitem', { name: 'Cut', exact: true }).focus(); await page.keyboard.press('Escape');
  await file.locator('.file-entry').filter({ hasText: 'alpha.txt' }).click({ button: 'right' });
  assert.equal(await menu.getByRole('separator').count(), 0, 'item context menus must not gain toolbar overflow');
  await page.keyboard.press('Escape');

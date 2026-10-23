@@ -161,7 +161,7 @@ try {
 
     // Existing selected-item actions must consume exactly the checkbox-selected entries.
     await file.getByRole('button', { name: 'File actions', exact: true }).tap();
-    await menu.getByRole('menuitem', { name: 'Copy selected', exact: true }).tap();
+    await menu.getByRole('menuitem', { name: 'Copy to…', exact: true }).tap();
     const dialog = page.getByRole('dialog', { name: 'Copy selected items', exact: true });
     await dialog.getByRole('textbox').fill(dir + '/folder'); await dialog.getByRole('button', { name: 'Continue', exact: true }).tap();
     await page.waitForFunction(() => !document.querySelector('.transfer:not(.done)'));

@@ -6,6 +6,7 @@ import { fittingHeaderItemCount } from './overflow';
 import { folderSize } from './file-size';
 import { compactSize } from './monitor-values';
 import { registerFileDrop, registerUploadInput, setDropFeedback, animateFileDrop, startFileDrag, type DraggedFile } from './file-drag';
+import { copyFiles, readFileClipboard, pasteFiles, readDeviceClipboard, clearFileCut, isFileCut } from './file-clipboard';
 type Entry = {
     name: string;
     path: string;
@@ -46,8 +47,13 @@ export class FileView implements View {
     private selectAll = el('input');
     private inspector?: FileInspector;
     private uploadInput = el('input');
+    private pasteInput: (data: DataTransfer) => boolean;
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         instances.add(this);
+        window.addEventListener('tuxee-file-cut', event => {
+            const path = (event as CustomEvent<string>).detail;
+            for (const row of this.list.querySelectorAll<HTMLElement>(path ? `.file-entry[data-path="${CSS.escape(path)}"]` : '.file-entry')) this.paintCut(row);
+        }, { signal: this.events.signal });
         window.addEventListener('tuxee-files-uploaded', event => {
             for (const path of (event as CustomEvent<Set<string>>).detail) this.uploadedDirectories.add(path);
             if (!this.request) this.refreshUploaded();
@@ -88,7 +94,7 @@ export class FileView implements View {
         };
         root.closest('.panel')!.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
-        const actionButtons = [button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/'), 'file-navigation'), button('Home directory', 'House', () => this.navigate(hooks.user.home), 'file-navigation'), button('Refresh files', 'RefreshCw', () => this.refresh()), button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Copy selected', 'Copy', () => this.transferPrompt('copy')), button('Move selected', 'MoveRight', () => this.transferPrompt('move')), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const actionButtons = [button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/'), 'file-navigation'), button('Home directory', 'House', () => this.navigate(hooks.user.home), 'file-navigation'), button('Refresh files', 'RefreshCw', () => this.refresh()), button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Cut', 'Scissors', () => this.copySelection(true)), button('Copy', 'Copy', () => this.copySelection()), button('Paste', 'ClipboardPaste', () => this.paste()), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
         const separator = el('span', 'file-navigation-separator', '|'); separator.setAttribute('aria-hidden', 'true');
         const actionItems = [...actionButtons.slice(0, 2), separator, ...actionButtons.slice(2)];
         const more = button('File actions', 'Ellipsis', () => this.menu(more, !this.selected.size, actionButtons.filter(item => item.hidden)));
@@ -138,6 +144,12 @@ export class FileView implements View {
         this.list.onscroll = this.list.onpointercancel = () => { this.lastTap = undefined; };
         this.list.onclick = e => { if (!(e.target as Element).closest('.file-entry') && !e.ctrlKey && !e.metaKey && !e.shiftKey) this.clearSelection(); };
         const dropTarget = root.closest<HTMLElement>('.panel')!;
+        for (const type of ['copy', 'cut'] as const) dropTarget.addEventListener(type, event => {
+            if (this.disposed || this.inspector || (event.target as Element).closest('input:not([type=checkbox]), textarea, [contenteditable]')) return;
+            if (this.selected.size) {
+                try { this.copySelection(type === 'cut', event); } catch (error) { this.notice(error); }
+            }
+        }, { signal: this.events.signal });
         registerFileDrop(dropTarget, {
             over: drop => { setDropFeedback(root, drop.copy ? 'Copy here' : 'Move here'); return drop.copy || drop.source !== panel.id; },
             leave: () => setDropFeedback(root),
@@ -152,11 +164,20 @@ export class FileView implements View {
                 }).catch(this.notice);
             }
         }, this.events.signal);
-        registerUploadInput(dropTarget, {
+        this.pasteInput = registerUploadInput(dropTarget, {
             accept: () => !this.disposed && !this.inspector,
             over: () => setDropFeedback(root, 'Upload'),
             leave: () => setDropFeedback(root),
-            upload: (sources, point) => { void this.uploadFiles(sources, point); }
+            upload: (sources, point) => { void this.uploadFiles(sources, point); },
+            paste: data => {
+                try {
+                    const clipboard = readFileClipboard(data, this.hooks.user.uid);
+                    if (!clipboard) return false;
+                    const destination = this.panel.path;
+                    void pasteFiles(clipboard, (files, operation, settled) => this.transfer(files, destination, operation, settled)).catch(this.notice);
+                } catch (error) { this.notice(error); }
+                return true;
+            }
         }, this.events.signal);
         const footer = el('div', 'file-footer');
         this.filterInput.type = 'search'; this.filterInput.hidden = true;
@@ -384,6 +405,7 @@ export class FileView implements View {
         else if (e.key === 'Delete') run(() => this.remove());
         else if (e.key === 'F2') run(() => this.rename());
         else if (e.key === 'F5') run(() => this.refresh());
+        else if (e.key === 'Escape' && !this.filter) run(clearFileCut);
         else if (e.key === 'ContextMenu' || e.shiftKey && e.key === 'F10' || e.key === 'Alt' && !e.ctrlKey) run(() => {
             if (!this.selected.size && entry) { this.selected.add(entry.path); this.paintSelection(); }
             this.menu(this.list.contains(document.activeElement) ? document.activeElement as HTMLElement : this.list);
@@ -517,12 +539,18 @@ export class FileView implements View {
         }, { capture: true, signal: events.signal });
     }
     private chosen() { return this.entries.filter(entry => this.selected.has(entry.path)); }
+    private paintCut(row: HTMLElement) {
+        const cut = isFileCut(row.dataset.path!, this.hooks.user.uid);
+        row.classList.toggle('file-cut', cut);
+        if (cut) row.setAttribute('aria-description', 'Cut'); else row.removeAttribute('aria-description');
+    }
     private paintSelection() {
         const rows = this.list.querySelectorAll<HTMLElement>('.file-entry');
         let selected = 0;
         for (const row of rows) {
             const checked = this.selected.has(row.dataset.path!);
             row.setAttribute('aria-selected', String(checked));
+            this.paintCut(row);
             row.querySelector<HTMLInputElement>('input[type=checkbox]')!.checked = checked;
             if (checked) selected++;
         }
@@ -564,7 +592,14 @@ export class FileView implements View {
     private async transferPrompt(operation: 'copy' | 'move') { const entries = this.chosen(); if (!entries.length)
         throw new Error('Select files first'); const path = await ask(`${operation === 'copy' ? 'Copy' : 'Move'} selected items`, 'Destination directory (absolute path)', this.panel.path); if (path)
         await this.transfer(entries, path, operation); }
-    private async transfer(entries: DraggedFile[], path: string, operation: 'copy' | 'move') {
+    private copySelection(cut = false, event?: ClipboardEvent) { copyFiles(this.chosen(), this.hooks.user.uid, cut, event); }
+    private async paste() {
+        this.list.focus({ preventScroll: true });
+        const path = this.panel.path, data = await readDeviceClipboard();
+        if (this.disposed || this.inspector || path !== this.panel.path) return;
+        if (!this.pasteInput(data)) this.notice('No Tuxee files on the clipboard');
+    }
+    private async transfer(entries: DraggedFile[], path: string, operation: 'copy' | 'move', settled?: (path: string, error?: unknown) => void) {
         if (!path.startsWith('/')) throw new Error('Use an absolute destination path');
         entries = entries.filter(entry => operation !== 'move' || entry.path !== join(path, entry.name));
         if (!entries.length) return [];
@@ -572,7 +607,11 @@ export class FileView implements View {
         try {
             await trackOperation(operation === 'copy' ? 'Copy' : 'Move', entries.length, async (signal, progress) => {
                 for (const [index, entry] of entries.entries()) {
-                    const result = await api('/files', 'POST', { operation, path: entry.path, destination: join(path, entry.name) }, signal);
+                    signal.throwIfAborted();
+                    let result: { path: string };
+                    try { result = await api('/files', 'POST', { operation, path: entry.path, destination: join(path, entry.name) }, signal); }
+                    catch (error) { settled?.(entry.path, error); throw error; }
+                    settled?.(entry.path);
                     paths.push(result.path);
                     progress(index + 1);
                 }
@@ -688,11 +727,13 @@ export class FileView implements View {
         }
         if (overflow.length) content.append(el('hr', 'menu-separator'));
         for (const [label, name, action] of background ? [
-            ['New file', 'FilePlus', () => this.createFile()], ['New folder', 'FolderPlus', () => this.mkdir()], ['Properties', 'Info', () => this.properties()]
+            ['New file', 'FilePlus', () => this.createFile()], ['New folder', 'FolderPlus', () => this.mkdir()], ['Paste', 'ClipboardPaste', () => this.paste()], ['Properties', 'Info', () => this.properties()]
         ] as const : [
             ['Open', 'FilePenLine', () => this.openFile()], ['Compress…', 'Archive', () => this.archiveDialog()], ['Extract…', 'FolderOpen', () => this.archiveDialog(true)],
+            ['Cut', 'Scissors', () => this.copySelection(true)], ['Copy', 'Copy', () => this.copySelection()], ['Paste', 'ClipboardPaste', () => this.paste()],
             ['Rename', 'Pencil', () => this.rename()], ['Copy to…', 'Copy', () => this.transferPrompt('copy')], ['Move to…', 'MoveRight', () => this.transferPrompt('move')], ['Download', 'Download', () => this.downloadSelected()], ['Properties', 'Info', () => this.properties()], ['Delete', 'Trash2', () => this.remove()]
         ] as const) {
+            if (overflow.some(source => source.title === label)) continue;
             const b = button(label, name, () => { close(); return action(); });
             b.append(el('span', '', label)); b.setAttribute('role', 'menuitem');
             content.append(b);
