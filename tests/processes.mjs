@@ -78,6 +78,28 @@ try {
  assert.equal(await root.isDisabled(), true); assert.equal(await dialog.locator('tbody input:checked').count(), 0);
  assert.equal(await dialog.getByRole('button', { name: 'Kill', exact: true }).isDisabled(), true);
 
+ fixture = 'memory'; await refresh();
+ const ramCell = pid => dialog.locator(`tr[data-pid="${pid}"] .process-number`).last();
+ assert.equal(await ramCell(10).textContent(), '~6.0MB (1.0MB)');
+ assert.equal(await ramCell(11).textContent(), '~2.0MB (~2.0MB)');
+ assert.match(await ramCell(10).getAttribute('title'), /Includes RSS estimates/);
+ assert.match(await ramCell(10).getAttribute('title'), /File-backed PSS, separate: — \(own 2.0MB\)/);
+ assert.doesNotMatch(await ramCell(12).getAttribute('title'), /Includes RSS estimates/);
+ await dialog.locator('tr[data-pid="10"] input').check();
+ await dialog.getByRole('button', { name: 'Kill', exact: true }).click();
+ const memoryPopup = page.getByRole('dialog', { name: 'Kill processes', exact: true });
+ assert.equal(await memoryPopup.locator('.process-kill-summary > span').last().textContent(), 'RAM ~6.0MB');
+ assert.match(await memoryPopup.locator('.process-kill-summary > span').last().getAttribute('title'), /Includes RSS estimates/);
+ await memoryPopup.getByRole('button', { name: 'Cancel', exact: true }).click();
+ fixture = 'memoryUnavailable'; await refresh();
+ assert.equal(await ramCell(10).textContent(), '— (1.0MB)');
+ assert.equal(await ramCell(11).textContent(), '— (—)');
+ await dialog.locator('tr[data-pid="10"] input').check();
+ await dialog.getByRole('button', { name: 'Kill', exact: true }).click();
+ assert.equal(await memoryPopup.locator('.process-kill-summary > span').last().textContent(), 'RAM —');
+ await memoryPopup.getByRole('button', { name: 'Cancel', exact: true }).click();
+ console.log('PASS proportional RAM totals, RSS estimate markers, separate file PSS and unavailable counters');
+
  await mkdir('test-results', { recursive: true });
  const renderings = [];
  for (const name of ['container', 'wide', 'zombies', 'large', 'deep']) {
@@ -139,11 +161,13 @@ try {
  await page.unroute(base + '/api/processes?*'); await page.setViewportSize({ width: 1440, height: 1000 });
  console.log('PASS synthetic tree rendering, bounded rows, zombie summaries, grouped selection and sort refetch', renderings);
  // A subreaper owns the disposable family, including after its selected parent exits.
- worker = spawn('python3', ['-u', '-c', `import os, signal, time, json, ctypes
+ worker = spawn('python3', ['-u', '-c', `import os, signal, time, json, ctypes, mmap
 ctypes.CDLL(None).prctl(36, 1, 0, 0, 0)
 parent = os.fork()
 if parent == 0:
  signal.signal(signal.SIGTERM, signal.SIG_IGN)
+ allocation = mmap.mmap(-1, 32*1024*1024, flags=mmap.MAP_PRIVATE|mmap.MAP_ANONYMOUS)
+ for offset in range(0, len(allocation), 4096): allocation[offset] = 1
  children = []
  for i in range(105):
   pid = os.fork()
@@ -163,6 +187,13 @@ else:
  const liveParent = dialog.locator(`tr[data-pid="${family.parent}"] input`); await liveParent.check();
  const liveSnapshot = await (await api('/processes?sort=ram')).json();
  const row = liveSnapshot.rows.find(row => row.pid === family.parent); assert.ok(row); assert.equal(row.targets, 106);
+ assert.equal(row.totalEstimatedRAM, undefined, 'owned family uses proportional counters');
+ assert.ok(row.totalRAM >= 32*1024**2 && row.totalRAM < 160*1024**2, `shared allocation counted once: ${row.totalRAM}`);
+ assert.ok(row.totalFileRAM > 0, 'mapped executable/library memory remains visible');
+ const foreign = liveSnapshot.rows.find(row => row.pid === process.pid);
+ assert.ok(foreign?.estimatedRAM && foreign.totalEstimatedRAM, 'cross-user process explicitly uses RSS estimate');
+ assert.equal(foreign.fileRAM, null, 'unreadable file PSS is unavailable');
+ console.log('PASS real 106-process shared allocation:', Math.round(row.totalRAM/1024**2), 'MiB, with cross-user RSS fallback');
  // Refresh the UI after the explicit API snapshot replaced its token.
  await refresh(); await liveParent.check();
  assert.ok(await dialog.locator('.process-group input:checked').count() >= 1);

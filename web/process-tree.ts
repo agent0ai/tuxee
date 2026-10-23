@@ -1,7 +1,8 @@
 export type ProcessRow = {
     id: string; parentID: string; pid: number; start: string; parent: number; name: string; uid: number; state: string;
-    cpu: number | null; ram: number; totalCPU: number | null; totalRAM: number;
-    count: number; targets: number; ownTargets: number; unknownCPU?: boolean; targetCPU: number; targetRAM: number; canSignal: boolean; group?: boolean; zombies?: number;
+    cpu: number | null; ram: number | null; fileRAM: number | null; estimatedRAM?: boolean;
+    totalCPU: number | null; totalRAM: number | null; totalFileRAM: number | null; totalEstimatedRAM?: boolean;
+    count: number; targets: number; ownTargets: number; unknownCPU?: boolean; targetCPU: number; targetRAM: number | null; targetEstimatedRAM?: boolean; canSignal: boolean; group?: boolean; zombies?: number;
 };
 export type ProcessSnapshot = { snapshot: string; allowCore: boolean; time: string; rows: ProcessRow[]; total: number; zombies: number };
 

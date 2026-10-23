@@ -2,7 +2,8 @@ import { api, button, el, icon, modal, size } from './ui';
 import { selectProcess, selectionRoots, type ProcessSnapshot } from './process-tree';
 
 const percent = (value: number | null) => value == null ? '—' : `${value > 0 && value < 10 ? value.toFixed(1) : Math.round(value)}%`;
-const memory = (value: number) => size(value).replace(' ', '');
+const memory = (value: number | null, approximate = false) => value == null ? '—' : `${approximate ? '~' : ''}${size(value).replace(' ', '')}`;
+const memoryDetail = (estimated: boolean | undefined) => 'RAM: anonymous + shared memory, with shared pages apportioned (PSS) where readable.' + (estimated ? '\nIncludes RSS estimates: proportional counters unavailable; shared memory may be counted more than once.' : '') + '\nWidget totals also include memory not assigned to processes, such as kernel memory.';
 
 export class Processes {
     readonly element = el('section', 'processes');
@@ -99,9 +100,10 @@ export class Processes {
             if (!row.group) text.append(el('small', '', String(row.pid)));
             line.append(text); name.append(line);
             const cpu = el('td', 'process-number'), ram = el('td', 'process-number');
-            cpu.append(el('span', '', percent(row.totalCPU))); ram.append(el('span', '', `~${memory(row.totalRAM)}`));
-            if (!row.group) { cpu.append(el('small', '', ` (${percent(row.cpu)})`)); ram.append(el('small', '', ` (${memory(row.ram)})`)); }
-            cpu.title = '100% = one CPU core'; ram.title = 'Approximate RSS; shared pages may be counted more than once';
+            cpu.append(el('span', '', percent(row.totalCPU))); ram.append(el('span', '', memory(row.totalRAM, true)));
+            if (!row.group) { cpu.append(el('small', '', ` (${percent(row.cpu)})`)); ram.append(el('small', '', ` (${memory(row.ram, row.estimatedRAM)})`)); }
+            cpu.title = '100% = one CPU core';
+            ram.title = memoryDetail(row.totalEstimatedRAM) + `\nFile-backed PSS, separate: ${memory(row.totalFileRAM, true)}` + (row.group ? '' : ` (own ${memory(row.fileRAM)})`) + '\n— = unavailable';
             tr.append(name, cpu, ram); body.append(tr); this.rowElements.set(row.id, tr);
         }
         this.table.replaceChildren(head, body);
@@ -124,10 +126,12 @@ export class Processes {
         if (!this.data || this.request || !this.selected.size) return;
         clearTimeout(this.refreshTimer);
         const data = this.data, roots = selectionRoots(data.rows, this.selected);
-        const count = roots.reduce((n, row) => n + row.targets, 0), cpu = roots.reduce((n, row) => n + row.targetCPU, 0), ram = roots.reduce((n, row) => n + row.targetRAM, 0);
+        const count = roots.reduce((n, row) => n + row.targets, 0), cpu = roots.reduce((n, row) => n + row.targetCPU, 0);
+        const ram = roots.some(row => row.targetRAM == null) ? null : roots.reduce((n, row) => n + row.targetRAM!, 0);
         const selectedCount = roots.reduce((n, row) => n + row.ownTargets, 0);
         const content = el('form', 'process-kill'), summary = el('div', 'process-kill-summary');
-        summary.append(el('strong', '', `${count.toLocaleString()} processes`), el('span', '', `CPU ${percent(roots.some(row => row.unknownCPU) ? null : cpu)}`), el('span', '', `RAM ~${memory(ram)}`));
+        const ramSummary = el('span', '', `RAM ${memory(ram, true)}`); ramSummary.title = memoryDetail(roots.some(row => row.targetEstimatedRAM));
+        summary.append(el('strong', '', `${count.toLocaleString()} processes`), el('span', '', `CPU ${percent(roots.some(row => row.unknownCPU) ? null : cpu)}`), ramSummary);
         summary.append(el('small', 'process-kill-counts', `${selectedCount.toLocaleString()} selected · ${(count - selectedCount).toLocaleString()} children`));
         const options = el('fieldset', 'process-signal'); options.append(el('legend', 'sr-only', 'Signal'));
         for (const [value, label] of [[15, 'SIGTERM'], [9, 'Force kill']] as const) {

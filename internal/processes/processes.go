@@ -29,15 +29,17 @@ type Ref struct {
 }
 type Process struct {
 	Ref
-	Parent    int      `json:"parent"`
-	Name      string   `json:"name"`
-	UID       uint32   `json:"uid"`
-	State     string   `json:"state"`
-	CPU       *float64 `json:"cpu"`
-	RAM       uint64   `json:"ram"`
-	CanSignal bool     `json:"canSignal"`
-	ticks     uint64
-	sampled   time.Time
+	Parent       int      `json:"parent"`
+	Name         string   `json:"name"`
+	UID          uint32   `json:"uid"`
+	State        string   `json:"state"`
+	CPU          *float64 `json:"cpu"`
+	RAM          *uint64  `json:"ram"`
+	FileRAM      *uint64  `json:"fileRAM"`
+	EstimatedRAM bool     `json:"estimatedRAM,omitempty"`
+	CanSignal    bool     `json:"canSignal"`
+	ticks        uint64
+	sampled      time.Time
 }
 type Snapshot struct {
 	Time      time.Time `json:"time"`
@@ -45,19 +47,22 @@ type Snapshot struct {
 }
 type Row struct {
 	Process
-	ID         string   `json:"id"`
-	ParentID   string   `json:"parentID"`
-	TotalCPU   *float64 `json:"totalCPU"`
-	TotalRAM   uint64   `json:"totalRAM"`
-	Count      int      `json:"count"`
-	Targets    int      `json:"targets"`
-	TargetCPU  float64  `json:"targetCPU"`
-	TargetRAM  uint64   `json:"targetRAM"`
-	Group      bool     `json:"group,omitempty"`
-	Zombies    int      `json:"zombies,omitempty"`
-	Members    []int    `json:"-"`
-	OwnTargets int      `json:"ownTargets"`
-	UnknownCPU bool     `json:"unknownCPU,omitempty"`
+	ID                 string   `json:"id"`
+	ParentID           string   `json:"parentID"`
+	TotalCPU           *float64 `json:"totalCPU"`
+	TotalRAM           *uint64  `json:"totalRAM"`
+	TotalFileRAM       *uint64  `json:"totalFileRAM"`
+	TotalEstimatedRAM  bool     `json:"totalEstimatedRAM,omitempty"`
+	Count              int      `json:"count"`
+	Targets            int      `json:"targets"`
+	TargetCPU          float64  `json:"targetCPU"`
+	TargetRAM          *uint64  `json:"targetRAM"`
+	TargetEstimatedRAM bool     `json:"targetEstimatedRAM,omitempty"`
+	Group              bool     `json:"group,omitempty"`
+	Zombies            int      `json:"zombies,omitempty"`
+	Members            []int    `json:"-"`
+	OwnTargets         int      `json:"ownTargets"`
+	UnknownCPU         bool     `json:"unknownCPU,omitempty"`
 }
 type View struct {
 	Time    time.Time `json:"time"`
@@ -79,6 +84,7 @@ func readAt(dir *os.File, name string) ([]byte, error) {
 	}
 	return data, err
 }
+
 func parseStat(data []byte) (Process, error) {
 	var p Process
 	text := string(data)
@@ -91,25 +97,25 @@ func parseStat(data []byte) (Process, error) {
 		return p, errors.New("invalid process ID")
 	}
 	fields := strings.Fields(text[right+1:])
-	if len(fields) < 22 || len(fields[0]) != 1 {
+	if len(fields) < 20 || len(fields[0]) != 1 {
 		return p, errors.New("incomplete process stat")
 	}
 	parent, e1 := strconv.Atoi(fields[1])
 	user, e2 := strconv.ParseUint(fields[11], 10, 64)
 	system, e3 := strconv.ParseUint(fields[12], 10, 64)
 	start, e4 := strconv.ParseUint(fields[19], 10, 64)
-	rss, e5 := strconv.ParseInt(fields[21], 10, 64)
-	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || e5 != nil || parent < 0 || parent == pid {
+	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || parent < 0 || parent == pid {
 		return p, errors.New("invalid process counters")
 	}
-	p = Process{Ref: Ref{pid, strconv.FormatUint(start, 10)}, Parent: parent, Name: text[left+1 : right], State: fields[0], RAM: uint64(max(rss, 0)) * uint64(os.Getpagesize()), ticks: user + system, sampled: time.Now()}
+	p = Process{Ref: Ref{pid, strconv.FormatUint(start, 10)}, Parent: parent, Name: text[left+1 : right], State: fields[0], ticks: user + system, sampled: time.Now()}
 	if p.State == "Z" {
-		p.RAM = 0
+		p.RAM = new(uint64)
+		p.FileRAM = new(uint64)
 		p.CPU = new(float64)
 	}
 	return p, nil
 }
-func scan(ctx context.Context, root string, allowCore bool) ([]Process, error) {
+func scan(ctx context.Context, root string, allowCore, withMemory bool) ([]Process, error) {
 	dir, err := os.Open(root)
 	if err != nil {
 		return nil, err
@@ -138,14 +144,19 @@ func scan(ctx context.Context, root string, allowCore bool) ([]Process, error) {
 			}
 			stat, statErr := readAt(folder, "stat")
 			status, statusErr := readAt(folder, "status")
-			folder.Close()
 			if statErr != nil || statusErr != nil {
+				folder.Close()
 				continue
 			}
 			p, err := parseStat(stat)
 			if err != nil || p.PID != pid {
+				folder.Close()
 				continue
 			}
+			if withMemory && p.State != "Z" {
+				p.readMemory(folder, status)
+			}
+			folder.Close()
 			found := false
 			for _, line := range strings.Split(string(status), "\n") {
 				if !strings.HasPrefix(line, "Uid:") {
@@ -198,7 +209,7 @@ func protectAncestors(items []Process, pid int) {
 	}
 }
 func Sample(ctx context.Context, allowCore bool) (*Snapshot, error) {
-	before, err := scan(ctx, "/proc", allowCore)
+	before, err := scan(ctx, "/proc", allowCore, false)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +220,7 @@ func Sample(ctx context.Context, allowCore bool) (*Snapshot, error) {
 		return nil, ctx.Err()
 	case <-timer.C:
 	}
-	after, err := scan(ctx, "/proc", allowCore)
+	after, err := scan(ctx, "/proc", allowCore, true)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +308,7 @@ func (s *Snapshot) View(sortBy string) View {
 	_, children, order, roots := s.forest()
 	rows := make([]Row, len(s.Processes))
 	for i, p := range s.Processes {
-		r := Row{Process: p, ID: fmt.Sprintf("p:%d", p.PID), TotalRAM: p.RAM, Members: []int{p.PID}}
+		r := Row{Process: p, ID: fmt.Sprintf("p:%d", p.PID), TotalRAM: p.RAM, TotalFileRAM: p.FileRAM, TotalEstimatedRAM: p.EstimatedRAM, TargetRAM: new(uint64), Members: []int{p.PID}}
 		if p.State != "Z" {
 			r.Count = 1
 		}
@@ -310,6 +321,7 @@ func (s *Snapshot) View(sortBy string) View {
 			r.OwnTargets = 1
 			r.UnknownCPU = p.CPU == nil
 			r.TargetRAM = p.RAM
+			r.TargetEstimatedRAM = p.EstimatedRAM
 			if p.CPU != nil {
 				r.TargetCPU = *p.CPU
 			}
@@ -320,10 +332,13 @@ func (s *Snapshot) View(sortBy string) View {
 		i := order[n]
 		for _, child := range children[i] {
 			r, c := &rows[i], rows[child]
-			r.TotalRAM += c.TotalRAM
+			r.TotalRAM = addMemory(r.TotalRAM, c.TotalRAM)
+			r.TotalFileRAM = addMemory(r.TotalFileRAM, c.TotalFileRAM)
+			r.TotalEstimatedRAM = r.TotalEstimatedRAM || c.TotalEstimatedRAM
 			r.Count += c.Count
 			r.Targets += c.Targets
-			r.TargetRAM += c.TargetRAM
+			r.TargetRAM = addMemory(r.TargetRAM, c.TargetRAM)
+			r.TargetEstimatedRAM = r.TargetEstimatedRAM || c.TargetEstimatedRAM
 			r.TargetCPU += c.TargetCPU
 			r.UnknownCPU = r.UnknownCPU || c.UnknownCPU
 			if r.TotalCPU != nil && c.TotalCPU != nil {
@@ -347,8 +362,11 @@ func (s *Snapshot) View(sortBy string) View {
 				return av > bv
 			}
 		}
-		if x.TotalRAM != y.TotalRAM {
-			return x.TotalRAM > y.TotalRAM
+		if (x.TotalRAM == nil) != (y.TotalRAM == nil) {
+			return x.TotalRAM != nil
+		}
+		if x.TotalRAM != nil && *x.TotalRAM != *y.TotalRAM {
+			return *x.TotalRAM > *y.TotalRAM
 		}
 		return x.PID < y.PID
 	}
@@ -389,17 +407,20 @@ func (s *Snapshot) View(sortBy string) View {
 				break
 			}
 			if n >= individual || remaining == 1 && n < len(live)-1 {
-				group := Row{ID: "g:" + parent, ParentID: parent, Process: Process{Name: "More processes"}, Group: true, TotalCPU: new(float64)}
+				group := Row{ID: "g:" + parent, ParentID: parent, Process: Process{Name: "More processes"}, Group: true, TotalCPU: new(float64), TotalRAM: new(uint64), TotalFileRAM: new(uint64), TargetRAM: new(uint64)}
 				for _, j := range live[n:] {
 					r := rows[j]
 					group.Members = append(group.Members, r.PID)
 					group.Count += r.Count
 					group.Targets += r.Targets
-					group.TargetRAM += r.TargetRAM
+					group.TargetRAM = addMemory(group.TargetRAM, r.TargetRAM)
+					group.TargetEstimatedRAM = group.TargetEstimatedRAM || r.TargetEstimatedRAM
 					group.TargetCPU += r.TargetCPU
 					group.OwnTargets += r.OwnTargets
 					group.UnknownCPU = group.UnknownCPU || r.UnknownCPU
-					group.TotalRAM += r.TotalRAM
+					group.TotalRAM = addMemory(group.TotalRAM, r.TotalRAM)
+					group.TotalFileRAM = addMemory(group.TotalFileRAM, r.TotalFileRAM)
+					group.TotalEstimatedRAM = group.TotalEstimatedRAM || r.TotalEstimatedRAM
 					if group.TotalCPU != nil && r.TotalCPU != nil {
 						*group.TotalCPU += *r.TotalCPU
 					} else {

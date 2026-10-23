@@ -48,7 +48,8 @@ func TestProcessAdmissionAndSnapshotTargets(t *testing.T) {
 	}
 	data := &processes.Snapshot{Time: time.Now()}
 	for i := 2; i < 2002; i++ {
-		data.Processes = append(data.Processes, processes.Process{Ref: processes.Ref{PID: i, Start: fmt.Sprint(i)}, Parent: 1, Name: "test", State: "S", RAM: uint64(i), CanSignal: true})
+		ram := uint64(i)
+		data.Processes = append(data.Processes, processes.Process{Ref: processes.Ref{PID: i, Start: fmt.Sprint(i)}, Parent: 1, Name: "test", State: "S", RAM: &ram, CanSignal: true})
 	}
 	current := &processSnapshot{id: "snapshot", data: data, view: data.View("ram")}
 	session.processSnapshot = current

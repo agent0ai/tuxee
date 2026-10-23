@@ -63,8 +63,9 @@ func TestParentSignalPermission(t *testing.T) {
 }
 
 func fake(pid, parent int, ram uint64, cpu float64) Process {
-	return Process{Ref: Ref{PID: pid, Start: strconv.Itoa(pid + 1000)}, Parent: parent, Name: fmt.Sprintf("worker-%d", pid), State: "S", UID: 1000, RAM: ram, CPU: &cpu, CanSignal: pid > 1}
+	return Process{Ref: Ref{PID: pid, Start: strconv.Itoa(pid + 1000)}, Parent: parent, Name: fmt.Sprintf("worker-%d", pid), State: "S", UID: 1000, RAM: &ram, FileRAM: new(uint64), CPU: &cpu, CanSignal: pid > 1}
 }
+
 func TestStatAndRates(t *testing.T) {
 	fields := make([]string, 22)
 	for i := range fields {
@@ -77,7 +78,7 @@ func TestStatAndRates(t *testing.T) {
 	fields[19] = "98765"
 	fields[21] = "10"
 	p, err := parseStat([]byte("42 (odd ) ( name) " + strings.Join(fields, " ")))
-	if err != nil || p.Name != "odd ) ( name" || p.PID != 42 || p.Parent != 1 || p.Start != "98765" || p.ticks != 15 || p.RAM != uint64(10*os.Getpagesize()) {
+	if err != nil || p.Name != "odd ) ( name" || p.PID != 42 || p.Parent != 1 || p.Start != "98765" || p.ticks != 15 || p.RAM != nil {
 		t.Fatalf("parse: %+v %v", p, err)
 	}
 	for _, text := range []string{"", "1 (oops", "-1 (oops) S", "1 (a) S 1"} {
@@ -101,12 +102,20 @@ func TestStatAndRates(t *testing.T) {
 	}
 	fields[0] = "Z"
 	p, err = parseStat([]byte("42 (dead) " + strings.Join(fields, " ")))
-	if err != nil || p.RAM != 0 || p.CPU == nil || *p.CPU != 0 {
+	if err != nil || p.RAM == nil || *p.RAM != 0 || p.CPU == nil || *p.CPU != 0 {
 		t.Fatal("zombie retained active metrics")
 	}
 }
 func TestProjection(t *testing.T) {
 	fixtures := map[string]View{}
+	memory := Snapshot{Time: time.Now(), Processes: []Process{fake(10, 0, 1<<20, 0), fake(11, 10, 2<<20, 0), fake(12, 10, 3<<20, 0)}}
+	file := uint64(2 << 20)
+	memory.Processes[0].FileRAM = &file
+	memory.Processes[1].EstimatedRAM = true
+	memory.Processes[1].FileRAM = nil
+	fixtures["memory"] = memory.View("ram")
+	memory.Processes[1].RAM = nil
+	fixtures["memoryUnavailable"] = memory.View("ram")
 	// Container init -> launcher, with independent jobs beneath one root.
 	container := Snapshot{Time: time.Now(), Processes: []Process{fake(1, 0, 1024, 0), fake(2, 1, 4096, 0)}}
 	container.Processes[1].Name = "container-start"
@@ -218,7 +227,7 @@ func TestAggregateAndTargets(t *testing.T) {
 	s := Snapshot{Processes: []Process{fake(1, 0, 1, 1), fake(2, 1, 20, 2), fake(3, 2, 30, 3), fake(4, 2, 40, 4)}}
 	v := s.View("ram")
 	r := v.Rows[1]
-	if r.TotalRAM != 90 || r.RAM != 20 || *r.TotalCPU != 9 || *r.CPU != 2 || r.Targets != 3 || r.TargetRAM != 90 || r.TargetCPU != 9 {
+	if *r.TotalRAM != 90 || *r.RAM != 20 || *r.TotalCPU != 9 || *r.CPU != 2 || r.Targets != 3 || *r.TargetRAM != 90 || r.TargetCPU != 9 {
 		t.Fatalf("totals: %+v", r)
 	}
 	refs, err := s.Targets([]int{2, 3, 4})
@@ -248,7 +257,7 @@ func procRef(t *testing.T, pid int) Ref {
 }
 func TestCoreProcessOptIn(t *testing.T) {
 	for _, allowCore := range []bool{false, true} {
-		items, err := scan(context.Background(), "/proc", allowCore)
+		items, err := scan(context.Background(), "/proc", allowCore, true)
 		if err != nil {
 			t.Fatal(err)
 		}
