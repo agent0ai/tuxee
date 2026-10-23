@@ -29,4 +29,7 @@ for (const [value, expected] of [
 for (const [value, expected] of [[0, '0B'], [1024, '1.0K'], [140 * 1024 ** 2, '140M'], [1.5 * 1024 ** 3, '1.5G'], [999.5 * 1024 ** 2, '1.0G'], [1024 ** 7, '1.0Z']]) {
     assert.equal(compactSize(value, 1024), expected);
 }
-console.log('PASS monitor decimals below ten, zero rounding, sizes through Z, unit boundaries, unavailable values and detailed byte precision');
+for (const [value, expected] of [[0, '0 B'], [1536, '1.5 KB'], [12 * 1024, '12 KB'], [1.5 * 1024 ** 3, '1.5 GB'], [1024 ** 4, '1.0 TB']]) {
+    assert.equal(compactSize(value, 1024, true), expected);
+}
+console.log('PASS monitor decimals below ten, zero rounding, sizes through Z, unit boundaries, unavailable values, detailed byte precision and full-unit properties');

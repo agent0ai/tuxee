@@ -183,7 +183,7 @@ Distribution verification: run `npm run test:installer`, `npm run test:updates`,
 
 ## Current implementation boundary
 
-- Implemented and locally validated: PAM/per-user workers, filesystem operations, canonical retained PTYs, TLS lifecycle, HTTP/WebSocket sessions, bundled frontend with docking/files/mobile workspaces, and service CLI. The Docker example uses a Bash restart loop; its image and lifecycle remain unverified.
+- Implemented and locally validated: PAM/per-user workers, filesystem operations, canonical retained PTYs, TLS lifecycle, HTTP/WebSocket sessions, bundled frontend with docking/files/mobile workspaces, and service CLI. The published amd64 Docker runtime with a locally built executable is smoke-tested for startup/restart, PAM login, terminal WebSockets and folder-size streaming; full Dockerfile builds and broader container lifecycle checks remain separate verification.
 - Release/update fixtures, daily-check scheduling, live binary-replacement helper/PTY continuity and Chromium update notices are locally verified. Tag workflows and Docker Hub publication still need a real CI run.
 - Backend race tests, real PAM/HTTP/WebSocket integration, Chromium desktop/mobile/portrait/ultrawide flows, transfer memory/cancellation, interactive terminal recovery, unit verification and installation safety pass. docs/guide.md documents exact commands and limits.
-- This test environment has root and Chromium but PID 1 is `tail`, not systemd, and Docker is absent. Live systemd/Docker execution and public Internet ACME validation remain unverified. The prototype is not production-reviewed.
+- This workspace has root and Chromium but PID 1 is `tail`, not systemd. A separate Docker sandbox is available through the socket and localhost forwarding helper documented in the workspace AGENTS.md. Live systemd execution and public Internet ACME validation remain unverified. The prototype is not production-reviewed.

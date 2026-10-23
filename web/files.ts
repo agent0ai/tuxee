@@ -3,6 +3,8 @@ import { download, downloadArchive, upload, uploadBatch, type UploadSource, oper
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
 import { fittingHeaderItemCount } from './overflow';
+import { folderSize } from './file-size';
+import { compactSize } from './monitor-values';
 import { registerFileDrop, registerUploadInput, setDropFeedback, animateFileDrop, startFileDrag, type DraggedFile } from './file-drag';
 type Entry = {
     name: string;
@@ -644,19 +646,24 @@ export class FileView implements View {
         if (!paths.length) paths.push(this.panel.path);
         const entries = [];
         for (const path of paths) entries.push((await api('/files', 'POST', { operation: 'stat', path })).entry);
+        if (this.disposed) return;
         const common = (get: (entry: any) => unknown) => entries.every(entry => get(entry) === get(entries[0])) ? String(get(entries[0])) : 'Multiple';
         const content = el('div', 'form'), details = el('dl', 'properties');
+        const lifetime = new AbortController();
         scopeNotifications(content, this.root);
         const values = {
             Name: entries.length === 1 ? entries[0].name : `${entries.length} items`, Path: common(entry => entry.path),
             Type: common(entry => entry.symlink ? 'Symbolic link' : entry.directory ? 'Directory' : 'File'),
-            [entries.some(entry => entry.directory) ? 'Size (entries)' : 'Total size']: size(entries.reduce((sum, entry) => sum + entry.size, 0)),
+            'Total size': compactSize(entries.reduce((sum, entry) => sum + (entry.directory && !entry.symlink ? 0 : entry.size), 0), 1024, true),
             'Owner UID': common(entry => entry.uid), 'Group GID': common(entry => entry.gid),
             Modified: common(entry => new Date(entry.modified).toLocaleString()), Accessed: common(entry => new Date(entry.accessed).toLocaleString()),
             'Metadata changed': common(entry => new Date(entry.changed).toLocaleString()),
             ...(entries.some(entry => entry.link) ? { Target: common(entry => entry.link || '—') } : {})
         };
-        for (const [key, value] of Object.entries(values)) details.append(el('dt', '', key), el('dd', '', value));
+        for (const [key, value] of Object.entries(values)) {
+            const recursive = key === 'Total size' && entries.some(entry => entry.directory && !entry.symlink);
+            details.append(el('dt', '', key), recursive ? folderSize(paths, lifetime.signal) : el('dd', '', value));
+        }
         const label = el('label', 'field', 'Permissions (octal)'), input = el('input'), mode = common(entry => entry.mode);
         input.value = mode === 'Multiple' ? '' : mode;
         input.placeholder = mode; input.required = true; input.pattern = '[0-7]{3,4}'; input.setAttribute('aria-label', 'Permissions');
@@ -666,7 +673,9 @@ export class FileView implements View {
             try { for (const entry of entries) await api('/files', 'POST', { operation: 'chmod', path: entry.path, mode: input.value }); close(); }
             finally { await this.refresh(); }
         }, 'primary'));
-        const { close } = modal('Properties', content);
+        const { close, dialog } = modal('Properties', content);
+        dialog.addEventListener('close', () => lifetime.abort(), { once: true });
+        this.events.signal.addEventListener('abort', () => { lifetime.abort(); close(); }, { once: true, signal: lifetime.signal });
     }
     private menu(anchor: HTMLElement | { x: number; y: number }, background = !this.selected.size, overflow: HTMLButtonElement[] = []) {
         const content = el('div', 'menu-actions');

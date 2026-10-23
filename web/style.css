@@ -843,6 +843,20 @@ h3 {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.property-size {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.property-size > span:first-child {
+  font-variant-numeric: tabular-nums;
+}
+.property-size button {
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: inherit;
+}
 .tls-status {
   display: flex;
   flex-direction: column;

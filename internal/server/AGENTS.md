@@ -54,6 +54,8 @@ Authenticated `GET /api/processes?sort=ram|cpu&allowCore=true|false` passes the 
 
 Authenticated `GET /api/update` reads the shared cached update status and a command for this server executable using `update.Command`: short `tuxee` when PATH resolves to the same installation, otherwise the shell-quoted absolute path, with sudo for non-root users. CSRF-protected POST requests a rate-limited check through internal/update. Neither endpoint installs or restarts. The CLI starts the checker with the server lifecycle; failures retain known update availability.
 
+`POST /api/file-size` uses normal session/origin/CSRF admission and streams no-store NDJSON from the credential-dropped file worker. Limit scans to two globally, each with a five-minute deadline and five-second write deadlines. Disconnect, aborted requests and logout cancel/reap the worker; the file client escalates unresponsive helpers after three seconds. Accept only a bounded list of paths, with validation owned by the worker.
+
 # Work Guidance
 
 Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.

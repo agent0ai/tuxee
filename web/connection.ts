@@ -55,6 +55,7 @@ export class BackendConnection {
     };
     private show() {
         if (this.dialog || this.events.signal.aborted) return;
+        window.dispatchEvent(new Event('tuxee-disconnected'));
         const message = 'Connection lost, reconnecting...';
         const dialog = this.dialog = el('dialog', 'modal connection-overlay');
         dialog.setAttribute('aria-label', message);

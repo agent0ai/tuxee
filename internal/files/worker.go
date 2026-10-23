@@ -104,6 +104,9 @@ func Worker() error {
 	if request.Operation == "zip-download" {
 		return streamZIP(ctx, request, os.Stdout)
 	}
+	if request.Operation == "size" {
+		return streamSize(ctx, request.Paths, os.Stdout)
+	}
 	response, download, err := execute(ctx, request, reader)
 	if err != nil {
 		response = Response{Error: err.Error()}

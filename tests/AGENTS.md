@@ -116,6 +116,8 @@ Keep implementation and checks small and complete.
 - Layout-label checks cover all four mode names, initial icon-only width, animated expansion/collapse, two-second pointer-leave delay, hover re-entry cancellation, keyboard activation without hover and the Auto layout native tooltip.
 - Addition checks in `test:layout` cover maximum terminal area and vertical-only file growth in empty workspaces, fragmented gaps and one-cell holes, preserving neighbors and metadata. `test:dividers` verifies real Add controls on desktop/ultrawide/portrait/mobile, stable terminal DOM/PID, Custom-mode reset, active compact selection and expanded geometry after reload. Existing drag-add checks retain exact preview sizing.
 
+- `node tests/file-size.mjs`: isolated real HTTP server and temporary marked Linux account, removed afterward. Verify automatic 500 ms progress, mixed file/folder totals, sparse/hardlink sizes, spaced full units and status-before-button order, unreadable/empty folders and symlinks; Stop/Calculate, completion, modal-close/offline/logout worker cleanup, admission limits, low-priority scanning thread, bounded RSS and desktop/mobile screenshots. Run after rebuilding the frontend and binary, sequentially with other browser suites. `go test -race ./internal/files ./internal/server` covers traversal and API admission; run the size tests as a non-root account too.
+
 # Child DOX Index
 
 No child documents yet.

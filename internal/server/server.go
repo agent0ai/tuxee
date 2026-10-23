@@ -59,6 +59,7 @@ type Server struct {
 	logins       map[[32]byte]*login
 	archives     map[string]*archiveDownload
 	fileSlots    chan struct{}
+	sizeSlots    chan struct{}
 	scriptHash   string
 	monitor      *monitor.Collector
 	processReads chan struct{}
@@ -69,6 +70,7 @@ func New(gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manag
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32)}
 	s.monitor = monitor.New()
 	s.processReads = make(chan struct{}, 2)
+	s.sizeSlots = make(chan struct{}, 2)
 	s.processKills = make(chan struct{}, 2)
 	if data, err := fs.ReadFile(assets, "script-csp.txt"); err == nil {
 		if hash, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data))); err == nil && len(hash) == 32 {
@@ -368,6 +370,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, 200, value)
 	case r.URL.Path == "/api/files" && r.Method == "POST":
 		s.fileOperation(w, r, session)
+	case r.URL.Path == "/api/file-size" && r.Method == "POST":
+		s.fileSize(w, r, session)
 	case r.URL.Path == "/api/upload" && r.Method == "POST":
 		s.upload(w, r, session)
 	case strings.HasPrefix(r.URL.Path, "/api/preview/") && (r.Method == "GET" || r.Method == "HEAD"):

@@ -18,6 +18,8 @@ Access times reflect each operation's filesystem snapshot. Resolving or reading 
 
 Launch file workers from `identity.Self` so an on-disk binary update cannot change the helper protocol of a running server.
 
+`size` streams NDJSON progress for mixed absolute paths under the user’s credentials. Sum apparent file/symlink bytes, omit directory inode sizes, and count hard links per entry; do not follow directory symlinks. Deduplicate selected paths/subtrees. Read unsorted directory batches of 128 without file contents, yield 10 ms per 128 entries, and use best-effort nice 19/idle I/O priority on the scanning thread. Emit at most every 500 ms plus initial/final snapshots. Bound traversal depth/open directories to 128, detect ancestor inode cycles, and report unreadable/skipped entries with a partial total. Cancellation stops traversal; the server owns the hard timeout.
+
 # Work Guidance
 
 Never pre-check permissions as root and then perform the operation as root. Do not follow directory symlinks during recursive copy/delete. Configuration is user-owned and replaced atomically.
@@ -25,6 +27,8 @@ Never pre-check permissions as root and then perform the operation as root. Do n
 # Verification
 
 Run `go test ./internal/files -v`. Worker tests cover incomplete/cancelled uploads, collision preservation, numbered file/folder names, concurrent unique uploads, directory preparation, symlink copying and consistent stat/list metadata, same-directory duplication/naming/cancellation, and directory-into-descendant rejection. Real credential boundaries are checked by identity tests. `TUXEE_SYSTEM_TEST=1 go test ./tests` verifies cleanup of failed copies containing read-only directories as an unprivileged user; browser tests cover HTTP file operations and cancellation.
+
+Size checks cover mixed/overlapping selections, empty directories, sparse files, symlink cycles, hard links, progress cadence, cancellation and partial permission failures.
 
 Run package tests as a regular user too. Fixtures that remove directory write access must restore it through `t.Cleanup` before `t.TempDir` cleanup.
 
