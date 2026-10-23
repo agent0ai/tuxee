@@ -66,7 +66,10 @@ async function drag(id, name, finish = true) {
     const hovered = await tab(name).locator('..').getAttribute('data-workspace');
     assert.equal(await page.locator('[data-component-drop]').count(), 1, 'only the hovered tab is marked');
     assert.deepEqual((await tabStyles()).filter(tab => tab.id !== hovered), before.filter(tab => tab.id !== hovered));
-    assert.notEqual(await tab(name).locator('..').evaluate(tab => getComputedStyle(tab).borderStyle), 'dashed');
+    const normal = before.find(tab => tab.id === hovered), highlighted = (await tabStyles()).find(tab => tab.id === hovered);
+    assert.equal(highlighted.border, normal.border, 'drop feedback adds no border');
+    assert.equal(highlighted.shadow, normal.shadow, 'drop feedback adds no outline shadow');
+    assert.notEqual(highlighted.background, normal.background, 'drop feedback keeps its background highlight');
     if (finish) await page.mouse.up();
 }
 try {
@@ -114,7 +117,7 @@ try {
     await page.keyboard.press('Escape'); await page.mouse.up();
     await drag('shell', 'Full', false);
     assert.equal(await tab('Full').locator('..').getAttribute('data-component-drop'), 'blocked');
-    assert.notEqual(await tab('Full').locator('..').evaluate(node => getComputedStyle(node).boxShadow), 'none');
+    assert.equal(await tab('Full').locator('..').evaluate(node => getComputedStyle(node).boxShadow), 'none');
     await page.screenshot({ path: 'test-results/component-drop-full.png' });
     await page.mouse.up(); await page.waitForTimeout(250);
     assert.equal((await snapshot()).workspaces[0].panels.find(panel => panel.id === 'shell').terminal, terminal.id);
