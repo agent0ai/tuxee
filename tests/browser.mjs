@@ -601,7 +601,7 @@ try {
     await widget.hover();
     const handle = widget.locator('.panel-resize-se');
     const hb = await handle.boundingBox();
-    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.move(hb.x + hb.width - 2, hb.y + hb.height - 2);
     await page.mouse.down();
     await page.mouse.move(hb.x - oldBox.width * .38, hb.y + hb.height / 2, { steps: 10 });
     const liveRect = await widget.boundingBox();

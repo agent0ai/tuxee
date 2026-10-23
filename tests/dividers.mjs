@@ -75,6 +75,43 @@ async function drag(handle, dx, dy, cancel = false) {
 }
 try {
     await mkdir('test-results', { recursive: true });
+    await fixture([panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)]);
+    const display = await context.newCDPSession(page);
+    for (const theme of ['dark', 'light']) {
+        if (theme === 'light') await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+        for (const scale of [1, 1.25, 2]) for (const zoom of [1, .75, 1.25, 1.5, 2]) {
+            for (const [width, height] of [[1440, 1000], [2560, 1080], [3440, 1440], [900, 1200], [390, 844]]) {
+                // Desktop zoom reduces CSS viewport dimensions and increases effective device scale.
+                const viewport = { width: Math.round(width / zoom), height: Math.round(height / zoom) };
+                await display.send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: scale * zoom, mobile: false });
+                await page.waitForTimeout(350);
+                const label = `${theme} ${width}x${height}, scale ${scale}, zoom ${zoom}`;
+                if (viewport.width < 760 || viewport.height < 480) {
+                    assert.equal(await page.locator('.panel-resize:visible').count(), 0, label);
+                    continue;
+                }
+                for (const id of ['a', 'b']) for (const edge of ['se', 'sw']) {
+                    const handle = item(id).locator(`.panel-resize-${edge}`);
+                    const frame = await item(id).locator('.panel').boundingBox(), grip = await handle.boundingBox();
+                    assert.ok(Math.abs(grip.y + grip.height - frame.y - frame.height) < 1, `${label}: corner aligns with frame bottom`);
+                    assert.ok(Math.abs(edge === 'se' ? grip.x + grip.width - frame.x - frame.width : grip.x - frame.x) < 1, `${label}: corner aligns with frame side`);
+                    const point = await resizePoint(handle);
+                    if (width === 1440 && (id === 'a' && edge === 'se' || id === 'b' && edge === 'sw')) {
+                        const before = await rect(id);
+                        await page.mouse.move(point.x, point.y); await page.mouse.down();
+                        await page.mouse.move(point.x + (edge === 'se' ? -20 : 20), point.y - 20, { steps: 4 });
+                        await page.locator('.resizing-panel').waitFor();
+                        await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(220);
+                        assert.deepEqual(await rect(id), before, `${label}: corner drag and cancellation`);
+                    }
+                }
+                if (width === 1440 && scale === 1 && zoom === 1)
+                    await page.screenshot({ path: `test-results/resize-corners-${theme}.png` });
+            }
+        }
+        console.log(`PASS ${theme} corner alignment, hit targets and resizing across five window sizes, 75–200% emulated zoom and 1/1.25/2 device scales`);
+    }
+    await display.send('Emulation.clearDeviceMetricsOverride'); await display.detach();
     for (const [width, height] of [[1440, 1000], [2560, 1080], [900, 1200], [390, 844]]) {
         const portrait = height > width;
         for (const kind of ['files', 'terminal']) {
