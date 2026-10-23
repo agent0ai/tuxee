@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
 
@@ -18,7 +18,7 @@ try {
     const me = await (await context.request.get(base + '/api/me')).json();
     const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
     const response = await api('/terminals', 'POST', { name: 'Transport test', columns: 80, rows: 24 });
-    assert.equal(response.status(), 201);
+    assert.equal(response.status(), 201, await response.text());
     const info = await response.json(); terminals.push(info.id);
     const bundle = await build({ stdin: { contents: `
         import { TerminalView } from './web/term';
@@ -214,6 +214,57 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(resizeRequests.length,resizeBefore+2,'only latest pending dimensions sent');
     assert.equal(await page.evaluate(()=>view.term.options.scrollback),await page.evaluate(()=>retainedScrollback(view.term.cols,view.term.rows)));
     console.log('PASS coalesced resize and matching retained history');
+
+    // Fill the real transport window while parsing is held, then drain it in order.
+    await page.evaluate(() => {
+        const write = view.term.write.bind(view.term);
+        window.outputWrites = [];
+        view.term.write = (data, callback) => outputWrites.push(() => write(data, callback));
+        window.releaseOutput = () => { view.term.write = write; for (const submit of outputWrites) submit(); };
+    });
+    const burst = `import os\nfor i in range(2000): os.write(1,('BATCH_%04d '%i+'x'*30+'\\r\\n').encode())\nos.write(1,b'BATCH_DONE\\r\\n')\n`;
+    await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(burst).toString('base64')}'))"\n`);
+    await page.waitForFunction(() => outputWrites.length >= 8);
+    const columns = await page.evaluate(() => view.term.cols), barrierStart = resizeRequests.length;
+    await page.locator('#terminal').evaluate(node => node.style.width = '820px');
+    for (let i=0; resizeRequests.length===barrierStart && i<100; i++) await page.waitForTimeout(20);
+    assert.equal(resizeRequests.length, barrierStart+1);
+    await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => view.term.cols), columns, 'resize waits for preceding writes');
+    await page.evaluate(() => releaseOutput());
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('BATCH_DONE'));
+    await idle();
+    const batchHistory = await page.evaluate(() => [...Array(view.term.buffer.active.length)].map((_,i) => view.term.buffer.active.getLine(i).translateToString()).join('\n'));
+    assert.equal((batchHistory.match(/BATCH_\d{4}/g) || []).length, 2000);
+    assert.ok(await page.evaluate(() => view.term.cols) !== columns);
+    console.log('PASS output pipelines while parsing is pending; resize is an ordered barrier and all 2,000 rows survive');
+
+    // A real SIGWINCH handler rebuilds scrollback slowly, beyond xterm's one-second timeout.
+    const redraw = `import os,signal,termios,tty,time\nold=termios.tcgetattr(0)\ndef resize(*_):\n time.sleep(.4)\n os.write(1,b'\\x1b[?2026h\\x1b[3J\\x1b[2J\\x1b[HPARTIAL_REDRAW\\r\\n')\n time.sleep(1.6)\n for i in range(80): os.write(1,('REBUILT_%02d\\r\\n'%i).encode())\n os.write(1,b'REDRAW_COMPLETE\\x1b[?2026l')\nsignal.signal(signal.SIGWINCH,resize)\ntry:\n tty.setraw(0)\n os.write(1,b'\\x1b[2J\\x1b[HBEFORE_RESIZE')\n while os.read(0,1)!=b'q': pass\nfinally: termios.tcsetattr(0,termios.TCSANOW,old)\n`;
+    await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(redraw).toString('base64')}'))"\n`);
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('BEFORE_RESIZE'));
+    await idle(); await page.waitForTimeout(350);
+    await page.evaluate(() => {
+        window.beforeResize = document.querySelector('.xterm-rows').textContent;
+        window.beforeScrollbar = document.querySelector('.xterm .slider').getAttribute('style');
+        window.resizePaints = [];
+        window.resizeObserver = new MutationObserver(() => resizePaints.push(document.querySelector('.xterm-rows').textContent));
+        resizeObserver.observe(document.querySelector('.xterm-rows'), {childList:true,characterData:true,subtree:true});
+    });
+    await mkdir('test-results', {recursive:true});
+    await page.screenshot({path:'test-results/terminal-resize-before.png'});
+    await page.locator('#terminal').evaluate(node => node.style.width = '700px');
+    await page.waitForFunction(() => view.term.buffer.active.getLine(0)?.translateToString().includes('PARTIAL_REDRAW'));
+    await page.waitForTimeout(1200);
+    assert.ok(await page.evaluate(() => document.querySelector('.xterm-rows').textContent === beforeResize), 'old frame stays visible beyond the synchronized-output timeout');
+    assert.ok(await page.evaluate(() => document.querySelector('.xterm .slider').getAttribute('style') === beforeScrollbar), 'scrollbar stays stable during reconstruction');
+    await page.screenshot({path:'test-results/terminal-resize-during.png'});
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('REDRAW_COMPLETE'));
+    assert.ok(await page.evaluate(() => resizePaints.every(text => text === beforeResize || text.includes('REDRAW_COMPLETE'))), 'no partial transcript is painted');
+    await page.evaluate(() => resizeObserver.disconnect());
+    await page.screenshot({path:'test-results/terminal-resize-after.png'});
+    await input('q'); await idle();
+    console.log('PASS real PTY resize reconstructs in the background beyond one second, preserving the old frame and scrollbar until completion');
 
     for(const malformed of [Buffer.alloc(3),JSON.stringify({type:'resize',columns:999,rows:24,sequence:2}),JSON.stringify({type:'mystery'}),JSON.stringify({type:'ack'}),JSON.stringify({type:'exit',sequence:Number.MAX_SAFE_INTEGER+1}),JSON.stringify({type:'closed'})]) {
         const before=connections; client.send(malformed);

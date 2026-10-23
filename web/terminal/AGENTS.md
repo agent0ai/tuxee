@@ -18,6 +18,8 @@ terminalDimensions uses untransformed xterm content-box dimensions and measured 
 
 Install installTerminalView after terminal.open. Its theme-service subscription paints the entire xterm element with the canonical background, including padding and incomplete-row space. Follow live palette changes and snapshot restoration without resetting application colors; dispose the subscription with xterm.
 
+installTerminalResize keeps existing DOM rows, cursor and scrollbar geometry visible while resize output is parsed, without cloning the terminal or pausing input/acknowledgements. Release at the parsed DEC 2026 end, including after xterm's own timeout and before an adjacent new frame. For unmarked output, settle after 120 ms of parsing silence; a silent resize releases after 300 ms. During the five-second resize window, a parsed scrollback clear or synchronized-output begin can hold a late redraw; neither extends that deadline. Explicit release cancels this window. Preserve hidden-view handling, refresh final dimensions on release, and dispose timers/hooks with xterm. Keep all private renderer/viewport access in this adapter.
+
 interaction.ts uses public terminal APIs and screen touch events. One-finger movement scrolls normal-buffer history by measured row height unless an application owns wheel reports. Application mouse modes and alternate-screen cursor keys use xterm's existing wheel encoder. Preserve taps, mouse selection and multi-touch zoom; cancel gesture state on touch cancellation/end and remove listeners on view disposal. This bridges the pinned xterm 6.0 touch regression; reassess when upgrading the matched engines.
 
 # Work Guidance
@@ -27,6 +29,8 @@ Preserve upstream validation and memory bounds. Bundle runtime.ts into the Go te
 # Verification
 
 `node tests/terminal-metrics.mjs` verifies real Chromium column alignment across spaces, bold/italic text, wide/combined characters and emoji, three font stacks, 80/179/240 columns and DPR 1/1.25/2. It also verifies adjacent/split DEC 2026 frames retain the completed frame and its cursor, and query replies are suppressed without suppressing keyboard input. It checks block pixels/shapes and copied text, canonical snapshot background coverage, and full-width fitting without a scrollbar gutter. An optional recording path replays the supplied Spynel frame at its recorded dimensions and saves `test-results/spynel-replay-fixed.png`.
+
+Resize regressions cover late and adjacent synchronized-frame ends, unmarked output, silent applications, the missing-end deadline and explicit release. The real PTY transport suite checks a SIGWINCH scrollback rebuild lasting beyond one second, stable old text/scrollbar until completion, pipelined output and metadata barriers.
 
 Run `npm run build` after changing these sources, then `go test ./internal/terminal`. This bundles the same xterm engine for execution inside Go through goja; Node/Deno are not runtime dependencies.
 

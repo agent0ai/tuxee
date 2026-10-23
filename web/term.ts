@@ -1,6 +1,6 @@
 import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
-import { installTerminalView, installTerminalMetrics, installTerminalUnicode, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
+import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
@@ -30,6 +30,8 @@ export class TerminalView implements View {
     private pendingBytes = 0;
     private inFlight: number[] = [];
     private displayQueue = Promise.resolve();
+    private displayWrites = new Set<Promise<void>>();
+    private resizeDisplay: ReturnType<typeof installTerminalResize>;
     private uncertainInput = false;
     private resizing = false;
     private lastSize = '';
@@ -65,6 +67,8 @@ export class TerminalView implements View {
         this.term.open(this.host);
         installTerminalView(this.term);
         installTerminalMetrics(this.term);
+        this.resizeDisplay = installTerminalResize(this.term);
+        for (const event of ['pointerdown', 'wheel']) this.host.addEventListener(event, () => this.resizeDisplay.release(), { signal: this.events.signal, passive: true });
         installTerminalTouch(this.term, this.events.signal);
         this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
         this.term.onData(data => this.input(data));
@@ -96,6 +100,7 @@ export class TerminalView implements View {
         if (point) animateFileDrop(uploaded, point, this.host);
     }
     private state(value: string) {
+        if (value !== 'connected' && value !== 'viewing') this.resizeDisplay.release();
         this.root.dataset.state = value;
         this.term.options.disableStdin = !this.canUpload();
         this.control.hidden = !this.ready || this.controller || this.ended;
@@ -205,6 +210,7 @@ export class TerminalView implements View {
                         if (!this.resizing || value.sequence !== undefined) throw Error('Unexpected terminal resize acknowledgement');
                         this.resizing = false; this.resize(); return;
                     case 'error':
+                        this.resizeDisplay.release();
                         if (typeof value.message !== 'string') throw Error('Invalid terminal error');
                         this.discardInput(); this.notice(value.message);
                         if (value.sequence === undefined) return;
@@ -239,6 +245,16 @@ export class TerminalView implements View {
                 this.state(this.ended ? 'ended' : this.ready ? this.controller ? 'connected' : 'viewing' : 'connecting');
                 this.displayQueue = this.displayQueue.then(async () => {
                     if (!current()) return;
+                    if (value.type !== 'data') {
+                        await Promise.all(this.displayWrites);
+                        if (!current()) return;
+                    }
+                    const rendered = () => {
+                        if (!current()) return;
+                        this.sendControl({ type: 'rendered', sequence: value.sequence });
+                        queuedFrames--; queuedBytes -= bytes;
+                        this.state(this.ended ? 'ended' : this.controller ? 'connected' : 'viewing');
+                    };
                     switch (value.type) {
                         case 'snapshot':
                             restoreTerminal(this.term, value.snapshot);
@@ -249,19 +265,22 @@ export class TerminalView implements View {
                                 this.uncertainInput = false;
                             }
                             break;
-                        case 'data':
-                            await new Promise<void>(resolve => this.term.write(value.data, resolve));
-                            break;
+                        case 'data': {
+                            // Let xterm batch consecutive writes; metadata and recovery remain barriers.
+                            const write = new Promise<void>(resolve => this.term.write(value.data, () => { rendered(); resolve(); }));
+                            this.displayWrites.add(write);
+                            void write.then(() => this.displayWrites.delete(write), error => { this.displayWrites.delete(write); failed(error); });
+                            return;
+                        }
                         case 'resize':
+                            this.resizeDisplay.begin();
                             this.term.options.scrollback = retainedScrollback(value.columns, value.rows);
                             this.term.resize(value.columns, value.rows);
                             break;
                         case 'display': this.display.update(value.display); break;
                     }
                     if (!current()) return;
-                    this.sendControl({ type: 'rendered', sequence: value.sequence });
-                    queuedFrames--; queuedBytes -= bytes;
-                    this.state(this.ended ? 'ended' : this.controller ? 'connected' : 'viewing');
+                    rendered();
                     if (value.type === 'snapshot') this.resize();
                 }).catch(failed);
             } catch (error) { failed(error); }
@@ -303,6 +322,7 @@ export class TerminalView implements View {
     }
     private input(data: string, binary = false) {
         if (!this.canUpload() || !data.length) return;
+        this.resizeDisplay.release();
         const available = 256 * 1024 - this.pendingBytes;
         const busy = () => this.notice('Input is busy; wait before pasting more');
         if (data.length > available) { busy(); return; }
@@ -335,6 +355,7 @@ export class TerminalView implements View {
         if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
         this.term.refresh(0, this.term.rows - 1);
+        if (this.root.closest('.resizing-panel, .resizing-dividers')) return;
         if (!this.canUpload() || this.resizing)
             return;
         const proposed = terminalDimensions(this.term);

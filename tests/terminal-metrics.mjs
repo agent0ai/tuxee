@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 const bundle = await build({
     stdin: { contents: `
         import { Terminal } from '@xterm/xterm';
-        import { installTerminalMetrics, installTerminalUnicode, installTerminalView, restoreTerminal, terminalDimensions } from './web/terminal/state';
+        import { installTerminalMetrics, installTerminalUnicode, installTerminalView, installTerminalResize, restoreTerminal, terminalDimensions } from './web/terminal/state';
         import { TerminalEngine } from './web/terminal/engine';
         window.terminalDimensions = terminalDimensions;
         window.restoreTerminal = restoreTerminal;
@@ -22,6 +22,7 @@ const bundle = await build({
             term.open(document.querySelector('#terminal'));
             installTerminalView(term);
             installTerminalMetrics(term);
+            window.resizeDisplay = installTerminalResize(term);
         };
     `, resolveDir: process.cwd() },
     bundle: true, platform: 'browser', format: 'iife', write: false,
@@ -130,6 +131,61 @@ try {
         assert.ok(frames.finished.text.includes('INCOMPLETE'));
         assert.equal(frames.finished.cursors, 1);
         assert.deepEqual(frames.outgoing, ['\x01'], 'view suppresses terminal query replies while preserving keyboard input');
+        if (dpr === 1) {
+            const holds = await page.evaluate(async () => {
+                const write = data => new Promise(resolve => term.write(data, resolve));
+                const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+                const text = () => document.querySelector('.xterm-rows').textContent;
+                await write('\x1b[?1049l\x1b[2J\x1b[HOLD'); await pause(50);
+                resizeDisplay.begin(); term.resize(70, 10);
+                await write('\x1b[?25;2026h\x1b[2J\x1b[HCOMPLETE');
+                await pause(1100);
+                await write('\x1b[?25l'); // Unused parser parameter slots must not look like a frame end.
+                const beforeEnd = text();
+                await write('\x1b[?2026l\x1b[?2026h\x1b[2J\x1b[HNEXT');
+                await pause(50);
+                const adjacent = text();
+                await write('\x1b[?2026l'); await pause(50);
+                const next = text();
+                resizeDisplay.begin(); term.resize(60, 9);
+                await write('\x1b[2J\x1b[HNO_MARKERS');
+                const quietBefore = text(); await pause(180); const quietAfter = text();
+                resizeDisplay.begin(); term.resize(65, 11);
+                await pause(350);
+                const silentRows = document.querySelector('.xterm-rows').children.length;
+                await write('\x1b[3J\x1b[2J\x1b[H');
+                await write('\x1b[?2026hLATE_COMPLETE');
+                await pause(1100); const lateBefore = text();
+                await write('\x1b[?2026l'); const lateAfter = text();
+                resizeDisplay.begin();
+                const started = performance.now();
+                await write('\x1b[?2026h\x1b[2J\x1b[HMISSING_END');
+                await pause(1100); const deadlineBefore = text();
+                await pause(Math.max(0, 5150 - (performance.now()-started)));
+                const deadlineAfter = text();
+                await write('\x1b[?2026l');
+                resizeDisplay.begin(); await write('\x1b[2J\x1b[HRELEASED');
+                resizeDisplay.release();
+                await write('\x1b[3J\x1b[2J\x1b[HRELEASED'); await pause(50);
+                const released = text();
+                term.element.style.display = 'none'; await pause(100);
+                resizeDisplay.begin(); term.resize(72,13);
+                await write('\x1b[?2026h\x1b[2J\x1b[HHIDDEN_COMPLETE\x1b[?2026l');
+                term.element.style.display = ''; await pause(150);
+                const hidden = {rows:document.querySelector('.xterm-rows').children.length,text:text()};
+                return {beforeEnd,adjacent,next,quietBefore,quietAfter,silentRows,lateBefore,lateAfter,deadlineBefore,deadlineAfter,released,hidden};
+            });
+            assert.ok(holds.beforeEnd.includes('OLD') && !holds.beforeEnd.includes('COMPLETE'));
+            assert.ok(holds.adjacent.includes('COMPLETE') && !holds.adjacent.includes('NEXT'), 'late end followed by another begin reveals exactly the completed frame');
+            assert.ok(holds.next.includes('NEXT'));
+            assert.ok(!holds.quietBefore.includes('NO_MARKERS') && holds.quietAfter.includes('NO_MARKERS'));
+            assert.equal(holds.silentRows,11,'silent resize releases without waiting for output');
+            assert.ok(holds.lateBefore.includes('NO_MARKERS') && holds.lateAfter.includes('LATE_COMPLETE'),'a late scrollback rebuild still presents atomically');
+            assert.ok(!holds.deadlineBefore.includes('MISSING_END') && holds.deadlineAfter.includes('MISSING_END'),'missing terminator cannot hold the display indefinitely');
+            assert.ok(holds.released.includes('RELEASED'),'explicit release paints the latest parsed state');
+            assert.ok(holds.hidden.rows === 13 && holds.hidden.text.includes('HIDDEN_COMPLETE'),'hidden views restore the final geometry and frame');
+            console.log('PASS resize presentation: late/adjacent frame boundaries, unmarked output, silent apps, bounded missing-end fallback and explicit release');
+        }
         await page.evaluate(async () => {
             const snapshot = await window.canonical('\x1b[?1049h\x1b[48;2;17;25;39m👋' + ' '.repeat(94) + '\r\n👍' + ' '.repeat(94), 96, 25);
             window.restoreTerminal(window.term, snapshot);

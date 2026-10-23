@@ -637,7 +637,7 @@ export function endSynchronizedOutput(terminal: any): void {
   terminal._core.coreService.decPrivateModes.synchronizedOutput = false;
 }
 
-/** Observe xterm's parsed mode transition before later bytes mutate the frame. */
+/** Observe the parsed frame end before later bytes mutate the completed display. */
 export function onSynchronizedOutputEnd(
   terminal: any,
   callback: () => void,
@@ -646,13 +646,81 @@ export function onSynchronizedOutputEnd(
   const core = terminal._core.coreService;
   const reset = input.resetModePrivate;
   input.resetModePrivate = function (...args: any[]) {
-    const wasSynchronized = core.decPrivateModes.synchronizedOutput;
     const result = reset.apply(this, args);
-    if (wasSynchronized && !core.decPrivateModes.synchronizedOutput) callback();
+    // The renderer's timeout may have cleared the mode before the actual end arrives.
+    if (args[0].params.subarray(0, args[0].length).includes(2026) && !core.decPrivateModes.synchronizedOutput) callback();
     return result;
   };
   return () => {
     input.resetModePrivate = reset;
+  };
+}
+
+/** Keep the existing DOM and scrollbar stable while a resize redraw is parsed. */
+export function installTerminalResize(terminal: any): { begin(): void; release(): void } {
+  const core = terminal._core, render = core._renderService;
+  const renderer = render._renderer.value, viewport = core._viewport;
+  let held = false, synchronized = false;
+  let expires = 0;
+  let quiet: ReturnType<typeof setTimeout>, deadline: ReturnType<typeof setTimeout>;
+  const originals = ["renderRows", "handleResize", "clear"].map(name => {
+    const original = renderer[name];
+    renderer[name] = (...args: any[]) => { if (!held) return original.apply(renderer, args); };
+    return { name, original };
+  });
+  const sync = viewport._sync;
+  viewport._sync = (...args: any[]) => { if (!held) return sync.apply(viewport, args); };
+  const present = () => {
+    if (!held) return;
+    held = false;
+    clearTimeout(quiet); clearTimeout(deadline);
+    render.handleResize(terminal.cols, terminal.rows);
+    viewport._latestYDisp = undefined;
+    viewport._sync();
+    terminal.refresh(0, terminal.rows - 1);
+    if (!render._isPaused) {
+      render._renderDebouncer.dispose();
+      render._renderDebouncer._innerRefresh();
+    }
+  };
+  const release = () => { expires = 0; present(); };
+  const hold = () => {
+    if (held || performance.now() >= expires) return;
+    held = true;
+    synchronized = terminal.modes.synchronizedOutputMode;
+    deadline = setTimeout(release, expires - performance.now());
+    if (!synchronized) quiet = setTimeout(present, 300);
+  };
+  core._register(terminal.parser.registerCsiHandler({ prefix: "?", final: "h" }, (params: number[]) => {
+    if (params.includes(2026)) {
+      hold();
+      if (held) { synchronized = true; clearTimeout(quiet); }
+    }
+    return false;
+  }));
+  core._register(terminal.parser.registerCsiHandler({ final: "J" }, (params: number[]) => {
+    // Transcript formatting can finish after the initial silent-resize grace period.
+    if (params[0] === 3) hold();
+    return false;
+  }));
+  const stop = onSynchronizedOutputEnd(terminal, present);
+  core._register(terminal.onWriteParsed(() => {
+    if (held && !synchronized) {
+      clearTimeout(quiet);
+      quiet = setTimeout(present, 120);
+    }
+  }));
+  core._register({ dispose() {
+    clearTimeout(quiet); clearTimeout(deadline); stop();
+    for (const { name, original } of originals) renderer[name] = original;
+    viewport._sync = sync;
+  } });
+  return {
+    begin() {
+      expires = performance.now() + 5000;
+      hold();
+    },
+    release,
   };
 }
 

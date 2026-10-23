@@ -22,6 +22,10 @@ assert.equal(neighborResponse.status(), 201);
 const neighbor = await neighborResponse.json();
 const addedTerminals = [];
 const page = await context.newPage(), errors = [];
+let terminalResizes = 0;
+page.on('websocket', socket => socket.on('framesent', ({payload}) => {
+    if (typeof payload === 'string' && JSON.parse(payload).type === 'resize') terminalResizes++;
+}));
 page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
     window.geometryFrames = {};
@@ -51,11 +55,15 @@ async function fixture(panels, portrait = false, mode = 0) {
     await item('a').locator('.terminal-view[data-state=connected]').waitFor();
 }
 async function drag(handle, dx, dy, cancel = false) {
+    await page.waitForTimeout(350);
+    const sentBefore = terminalResizes;
     const box = await handle.boundingBox();
     await page.evaluate(() => { delete window.geometryFrames.a; });
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 4 });
     const live = await item('a').boundingBox();
+    await page.waitForTimeout(150);
+    assert.equal(terminalResizes, sentBefore, 'paused divider preview does not resize any PTY');
     const highlight = await handle.boundingBox(), axis = await handle.getAttribute('data-axis');
     assert.ok(await handle.evaluate(node => node.classList.contains('divider-active')), 'keep the captured handle highlighted');
     assert.ok(Math.abs(highlight.x + highlight.width / 2 - (axis === 'y' ? box.x + box.width / 2 : live.x + live.width)) < 2, 'highlight follows the live vertical boundary');
@@ -167,10 +175,14 @@ try {
         const originals = await Promise.all(['a', 'b'].map(id => item(id).locator('.xterm').elementHandle()));
         const bounds = await page.locator('.grid-stack').boundingBox();
         const grip = await resizePoint(item('a').locator(`.panel-resize-${test.edge}`));
+        await page.waitForTimeout(350);
+        const sentBefore = terminalResizes;
         await page.mouse.move(grip.x, grip.y); await page.mouse.down();
         await page.mouse.move(grip.x + test.dx * bounds.width / (test.portrait ? 2 : 4),
             grip.y + test.dy * bounds.height / (test.portrait ? 4 : 2), { steps: 6 });
         const preview = page.locator('.dock-preview[data-edge=resize]'); await preview.waitFor();
+        await page.waitForTimeout(150);
+        assert.equal(terminalResizes, sentBefore, 'paused panel preview does not resize any PTY');
         assert.equal(await preview.evaluate(node => node.classList.contains('invalid')), !!test.invalid, test.name);
         for (const p of panels) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h], 'preview preserves saved geometry');
         const live = await item('a').boundingBox();
