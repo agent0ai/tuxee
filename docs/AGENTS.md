@@ -25,6 +25,8 @@ because their commands are documented.
 
 Keep ordinary deployment zero-configuration: start the supplied image, forward proxies to HTTP 80 and persist data independently. Never prescribe per-domain origin values, ACME changes or host config files for reverse proxies. Put custom JSON/listener choices under optional configuration. Keep operational details here and link them from the root README. `guide.md#listening-ports` owns independent port defaults/zero semantics, precedence, legacy-mode migration, HTTP/proxy security and internal versus published ports. Keep Docker examples and CLI help consistent; never imply nonstandard public HTTPS ports satisfy TLS-ALPN-01 validation.
 
+Document `tuxee ports` as editing saved configuration, with explicit restart and startup override precedence. Use `--config` for named/custom installations; distinguish container listening ports from host-published ports and container restart from recreation.
+
 # Verification
 
 Use the build commands in `install.md` and verification commands in `guide.md`.

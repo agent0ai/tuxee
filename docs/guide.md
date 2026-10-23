@@ -69,7 +69,7 @@ sudo ./bin/tuxee stop
 sudo ./bin/tuxee service uninstall
 ```
 
-Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc/tuxee/config.json` on first installation, registers `/etc/systemd/system/tuxee.service`, and enables boot startup. It reports whether the service is running; `start` is explicit. Repeat installation preserves existing configuration and rejects unrelated units. Edit the existing configuration and restart to change deployed settings. Uninstall unregisters the service and preserves the binary, configuration, certificate state and all user files.
+Installation copies the executable to `/usr/local/lib/tuxee/tuxee`, writes `/etc/tuxee/config.json` on first installation, registers `/etc/systemd/system/tuxee.service`, and enables boot startup. It reports whether the service is running; `start` is explicit. Repeat installation preserves existing configuration and rejects unrelated units. Use `tuxee ports` for listening ports, or edit the existing configuration for other settings, then restart to apply. Uninstall unregisters the service and preserves the binary, configuration, certificate state and all user files.
 
 Use `--name tuxee-poc` consistently to install/test a separate service identity. Its configuration, binary and default state paths use that name. Lifecycle commands delegate to systemctl/journalctl. Machines without a running systemd manager can use foreground or Docker operation.
 
@@ -98,6 +98,38 @@ sudo env TUXEE_HTTP_PORT=0 TUXEE_HTTPS_PORT=8443 tuxee serve
 sudo env TUXEE_HTTP_PORT=8080 TUXEE_HTTPS_PORT=0 tuxee serve
 ```
 
+To view or change an existing installation's saved ports:
+
+```sh
+sudo tuxee ports                                  # Show saved ports.
+sudo tuxee ports --http-port 8080 --https-port 8443 # Change both.
+sudo tuxee ports --http-port 0                     # Disable HTTP; keep HTTPS.
+sudo tuxee ports --http-port 8080 --https-port 0    # HTTP only.
+sudo tuxee restart                               # Apply to the default systemd service.
+```
+
+`ports` reads `/etc/tuxee/config.json` by default and requires an existing regular
+file. Use `--config /etc/tuxee-poc/config.json` for a named service, or the same
+`--config` path used by your foreground server; restart that service/process
+afterward. For foreground operation without a configuration file, pass
+`--http-port` and `--https-port` directly to `tuxee serve` instead.
+
+Only supplied ports change; other settings, ownership and permissions are
+preserved, and the file is replaced atomically. Invalid ports, equal enabled
+ports and disabling both protocols are rejected without modifying the file.
+Legacy `bind`/`http` configurations must be migrated explicitly as described below.
+The command reports **saved configuration**, not live sockets, and never restarts
+Tuxee automatically. Restarting ends active terminals/GUI apps and login sessions.
+After applying, reopen Tuxee at the new port; the old browser URL may stop working.
+Environment variables are not copied into the file; startup flags and environment
+still override the saved ports. Remove or update those overrides to use the new values.
+
+Inside a container, run `tuxee ports` without `sudo`, then use **Restart Tuxee**
+in the web UI or restart the container. The image's server and healthcheck both
+read the saved configuration. This changes internal listening ports only; Docker
+port mappings must target those ports. Edits in the container survive restarts,
+but recreation restores the image's configuration unless it is persisted separately.
+
 Independent listeners bind all interfaces and each serves the application directly.
 The HTTP listener never redirects to HTTPS, whether HTTPS is enabled or disabled.
 Only plaintext HTTP sent to the HTTPS listener redirects to HTTPS on that same
@@ -120,7 +152,8 @@ rather than ignoring a disabling zero. For a loopback-only proxy listener keep
 before adding port settings. Optional JSON configuration uses the new settings.
 `service install` persists resolved environment/flag settings in its initial JSON;
 existing service JSON is preserved. Later shell environment changes do not change
-an already installed systemd service; edit its JSON or systemd environment and restart.
+an already installed systemd service; use `tuxee ports`, edit its JSON, or change
+its systemd environment and restart.
 
 `tuxee healthcheck [serve options]` probes the preferred enabled listener (HTTPS
 when enabled), with the same parsing and precedence. It sends only a local `/health`

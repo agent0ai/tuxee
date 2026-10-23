@@ -83,6 +83,8 @@ func help() {
 
   tuxee serve [options]                   Run in the foreground
   tuxee healthcheck [serve options]       Probe the configured local listener
+  tuxee ports [--http-port N] [--https-port N] [--config PATH]
+                                         Show/save listening ports; 0 disables
   tuxee service install [--name tuxee] [serve options]
                                          Install and enable a systemd unit
   tuxee service uninstall [--name tuxee]  Unregister; preserve configuration/state
@@ -130,6 +132,8 @@ func run(args []string) error {
 		return nil
 	case "update", "upgrade":
 		return runUpdate(args[1:])
+	case "ports":
+		return runPorts(args[1:], os.Stdout)
 	case "serve", "healthcheck":
 		value, _, err := parseConfig(args[1:], false)
 		if err != nil {
@@ -262,7 +266,6 @@ func serviceName(args []string) (string, error) {
 	return *name, service.ValidateName(*name)
 }
 func parseConfig(args []string, install bool) (config, string, error) {
-	value := config{State: "/var/lib/tuxee", ACME: "auto", PAM: "login"}
 	configPath := ""
 	for i, arg := range args {
 		if arg == "--config" || arg == "-config" {
@@ -274,20 +277,9 @@ func parseConfig(args []string, install bool) (config, string, error) {
 			_, configPath, _ = strings.Cut(arg, "=")
 		}
 	}
-	if configPath != "" {
-		f, err := os.Open(configPath)
-		if err != nil {
-			return value, "", err
-		}
-		defer f.Close()
-		d := json.NewDecoder(io.LimitReader(f, 65537))
-		d.DisallowUnknownFields()
-		if err = d.Decode(&value); err != nil {
-			return value, "", err
-		}
-		if d.Decode(new(any)) != io.EOF {
-			return value, "", errors.New("configuration must contain one JSON object")
-		}
+	value, err := loadConfig(configPath)
+	if err != nil {
+		return value, "", err
 	}
 	f := flag.NewFlagSet("serve", flag.ContinueOnError)
 	for _, port := range []struct {
@@ -335,19 +327,45 @@ func parseConfig(args []string, install bool) (config, string, error) {
 	if err := service.ValidateName(name); err != nil {
 		return value, name, err
 	}
+	return value, name, value.validate()
+}
+
+func loadConfig(path string) (config, error) {
+	value := config{State: "/var/lib/tuxee", ACME: "auto", PAM: "login"}
+	if path == "" {
+		return value, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return value, err
+	}
+	defer f.Close()
+	d := json.NewDecoder(io.LimitReader(f, 65537))
+	d.DisallowUnknownFields()
+	object := &value
+	if err := d.Decode(&object); err != nil {
+		return value, err
+	}
+	if object == nil || d.Decode(new(any)) != io.EOF {
+		return value, errors.New("configuration must contain one JSON object")
+	}
+	return value, nil
+}
+
+func (value config) validate() error {
 	if !filepath.IsAbs(value.State) || value.State == "/" {
-		return value, name, errors.New("state must be an absolute dedicated directory")
+		return errors.New("state must be an absolute dedicated directory")
 	}
 	if _, err := value.listeners(); err != nil {
-		return value, name, err
+		return err
 	}
 	if value.ACME != "auto" && value.ACME != "on" && value.ACME != "off" {
-		return value, name, errors.New("acme must be auto, on, or off")
+		return errors.New("acme must be auto, on, or off")
 	}
 	if value.PAM == "" || strings.ContainsAny(value.PAM, "/\x00") {
-		return value, name, errors.New("invalid PAM service")
+		return errors.New("invalid PAM service")
 	}
-	return value, name, server.ValidateOrigin(value.Origin)
+	return server.ValidateOrigin(value.Origin)
 }
 
 func parsePort(raw string) (int, error) {
