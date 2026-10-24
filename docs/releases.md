@@ -101,10 +101,10 @@ leaving the container and `/init` hooks running. That update survives restarts o
 the same container; recreation uses the selected image's binary.
 No binary-override volume or Docker socket access is needed.
 
-Setup ensures the minimal private audio runtime and Debian's real `sudo` package
-in existing Tuxee containers, preserving sudo policy. It checks the system first,
-refreshes apt metadata before installing any missing prerequisites, and downloads the architecture-specific audio bundle
-from the binary's release tag. The release checksum and staged executables are
+Setup ensures the minimal private audio runtime in existing Tuxee containers.
+It checks the system first, refreshes apt metadata before installing any missing
+prerequisites, and downloads the architecture-specific audio bundle from the
+binary's release tag. The release checksum and staged executables are
 verified before installation. It does not install compilers, the full PulseAudio
 package, or change the host's sound configuration.
 
