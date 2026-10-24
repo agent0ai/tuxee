@@ -1278,7 +1278,7 @@ h3 {
 .monitor-chip { display: flex; align-items: center; gap: .4em; min-width: 0; font-size: 18px; }
 .monitor-chip-text { display: flex; flex-direction: column; align-items: flex-start; gap: .12em; min-width: 0; }
 .monitor-label { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .5em; font-weight: 600; line-height: 1.2; letter-spacing: .04em; }
-.monitor-value { display: inline-flex; align-items: baseline; gap: .12em; width: 4.2ch; flex-shrink: 0; color: var(--text); font-size: 1em; font-weight: 700; line-height: 1.05; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.monitor-value { display: inline-flex; align-items: baseline; gap: .12em; width: 4.4ch; flex-shrink: 0; color: var(--text); font-size: 1em; font-weight: 700; line-height: 1.05; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .monitor-unit { color: var(--muted); font-size: .65em; font-weight: 600; }
 .monitor-network-value { display: flex; gap: .4em; }
 .monitor-download, .monitor-upload { display: flex; align-items: center; gap: .15em; }

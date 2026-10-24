@@ -184,7 +184,7 @@ try {
   assert.ok(!await path.evaluate(node => node === document.activeElement));
  }
  const columns = dir + '/columns'; await mkdir(columns);
- const samples = [[0, '0B'], [1, '1.0B'], [999, '999B'], [1024, '1.0K'], [1536, '1.5K'], [10 * 1024, '10K'], [999 * 1024 ** 2, '999M'], [1024 ** 3, '1.0G']];
+ const samples = [[0, '0B'], [1, '1.0B'], [999, '999B'], [1024, '1.0K'], [1536, '1.5K'], [10 * 1024, '10K'], [999 * 1024 ** 2, '999M'], [1024 ** 3, '1.0G'], [1024 ** 4, '1.0T']];
  for (let i = 0; i < 32; i++) {
   const name = `${columns}/server-configuration-backup-${String(i).padStart(2, '0')}.bin`;
   await writeFile(name, ''); await truncate(name, samples[i % samples.length][0]);

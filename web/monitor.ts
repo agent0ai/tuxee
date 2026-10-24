@@ -12,7 +12,7 @@ const allNetworks = '/all';
 const networkLabel = (name: string) => name === allNetworks ? 'NET' : name;
 const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
 const percentage = (value?: number | null) => value == null ? '—' : `${compactNumber(value)}%`;
-const rate = (value: number | null | undefined) => value == null ? '—' : `${size(value)}/s`;
+const rate = (value: number | null | undefined) => value == null ? '—' : `${size(value, 1000)}/s`;
 
 export class Monitoring {
     private preferences: MonitoringPreferences;
@@ -68,12 +68,12 @@ export class Monitoring {
         if (prefs.swap) items.push(memory('SWAP', data?.swap));
         for (const path of prefs.disks) {
             const disk = data?.disks.find(disk => disk.path === path);
-            items.push({ label: path === '/' ? 'DISK' : path, kind: 'disk', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used!)} / ${size(disk.total)}` : 'Unavailable', extra: disk?.total ? `${size(disk.available!)} available · ${disk.type}` : undefined });
+            items.push({ label: path === '/' ? 'DISK' : path, kind: 'disk', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used, 1000)} / ${size(disk.total, 1000)}` : 'Unavailable', extra: disk?.total ? `${size(disk.available, 1000)} available · ${disk.type}` : undefined });
         }
         for (const name of prefs.networks) {
             const network = data?.networks.find(network => network.name === name);
             const downloadText = compactSize(network?.receiveRate), uploadText = compactSize(network?.sendRate);
-            items.push({ label: networkLabel(name), kind: 'network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received)} · ↑ ${size(network.sent)} total · ${network.state || 'unknown'}` : undefined, network: { uploadText, downloadText } });
+            items.push({ label: networkLabel(name), kind: 'network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received, 1000)} · ↑ ${size(network.sent, 1000)} total · ${network.state || 'unknown'}` : undefined, network: { uploadText, downloadText } });
         }
         return items;
     }
@@ -113,7 +113,7 @@ export class Monitoring {
         control.hidden = !this.displayed;
         control.replaceChildren();
         control.dataset.state = this.error ? 'error' : this.data ? 'ready' : 'loading';
-        control.title = this.error || metrics.map(item => `${item.label}: ${item.network ? item.detail : item.value}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
+        control.title = this.error || metrics.map(item => `${item.label}: ${item.kind === 'cpu' ? item.value : item.detail}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
         control.setAttribute('aria-description', control.title);
         const strip = el('span', 'monitor-strip');
         const visible = innerWidth <= 1100 ? 3 : 4;
@@ -216,7 +216,7 @@ export class Monitoring {
         const select = (key: 'disks' | 'networks', value: string, checked: boolean) => { draft[key] = checked ? [...draft[key], value] : draft[key].filter(item => item !== value); };
         for (const path of new Set([...(this.data?.disks.map(disk => disk.path) || []), ...draft.disks])) {
             const disk = this.data?.disks.find(disk => disk.path === path);
-            choice(disks, path, draft.disks.includes(path), checked => select('disks', path, checked), disk ? `${disk.type} · ${disk.total ? size(disk.total) : 'Unavailable'}` : 'Unavailable');
+            choice(disks, path, draft.disks.includes(path), checked => select('disks', path, checked), disk ? `${disk.type} · ${disk.total ? size(disk.total, 1000) : 'Unavailable'}` : 'Unavailable');
         }
         const networks = section('Networks');
         for (const name of new Set([allNetworks, ...(this.data?.networks.map(network => network.name) || []), ...draft.networks])) {

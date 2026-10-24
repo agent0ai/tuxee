@@ -10,8 +10,16 @@ const { size } = await import('../.test-state/ui-values.mjs');
 for (const [value, expected] of [
     [528.5390883183117, '529 B'], [910.6452389215688, '911 B'],
     [0, '0 B'], [0.24, '0 B'], [0.5, '1 B'], [42, '42 B'], [1023, '1023 B'],
-    [1024, '1.0 KB'], [1536.123456, '1.5 KB'], [1.5 * 1024 ** 2, '1.5 MB'], [1.5 * 1024 ** 3, '1.5 GB'],
+    [1024, '1.0 KiB'], [1536.123456, '1.5 KiB'], [1.5 * 1024 ** 2, '1.5 MiB'], [1.5 * 1024 ** 3, '1.5 GiB'],
+    [1023.49, '1023 B'], [1023.5, '1.0 KiB'], [1023.94 * 1024, '1023.9 KiB'], [1023.95 * 1024, '1.0 MiB'],
+    [1024 ** 4, '1.0 TiB'], [1024 ** 5, '1.0 PiB'], [1024 ** 6, '1.0 EiB'], [1024 ** 7, '1.0 ZiB'],
+    [null, '—'], [undefined, '—'], [NaN, '—'], [Infinity, '—'], [-1, '—'],
 ]) assert.equal(size(value), expected);
+for (const [value, expected] of [
+    [999, '999 B'], [999.5, '1.0 KB'], [1000, '1.0 KB'], [1536, '1.5 KB'],
+    [999.94e3, '999.9 KB'], [999.95e3, '1.0 MB'], [7.8e6, '7.8 MB'],
+    [103e9, '103.0 GB'], [207e9, '207.0 GB'], [1.5e12, '1.5 TB'], [1e21, '1.0 ZB'],
+]) assert.equal(size(value, 1000), expected);
 for (const [value, expected] of [
     [0, '0'], [0.001, '0'], [0.049, '0'], [0.05, '0.1'], [0.099, '0.1'],
     [0.24, '0.2'], [0.5, '0.5'], [1, '1.0'], [1.04, '1.0'], [1.05, '1.1'],
@@ -29,7 +37,8 @@ for (const [value, expected] of [
 for (const [value, expected] of [[0, '0B'], [1024, '1.0K'], [140 * 1024 ** 2, '140M'], [1.5 * 1024 ** 3, '1.5G'], [999.5 * 1024 ** 2, '1.0G'], [1024 ** 7, '1.0Z']]) {
     assert.equal(compactSize(value, 1024), expected);
 }
-for (const [value, expected] of [[0, '0 B'], [1536, '1.5 KB'], [12 * 1024, '12 KB'], [1.5 * 1024 ** 3, '1.5 GB'], [1024 ** 4, '1.0 TB']]) {
+for (const [value, expected] of [[0, '0 B'], [1536, '1.5 KiB'], [12 * 1024, '12 KiB'], [1.5 * 1024 ** 3, '1.5 GiB'], [1024 ** 4, '1.0 TiB']]) {
     assert.equal(compactSize(value, 1024, true), expected);
 }
-console.log('PASS monitor decimals below ten, zero rounding, sizes through Z, unit boundaries, unavailable values, detailed byte precision and full-unit properties');
+assert.equal(compactSize(1.5e9, 1000, true), '1.5 GB');
+console.log('PASS decimal/binary sizes and labels through Z, compact/detailed rounding boundaries, CPU precision and unavailable values');

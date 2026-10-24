@@ -217,4 +217,4 @@ export function confirmAction(title: string, message: string, action = 'Continue
         dialog.addEventListener('close', () => resolve(false), { once: true });
     });
 }
-export const size = (bytes: number) => bytes < 1024 ? `${Math.round(bytes)} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+export { size } from './monitor-values';

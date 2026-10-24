@@ -1,7 +1,8 @@
 import { api, button, el, icon, modal, size } from './ui';
 import { selectProcess, selectionRoots, type ProcessSnapshot } from './process-tree';
+import { compactNumber } from './monitor-values';
 
-const percent = (value: number | null) => value == null ? '—' : `${value > 0 && value < 10 ? value.toFixed(1) : Math.round(value)}%`;
+const percent = (value: number | null) => value == null ? '—' : `${compactNumber(value)}%`;
 const memory = (value: number | null, approximate = false) => value == null ? '—' : `${approximate ? '~' : ''}${size(value).replace(' ', '')}`;
 const memoryDetail = (estimated: boolean | undefined) => 'RAM: anonymous + shared memory, with shared pages apportioned (PSS) where readable.' + (estimated ? '\nIncludes RSS estimates: proportional counters unavailable; shared memory may be counted more than once.' : '') + '\nWidget totals also include memory not assigned to processes, such as kernel memory.';
 

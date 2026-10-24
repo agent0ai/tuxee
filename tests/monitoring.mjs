@@ -74,6 +74,26 @@ try {
   assert.equal((await summary.locator('.monitor-chip').first().boundingBox()).width,cpuWidth);
  }
  await page.unroute(base+'/api/metrics');check('CPU decimals below ten, zero rounding, separate units and stable widths in the widget and details');
+ let disk={path:'/',type:'overlay',used:103e9,total:207e9,available:104e9,percent:103/207*100};
+ await page.route(base+'/api/metrics',async route=>{const response=await route.fetch(),data=await response.json();data.disks=[disk];await route.fulfill({response,json:data});});
+ const diskCard=dialog.locator('.monitor-card').filter({has:page.getByRole('heading',{name:'DISK',exact:true})});
+ for(const [used,total,available,headline,detail,free] of [
+  [103e9,207e9,104e9,'103G','103.0 GB / 207.0 GB','104.0 GB'],
+  [1.5e12,4e12,2.5e12,'1.5T','1.5 TB / 4.0 TB','2.5 TB'],
+ ]) {
+  disk={path:'/',type:'overlay',used,total,available,percent:used/total*100};
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForFunction(text=>document.querySelector('.monitor-summary [data-kind=disk] .monitor-value')?.textContent===text,headline);
+  assert.equal(await diskCard.locator('.monitor-value').textContent(),headline);
+  assert.equal(await diskCard.locator('p').textContent(),detail);
+  assert.equal(await diskCard.locator(':scope > small').textContent(),`${free} available · overlay`);
+  assert.ok((await summary.getAttribute('aria-description')).includes(detail));
+ }
+ await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();
+ assert.equal(await dialog.getByRole('checkbox',{name:'/',exact:true}).locator('..').locator('small').textContent(),'overlay · 4.0 TB');
+ await dialog.getByRole('button',{name:'Save resource monitor',exact:true}).click();
+ await dialog.locator('.monitor-config').waitFor({state:'detached'});
+ await page.unroute(base+'/api/metrics');check('disk headline, details, available space, tooltip and configuration use decimal units through TB');
  const MiB=1024**2;
  const defaultMemory={total:1024*MiB,used:64*MiB,available:960*MiB,cache:896*MiB,percent:6.25};
  let memory=defaultMemory;
@@ -89,9 +109,9 @@ try {
  for(const theme of ['dark','light']) {
   assert.equal(await ramChip.locator('.monitor-value').textContent(),'64M');
   assert.equal(await ramCard.locator('.monitor-value').textContent(),'64M');
-  assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 896.0 MB');
-  assert.match(await ramCard.textContent(),/Used 64.0 MB \/ 1.0 GB/);
-  assert.match(await summary.getAttribute('aria-description'),/Cache 896.0 MB/);
+  assert.equal(await ramCard.locator('.monitor-cache').textContent(),'Cache 896.0 MiB');
+  assert.match(await ramCard.textContent(),/Used 64.0 MiB \/ 1.0 GiB/);
+  assert.match(await summary.getAttribute('aria-description'),/Cache 896.0 MiB/);
   assert.ok(await summary.locator('.monitor-label, .monitor-value, .monitor-number, .monitor-unit, .monitor-gauge').evaluateAll(nodes=>nodes.every(node=>node.closest('[title]')===node.closest('.monitor-summary'))),'every part of every header metric must use the shared summary tooltip');
   assert.equal(await ramCard.locator('.monitor-value').getAttribute('title'),'Estimated non-reclaimable memory');
   assert.equal(await ramCard.locator('.monitor-cache').getAttribute('title'),'Estimated reclaimable memory');
@@ -160,7 +180,7 @@ try {
  let receiveRate=2500,sendRate=12000,networkPresent=true;
  await page.route(base+'/api/metrics',async route=>{
   const response=await route.fetch(),data=await response.json(),item=data.networks.find(item=>item.name===network);
-  item.receiveRate=receiveRate;item.sendRate=sendRate;
+  item.receiveRate=receiveRate;item.sendRate=sendRate;item.received=1.5e12;item.sent=7.8e9;
   if(!networkPresent)data.networks=data.networks.filter(item=>item.name!==network);
   await route.fulfill({response,json:data});
  });
@@ -186,6 +206,10 @@ try {
  const networkDetail=networkCard.locator('p');
  assert.equal(await networkDetail.textContent(),'Download 529 B/s · Upload 911 B/s');
  assert.equal(await summary.locator('.monitor-network-value').getAttribute('aria-label'),'Download 529 B/s · Upload 911 B/s');
+ await networkSample(7.8e6,1e9,'7.8M','1.0G');
+ assert.equal(await networkDetail.textContent(),'Download 7.8 MB/s · Upload 1.0 GB/s');
+ assert.match(await networkCard.locator(':scope > small').textContent(),/^↓ 1.5 TB · ↑ 7.8 GB total · /);
+ assert.equal(await summary.locator('.monitor-network-value').getAttribute('aria-label'),'Download 7.8 MB/s · Upload 1.0 GB/s');
  await networkSample(1536.123456,0,'1.5K','0B');
  assert.equal(await networkDetail.textContent(),'Download 1.5 KB/s · Upload 0 B/s');
  await networkSample(1,100,'1.0B','100B');
