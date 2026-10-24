@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
     && chmod 0700 /var/lib/tuxee \
+    && printf '\n%s\n' "bind '\"\\e[13;2u\": \"\\C-v\\C-j\"'" >> /etc/bash.bashrc \
     && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
 COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
 COPY --from=gui /output/ /

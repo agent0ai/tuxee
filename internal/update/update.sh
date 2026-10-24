@@ -67,6 +67,12 @@ ensure_audio() (
     echo 'Tuxee audio runtime installed'
 )
 
+ensure_bash_keys() (
+    binding="bind '\"\\e[13;2u\": \"\\C-v\\C-j\"'"
+    if grep -Fxq "$binding" /etc/bash.bashrc 2>/dev/null; then return 0; fi
+    printf '\n%s\n' "$binding" >> /etc/bash.bashrc
+)
+
 # Keep the complete list of requirements here, in dependency order.
 main() {
     version=$1
@@ -76,6 +82,7 @@ main() {
     [ "$(id -u)" = 0 ] || { echo 'Container setup requires root' >&2; exit 1; }
 
     ensure_audio
+    ensure_bash_keys
 }
 
 main "$@"

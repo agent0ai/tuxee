@@ -2,9 +2,14 @@
 import hashlib
 import os
 from pathlib import Path
+import pty
 import re
+import select
+import shlex
 import shutil
+import signal
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
@@ -29,6 +34,7 @@ class SetupScript(unittest.TestCase):
         self.write("/dev/null", "")
         self.write("/missing-package", "")
         self.write("/mode", "good")
+        self.write("/etc/bash.bashrc", '[ -n "$PS1" ] || return\nPS1="TUXEE_READY> "\n# Existing system settings\n')
         (self.root / "tmp").mkdir(mode=0o1777)
         self.write("/update.sh", (REPO / "internal/update/update.sh").read_text())
         self.write("/usr/bin/dpkg-query", """#!/bin/sh
@@ -101,12 +107,57 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         downloads = (self.root / "downloads").read_text()
         for command in ("dpkg-query", "apt-get", "curl", "mktemp"):
             self.write("/usr/bin/" + command, "#!/bin/sh\necho unexpected > /slow-work\nexit 99\n", 0o755)
+        self.write("/etc/bash.bashrc", '# Existing system settings\n')
         script = (self.root / "update.sh").read_text()
         self.write("/update.sh", script + "\nprintf continued > /next-step\n")
         self.run_script()
         self.assertFalse((self.root / "slow-work").exists())
         self.assertEqual((self.root / "next-step").read_text(), "continued")
         self.assertEqual((self.root / "downloads").read_text(), downloads)
+        self.assertIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
+
+    def test_bash_newline_preserves_enter_application_input_and_settings(self):
+        self.write("/root/.bashrc", "# Existing user settings\n")
+        original = (self.root / "etc/bash.bashrc").read_text()
+        self.run_script()
+        rc = self.root / "etc/bash.bashrc"
+        installed = rc.read_text()
+        self.assertTrue(installed.startswith(original))
+        self.run_script()
+        self.assertEqual(rc.read_text(), installed)
+        self.assertEqual((self.root / "root/.bashrc").read_text(), "# Existing user settings\n")
+
+        master, slave = pty.openpty()
+        env = dict(os.environ, TERM="xterm-256color", PS1="TUXEE_READY> ",
+                   INPUTRC="/dev/null", HISTFILE="/dev/null")
+        shell = subprocess.Popen(["bash", "--noprofile", "--rcfile", str(rc), "-i"],
+                                 stdin=slave, stdout=slave, stderr=slave, env=env, start_new_session=True)
+        os.close(slave)
+
+        def read_until(expected):
+            output = b""
+            deadline = time.monotonic() + 5
+            while expected not in output and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    output += os.read(master, 65536)
+            self.assertIn(expected, output)
+            return re.sub(rb'\x1b\[[0-?]*[ -/]*[@-~]', b'', output).replace(b'\r', b'')
+
+        try:
+            read_until(b"TUXEE_READY> ")
+            os.write(master, b"echo first\x1b[13;2uecho second")
+            self.assertNotIn(b"\nfirst\n", read_until(b"echo second"))
+            os.write(master, b"\r")
+            self.assertIn(b"first\nsecond\n", read_until(b"TUXEE_READY> "))
+            code = "import os,tty;tty.setraw(0);print('RAW'+'READY',flush=True);print(os.read(0,7).hex(),flush=True)"
+            os.write(master, (shlex.quote(sys.executable) + " -c " + shlex.quote(code) + "\r").encode())
+            read_until(b"RAWREADY")
+            os.write(master, b"\x1b[13;2u")
+            read_until(b"1b5b31333b3275")
+        finally:
+            os.killpg(shell.pid, signal.SIGKILL)
+            shell.wait()
+            os.close(master)
 
     def test_partial_runtime_is_repaired_before_later_steps(self):
         self.run_script()
@@ -201,6 +252,7 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         # Native starts and CLI version probes must never perform setup.
         self.assertNotIn("preparing container", serve())
         self.assertFalse(marker.exists())
+        self.assertNotIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
         self.write("/opt/tuxee/entrypoint.sh", "#!/bin/sh\n")
         result = subprocess.run(command + ["version"], capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout, "Tuxee 0.2.1\n")
@@ -221,6 +273,7 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.write("/mode", "good")
         self.assertIn("audio runtime installed", serve())
         self.assertEqual(marker.read_text(), "0.2.1\n")
+        self.assertIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
         self.write("/mode", "download-failed")
         self.assertNotIn("preparing container", serve())
 
