@@ -1,4 +1,7 @@
 .git
+.github
+tests
+**/AGENTS.md
 .env
 **/.env
 .env.*

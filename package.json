@@ -2,5 +2,5 @@
   "name": "tuxee", "private": true, "type": "module",
   "scripts": {"build": "node web/build.mjs", "test:gui": "node tests/gui.mjs", "test:gui-clipboard": "node tests/gui-clipboard.mjs", "test:audio": "node tests/audio.mjs", "test:proxy": "node tests/proxy.mjs", "test:layout": "node tests/layout.mjs", "test:dividers": "node tests/dividers.mjs", "test:browser": "node tests/browser.mjs", "test:clipboard": "node tests/file-clipboard.mjs", "test:uploads": "node tests/uploads.mjs", "test:tabs": "node tests/tabs.mjs", "test:mobile": "node tests/mobile.mjs", "test:mobile-files": "node tests/mobile-files.mjs", "test:features": "node tests/features.mjs", "test:monitoring": "node tests/monitoring.mjs", "test:processes": "node tests/processes.mjs", "test:installer": "node tests/installer.mjs", "test:updates": "node tests/updates.mjs", "test:docker-init": "node tests/docker-init.mjs"},
   "dependencies": {"@xterm/xterm": "6.0.0", "@xterm/headless": "6.0.0", "@xterm/addon-unicode11": "0.9.0", "gridstack": "^12.0.0", "lucide": "^0.468.0"},
-  "devDependencies": {"esbuild": "^0.25.0", "playwright": "^1.56.0", "typescript": "^5.9.0"}
+  "devDependencies": {"esbuild": "^0.25.0", "playwright": "^1.56.0"}
 }

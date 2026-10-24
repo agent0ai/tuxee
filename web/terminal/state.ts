@@ -553,20 +553,6 @@ export function checkEngineTextBounds(terminal: any): void {
   }
 }
 
-// xterm 6 has no CSP nonce option and writes RGB/selection styles as attributes.
-// Prepare its owned renderer before mounting; CSSOM writes retain the shell CSP.
-export function installTerminalStyles(terminal: any, nonce: string): void {
-  for (const style of terminal.element.querySelectorAll("style")) {
-    style.nonce = nonce;
-  }
-  terminal._core._renderService._renderer.value._rowFactory._addStyle = (
-    element: HTMLElement,
-    style: string,
-  ) => {
-    element.style.cssText += style;
-  };
-}
-
 /** Keep the pinned DOM renderer's text and block geometry on the cell grid. */
 export function installTerminalMetrics(terminal: any): void {
   const renderer = terminal._core._renderService._renderer.value;
