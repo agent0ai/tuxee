@@ -124,10 +124,10 @@ try {
     for(let i=0; !heldAcks.length && i<100; i++) await page.waitForTimeout(20);
     assert.equal(heldAcks.length,1);
     client.close({code:4000}); upstream.close({code:4000}); holdAcks=false; heldAcks=[];
-    await page.getByText('Connection restored; check your last input before continuing', {exact:true}).waitFor();
+    await page.getByText('Connection restored', {exact:true}).waitFor();
     await connected(); await idle();
     assert.equal(sent.slice(sentBefore).filter(v=>Buffer.isBuffer(v) && v.toString().includes('ONCE_')).length,1);
-    console.log('PASS uncertain input is reported and never replayed');
+    console.log('PASS reconnect is reported and uncertain input is never replayed');
 
     // Bound both bytes and tiny frames while the real server's ack is held.
     holdAcks=true;

@@ -261,7 +261,7 @@ export class TerminalView implements View {
                             this.display.update(value.display);
                             this.ready = true; this.controller = value.control; this.attempt = 0;
                             if (this.uncertainInput) {
-                                this.notice('Connection restored; check your last input before continuing');
+                                this.notice('Connection restored');
                                 this.uncertainInput = false;
                             }
                             break;
