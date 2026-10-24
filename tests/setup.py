@@ -29,6 +29,8 @@ class SetupScript(unittest.TestCase):
         self.write("/dev/null", "")
         self.write("/missing-package", "")
         self.write("/mode", "good")
+        self.write("/usr/bin/sudo", "#!/bin/sh\nexit 0\n", 0o755)
+        self.copy(self.root / "usr/bin/sudo", "/sudo-fixture")
         (self.root / "tmp").mkdir(mode=0o1777)
         self.write("/update.sh", (REPO / "internal/update/update.sh").read_text())
         self.write("/usr/bin/dpkg-query", """#!/bin/sh
@@ -41,6 +43,9 @@ if [ "$(cat /mode)" = apt-failed ]; then exit 100; fi
 if [ "$1" = install ]; then
     grep -q '^update ' /apt-log || exit 99
     [ "$DEBIAN_FRONTEND" = noninteractive ] || exit 98
+    for package do
+        if [ "$package" = sudo ]; then cp /sudo-fixture /usr/bin/sudo; fi
+    done
 fi
 """, 0o755)
         self.write("/usr/bin/curl", """#!/bin/sh
@@ -122,6 +127,27 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         commands = (self.root / "apt-log").read_text().splitlines()
         self.assertEqual(commands, ["update -o APT::Update::Error-Mode=any",
                                    "install -y --no-install-recommends -o DPkg::Lock::Timeout=60 libcap2", "clean"])
+
+    def test_missing_sudo_installs_even_when_audio_is_ready(self):
+        self.run_script()
+        downloads = (self.root / "downloads").read_text()
+        (self.root / "usr/bin/sudo").unlink()
+        self.run_script()
+        self.assertEqual((self.root / "apt-log").read_text().splitlines(), [
+            "update -o APT::Update::Error-Mode=any",
+            "install -y --no-install-recommends -o DPkg::Lock::Timeout=60 sudo", "clean"])
+        self.assertTrue((self.root / "usr/bin/sudo").is_file())
+        self.assertEqual((self.root / "downloads").read_text(), downloads)
+
+    def test_sudo_failure_can_retry(self):
+        self.run_script()
+        (self.root / "usr/bin/sudo").unlink()
+        self.write("/mode", "apt-failed")
+        self.run_script(False)
+        self.assertFalse((self.root / "usr/bin/sudo").exists())
+        self.write("/mode", "good")
+        self.run_script()
+        self.assertTrue((self.root / "usr/bin/sudo").is_file())
 
     def test_apt_failure_stops_before_download_or_install(self):
         self.write("/missing-package", "libcap2")
@@ -223,6 +249,17 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertEqual(marker.read_text(), "0.2.1\n")
         self.write("/mode", "download-failed")
         self.assertNotIn("preparing container", serve())
+
+        # Ready audio must not let a missing sudo advance the marker after apt fails.
+        (self.root / "usr/bin/sudo").unlink()
+        self.write("/usr/local/lib/tuxee/update-version", "0.2.0\n")
+        self.write("/mode", "apt-failed")
+        self.assertIn("setup failed; will retry", serve())
+        self.assertEqual(marker.read_text(), "0.2.0\n")
+        self.write("/mode", "good")
+        self.assertIn("preparing container", serve())
+        self.assertEqual(marker.read_text(), "0.2.1\n")
+        self.assertTrue((self.root / "usr/bin/sudo").is_file())
 
 
 if __name__ == "__main__":

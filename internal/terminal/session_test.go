@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -11,6 +13,100 @@ import (
 
 	"tuxee/internal/identity"
 )
+
+func TestShellUmask(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("credential-switching integration requires root")
+	}
+	previous := syscall.Umask(0077)
+	defer syscall.Umask(previous)
+	// Use a traversable parent even when the checkout and Go test cache are private.
+	parent, err := os.MkdirTemp("", "tuxee-shell-mask-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(parent)
+	if err := os.Chmod(parent, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name        string
+		uid         uint32
+		interactive bool
+		profile     string
+		mask        os.FileMode
+	}{
+		{name: "root-command", mask: 0022},
+		{name: "root-interactive", interactive: true, mask: 0022},
+		{name: "unprivileged", uid: 65534, mask: 0022},
+		{name: "profile-override", uid: 65534, profile: "umask 027\n", mask: 0027},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := filepath.Join(parent, tc.name+" ' space")
+			if err := os.Mkdir(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chown(dir, int(tc.uid), int(tc.uid)); err != nil {
+				t.Fatal(err)
+			}
+			if tc.profile != "" {
+				if err := os.WriteFile(filepath.Join(dir, ".profile"), []byte(tc.profile), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chown(filepath.Join(dir, ".profile"), int(tc.uid), int(tc.uid)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			user := identity.User{Name: tc.name, UID: tc.uid, GID: tc.uid, Home: dir, Shell: "/bin/sh"}
+			m := NewManager()
+			defer m.Close()
+			command := `printf data > file; mkdir folder; sh -c 'printf child > child'; printf '%s' "$$" > pid`
+			startup := command
+			if tc.interactive {
+				startup = ""
+			}
+			s, err := m.Create(user, dir, "mask", 80, 24, startup)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.interactive {
+				a, err := s.Attach(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer a.Close()
+				if err := a.Write(context.Background(), []byte(command+"\nexit\n")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			select {
+			case <-s.exited:
+			case <-time.After(5 * time.Second):
+				t.Fatal("shell did not finish")
+			}
+			for name, want := range map[string]os.FileMode{"file": 0666 &^ tc.mask, "child": 0666 &^ tc.mask, "folder": 0777 &^ tc.mask} {
+				info, err := os.Stat(filepath.Join(dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if info.Mode().Perm() != want || info.Sys().(*syscall.Stat_t).Uid != tc.uid {
+					t.Errorf("%s: mode=%o uid=%d, want %o uid=%d", name, info.Mode().Perm(), info.Sys().(*syscall.Stat_t).Uid, want, tc.uid)
+				}
+			}
+			pid, err := os.ReadFile(filepath.Join(dir, "pid"))
+			if err != nil || string(pid) != strconv.Itoa(s.Info().PID) {
+				t.Fatalf("shell PID changed: %q, %v", pid, err)
+			}
+		})
+	}
+	private := filepath.Join(parent, "server-private")
+	if err := os.WriteFile(private, nil, 0666); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(private); err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("server's private mask changed: %v, %v", info, err)
+	}
+}
 
 func TestDetachedPTYAndController(t *testing.T) {
 	if os.Geteuid() != 0 {

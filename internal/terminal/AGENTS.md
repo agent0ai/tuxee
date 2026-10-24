@@ -10,6 +10,8 @@ Own session identity, process groups, bounded output, browser controller leases,
 
 # Local Contracts
 
+Start shells with `umask 022` in the credential-dropped child before login startup files run, for both interactive and command terminals. System/user shell profiles may override it; commands and GUI apps inherit the resulting mask. Keep the server's `077` mask and private helper/runtime files unchanged. Exec the login shell in place to preserve the tracked PID and process-group cleanup.
+
 Attachment loss never kills a shell. There is no idle or detached timeout. Explicit termination, process exit, unrecoverable terminal failure, and server shutdown end it. User ownership is checked before attachment and control.
 
 Ended processes retain their terminal output until their session is explicitly closed; a new attachment receives its snapshot followed by an exit event. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
@@ -31,6 +33,8 @@ do not edit or commit it.
 # Verification
 
 Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Snapshot tests cover serialized byte limits, global admission/waiter bounds, cancellation and release on acknowledgement/closure. Use `-race` for lifecycle changes.
+
+`TestShellUmask` covers interactive/command root shells, an unprivileged shell, child commands, login-profile overrides, file/directory modes, unchanged shell PID and the server's private mask.
 
 # Child DOX Index
 

@@ -67,6 +67,16 @@ ensure_audio() (
     echo 'Tuxee audio runtime installed'
 )
 
+ensure_sudo() (
+    if sudo --version >/dev/null 2>&1; then return 0; fi
+
+    apt-get update -o APT::Update::Error-Mode=any
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o DPkg::Lock::Timeout=60 sudo
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    sudo --version >/dev/null
+)
+
 # Keep the complete list of requirements here, in dependency order.
 main() {
     version=$1
@@ -76,6 +86,7 @@ main() {
     [ "$(id -u)" = 0 ] || { echo 'Container setup requires root' >&2; exit 1; }
 
     ensure_audio
+    ensure_sudo
 }
 
 main "$@"

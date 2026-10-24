@@ -159,7 +159,9 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if command != "" {
 		args = []string{"-lc", command}
 	}
-	cmd := user.Command(context.Background(), user.Shell, args...)
+	// Reset only the child's mask before login profiles; keep server files private.
+	args = append([]string{"-c", `umask 022; exec "$@"`, "tuxee-shell", user.Shell}, args...)
+	cmd := user.Command(context.Background(), "/bin/sh", args...)
 	cmd.Dir = directory
 	cmd.Env = append(cmd.Env, audioEnv...)
 	if display != nil {
