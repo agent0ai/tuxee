@@ -6,7 +6,7 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
     let total = 0, request: AbortController | undefined;
     const render = (partial: boolean) => {
         value.textContent = `${partial ? '~' : ''}${compactSize(total, 1024, true)}`;
-        value.title = `${total.toLocaleString()} bytes`;
+        value.title = `${total.toLocaleString()} B`;
     };
     const label = (text: string) => {
         control.textContent = control.title = text;

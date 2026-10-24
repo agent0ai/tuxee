@@ -70,8 +70,8 @@ try {
     async function close() { await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click(); await noWorkers(); }
     await open(['single']);
     assert.equal(await row('single').locator('.file-size').textContent(), '1.5K');
-    assert.equal(await row('single').locator('.file-size').getAttribute('title'), (1536).toLocaleString() + ' bytes');
-    assert.equal(await dialog.locator('dt').filter({ hasText: /^Total size$/ }).evaluate(node => node.nextElementSibling.textContent), '1.5 KiB');
+    assert.equal(await row('single').locator('.file-size').getAttribute('title'), (1536).toLocaleString() + ' B');
+    assert.equal(await dialog.locator('dt').filter({ hasText: /^Total size$/ }).evaluate(node => node.nextElementSibling.textContent), '1.5 K');
     assert.equal(await dialog.getByRole('button', { name: 'Calculate', exact: true }).count(), 0); await close();
     await open(['many', 'single']);
     await page.waitForFunction(() => document.querySelector('.property-size > span')?.textContent !== '~0 B');
@@ -93,8 +93,8 @@ try {
         window.sizeObserver.observe(node, { childList: true, characterData: true, subtree: true });
     });
     await dialog.getByRole('button', { name: 'Stop', exact: true }).waitFor({ state: 'hidden' });
-    assert.equal(await size.textContent(), '5.9 GiB');
-    assert.equal(await size.getAttribute('title'), (24000 * 262144 + 1536).toLocaleString() + ' bytes');
+    assert.equal(await size.textContent(), '5.9 G');
+    assert.equal(await size.getAttribute('title'), (24000 * 262144 + 1536).toLocaleString() + ' B');
     const updates = await page.evaluate(() => { window.sizeObserver.disconnect(); return window.sizeUpdates; });
     const intermediate = updates.filter(p => p.value.startsWith('~') && p.value !== '~0 B');
     assert.ok(intermediate.length >= 2, 'live progress');

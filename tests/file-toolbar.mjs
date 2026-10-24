@@ -193,7 +193,7 @@ try {
  assert.equal(spawnSync('chown', ['-R', `${fields[2]}:${fields[3]}`, columns]).status, 0);
  await path.fill(columns); await path.press('Enter'); await file.locator('.file-entry').nth(31).waitFor();
  assert.deepEqual((await file.locator('.file-size').allTextContents()).slice(0, samples.length), samples.map(([, label]) => label));
- assert.equal(await file.locator('.file-size').nth(4).getAttribute('title'), '1,536 bytes');
+ assert.equal(await file.locator('.file-size').nth(4).getAttribute('title'), '1,536 B');
  for (const width of [300, 380, 600]) {
   await file.locator('..').evaluate((node, width) => { node.style.width = `${width}px`; node.style.height = '500px'; }, width);
   for (const column of ['size', 'modified']) {

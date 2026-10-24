@@ -346,7 +346,7 @@ export class FileView implements View {
             const name = el('span', 'file-name');
             name.append(icon(entry.directory ? 'Folder' : entry.symlink ? 'Link' : 'File'), el('span', '', entry.name));
             const bytes = el('span', 'file-size', entry.directory ? '—' : compactSize(entry.size, 1024));
-            if (!entry.directory) bytes.title = `${entry.size.toLocaleString()} bytes`;
+            if (!entry.directory) bytes.title = `${entry.size.toLocaleString()} B`;
             row.append(select, name, bytes, el('span', 'file-date', new Date(entry.modified).toLocaleDateString()));
             row.onclick = e => {
                 row.focus({ preventScroll: true });
