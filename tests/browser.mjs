@@ -58,6 +58,38 @@ page.on('console', message => { if (message.type() === 'error' && !message.text(
     errors.push(message.text()); });
 const check = (label) => console.log(`PASS ${label}`);
 async function login(user) { await page.locator('[name=username]').fill(user.name); await page.locator('[name=password]').fill(user.password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.locator('.topbar').waitFor(); await page.waitForFunction(() => { const terminal = document.querySelector('.panel-body.terminal-view'); return terminal ? terminal.dataset.state === 'connected' : !!document.querySelector('.file-view'); }); }
+async function checkFavicon(color, target = page) {
+    if (!color) {
+        assert.equal(await target.locator('link[rel="icon"]').getAttribute('href'), '/favicon.png');
+        return;
+    }
+    const rgb = color.match(/\w\w/g).map(value => parseInt(value, 16));
+    await target.waitForFunction(async rgb => {
+        const href = document.querySelector('link[rel="icon"]').href;
+        if (!href.startsWith('data:image/png;base64,')) return false;
+        const image = new Image(); image.src = href; await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        return rgb.every((value, i) => Math.abs(context.getImageData(32, 2, 1, 1).data[i] - value) <= 5);
+    }, rgb);
+    const result = await target.evaluate(async () => {
+        const pixels = await Promise.all(['/favicon.png', document.querySelector('link[rel="icon"]').href].map(async src => {
+            const image = new Image(); image.src = src; await image.decode();
+            const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+            const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+            return { width: image.naturalWidth, height: image.naturalHeight, data: context.getImageData(0, 0, 64, 64).data };
+        }));
+        const [original, tinted] = pixels;
+        let preserved = true, alpha = true;
+        for (let i = 0; i < original.data.length; i += 4) {
+            const [red, green, blue] = original.data.slice(i, i + 3);
+            if ((red < green || green <= blue) && !original.data.slice(i, i + 3).every((value, channel) => value === tinted.data[i + channel])) preserved = false;
+            if (tinted.data[i + 3] !== original.data[i + 3]) alpha = false;
+        }
+        return { width: tinted.width, height: tinted.height, preserved, alpha, corner: tinted.data[3] };
+    });
+    assert.deepEqual(result, { width: 64, height: 64, preserved: true, alpha: true, corner: 0 }, 'favicon recolors the hexagon while preserving the penguin, shading and transparency');
+}
 async function api(path, method = 'GET', data) { const me = await context.request.get(`${base}/api/me`); const csrf = me.ok() ? (await me.json()).csrf : ''; return context.request.fetch(`${base}/api${path}`, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } }); }
 async function command(text) { await page.locator('.terminal-host .xterm-helper-textarea').last().focus(); await page.keyboard.type(text); await page.keyboard.press('Enter'); }
 async function twoPanelFixture() {
@@ -526,16 +558,27 @@ try {
     const markerWidth = await page.evaluate(() => `${Math.floor(parseFloat(getComputedStyle(document.documentElement).fontSize) * .25)}px`);
     const orangeBorder = { width: markerWidth, color: 'rgb(234, 88, 12)', style: 'solid' };
     const previewColor = value => color.evaluate((node, value) => { node.value = value; node.dispatchEvent(new Event('input', { bubbles: true })); }, value);
+    await checkFavicon();
     assert.equal(await page.getByRole('button', { name: 'Reset', exact: true }).isDisabled(), true);
+    for (const value of ['#00ff00', '#ff0000', '#00ffff', '#000000', '#ffffff']) {
+        await previewColor(value); await checkFavicon(value);
+    }
+    await previewColor('#2563eb');
+    await checkFavicon('#2563eb');
+    const blueFavicon = await page.locator('link[rel="icon"]').getAttribute('href');
     await previewColor('#ea580c');
+    await checkFavicon('#ea580c');
+    assert.notEqual(await page.locator('link[rel="icon"]').getAttribute('href'), blueFavicon, 'each color has its own cache-independent URL');
     assert.deepEqual(await markerBorder(), orangeBorder, 'input previews the marker before change/save');
     assert.equal((await (await api('/me')).json()).settings.serverColor, undefined);
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
     assert.deepEqual(await markerBorder(), defaultBorder, 'reset restores the theme border');
+    await checkFavicon();
     await previewColor('#ea580c');
     await page.keyboard.press('Escape');
     await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), defaultBorder, 'closing discards the preview');
+    await checkFavicon();
     assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, undefined);
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -549,6 +592,7 @@ try {
     assert.equal(await page.title(), 'Tuxee Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverName, 'Lab <&> 東京');
     assert.equal((await (await api('/me')).json()).settings.serverColor, '#ea580c');
+    await checkFavicon('#ea580c');
     assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, 8);
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await page.waitForTimeout(400);
@@ -559,12 +603,14 @@ try {
     assert.equal(await page.title(), 'Tuxee Lab <&> 東京');
     check('theme and layouts persist');
     assert.deepEqual(await markerBorder(), orangeBorder, 'marker survives reload and theme changes');
+    await checkFavicon('#ea580c');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.topbar .add-panel').count(), 0);
     assert.equal(await page.locator('.component-controls .add-panel:visible').count(), 2);
     assert.equal(await page.locator('.panel:visible').count(), 1);
     assert.deepEqual(await markerBorder(), orangeBorder, 'marker survives compact header replacement');
+    await checkFavicon('#ea580c');
     if (!await page.locator('.component-tab').filter({ hasText: 'Terminal' }).first().isVisible()) await page.getByRole('button', { name: 'More components', exact: true }).click();
     await page.locator('.component-tab').filter({ hasText: 'Terminal' }).first().click();
     await page.waitForFunction(() => document.querySelector('.panel-body.terminal-view[data-state=connected]'));
@@ -638,12 +684,14 @@ try {
     await page.locator('[name=username]').waitFor();
     assert.equal(await page.title(), `Tuxee ${hostname}`);
     assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--server-marker-border')), '');
+    await checkFavicon();
     assert.ok((await page.locator('.login-metadata').textContent()).startsWith(`Server ${hostname} • `));
     assert.equal((await context.request.get(`${base}/api/terminals`)).status(), 401);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await login(a);
     assert.equal(await page.title(), 'Tuxee Lab <&> 東京');
     assert.deepEqual(await markerBorder(), orangeBorder, 'marker restores after login');
+    await checkFavicon('#ea580c');
     assert.equal((await (await api(`/terminals/${retained.id}`)).json()).pid, retained.pid);
     check('logout revokes cookie without killing PTY');
     const other = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -652,6 +700,8 @@ try {
     const token = (await loginResponse.json()).csrf;
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverName, undefined);
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverColor, undefined);
+    const otherPage = await other.newPage(); await otherPage.goto(base); await otherPage.locator('.topbar').waitFor();
+    await checkFavicon(undefined, otherPage);
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.uploadConcurrency, undefined);
     const denied = await other.request.post(`${base}/api/files`, { data: { operation: 'list', path: `${a.home}/tuxee-fixtures` }, headers: { 'X-Tuxee-CSRF': token } });
     assert.equal(denied.status(), 400);
@@ -668,6 +718,7 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), orangeBorder, 'cancelled reset restores the saved color');
+    await checkFavicon('#ea580c');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     await serverName.fill('   ');
@@ -680,8 +731,10 @@ try {
     assert.deepEqual(await markerBorder(), lightDefaultBorder);
     await page.reload(); await page.locator('.topbar').waitFor();
     assert.deepEqual(await markerBorder(), lightDefaultBorder, 'saved reset survives reload');
+    await checkFavicon();
     check('trimmed per-user server name persists across reload/login, stays private at logout and clears to hostname');
     check('color marker previews, resets, cancels, persists per user and restores standard borders in both themes');
+    check('favicon hexagon follows marker changes without cached colors, preserves the penguin/transparency and resets across logout/accounts');
     check('parallel uploads defaults to four, discards unsaved edits and persists per user across reload/login');
     // Crowded tabs use the same UUI fitting rule on desktop and mobile.
     await page.waitForTimeout(300);

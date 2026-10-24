@@ -19,6 +19,7 @@ import { Monitoring } from './monitor';
 import { audio, audioControl } from './audio';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
+import { setFaviconColor } from './favicon';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
@@ -100,6 +101,7 @@ function updateTitle() {
 function setColorMarker(color?: string) {
     if (loggedIn && color) document.documentElement.style.setProperty('--server-marker-border', `0.25rem solid ${color}`);
     else document.documentElement.style.removeProperty('--server-marker-border');
+    setFaviconColor(loggedIn ? color : undefined);
 }
 function showLogin() {
     clearFileCut();
