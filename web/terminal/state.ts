@@ -684,6 +684,12 @@ export function installTerminalResize(terminal: any): { begin(): void; release()
     }
   };
   const release = () => { expires = 0; present(); };
+  // Scroll-on-input runs before onData; it must see the rebuilt scrollbar range.
+  const scrolling = ["scrollLines", "scrollToLine"].map(name => {
+    const original = viewport[name];
+    viewport[name] = (...args: any[]) => { release(); return original.apply(viewport, args); };
+    return { name, original };
+  });
   const hold = () => {
     if (held || performance.now() >= expires) return;
     held = true;
@@ -713,6 +719,7 @@ export function installTerminalResize(terminal: any): { begin(): void; release()
   core._register({ dispose() {
     clearTimeout(quiet); clearTimeout(deadline); stop();
     for (const { name, original } of originals) renderer[name] = original;
+    for (const { name, original } of scrolling) viewport[name] = original;
     viewport._sync = sync;
   } });
   return {

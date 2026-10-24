@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, truncate, utimes, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
@@ -15,14 +15,15 @@ await mkdir(dir + '/.hidden-folder'); await writeFile(dir + '/.hidden-folder/.ne
 await writeFile(dir + '/.hidden.txt', 'hidden fixture');
 assert.equal(spawnSync('chown', ['-R', `${fields[2]}:${fields[3]}`, dir]).status, 0);
 const state = await mkdtemp('/tmp/tuxee-toolbar-server-');
-const server = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
+await chmod(state, 0o755); await copyFile('bin/tuxee', state + '/tuxee'); await chmod(state + '/tuxee', 0o755);
+const server = spawn(state + '/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state + '/data'], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => server.once('exit', resolve));
 const base = await new Promise((resolve, reject) => {
  const timer = setTimeout(() => reject(Error('server startup timed out')), 10000);
  server.stdout.on('data', data => { const match = String(data).match(/listening at (http:\/\/\S+)/); if (match) { clearTimeout(timer); resolve(match[1]); } });
  server.once('exit', () => { clearTimeout(timer); reject(Error('server exited')); });
 });
-const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
+const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'], ignoreDefaultArgs: ['--hide-scrollbars'] });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const me = await (await context.request.get(base + '/api/me')).json();
@@ -182,6 +183,55 @@ try {
   assert.deepEqual(await geometry(), [0, 0, 1, 1], 'double-click on the expanded path title must shrink the panel');
   assert.ok(!await path.evaluate(node => node === document.activeElement));
  }
+ const columns = dir + '/columns'; await mkdir(columns);
+ const samples = [[0, '0B'], [1, '1.0B'], [999, '999B'], [1024, '1.0K'], [1536, '1.5K'], [10 * 1024, '10K'], [999 * 1024 ** 2, '999M'], [1024 ** 3, '1.0G']];
+ for (let i = 0; i < 32; i++) {
+  const name = `${columns}/server-configuration-backup-${String(i).padStart(2, '0')}.bin`;
+  await writeFile(name, ''); await truncate(name, samples[i % samples.length][0]);
+  const date = new Date(i % 2 ? '2026-11-23T12:00:00Z' : '2026-01-02T12:00:00Z'); await utimes(name, date, date);
+ }
+ assert.equal(spawnSync('chown', ['-R', `${fields[2]}:${fields[3]}`, columns]).status, 0);
+ await path.fill(columns); await path.press('Enter'); await file.locator('.file-entry').nth(31).waitFor();
+ assert.deepEqual((await file.locator('.file-size').allTextContents()).slice(0, samples.length), samples.map(([, label]) => label));
+ assert.equal(await file.locator('.file-size').nth(4).getAttribute('title'), '1,536 bytes');
+ for (const width of [300, 380, 600]) {
+  await file.locator('..').evaluate((node, width) => { node.style.width = `${width}px`; node.style.height = '500px'; }, width);
+  for (const column of ['size', 'modified']) {
+   await file.getByRole('button', { name: `Sort by ${column === 'size' ? 'Size' : 'Modified'}`, exact: true }).click();
+   const values = column === 'size'
+    ? await file.locator('.file-size').evaluateAll(nodes => nodes.map(node => Number(node.title.replace(/\D/g, ''))))
+    : (await file.locator('.file-date').allTextContents()).map(Date.parse);
+   assert.deepEqual(values, [...values].sort((a, b) => a - b));
+   const geometry = await file.evaluate(node => {
+    const list = node.querySelector('.file-list'), rows = [...list.querySelectorAll('.file-entry')];
+    const headings = [...node.querySelectorAll('.file-columns button')].map(el => el.getBoundingClientRect());
+    const cells = rows.map(row => [...row.querySelectorAll('.file-name, .file-size, .file-date')].map(el => el.getBoundingClientRect()));
+    const widths = ['.file-size', '.file-date'].map((selector, index) => {
+     const heading = node.querySelectorAll('.file-columns button')[index + 1];
+     const style = getComputedStyle(heading);
+     const headingWidth = [...heading.children].reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) + parseFloat(style.columnGap) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+     return Math.max(headingWidth, ...rows.map(row => { const range = document.createRange(); range.selectNodeContents(row.querySelector(selector)); return range.getBoundingClientRect().width; }));
+    });
+    return {name:headings[0].width, row:rows[0].clientWidth, overflow:list.scrollWidth > list.clientWidth, scrolls:list.scrollHeight > list.clientHeight,
+     aligned:cells.every(c => c.slice(1).every((r, i) => Math.abs(r.right - headings[i + 1].right) < 1)),
+     spare:cells[0].slice(1).map((r, i) => r.width - widths[i])};
+   });
+   assert.ok(geometry.aligned && !geometry.overflow && geometry.scrolls, JSON.stringify({width, geometry}));
+   assert.ok(geometry.name > geometry.row / 2, `filenames get most of the row: ${JSON.stringify({width, geometry})}`);
+   assert.ok(geometry.spare.every(value => Math.abs(value) < 1), `metadata columns fit their widest text or heading: ${JSON.stringify({width, column, geometry})}`);
+  }
+  for (const theme of ['dark', 'light']) {
+   await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+   await file.locator('..').screenshot({path:`test-results/file-columns-${width}-${theme}.png`});
+  }
+ }
+ await file.locator('..').evaluate(node => { node.style.removeProperty('width'); node.style.removeProperty('height'); });
+ await page.setViewportSize({width:320,height:844}); await singleRows();
+ assert.equal(await file.locator('.file-date:visible').count(), 0);
+ assert.equal(await file.locator('.file-entry .file-select').first().evaluate(node => node.getBoundingClientRect().width), 44);
+ assert.ok(await file.locator('.file-list').evaluate(node => node.scrollWidth <= node.clientWidth));
+ await file.locator('..').screenshot({path:'test-results/file-columns-mobile.png'});
+ console.log('PASS compact file sizes, exact byte tooltips, content-sized aligned metadata, filename priority, sorting and narrow/mobile layouts');
  assert.deepEqual(errors, []);
  console.log('PASS delayed header editing, double-click expand/shrink, editing selection, click/drag cancellation, mobile path row, navigation/actions overflow, 150px panels, desktop/mobile resize, overflow order/separator, keyboard focus, original menus, real copy and file-picker upload');
 } catch (error) { await page.screenshot({ path: 'test-results/file-toolbar-failure.png' }); throw error; }

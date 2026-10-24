@@ -240,7 +240,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     console.log('PASS output pipelines while parsing is pending; resize is an ordered barrier and all 2,000 rows survive');
 
     // A real SIGWINCH handler rebuilds scrollback slowly, beyond xterm's one-second timeout.
-    const redraw = `import os,signal,termios,tty,time\nold=termios.tcgetattr(0)\ndef resize(*_):\n time.sleep(.4)\n os.write(1,b'\\x1b[?2026h\\x1b[3J\\x1b[2J\\x1b[HPARTIAL_REDRAW\\r\\n')\n time.sleep(1.6)\n for i in range(80): os.write(1,('REBUILT_%02d\\r\\n'%i).encode())\n os.write(1,b'REDRAW_COMPLETE\\x1b[?2026l')\nsignal.signal(signal.SIGWINCH,resize)\ntry:\n tty.setraw(0)\n os.write(1,b'\\x1b[2J\\x1b[HBEFORE_RESIZE')\n while os.read(0,1)!=b'q': pass\nfinally: termios.tcsetattr(0,termios.TCSANOW,old)\n`;
+    const redraw = `import os,signal,termios,tty,time\nold=termios.tcgetattr(0)\nredraws=0\ndef resize(*_):\n global redraws\n redraws+=1\n time.sleep(.4)\n os.write(1,b'\\x1b[?2026h\\x1b[3J\\x1b[2J\\x1b[HPARTIAL_REDRAW\\r\\n')\n time.sleep(1.6)\n for i in range(80*redraws): os.write(1,('REBUILT_%02d\\r\\n'%i).encode())\n time.sleep(.3)\n os.write(1,b'REDRAW_COMPLETE\\x1b[?2026l')\nsignal.signal(signal.SIGWINCH,resize)\ntry:\n tty.setraw(0)\n os.write(1,b'\\x1b[2J\\x1b[HBEFORE_RESIZE')\n while os.read(0,1)!=b'q': pass\nfinally: termios.tcsetattr(0,termios.TCSANOW,old)\n`;
     await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(redraw).toString('base64')}'))"\n`);
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('BEFORE_RESIZE'));
     await idle(); await page.waitForTimeout(350);
@@ -263,6 +263,12 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.ok(await page.evaluate(() => resizePaints.every(text => text === beforeResize || text.includes('REDRAW_COMPLETE'))), 'no partial transcript is painted');
     await page.evaluate(() => resizeObserver.disconnect());
     await page.screenshot({path:'test-results/terminal-resize-after.png'});
+    await page.evaluate(() => view.term.scrollLines(-10));
+    await page.locator('#terminal').evaluate(node => node.style.width = '680px');
+    await page.waitForFunction(() => view.term.buffer.active.getLine(160)?.translateToString().includes('REBUILT_159'));
+    await input('x');
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('REDRAW_COMPLETE'));
+    assert.ok(await page.evaluate(() => view.term.buffer.active.viewportY === view.term.buffer.active.baseY), 'real typing during redraw returns to the rebuilt bottom');
     await input('q'); await idle();
     console.log('PASS real PTY resize reconstructs in the background beyond one second, preserving the old frame and scrollbar until completion');
 
@@ -285,6 +291,35 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.ok(history.includes('HISTORY_0001') && history.includes('HISTORY_2000') && history.includes('HISTORY_END'));
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid,info.pid);
     console.log('PASS multi-megabyte recovery preserves 2,000 history rows and the shell');
+    const bottom = page.getByRole('button', {name:'Jump to bottom', exact:true});
+    await bottom.waitFor({state:'hidden'});
+    await page.evaluate(() => view.term.scrollLines(-3));
+    assert.equal(await bottom.isVisible(), false, 'a few rows do not show the button');
+    await page.evaluate(() => view.term.scrollLines(-1));
+    await bottom.waitFor({state:'visible'});
+    const inputCount = sent.filter(value => typeof value !== 'string').length;
+    for (const theme of ['dark', 'light']) {
+        await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+        const host = await page.locator('.terminal-host').boundingBox(), control = await bottom.boundingBox();
+        assert.ok(control.x > host.x + host.width / 2 && control.x + control.width < host.x + host.width);
+        assert.ok(control.y > host.y + host.height / 2 && control.y + control.height < host.y + host.height);
+        await bottom.screenshot({path:`test-results/terminal-bottom-${theme}.png`});
+    }
+    await bottom.click();
+    await bottom.waitFor({state:'hidden'});
+    assert.ok(await page.evaluate(() => view.term.buffer.active.baseY === view.term.buffer.active.viewportY));
+    assert.ok(await page.evaluate(() => document.activeElement === view.term.textarea));
+    await page.evaluate(() => view.term.scrollLines(-10));
+    await bottom.focus(); await page.keyboard.press('Enter');
+    await bottom.waitFor({state:'hidden'});
+    assert.ok(await page.evaluate(() => view.term.buffer.active.baseY === view.term.buffer.active.viewportY));
+    assert.equal(sent.filter(value => typeof value !== 'string').length, inputCount, 'jumping never sends terminal input');
+    await input("printf '\\033[?1049hALT_SCREEN\\n'\n");
+    await page.waitForFunction(() => view.term.buffer.active.type === 'alternate');
+    assert.equal(await bottom.isVisible(), false);
+    await input("printf '\\033[?1049l'\n");
+    await page.waitForFunction(() => view.term.buffer.active.type === 'normal');
+    console.log('PASS jump-to-bottom threshold, placement, themes, pointer/keyboard activation, focus and alternate-screen hiding');
     await page.evaluate(()=>view.dispose());
 } finally {
     await context.close();

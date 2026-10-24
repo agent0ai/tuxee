@@ -1,4 +1,4 @@
-import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, size } from './ui';
+import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
@@ -196,7 +196,9 @@ export class FileView implements View {
         this.showHidden.onchange = () => this.render();
         hiddenLabel.append(this.showHidden, 'Hidden');
         footer.append(this.filterButton, this.filterInput, hiddenSeparator, hiddenLabel, this.status, button('Properties', 'Info', () => this.properties()));
-        root.append(actions, header, this.list, footer, this.uploadInput);
+        const table = el('div', 'file-table');
+        table.append(header, this.list);
+        root.append(actions, table, footer, this.uploadInput);
         this.resize();
         const fitActions = () => {
             if (!actions.getClientRects().length) return;
@@ -343,7 +345,9 @@ export class FileView implements View {
             select.append(checkbox);
             const name = el('span', 'file-name');
             name.append(icon(entry.directory ? 'Folder' : entry.symlink ? 'Link' : 'File'), el('span', '', entry.name));
-            row.append(select, name, el('span', 'file-size', entry.directory ? '—' : size(entry.size)), el('span', 'file-date', new Date(entry.modified).toLocaleDateString()));
+            const bytes = el('span', 'file-size', entry.directory ? '—' : compactSize(entry.size, 1024));
+            if (!entry.directory) bytes.title = `${entry.size.toLocaleString()} bytes`;
+            row.append(select, name, bytes, el('span', 'file-date', new Date(entry.modified).toLocaleDateString()));
             row.onclick = e => {
                 row.focus({ preventScroll: true });
                 if (e.shiftKey && this.selectionAnchor) this.selectRange(entry.path);

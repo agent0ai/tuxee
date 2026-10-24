@@ -185,6 +185,41 @@ try {
             assert.ok(holds.released.includes('RELEASED'),'explicit release paints the latest parsed state');
             assert.ok(holds.hidden.rows === 13 && holds.hidden.text.includes('HIDDEN_COMPLETE'),'hidden views restore the final geometry and frame');
             console.log('PASS resize presentation: late/adjacent frame boundaries, unmarked output, silent apps, bounded missing-end fallback and explicit release');
+            const scrolling = await page.evaluate(async () => {
+                const write = data => new Promise(resolve => term.write(data, resolve));
+                const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                const position = () => ({base:term.buffer.active.baseY, view:term.buffer.active.viewportY});
+                resizeDisplay.release(); term.reset(); term.resize(80, 12);
+                await write('HISTORY\r\n'.repeat(100)); await paint();
+                term.scrollLines(-10); await paint();
+                const before = position();
+                await write('MORE\r\n'.repeat(5)); await paint();
+                const reading = position();
+                resizeDisplay.begin(); term.resize(70, 10);
+                await write('\x1b[?2026h\x1b[3J\x1b[2J\x1b[H' + 'REBUILT\r\n'.repeat(200));
+                // TerminalView releases onData, after xterm's automatic scroll-on-input.
+                const input = term.onData(() => resizeDisplay.release());
+                term.input('x'); input.dispose();
+                await write('\x1b[?2026lAFTER_INPUT\r\n'); await paint();
+                const afterInput = position();
+                resizeDisplay.begin(); term.resize(80, 12);
+                await write('\x1b[?2026h\x1b[3J\x1b[2J\x1b[H' + 'FOLLOW\r\n'.repeat(250));
+                term.scrollLines(-10); await paint();
+                const duringRedraw = position();
+                await write('\x1b[?2026lMORE\r\n'); await paint();
+                const afterScroll = position();
+                term.scrollToBottom(); await paint();
+                resizeDisplay.begin(); term.resize(75, 11);
+                await write('\x1b[?2026h\x1b[3J\x1b[2J\x1b[H' + 'FOLLOW\r\n'.repeat(100) + '\x1b[?2026l');
+                await paint();
+                return {before,reading,afterInput,duringRedraw,afterScroll,following:position()};
+            });
+            assert.equal(scrolling.reading.view, scrolling.before.view, 'output preserves deliberate scrollback');
+            assert.equal(scrolling.afterInput.view, scrolling.afterInput.base, 'typing during redraw must use the rebuilt scroll range');
+            assert.equal(scrolling.duringRedraw.view, scrolling.duringRedraw.base - 10, 'scrolling during redraw starts from the current buffer');
+            assert.equal(scrolling.afterScroll.view, scrolling.duringRedraw.view, 'redraw completion preserves deliberate scrolling');
+            assert.equal(scrolling.following.view, scrolling.following.base, 'redrawing at the bottom keeps following output');
+            console.log('PASS redraw scroll range, scroll-on-input and preserved intentional scrollback');
         }
         await page.evaluate(async () => {
             const snapshot = await window.canonical('\x1b[?1049h\x1b[48;2;17;25;39m👋' + ' '.repeat(94) + '\r\n👍' + ' '.repeat(94), 96, 25);

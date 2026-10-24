@@ -41,7 +41,12 @@ async function start(target) { const p = await point(target); await touch.send('
 async function move(p) { await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [p] }); }
 async function end(cancel = false) { await touch.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] }); }
 async function ready() { await list.locator('.file-entry').first().waitFor(); await file.locator('.file-list:not(.loading)').waitFor(); }
-async function navigate(path) { await page.locator('.path-input').fill(path); await page.locator('.path-input').press('Enter'); await page.waitForFunction(path => document.querySelector('.path-input')?.value === path && !document.querySelector('.file-list.loading'), path); }
+async function navigate(path) {
+    const listed = page.waitForResponse(response => response.url() === base + '/api/files' && response.request().postDataJSON()?.operation === 'list' && response.request().postDataJSON()?.path === path);
+    await page.locator('.path-input').fill(path); await page.locator('.path-input').press('Enter');
+    assert.equal((await listed).status(), 200);
+    await page.waitForFunction(path => document.querySelector('.path-input')?.value === path && !document.querySelector('.file-list.loading'), path);
+}
 async function checkSelectionGroups(screenshot) {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(300); // Let the browser's native touch highlight fade before capturing selection colors.

@@ -20,7 +20,7 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
     method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' },
 });
 const system = await (await api('/system')).json();
-const terminalResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Terminal', columns: 80, rows: 24 });
+const terminalResponse = await api('/terminals', 'POST', { directory: '/tmp', name: 'Mobile scrollback terminal', columns: 80, rows: 24 });
 assert.equal(terminalResponse.status(), 201);
 const terminal = await terminalResponse.json();
 assert.equal((await api('/settings', 'PUT', {
@@ -171,7 +171,14 @@ print('KEYS_RESULT_${width}_'+data.hex(),flush=True)`;
     assert.ok(earlier < before, 'downward drag reveals older lines');
     await swipe(-180);
     assert.notEqual(await rows.locator(':scope > div').first().textContent(), earlier);
-    check('real CDP finger drags scroll both directions through PTY output');
+    await swipe(180);
+    const bottom = term.getByRole('button', { name: 'Jump to bottom', exact: true });
+    await bottom.waitFor({state:'visible'});
+    await page.screenshot({path:'test-results/terminal-bottom-mobile.png'});
+    await bottom.tap();
+    await bottom.waitFor({state:'hidden'});
+    assert.ok((await rows.textContent()).includes('MOBILE_LINE_180'));
+    check('real CDP finger drags scroll both directions and Jump to bottom returns to the latest PTY output');
 
     // Real raw-mode applications distinguish wheel reports from alternate-screen cursor keys.
     for (const mouse of [true, false]) {

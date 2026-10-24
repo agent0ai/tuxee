@@ -69,6 +69,19 @@ export class TerminalView implements View {
         installTerminalMetrics(this.term);
         this.resizeDisplay = installTerminalResize(this.term);
         for (const event of ['pointerdown', 'wheel']) this.host.addEventListener(event, () => this.resizeDisplay.release(), { signal: this.events.signal, passive: true });
+        const bottom = button('Jump to bottom', 'ArrowDown', () => {
+            this.resizeDisplay.release();
+            this.term.scrollToBottom();
+            this.term.focus();
+        }, 'terminal-bottom');
+        const updateBottom = () => {
+            const buffer = this.term.buffer.active;
+            bottom.hidden = buffer.type !== 'normal' || buffer.baseY - buffer.viewportY <= 3;
+        };
+        updateBottom();
+        this.host.append(bottom);
+        this.term.onScroll(updateBottom);
+        this.term.onRender(updateBottom);
         installTerminalTouch(this.term, this.events.signal);
         this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
         this.term.onData(data => this.input(data));
