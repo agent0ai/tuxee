@@ -8,7 +8,7 @@ mkfifo "$runtime/ready"
 tuxee-Xvnc "$DISPLAY" -geometry 1024x768 -depth 24 -displayfd 3 \
     -rfbport -1 -rfbunixpath "$runtime/vnc" -rfbunixmode 0600 \
     -SecurityTypes VncAuth -PasswordFile "$runtime/passwd" \
-    -AlwaysShared -DisconnectClients=0 -auth "$XAUTHORITY" \
+    -AlwaysShared -DisconnectClients=0 -SendPrimary=0 -SetPrimary=0 -auth "$XAUTHORITY" \
     -extension MIT-SHM -nolisten tcp -fp built-ins -s 0 3>"$runtime/ready" >&2 &
 vnc=$!
 trap 'kill "$vnc" 2>/dev/null || true; wait' EXIT

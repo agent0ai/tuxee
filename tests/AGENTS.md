@@ -14,9 +14,11 @@ Use dedicated test users, temporary fixtures and isolated listener ports. Never 
 
 # Work Guidance
 
-Keep implementation and checks small and complete.
+Keep implementation and checks small and complete. Copy GUI fixtures into the dedicated user's readable temporary directory; do not require traversal of the source checkout. Use lowercase Playwright letter keys for unshifted noVNC shortcuts (`Control+a`); uppercase letters cause X11 to synthesize Shift.
 
 # Verification
+
+- `npm run test:gui-clipboard`: disposable marked account and private server executable; exercise the production GUI viewer against real GTK and Chromium. Cover native text paste/copy/cut, Unicode/repeated copies, simulated Mac modifiers and ordinary typing, permission rejection and explicit copy fallback, delayed responses after focus loss, background/PRIMARY isolation, text/size admission without terminal uploads, VNC reconnect and genuine insecure HTTP. Requires the GUI runtime, GTK Python bindings, xclip and Chromium. Save `gui-clipboard*.png`; physical macOS/Safari remains a device check.
 
 - `npm run test:clipboard`: isolated real server from a private executable copy and disposable marked Linux account. Verify native device-clipboard copy/cut/paste, exact shell-quoted text through a real PTY, multi-item/folder/symlink copies, repeated same-folder duplication, menu/keyboard interoperability, partial cut failures and retries, collision preservation, consumed/expired cuts, plain path rejection, metadata validation/account/origin isolation, workspace/tab navigation, logout/reload behavior, concurrent/cancelled cuts and existing image uploads. Repeat native keyboard and menu-copy flows on a non-loopback insecure HTTP origin without navigator.clipboard; menu Paste must give the keyboard instruction. Save compact screenshots. Run sequentially with browser suites; Linux Chromium does not establish physical macOS/Safari clipboard behavior.
 

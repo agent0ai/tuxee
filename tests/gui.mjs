@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, chown, copyFile, readFile, rm, stat, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, chmod, chown, copyFile, readFile, rm, stat, readdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 await import('./novnc.mjs');
 
@@ -20,6 +20,8 @@ const fixture = await mkdtemp('/tmp/tuxee-desktop-input-');
 await chown(fixture, uid, gid);
 await mkdir('test-results', { recursive: true });
 await copyFile('./bin/tuxee', `${state}/tuxee`);
+await chmod(state, 0o755); await chmod(`${state}/tuxee`, 0o755);
+await copyFile('./tests/gui-fixture.py', `${fixture}/fixture.py`); await chown(`${fixture}/fixture.py`, uid, gid);
 const service = spawn(`${state}/tuxee`, ['serve', '--bind', '127.0.0.1:0', '--acme', 'off', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => service.once('exit', resolve));
 let logs = '';
@@ -169,7 +171,7 @@ try {
     assert.equal((await api(`/terminals/${terminal.id}/display`)).status(), 409);
     measurements.coldTerminal = await memory();
     assert.ok(!measurements.coldTerminal.some(p => p.name.includes('Xvnc')));
-    await launch(first, `python3 ${process.cwd()}/tests/gui-fixture.py ${fixture}/input.json`);
+    await launch(first, `python3 ${fixture}/fixture.py ${fixture}/input.json`);
     await poll(async () => !!await stat(`${fixture}/input.json.layout`).catch(() => false), 'GTK fixture did not start');
     await page.waitForTimeout(700);
     await clickControl(first, 'entry');
@@ -185,7 +187,7 @@ try {
         await files.getByRole('button', { name: 'Refresh files', exact: true }).click();
         await files.locator('.file-entry').filter({ hasText: 'display.txt' }).click();
         await panelFocus('files', `panel-focus-files-${theme}`);
-        await files.locator('.file-list').focus(); await page.keyboard.press('Control+A');
+        await files.locator('.file-list').focus(); await page.keyboard.press('Control+a');
         await panelFocus('files');
         assert.equal(await files.locator('.file-list').evaluate(node => getComputedStyle(node).outlineStyle), 'none', 'file list must not have a second focus border');
         await page.keyboard.press('ArrowDown');
@@ -198,7 +200,7 @@ try {
         await firstPanel.getByRole('button', { name: 'GUI application proof', exact: true }).click();
         await first.locator('.terminal-display[data-state=connected]').waitFor();
         await clickControl(first, 'entry');
-        await page.keyboard.press('Control+A'); await page.keyboard.type(`GUI_FOCUS_${theme}`); await page.keyboard.press('Enter');
+        await page.keyboard.press('Control+a'); await page.keyboard.type(`GUI_FOCUS_${theme}`); await page.keyboard.press('Enter');
         await poll(async () => (await readFile(`${fixture}/input.json`, 'utf8')).includes(`GUI_FOCUS_${theme}`), 'GUI input failed after changing focus');
         await panelFocus('shell', `panel-focus-gui-${theme}`);
         assert.deepEqual(await panelSizes(), sizes, 'focus borders must not resize panel contents');
@@ -487,7 +489,7 @@ try {
     await page.screenshot({ path: 'test-results/gui-released.png' });
     await page.keyboard.type(`echo RECLAIMED > ${fixture}/reclaimed.txt`); await page.keyboard.press('Enter');
     await poll(async () => !!await stat(`${fixture}/reclaimed.txt`).catch(() => false), 'terminal lost input after reclamation');
-    await launch(first, `python3 ${process.cwd()}/tests/gui-fixture.py ${fixture}/relaunch.json`);
+    await launch(first, `python3 ${fixture}/fixture.py ${fixture}/relaunch.json`);
     await poll(() => firstPanel.locator('[data-window]').count().then(n => n > 0), 'display could not be reused');
     console.log('PASS graceful window close, cancellation, last-window RAM/canvas release and lazy relaunch in the same terminal');
 

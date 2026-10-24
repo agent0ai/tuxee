@@ -67,6 +67,7 @@ export function registerUploadInput(node: HTMLElement, handlers: {
     }, { signal });
     node.addEventListener('paste', event => {
         const target = event.target as Element;
+        if (target.closest('.terminal-display')) return;
         if (target.closest('input:not([type=checkbox]), textarea, [contenteditable]') && !target.classList.contains('xterm-helper-textarea')) return;
         if (!event.clipboardData) return;
         if (!paste(event.clipboardData)) return;

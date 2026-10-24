@@ -1,6 +1,7 @@
 import RFB from './vendor/novnc/core/rfb';
 import { api, bindContextMenu, button, el, icon, notify, popover, scopeNotifications } from './ui';
 import { overflowTabs } from './overflow';
+import { displayClipboard } from './display-clipboard';
 
 type Window = { id: number; title: string; icon?: string; active: boolean };
 export type DisplayState = { ready: boolean; error?: string; windows: Window[] | null };
@@ -21,6 +22,7 @@ export class TerminalDisplay {
     private rfb?: RFB;
     private request?: AbortController;
     private disposed = false;
+    private disposeClipboard?: () => void;
     visible = false;
 
     constructor(private root: HTMLElement, private terminal: HTMLElement, private id: () => string | undefined, private focus: () => void) {
@@ -131,6 +133,7 @@ export class TerminalDisplay {
                 if (this.rfb !== rfb) return;
                 this.status.hidden = true; this.frame.dataset.state = 'connected';
                 this.screen.querySelector('canvas')?.setAttribute('aria-label', 'Terminal display');
+                this.disposeClipboard = displayClipboard(this.screen, rfb, this.root);
                 if (this.visible) rfb.focus();
             });
             rfb.addEventListener('disconnect', () => {
@@ -143,6 +146,7 @@ export class TerminalDisplay {
     }
 
     private disconnected(message: string) {
+        this.disposeClipboard?.(); this.disposeClipboard = undefined;
         this.frame.dataset.state = 'disconnected'; this.status.hidden = false;
         this.status.replaceChildren(el('span', '', message), button('Reconnect display', undefined, () => this.connect(), 'primary'));
     }
@@ -158,6 +162,7 @@ export class TerminalDisplay {
     }
 
     private disconnect() {
+        this.disposeClipboard?.(); this.disposeClipboard = undefined;
         this.request?.abort(); this.request = undefined;
         const rfb = this.rfb; this.rfb = undefined; rfb?.disconnect();
         this.screen.replaceChildren(); delete this.frame.dataset.state;
