@@ -58,8 +58,8 @@ try {
     const record = async () => JSON.parse(await readFile(home + '/input.json', 'utf8'));
     const initial = await until(record);
     const env = { PATH: '/usr/bin:/usr/local/bin:/bin', HOME: home, DISPLAY: initial.display, XAUTHORITY: initial.auth };
-    const remoteClip = (text, selection = 'clipboard') => {
-        const child = spawn('xclip', ['-quiet', '-selection', selection], { uid, gid, env, stdio: ['pipe', 'ignore', 'ignore'] }); child.stdin.end(text);
+    const remoteClip = (text, selection = 'clipboard', type) => {
+        const child = spawn('xclip', ['-quiet', '-selection', selection, ...(type ? ['-target', type] : [])], { uid, gid, env, stdio: ['pipe', 'ignore', 'ignore'] }); child.stdin.end(text);
     };
     const write = text => page.evaluate(text => navigator.clipboard.writeText(text), text);
     const read = () => page.evaluate(() => navigator.clipboard.readText());
@@ -69,13 +69,13 @@ try {
     await write('keep local'); await page.keyboard.press('Control+a'); await pause(250); assert.equal(await read(), 'keep local');
     await page.keyboard.press('Control+C'); await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
     await write('changed locally'); await page.keyboard.press('Control+C'); await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
-    await page.keyboard.down('Control'); await page.keyboard.press('c');
+    await write('before held modifier copy'); await page.keyboard.down('Control'); await page.keyboard.press('c');
     await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
     await page.keyboard.press('a'); await page.keyboard.press('v'); await page.keyboard.up('Control');
     await until(async () => assert.equal((await record()).text, 'Device → GTK: café 日本語 🦊'));
     await page.keyboard.press('Control+a');
-    await page.keyboard.press('Control+X'); await until(async () => assert.equal((await record()).text, ''));
-    assert.equal(await read(), 'Device → GTK: café 日本語 🦊');
+    await write('before GTK cut'); await page.keyboard.press('Control+X'); await until(async () => assert.equal((await record()).text, ''));
+    await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
     console.log('PASS native paste, Unicode, real GTK copy/cut, repeated copy and independent PRIMARY selection');
 
     await paste('Command modifiers'); await page.keyboard.press('Control+a');
@@ -119,7 +119,7 @@ try {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     });
     await canvas.focus(); await page.keyboard.press('Control+V');
-    await view.getByText('GUI clipboard supports text only.', { exact: true }).waitFor();
+    await until(async () => assert.deepEqual((await record()).received.image, [1, 1]));
     assert.deepEqual(uploads, []); assert.equal((await record()).text, 'Command modifiers!');
     await write('x'.repeat(256 * 1024)); await page.keyboard.press('Control+V');
     await view.getByText('GUI clipboard text is too large (maximum 256 KB).', { exact: true }).waitFor();
@@ -129,7 +129,120 @@ try {
     await view.locator('.terminal-display[data-state=connected]').waitFor();
     await paste('after reconnect');
     await page.screenshot({ path: 'test-results/gui-clipboard.png' });
-    console.log('PASS text-only and size admission without terminal uploads; reconnect installs one working bridge');
+    console.log('PASS native PNG paste and text size admission without terminal uploads; reconnect installs one working bridge');
+
+    // A larger, incompressible image exercises X11 INCR in both directions.
+    const imageBytes = await page.evaluate(async () => {
+        const image = document.createElement('canvas'); image.width = image.height = 512;
+        const painter = image.getContext('2d'), pixels = painter.createImageData(512, 512);
+        let seed = 7;
+        for (let i = 0; i < pixels.data.length; i += 4) {
+            seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+            pixels.data[i] = seed & 255; pixels.data[i+1] = seed >>> 8 & 255; pixels.data[i+2] = seed >>> 16 & 255; pixels.data[i+3] = 255;
+        }
+        painter.putImageData(pixels, 0, 0);
+        const blob = await new Promise(resolve => image.toBlob(resolve));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        const item = (await navigator.clipboard.read())[0], png = await item.getType('image/png');
+        return Array.from(new Uint8Array(await png.arrayBuffer()));
+    });
+    assert.ok(imageBytes.length > 64 * 1024);
+    await canvas.focus(); await page.keyboard.press('Control+v');
+    await until(async () => assert.deepEqual((await record()).received.image, [512, 512]));
+    const exported = spawnSync('xclip', ['-o', '-selection', 'clipboard', '-target', 'image/png'], { uid, gid, env, timeout: 5000 });
+    assert.equal(exported.status, 0); assert.deepEqual(exported.stdout, Buffer.from(imageBytes));
+    await write('before image copy'); await canvas.click(); remoteClip(Buffer.from(imageBytes), 'clipboard', 'image/png');
+    await until(async () => assert.ok(await page.evaluate(async () => (await navigator.clipboard.read())[0].types.includes('image/png'))));
+    const copiedDimensions = await page.evaluate(async () => { const item = (await navigator.clipboard.read())[0], bitmap = await createImageBitmap(await item.getType('image/png')); const size = [bitmap.width, bitmap.height]; bitmap.close(); return size; });
+    assert.deepEqual(copiedDimensions, [512, 512]);
+    await page.evaluate(async original => {
+        const item = (await navigator.clipboard.read())[0];
+        const pixels = async blob => { const bitmap = await createImageBitmap(blob), canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height; const ctx = canvas.getContext('2d'); ctx.drawImage(bitmap, 0, 0); bitmap.close(); return ctx.getImageData(0, 0, canvas.width, canvas.height).data; };
+        const expected = await pixels(new Blob([Uint8Array.from(original)], { type: 'image/png' })), actual = await pixels(await item.getType('image/png'));
+        if (actual.length !== expected.length || actual.some((value, i) => value !== expected[i])) throw Error('Copied image pixels changed');
+    }, imageBytes);
+    await writeFile(home + '/input.json.copy-image', '');
+    await write('before actual image shortcut'); await page.keyboard.press('Control+c');
+    await until(async () => assert.ok(await page.evaluate(async () => (await navigator.clipboard.read())[0].types.includes('image/png'))));
+    await page.evaluate(() => { window.clipboardWrite = navigator.clipboard.write.bind(navigator.clipboard); navigator.clipboard.write = () => Promise.reject(new DOMException('Denied', 'NotAllowedError')); });
+    await page.keyboard.press('Control+c'); await view.getByRole('button', { name: 'Download image', exact: true }).waitFor();
+    await page.evaluate(() => { navigator.clipboard.write = clipboardWrite; });
+    await view.getByRole('button', { name: 'Copy to device', exact: true }).click();
+    assert.ok(await page.evaluate(async () => (await navigator.clipboard.read())[0].types.includes('image/png')));
+    await rm(home + '/input.json.copy-image');
+    assert.deepEqual(uploads, []);
+    console.log('PASS real GTK image paste, PNG copy back to the device, and incremental X11 transfers');
+
+    // Browser-exposed files upload once and become native Linux file references.
+    const pasteFiles = async () => canvas.evaluate(node => {
+        const data = new DataTransfer(); data.items.add(new File(['from device'], "device spaced 日本語.txt", { type: 'text/plain' }));
+        node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    });
+    await canvas.focus(); await pasteFiles();
+    const uploadedPath = home + '/uploads/device spaced 日本語.txt';
+    await until(async () => assert.deepEqual((await record()).received.files, [new URL('file://' + uploadedPath).href]));
+    assert.equal(await readFile(uploadedPath, 'utf8'), 'from device');
+    assert.equal(uploads.length, 1);
+    await canvas.click(); remoteClip('copy\n' + new URL('file://' + uploadedPath).href, 'clipboard', 'x-special/gnome-copied-files');
+    await until(async () => assert.ok((await read()).includes('device spaced 日本語.txt')));
+    const outgoingHTML = await page.evaluate(async () => { const item = (await navigator.clipboard.read())[0]; return (await item.getType('text/html')).text(); });
+    assert.ok(outgoingHTML.includes('data-tuxee-files'));
+    await view.getByRole('button', { name: 'Download files', exact: true }).waitFor();
+    // Reuse the actual exported metadata in a GUI paste; it must not upload again.
+    await canvas.focus(); await page.keyboard.press('Control+v');
+    await until(async () => assert.deepEqual((await record()).received.files, [new URL('file://' + uploadedPath).href]));
+    assert.equal(uploads.length, 1);
+    await page.locator('[data-panel=files] .file-list').focus(); await page.keyboard.press('Control+v');
+    await until(async () => assert.equal(await readFile(home + '/device spaced 日本語.txt', 'utf8'), 'from device'));
+    await canvas.focus();
+    console.log('PASS uploaded file clipboard, GUI file copy metadata and same-server file paste without upload');
+
+    // A second view may own the shell while the first still controls its GUI.
+    const other = await context.newPage(); await other.goto(base);
+    await other.locator('[data-panel=shell] .terminal-view[data-state=viewing]').waitFor();
+    await other.locator('[data-panel=shell]').getByRole('button', { name: 'Take control', exact: true }).click();
+    await other.locator('[data-panel=shell] .terminal-view[data-state=connected]').waitFor();
+    await page.bringToFront(); await view.locator('.terminal-view[data-state=viewing]').waitFor();
+    // A native browser drop must reach the X11 app, never the hidden PTY.
+    const box = await canvas.boundingBox();
+    await canvas.evaluate((node, point) => {
+        const data = new DataTransfer(); data.items.add(new File(['native drop'], 'dropped.txt', { type: 'text/plain' }));
+        node.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true, clientX: point.x + point.width / 2, clientY: point.y + point.height / 2 }));
+    }, box);
+    await until(async () => assert.deepEqual((await record()).received.drop, ['file://' + home + '/uploads/dropped.txt']));
+    assert.equal(await readFile(home + '/uploads/dropped.txt', 'utf8'), 'native drop');
+    await other.close(); await view.getByRole('button', { name: 'Take control', exact: true }).click();
+    await view.locator('.terminal-view[data-state=connected]').waitFor();
+    await view.getByRole('button', { name: 'Clipboard proof', exact: true }).click();
+    await page.keyboard.type("printf 'DROP_SHELL_CLEAN\\n'"); await page.keyboard.press('Enter');
+    await until(async () => { const text = await view.locator('.xterm-screen').innerText(); assert.ok(text.includes('DROP_SHELL_CLEAN')); assert.ok(!text.includes('uploads/dropped.txt')); assert.ok(!text.includes('device spaced')); });
+    await view.getByRole('button', { name: 'GUI clipboard proof', exact: true }).click();
+    await view.locator('.terminal-display[data-state=connected]').waitFor();
+    console.log('PASS uploaded native GUI file drop and hidden terminal isolation');
+    // Actual Chromium drag negotiation, using a browser-local file, reaches XDND.
+    const localDrop = state + '/native-drag.txt'; await writeFile(localDrop, 'real browser drag');
+    const cdp = await context.newCDPSession(page), dragBox = await canvas.boundingBox();
+    for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', {
+        type, x: dragBox.x + dragBox.width / 2, y: dragBox.y + dragBox.height / 2,
+        data: { items: [], files: [localDrop], dragOperationsMask: 1 }
+    });
+    await until(async () => assert.deepEqual((await record()).received.drop, ['file://' + home + '/uploads/native-drag.txt']));
+    const internalRow = page.locator('[data-panel=files] .file-entry').filter({ hasText: 'device spaced 日本語.txt' });
+    await internalRow.waitFor(); const sourceBox = await internalRow.boundingBox();
+    await internalRow.click();
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+    await page.mouse.down(); await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2, { steps: 15 }); await page.mouse.up();
+    await until(async () => assert.deepEqual((await record()).received.drop, [new URL('file://' + home + '/device spaced 日本語.txt').href]));
+    // Disable the target's drop support: fallback requires an explicit user action.
+    await canvas.focus(); await page.keyboard.press('F8'); await until(async () => assert.equal((await record()).received.drop_disabled, true));
+    await canvas.evaluate(node => {
+        const data = new DataTransfer(); data.items.add(new File(['fallback'], 'fallback.txt', { type: 'text/plain' }));
+        const rect = node.getBoundingClientRect(); node.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 }));
+    });
+    await view.getByRole('button', { name: 'Paste paths', exact: true }).click();
+    await until(async () => assert.ok((await record()).text.includes(home + '/uploads/fallback.txt')));
+    console.log('PASS real Chromium file drag and explicit path-paste fallback for apps that reject drops');
+
 
     const app = spawn('/usr/bin/chromium', ['--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', '--user-data-dir=' + home + '/chrome', 'data:text/html,<textarea autofocus></textarea>'], { uid, gid, env, stdio: ['ignore', 'ignore', 'pipe'] });
     let cdpURL; app.stderr.on('data', data => { const match = String(data).match(/DevTools listening on (ws:\/\/\S+)/); if (match) cdpURL = match[1]; });
@@ -139,6 +252,10 @@ try {
     await until(async () => assert.equal(await remotePage.locator('textarea').inputValue(), 'Device → remote Chromium 🦊'));
     await page.keyboard.press('Control+a'); await write('old local'); await page.keyboard.press('Control+C');
     await until(async () => assert.equal(await read(), 'Device → remote Chromium 🦊'));
+    await remotePage.evaluate(() => document.addEventListener('paste', event => { window.receivedFiles = Array.from(event.clipboardData.files).map(file => ({ type: file.type, size: file.size })); }));
+    await page.evaluate(async bytes => navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([Uint8Array.from(bytes)], { type: 'image/png' }) })]), imageBytes);
+    await canvas.focus(); await page.keyboard.press('Control+v');
+    await until(async () => { const files = await remotePage.evaluate(() => window.receivedFiles); assert.equal(files?.[0]?.type, 'image/png'); assert.ok(files[0].size > 64 * 1024); });
     await remoteBrowser.close(); app.kill('SIGTERM');
     console.log('PASS the same production clipboard integration in remote Chromium');
 

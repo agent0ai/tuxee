@@ -22,10 +22,11 @@ type Window struct {
 }
 
 type windowManager struct {
-	x     *xgb.Conn
-	d     *Display
-	root  xproto.Window
-	atoms map[string]xproto.Atom
+	x         *xgb.Conn
+	d         *Display
+	root      xproto.Window
+	atoms     map[string]xproto.Atom
+	clipboard *clipboard
 }
 
 func newWindowManager(x *xgb.Conn, d *Display) (*windowManager, error) {
@@ -38,6 +39,9 @@ func newWindowManager(x *xgb.Conn, d *Display) (*windowManager, error) {
 		w.atoms[name] = a.Atom
 	}
 	err := xproto.ChangeWindowAttributesChecked(x, w.root, xproto.CwEventMask, []uint32{xproto.EventMaskPropertyChange}).Check()
+	if err == nil {
+		w.clipboard, err = newClipboard(x)
+	}
 	return w, err
 }
 
@@ -98,12 +102,14 @@ func (w *windowManager) refresh() {
 }
 
 func (w *windowManager) watch() {
+	defer w.clipboard.close()
 	w.refresh()
 	for {
 		event, err := w.x.WaitForEvent()
 		if event == nil && err == nil {
 			return
 		}
+		w.clipboard.event(event)
 		if p, ok := event.(xproto.PropertyNotifyEvent); ok {
 			for _, a := range w.atoms {
 				if p.Atom == a {

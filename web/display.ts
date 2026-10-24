@@ -1,7 +1,10 @@
 import RFB from './vendor/novnc/core/rfb';
-import { api, bindContextMenu, button, el, icon, notify, popover, scopeNotifications } from './ui';
+import { api, bindContextMenu, button, el, icon, notificationHost, notify, popover, scopeNotifications } from './ui';
 import { overflowTabs } from './overflow';
 import { displayClipboard } from './display-clipboard';
+import { type DraggedFile } from './file-drag';
+import { uploadBatch } from './transfers';
+import { join, type User } from './model';
 
 type Window = { id: number; title: string; icon?: string; active: boolean };
 export type DisplayState = { ready: boolean; error?: string; windows: Window[] | null };
@@ -22,10 +25,13 @@ export class TerminalDisplay {
     private rfb?: RFB;
     private request?: AbortController;
     private disposed = false;
-    private disposeClipboard?: () => void;
+    private clipboard?: ReturnType<typeof displayClipboard>;
+    private events = new AbortController();
+    private dropNotice?: HTMLElement;
     visible = false;
+    get connected() { return this.visible && !!this.clipboard && this.frame.getClientRects().length > 0 && this.frame.dataset.state === 'connected'; }
 
-    constructor(private root: HTMLElement, private terminal: HTMLElement, private id: () => string | undefined, private focus: () => void) {
+    constructor(private root: HTMLElement, private terminal: HTMLElement, private id: () => string | undefined, private focus: () => void, private user: User) {
         const header = root.closest('.panel')!.querySelector('.panel-header')!;
         this.terminalButton.replaceChildren(header.querySelector('svg')!, header.querySelector('.panel-title')!);
         this.controls.append(this.terminalButton, this.separator, this.windows);
@@ -133,7 +139,11 @@ export class TerminalDisplay {
                 if (this.rfb !== rfb) return;
                 this.status.hidden = true; this.frame.dataset.state = 'connected';
                 this.screen.querySelector('canvas')?.setAttribute('aria-label', 'Terminal display');
-                this.disposeClipboard = displayClipboard(this.screen, rfb, this.root);
+                this.clipboard = displayClipboard(this.screen, rfb, this.root, {
+                    path: `/terminals/${this.id()}/display`, uid: this.user.uid,
+                    upload: files => uploadBatch(join(this.user.home, 'uploads'), files, this.root, this.events.signal, true),
+                    disconnected: () => rfb.disconnect()
+                });
                 if (this.visible) rfb.focus();
             });
             rfb.addEventListener('disconnect', () => {
@@ -146,7 +156,7 @@ export class TerminalDisplay {
     }
 
     private disconnected(message: string) {
-        this.disposeClipboard?.(); this.disposeClipboard = undefined;
+        this.clipboard?.dispose(); this.clipboard = undefined;
         this.frame.dataset.state = 'disconnected'; this.status.hidden = false;
         this.status.replaceChildren(el('span', '', message), button('Reconnect display', undefined, () => this.connect(), 'primary'));
     }
@@ -161,12 +171,41 @@ export class TerminalDisplay {
         this.controls.hidden = compact && !this.state?.windows?.length;
     }
 
+    dropTarget(point?: { clientX: number; clientY: number }) {
+        const canvas = this.screen.querySelector('canvas'), window = this.state?.windows?.find(window => window.active);
+        if (!this.connected || !canvas || !window) throw new Error('GUI display is unavailable');
+        const rect = canvas.getBoundingClientRect();
+        const x = point ? (point.clientX - rect.left) / rect.width : .5, y = point ? (point.clientY - rect.top) / rect.height : .5;
+        this.rfb?.focus();
+        return { window: window.id, x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x * canvas.width))), y: Math.max(0, Math.min(canvas.height - 1, Math.floor(y * canvas.height))) };
+    }
+
+    async dropFiles(files: DraggedFile[], target: ReturnType<TerminalDisplay['dropTarget']>) {
+        if (this.disposed || !this.connected || !this.state?.windows?.some(window => window.id === target.window && window.active)) {
+            throw new Error('Files are available on the server; the original GUI window is no longer active.');
+        }
+        this.dropNotice?.remove();
+        try { await api(`/terminals/${this.id()}/display/drop`, 'POST', { ...target, files: files.map(file => file.path) }, this.events.signal); }
+        catch (error) {
+            if (this.disposed) return;
+            notify(error, this.root);
+            const paste = button('Paste paths', 'ClipboardPaste', async () => {
+                if (!this.visible || !this.state?.windows?.some(window => window.id === target.window && window.active)) throw new Error('Select the original GUI window first.');
+                await this.clipboard?.pastePaths(files); this.dropNotice?.remove();
+            });
+            paste.append(el('span', '', 'Paste paths'));
+            this.dropNotice = el('div', 'toast'); this.dropNotice.append(paste, button('Dismiss', 'X', () => this.dropNotice?.remove()));
+            notificationHost('notifications', this.root).append(this.dropNotice);
+        }
+    }
+
     private disconnect() {
-        this.disposeClipboard?.(); this.disposeClipboard = undefined;
+        this.dropNotice?.remove();
+        this.clipboard?.dispose(); this.clipboard = undefined;
         this.request?.abort(); this.request = undefined;
         const rfb = this.rfb; this.rfb = undefined; rfb?.disconnect();
         this.screen.replaceChildren(); delete this.frame.dataset.state;
     }
 
-    dispose() { this.disposed = true; this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
+    dispose() { this.disposed = true; this.events.abort(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
 }

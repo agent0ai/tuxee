@@ -11,7 +11,7 @@ export function clearFileCut() { if (pendingCut) { pendingCut = undefined; chang
 export function isFileCut(path: string, uid: number) { return pendingCut?.data.uid === uid && pendingCut.remaining.has(path); }
 for (const type of ['copy', 'cut']) document.addEventListener(type, clearFileCut);
 
-export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event?: ClipboardEvent) {
+export function fileClipboardContent(files: DraggedFile[], uid: number, cut = false) {
     if (!files.length) throw new Error('Select files first');
     const data: FileClipboard = { version: 1, id: id(), origin: location.origin, uid, action: cut ? 'cut' : 'copy', paths: files.map(file => file.path) };
     const text = shellPaths(files), node = document.createElement('span');
@@ -19,6 +19,11 @@ export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event
     // HTML carries metadata through both clipboard events and the async menu API.
     const html = node.outerHTML;
     if (html.length > 8 * 1024 * 1024) throw new Error('Too many paths to copy');
+    return { data, text, html };
+}
+
+export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event?: ClipboardEvent) {
+    const { data, text, html } = fileClipboardContent(files, uid, cut);
     let written = false, error: unknown;
     const write = (event: ClipboardEvent) => {
         event.preventDefault(); event.stopImmediatePropagation();

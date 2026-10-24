@@ -54,13 +54,17 @@ export class TerminalView implements View {
         root.append(this.host);
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         registerFileDrop(dropTarget, {
-            over: () => { const accepted = this.ready && this.controller && !this.ended; setDropFeedback(root, accepted ? 'Paste' : undefined); return accepted; },
+            over: () => { const accepted = this.canDrop(); setDropFeedback(root, accepted ? this.display?.visible ? 'Drop files' : 'Paste' : undefined); return accepted; },
             leave: () => setDropFeedback(root),
-            drop: drop => { this.term.paste(shellPaths(drop.files)); this.term.focus(); animateFileDrop(drop.files, drop, this.host); }
+            drop: drop => {
+                if (this.display.visible) {
+                    try { void this.display.dropFiles(drop.files, this.display.dropTarget(drop)).catch(this.notice); } catch (error) { this.notice(error); }
+                } else { this.term.paste(shellPaths(drop.files)); this.term.focus(); animateFileDrop(drop.files, drop, this.host); }
+            }
         }, this.events.signal);
         registerUploadInput(dropTarget, {
-            accept: () => this.canUpload(),
-            over: () => setDropFeedback(root, 'Upload and paste'),
+            accept: () => this.canDrop(),
+            over: () => setDropFeedback(root, this.display?.visible ? 'Upload and drop' : 'Upload and paste'),
             leave: () => setDropFeedback(root),
             upload: (sources, point) => { void this.uploadFiles(sources, point); }
         }, this.events.signal);
@@ -83,7 +87,7 @@ export class TerminalView implements View {
         this.term.onScroll(updateBottom);
         this.term.onRender(updateBottom);
         installTerminalTouch(this.term, this.events.signal);
-        this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); });
+        this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); }, this.hooks.user);
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.input(data, true));
         this.term.attachCustomKeyEventHandler(event => {
@@ -99,16 +103,22 @@ export class TerminalView implements View {
     }
     private notice = (value: unknown) => notify(value, this.root);
     private canUpload() { return this.ready && this.controller && !this.ended && !this.disposed && !this.closing; }
+    private canDrop() { return this.display?.visible ? this.display.connected && !this.disposed && !this.closing : this.canUpload(); }
     private async uploadFiles(sources: UploadSource[], point?: { clientX: number; clientY: number }) {
-        this.term.focus();
+        let target: ReturnType<TerminalDisplay['dropTarget']> | undefined;
+        if (this.display.visible) {
+            try { target = this.display.dropTarget(point); } catch (error) { this.notice(error); return; }
+        } else this.term.focus();
         let uploaded;
         try { uploaded = await uploadBatch(join(this.hooks.user.home, 'uploads'), sources, this.root, this.events.signal, true); }
         catch { return; } // The batch indicator owns upload errors and cancellation.
+        if (!uploaded.length) return;
+        if (target) { try { await this.display.dropFiles(uploaded, target); } catch (error) { this.notice(error); } return; }
         if (!this.canUpload()) {
             if (!this.disposed) this.notice('Uploaded to ~/uploads; terminal no longer accepts input');
             return;
         }
-        if (!uploaded.length) return;
+        if (this.display.visible) { this.notice('Uploaded to ~/uploads; terminal is no longer visible'); return; }
         this.term.paste(shellPaths(uploaded));
         if (point) animateFileDrop(uploaded, point, this.host);
     }

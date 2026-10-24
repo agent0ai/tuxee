@@ -38,6 +38,13 @@ func TestDisplayAdmission(t *testing.T) {
 		{"DELETE", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/window", "token", "http://tuxee.test", "", 403},
 		{"DELETE", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/window", "token", "http://evil.test", "csrf", 403},
 		{"DELETE", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/window", "token", "http://tuxee.test", "csrf", 404},
+		{"GET", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/clipboard/events", "", "http://tuxee.test", "", 401},
+		{"GET", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/clipboard/events", "token", "http://evil.test", "", 403},
+		{"GET", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/clipboard?version=1", "", "http://tuxee.test", "", 401},
+		{"POST", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/clipboard", "token", "http://tuxee.test", "", 403},
+		{"POST", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/clipboard", "token", "http://evil.test", "csrf", 403},
+		{"POST", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/drop", "token", "http://tuxee.test", "", 403},
+		{"POST", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/drop", "token", "http://evil.test", "csrf", 403},
 	} {
 		r := httptest.NewRequest(tc.method, "http://tuxee.test"+tc.path, nil)
 		r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: tc.token})

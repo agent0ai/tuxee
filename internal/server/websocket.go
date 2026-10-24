@@ -110,7 +110,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		return
 	}
 	if action == "display" || strings.HasPrefix(action, "display/") {
-		terminalDisplay(w, r, value, action)
+		s.terminalDisplay(w, r, value, action)
 		return
 	}
 	if action == "ws" && r.Method == "GET" {

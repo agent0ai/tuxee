@@ -59,6 +59,7 @@ type Server struct {
 	logins       map[[32]byte]*login
 	archives     map[string]*archiveDownload
 	fileSlots    chan struct{}
+	clipSlots    chan struct{}
 	sizeSlots    chan struct{}
 	scriptHash   string
 	monitor      *monitor.Collector
@@ -67,7 +68,7 @@ type Server struct {
 }
 
 func New(gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
-	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32)}
+	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32), clipSlots: make(chan struct{}, 2)}
 	s.monitor = monitor.New()
 	s.processReads = make(chan struct{}, 2)
 	s.sizeSlots = make(chan struct{}, 2)
