@@ -2,7 +2,7 @@ import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
-import { api, APIError, button, el, notify, ask } from './ui';
+import { api, APIError, button, el, notify, ask, popover } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
 import { uploadBatch, type UploadSource } from './transfers';
 import { join, type Panel, type Hooks, type View, type TerminalInfo } from './model';
@@ -40,7 +40,12 @@ export class TerminalView implements View {
     private events = new AbortController();
     private control = button('Take control', 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = 'Terminal';
+    private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
+    private closeText = () => {};
+    private rendering = el('div', 'terminal-rendering', 'Loading...');
+    private renderingStarted = performance.now();
+    private renderingTimer?: ReturnType<typeof setTimeout>;
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         root.classList.add('terminal-view');
         this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
@@ -51,7 +56,8 @@ export class TerminalView implements View {
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);
-        root.append(this.host);
+        root.append(this.surface);
+        this.surface.append(this.host);
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         registerFileDrop(dropTarget, {
             over: () => { const accepted = this.canDrop(); setDropFeedback(root, accepted ? this.display?.visible ? 'Drop files' : 'Paste' : undefined); return accepted; },
@@ -73,26 +79,61 @@ export class TerminalView implements View {
         installTerminalMetrics(this.term);
         this.resizeDisplay = installTerminalResize(this.term);
         for (const event of ['pointerdown', 'wheel']) this.host.addEventListener(event, () => this.resizeDisplay.release(), { signal: this.events.signal, passive: true });
-        const bottom = button('Jump to bottom', 'ArrowDown', () => {
+        const scroll = (top: boolean) => {
             this.resizeDisplay.release();
-            this.term.scrollToBottom();
+            if (top) this.term.scrollToTop(); else this.term.scrollToBottom();
             this.term.focus();
-        }, 'terminal-bottom');
-        const updateBottom = () => {
-            const buffer = this.term.buffer.active;
-            bottom.hidden = buffer.type !== 'normal' || buffer.baseY - buffer.viewportY <= 3;
         };
-        updateBottom();
-        const rendering = el('div', 'terminal-rendering', 'Loading...');
-        rendering.setAttribute('role', 'status');
-        this.host.append(bottom, rendering);
-        this.term.onScroll(updateBottom);
+        const top = button('Jump to top', 'ArrowUp', () => scroll(true));
+        const bottom = button('Jump to bottom', 'ArrowDown', () => scroll(false));
+        const updateScroll = () => {
+            const buffer = this.term.buffer.active;
+            top.disabled = buffer.type !== 'normal' || buffer.viewportY === 0;
+            bottom.disabled = buffer.type !== 'normal' || buffer.viewportY === buffer.baseY;
+        };
+        const drawer = el('textarea', 'terminal-input');
+        drawer.rows = 5; drawer.hidden = true; drawer.spellcheck = false;
+        drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
+        drawer.setAttribute('aria-label', 'Terminal input drawer');
+        drawer.placeholder = 'Enter: paste and send · Shift+Enter: new line · Ctrl/Cmd+Enter: paste only';
+        const toggle = button('Toggle terminal input', 'TextCursorInput', () => {
+            drawer.hidden = !drawer.hidden;
+            toggle.setAttribute('aria-expanded', String(!drawer.hidden));
+            if (drawer.hidden) this.term.focus(); else drawer.focus();
+        });
+        toggle.setAttribute('aria-expanded', 'false');
+        drawer.onkeydown = event => {
+            if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.isComposing || event.keyCode === 229) return;
+            event.preventDefault(); event.stopPropagation();
+            if (!this.canUpload()) { this.notice('Terminal is not ready for input'); return; }
+            // Queue paste and Enter atomically so a rejected paste can never execute a partial command.
+            let data = drawer.value.replace(/\r?\n/g, '\r');
+            if (this.term.modes.bracketedPasteMode && data) data = '\x1b[200~' + data + '\x1b[201~';
+            if (!event.ctrlKey && !event.metaKey) data += '\r';
+            if (this.input(data)) { drawer.value = ''; this.term.scrollToBottom(); }
+        };
+        const text = button('Terminal contents as text', undefined, () => this.showText(text));
+        text.textContent = 'T'; text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
+        const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
+        left.append(toggle, text);
+        right.append(button('Reconnect terminal', 'RefreshCw', () => this.connect()), top, bottom);
+        footer.append(left, right); this.surface.append(drawer, footer);
+        updateScroll();
+        this.rendering.setAttribute('role', 'status');
+        this.host.append(this.rendering);
+        this.term.onScroll(updateScroll);
         this.term.onRender(() => {
-            updateBottom();
-            if (this.ready) rendering.remove();
+            updateScroll();
+            if (this.ready && this.rendering.isConnected && !this.renderingTimer) {
+                // Keep even a fast reconnect visible without delaying recovery or input.
+                this.renderingTimer = setTimeout(() => {
+                    this.renderingTimer = undefined;
+                    if (this.ready) this.rendering.remove();
+                }, Math.max(0, 200 - (performance.now() - this.renderingStarted)));
+            }
         });
         installTerminalTouch(this.term, this.events.signal);
-        this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); }, this.hooks.user);
+        this.display = new TerminalDisplay(root, this.surface, () => this.panel.terminal, () => { this.resize(); this.term.focus(); }, this.hooks.user);
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.input(data, true));
         this.term.attachCustomKeyEventHandler(event => {
@@ -102,9 +143,40 @@ export class TerminalView implements View {
             if (event.type === 'keydown') this.term.input('\x1b[13;2u');
             return false;
         });
-        this.observer = new ResizeObserver(() => this.resize());
+        this.observer = new ResizeObserver(() => { this.closeText(); this.resize(); });
         this.observer.observe(this.host);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
+    }
+    private showText(anchor: HTMLElement) {
+        if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
+        this.closeText();
+        const content = el('div', 'terminal-text'), text = el('textarea');
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'Terminal contents');
+        const rect = this.host.getBoundingClientRect();
+        content.style.width = `${rect.width}px`; content.style.height = `${rect.height}px`;
+        const style = getComputedStyle(this.term.element!);
+        const rows = getComputedStyle(this.term.element!.querySelector('.xterm-rows')!);
+        Object.assign(text.style, { fontFamily: rows.fontFamily, fontSize: rows.fontSize, lineHeight: rows.lineHeight, letterSpacing: rows.letterSpacing, fontVariantLigatures: rows.fontVariantLigatures });
+        text.style.padding = style.padding;
+        text.readOnly = true; text.spellcheck = false; text.wrap = 'soft';
+        text.setAttribute('aria-label', 'Terminal contents as text');
+        text.onkeydown = event => {
+            if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+                event.preventDefault(); event.stopPropagation(); text.select();
+            }
+        };
+        const buffer = this.term.buffer.active, lines: string[] = [];
+        for (let i = 0; i < buffer.length; i++) {
+            const line = buffer.getLine(i)!;
+            const value = line.translateToString(true);
+            if (line.isWrapped && lines.length) lines[lines.length - 1] += value;
+            else lines.push(value);
+        }
+        text.value = lines.join('\n').trimEnd();
+        content.append(text);
+        ({ close: this.closeText } = popover(anchor, content));
+        content.style.left = `${rect.left}px`; content.style.top = `${rect.top}px`;
+        text.focus();
     }
     private notice = (value: unknown) => notify(value, this.root);
     private canUpload() { return this.ready && this.controller && !this.ended && !this.disposed && !this.closing; }
@@ -146,7 +218,7 @@ export class TerminalView implements View {
         clearTimeout(this.reconnect);
         const socket = this.socket; this.socket = undefined; socket?.close();
         this.root.querySelector('.terminal-recovery')?.remove();
-        this.host.hidden = true;
+        this.surface.hidden = true;
         this.root.classList.add('session-lost');
         const recovery = el('div', 'terminal-recovery'), message = el('p', '', 'Terminal session lost');
         message.setAttribute('role', 'status');
@@ -161,7 +233,7 @@ export class TerminalView implements View {
                 await this.start();
                 if (this.ended || this.disposed || this.closing) return;
                 recovery.remove(); this.root.classList.remove('session-lost');
-                this.host.hidden = false;
+                this.surface.hidden = false;
             })().catch(error => { this.ended = true; this.notice(error); }).finally(() => { restart.disabled = false; });
         }, 'primary restart-terminal');
         recovery.append(message, restart);
@@ -199,7 +271,14 @@ export class TerminalView implements View {
     private connect() {
         if (this.disposed || this.closing || !this.panel.terminal)
             return;
+        clearTimeout(this.reconnect);
+        const previous = this.socket; this.socket = undefined; previous?.close();
         this.ready = false;
+        this.closeText();
+        clearTimeout(this.renderingTimer); this.renderingTimer = undefined;
+        this.renderingStarted = performance.now();
+        this.rendering.style.backgroundColor = getComputedStyle(this.term.element!).backgroundColor;
+        this.host.append(this.rendering);
         this.controller = false;
         this.discardInput();
         this.resizing = false; this.lastSize = '';
@@ -326,10 +405,11 @@ export class TerminalView implements View {
             this.reconnect = setTimeout(async () => {
                 try {
                     await api(`/terminals/${this.panel.terminal}`);
+                    if (this.socket || this.ended) return;
                     this.connect();
                 }
                 catch (error) {
-                    if (this.disposed)
+                    if (this.disposed || this.closing || this.socket || this.ended)
                         return;
                     if (error instanceof APIError && error.status === 404) {
                         this.sessionLost();
@@ -349,23 +429,24 @@ export class TerminalView implements View {
         }
     }
     private input(data: string, binary = false) {
-        if (!this.canUpload() || !data.length) return;
+        if (!this.canUpload() || !data.length) return false;
         this.resizeDisplay.release();
         const available = 256 * 1024 - this.pendingBytes;
         const busy = () => this.notice('Input is busy; wait before pasting more');
-        if (data.length > available) { busy(); return; }
+        if (data.length > available) { busy(); return false; }
         const bytes = new Uint8Array(Math.min(available, data.length * (binary ? 1 : 3)));
         let length = data.length;
         if (binary) { for (let i = 0; i < length; i++) bytes[i] = data.charCodeAt(i); }
         else {
             const result = new TextEncoder().encodeInto(data, bytes);
-            if (result.read !== data.length) { busy(); return; }
+            if (result.read !== data.length) { busy(); return false; }
             length = result.written;
         }
-        if (this.queue.length + this.inFlight.length + Math.ceil(length / 65536) > 512) { busy(); return; }
+        if (this.queue.length + this.inFlight.length + Math.ceil(length / 65536) > 512) { busy(); return false; }
         for (let i = 0; i < length; i += 65536) this.queue.push(bytes.subarray(i, Math.min(length, i + 65536)));
         this.pendingBytes += length;
         this.flushInput();
+        return true;
     }
     private flushInput() {
         if (!this.canUpload() || this.socket?.readyState !== WebSocket.OPEN) return;
@@ -378,7 +459,7 @@ export class TerminalView implements View {
             catch { this.socket.close(); return; }
         }
     }
-    resize = () => { this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
+    resize = () => { if (!this.host.checkVisibility()) this.closeText(); this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {
         if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
@@ -409,5 +490,5 @@ export class TerminalView implements View {
         await terminateTerminal(this.panel);
         this.ended = true; this.state('ended');
     }
-    dispose() { this.disposed = true; this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
+    dispose() { this.disposed = true; this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
 }

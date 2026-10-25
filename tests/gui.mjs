@@ -54,12 +54,14 @@ const alive = async pid => {
 async function shell(view, command) {
     const panel = view.locator('..');
     if (await view.locator('.terminal-display').isVisible()) await panel.locator('.terminal-tab').click();
+    assert.ok(await view.locator('.terminal-footer').isVisible(), 'shell has footer tools');
     await view.locator('.xterm-helper-textarea').focus();
     await page.keyboard.type(command, { delay: 1 }); await page.keyboard.press('Enter');
 }
 async function launch(view, command) {
     await shell(view, command + ' &');
     await view.locator('.terminal-display[data-state=connected]').waitFor({ timeout: 15000 });
+    assert.equal(await view.locator('.terminal-footer').isVisible(), false, 'GUI has no terminal footer');
 }
 async function memory() {
     const all = [];

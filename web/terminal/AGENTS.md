@@ -38,7 +38,7 @@ Preserve upstream validation and memory bounds. Bundle runtime.ts into the Go te
 
 Resize regressions cover late and adjacent synchronized-frame ends, unmarked output, silent applications, the missing-end deadline and explicit release. The real PTY transport suite checks a SIGWINCH scrollback rebuild lasting beyond one second, stable old text/scrollbar until completion, pipelined output and metadata barriers.
 
-Scroll regressions cover typing and explicit scrolling during a held redraw with growing history, intentional scrollback retention and continued bottom-following. The transport suite verifies the typing case through real SIGWINCH output and the jump button's threshold, themes, placement, keyboard/pointer activation and focus; mobile checks tap it after real touch scrolling.
+Scroll regressions cover typing and explicit scrolling during a held redraw with growing history, intentional scrollback retention and continued bottom-following. The transport suite verifies the typing case through real SIGWINCH output and the footer scroll controls' bounds, themes, placement, keyboard/pointer activation and focus; mobile checks tap Jump to bottom after real touch scrolling.
 
 Run `npm run build` after changing these sources, then `go test ./internal/terminal`. This bundles the same xterm engine for execution inside Go through goja; Node/Deno are not runtime dependencies.
 

@@ -176,8 +176,8 @@ print('KEYS_RESULT_${width}_'+data.hex(),flush=True)`;
     await bottom.waitFor({state:'visible'});
     await page.screenshot({path:'test-results/terminal-bottom-mobile.png'});
     await bottom.tap();
-    await bottom.waitFor({state:'hidden'});
-    assert.ok((await rows.textContent()).includes('MOBILE_LINE_180'));
+    await page.waitForFunction(() => document.querySelector('.terminal-footer button[aria-label="Jump to bottom"]').disabled);
+    await page.waitForFunction(() => document.querySelector('[data-panel=term] .xterm-rows').textContent.includes('MOBILE_LINE_180'));
     check('real CDP finger drags scroll both directions and Jump to bottom returns to the latest PTY output');
 
     // Real raw-mode applications distinguish wheel reports from alternate-screen cursor keys.

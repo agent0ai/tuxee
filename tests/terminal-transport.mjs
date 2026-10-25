@@ -12,6 +12,7 @@ const password = randomBytes(24).toString('base64url');
 assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, bypassCSP: true });
+await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
 const terminals = [], errors = [];
 try {
     assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
@@ -321,9 +322,9 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid,info.pid);
     console.log('PASS multi-megabyte recovery preserves 2,000 history rows and the shell');
     const bottom = page.getByRole('button', {name:'Jump to bottom', exact:true});
-    await bottom.waitFor({state:'hidden'});
+    await page.waitForFunction(() => document.querySelector('.terminal-footer button[aria-label="Jump to bottom"]').disabled);
     await page.evaluate(() => view.term.scrollLines(-3));
-    assert.equal(await bottom.isVisible(), false, 'a few rows do not show the button');
+    assert.equal(await bottom.isEnabled(), true, 'footer remains available even a few rows above the bottom');
     await page.evaluate(() => view.term.scrollLines(-1));
     await bottom.waitFor({state:'visible'});
     const inputCount = sent.filter(value => typeof value !== 'string').length;
@@ -331,24 +332,194 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
         const host = await page.locator('.terminal-host').boundingBox(), control = await bottom.boundingBox();
         assert.ok(control.x > host.x + host.width / 2 && control.x + control.width < host.x + host.width);
-        assert.ok(control.y > host.y + host.height / 2 && control.y + control.height < host.y + host.height);
+        assert.ok(control.y >= host.y + host.height, 'scroll control is below the renderer in the footer');
         await bottom.screenshot({path:`test-results/terminal-bottom-${theme}.png`});
     }
     await bottom.click();
-    await bottom.waitFor({state:'hidden'});
+    await page.waitForFunction(() => document.querySelector('.terminal-footer button[aria-label="Jump to bottom"]').disabled);
     assert.ok(await page.evaluate(() => view.term.buffer.active.baseY === view.term.buffer.active.viewportY));
     assert.ok(await page.evaluate(() => document.activeElement === view.term.textarea));
     await page.evaluate(() => view.term.scrollLines(-10));
     await bottom.focus(); await page.keyboard.press('Enter');
-    await bottom.waitFor({state:'hidden'});
+    await page.waitForFunction(() => document.querySelector('.terminal-footer button[aria-label="Jump to bottom"]').disabled);
     assert.ok(await page.evaluate(() => view.term.buffer.active.baseY === view.term.buffer.active.viewportY));
     assert.equal(sent.filter(value => typeof value !== 'string').length, inputCount, 'jumping never sends terminal input');
     await input("printf '\\033[?1049hALT_SCREEN\\n'\n");
     await page.waitForFunction(() => view.term.buffer.active.type === 'alternate');
-    assert.equal(await bottom.isVisible(), false);
+    assert.equal(await bottom.isEnabled(), false);
     await input("printf '\\033[?1049l'\n");
     await page.waitForFunction(() => view.term.buffer.active.type === 'normal');
-    console.log('PASS jump-to-bottom threshold, placement, themes, pointer/keyboard activation, focus and alternate-screen hiding');
+    console.log('PASS persistent footer, scroll placement, themes, pointer/keyboard activation, focus and alternate-screen disabling');
+    const top = page.getByRole('button', {name:'Jump to top', exact:true});
+    await top.click();
+    assert.equal(await page.evaluate(() => view.term.buffer.active.viewportY), 0);
+    await bottom.click();
+
+    const textButton = page.getByRole('button', {name:'Terminal contents as text', exact:true});
+    const textContent = page.getByRole('textbox', {name:'Terminal contents as text', exact:true});
+    const wrapped = 'x'.repeat(await page.evaluate(() => view.term.cols - 1)) + '界_WRAP_DONE';
+    await input(`printf '%s\\n' '${wrapped}'\n`);
+    await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).some(line => line.endsWith('界_WRAP_DONE')));
+    const beforeText = await page.evaluate(() => [view.term.cols, view.term.rows]);
+    await textButton.click();
+    assert.ok((await textContent.inputValue()).includes('HISTORY_0001'));
+    assert.ok((await textContent.inputValue()).includes('HISTORY_2000'));
+    assert.ok((await textContent.inputValue()).split('\n').includes(wrapped), 'wide-character wrap padding is not copied');
+    assert.deepEqual(await page.evaluate(() => [view.term.cols, view.term.rows]), beforeText, 'popover does not resize PTY');
+    assert.equal(await textContent.evaluate(node => node.selectionEnd - node.selectionStart), 0, 'opening static text does not select it');
+    assert.equal(await textButton.getAttribute('aria-expanded'), 'true');
+    await textButton.click();
+    await textContent.waitFor({state:'detached'});
+    assert.equal(await textButton.getAttribute('aria-expanded'), 'false');
+    await textButton.click();
+    await page.keyboard.press('Escape');
+    await textContent.waitFor({state:'detached'});
+    assert.equal(await textButton.getAttribute('aria-expanded'), 'false');
+    assert.ok(await textButton.evaluate(node => node === document.activeElement));
+
+    const toggle = page.getByRole('button', {name:'Toggle terminal input', exact:true});
+    const drawer = page.getByRole('textbox', {name:'Terminal input drawer', exact:true});
+    const initialRows = await page.evaluate(() => view.term.rows);
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
+    assert.equal(await drawer.getAttribute('rows'), '5');
+    await page.evaluate(() => view.term.scrollToTop());
+    await drawer.fill('printf DRAWER_ONE'); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('DRAWER_ONE'));
+    await idle();
+    assert.equal(await drawer.inputValue(), '');
+    assert.ok(await page.evaluate(() => view.term.buffer.active.viewportY === view.term.buffer.active.baseY));
+    assert.ok(await drawer.evaluate(node => node === document.activeElement));
+    await drawer.fill('printf DRAWER_TWO'); await page.keyboard.press('Control+Enter'); await idle();
+    assert.equal(await drawer.inputValue(), '');
+    await page.keyboard.press('Enter'); await idle();
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('DRAWER_TWO'));
+    await drawer.fill('draft'); await page.keyboard.press('Shift+Enter'); await page.keyboard.type('line two');
+    assert.equal(await drawer.inputValue(), 'draft\nline two');
+    const beforeIME = sent.filter(Buffer.isBuffer).length;
+    await drawer.dispatchEvent('keydown', {key:'Enter', isComposing:true});
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeIME);
+    await toggle.click(); await toggle.click();
+    assert.equal(await drawer.inputValue(), 'draft\nline two', 'toggle retains draft');
+    const beforeRejected = sent.filter(Buffer.isBuffer).length;
+    await drawer.fill('界'.repeat(100000)); await page.keyboard.press('Enter');
+    assert.equal((await drawer.inputValue()).length, 100000, 'rejected paste preserves draft');
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeRejected, 'rejected paste sends no Enter');
+    await drawer.fill('retained draft');
+    holdOutput = true;
+    const beforeReconnect = connections;
+    await page.evaluate(() => window.previousSocket = view.socket);
+    await page.getByRole('button', {name:'Reconnect terminal', exact:true}).click();
+    await page.locator('#terminal[data-state=connecting]').waitFor();
+    await rendering.waitFor();
+    await page.waitForFunction(() => previousSocket.readyState === WebSocket.CLOSED && view.socket !== previousSocket);
+    await drawer.focus(); await page.keyboard.press('Enter');
+    assert.equal(await drawer.inputValue(), 'retained draft', 'disconnected send preserves draft');
+    for (let i=0; !heldOutput.length && i<100; i++) await page.waitForTimeout(20);
+    assert.ok(heldOutput.length);
+    holdOutput = false; for (const message of heldOutput) client.send(message); heldOutput=[];
+    await connected(); await idle();
+    await rendering.waitFor({state:'detached'});
+    assert.equal(connections, beforeReconnect + 1);
+    assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
+    assert.equal(await drawer.inputValue(), 'retained draft');
+    console.log('PASS text history, no-resize popover, five-line input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
+
+    // A real raw-mode TUI receives exact paste framing and Enter bytes.
+    await drawer.fill('');
+    const raw = `import os,tty,termios,hashlib
+old=termios.tcgetattr(0)
+try:
+ tty.setraw(0)
+ os.write(1,b'\\x1b[?1049h\\x1b[H\\x1b[?2004h\\x1b[31mTUI_TEXT_\\xe7\\x95\\x8c\\x1b[0m\\r\\n')
+ data=b''
+ while b'END_RAW' not in data: data+=os.read(0,65536)
+ os.write(1,b'\\x1b[?2004l\\x1b[?1049l')
+ os.write(1,('DRAWER_HASH_'+hashlib.sha256(data).hexdigest()+'\\r\\n').encode())
+finally: termios.tcsetattr(0,termios.TCSANOW,old)
+`;
+    await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(raw).toString('base64')}'))"\n`);
+    await page.waitForFunction(() => view.term.buffer.active.type === 'alternate' && view.term.modes.bracketedPasteMode);
+    await textButton.click();
+    assert.equal(await textContent.inputValue(), 'TUI_TEXT_界');
+    await page.keyboard.press('Escape');
+    for (const [text, key] of [['first\n界', 'Enter'], ['second', 'Control+Enter'], ['third', 'Meta+Enter']]) {
+        await drawer.fill(text); await page.keyboard.press(key); await idle();
+        assert.equal(await drawer.inputValue(), '');
+    }
+    const bytes = '\x1b[200~first\r界\x1b[201~\r\x1b[200~second\x1b[201~\x1b[200~third\x1b[201~END_RAW';
+    await input('END_RAW');
+    await page.waitForFunction(hash => document.querySelector('.xterm-rows').textContent.includes('DRAWER_HASH_'+hash), createHash('sha256').update(bytes).digest('hex'));
+    console.log('PASS plain-text TUI snapshot and exact multiline Unicode bracketed paste, Ctrl/Cmd paste-only and Enter bytes');
+    await input(`for i in {1..6000}; do printf '\\e[48;5;%dm%05d%*s\\e[0m\\r\\n' "$((16+i%216))" "$i" "$((COLUMNS-5))" ''; done; printf 'REFRESH_%s\\n' READY\n`);
+    await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'));
+    await idle();
+    const beforeHeavyReconnect = connections;
+    await page.evaluate(async () => {
+        await new Promise(resolve => view.term.write('\r\nLOCAL_STALE_RENDERER\r\n', resolve));
+        window.loadingFrames = [];
+        window.refreshStarted = performance.now();
+        document.querySelector('button[aria-label="Reconnect terminal"]').click();
+        const frame = () => {
+            if (document.querySelector('.terminal-rendering')) {
+                loadingFrames.push(performance.now()); requestAnimationFrame(frame);
+            } else window.refreshFinished = performance.now();
+        };
+        requestAnimationFrame(frame);
+    });
+    await connected(); await rendering.waitFor({state:'detached'});
+    await page.waitForFunction(() => window.refreshFinished !== undefined);
+    assert.equal(connections, beforeHeavyReconnect + 1);
+    assert.ok(await page.evaluate(() => loadingFrames.length > 0 && refreshFinished - refreshStarted >= 180), 'fast reconnect has visible loading feedback');
+    const restored = await page.evaluate(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).join('\n'));
+    assert.ok(restored.includes('06000') && restored.includes('REFRESH_READY') && !restored.includes('LOCAL_STALE_RENDERER'));
+    assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
+    console.log('PASS 6,000 colored lines: real socket replacement, visible loading through repaint and clean snapshot restoration with the same PID');
+    for (const width of [800, 320]) for (const theme of ['dark', 'light']) {
+        await page.setViewportSize({width:width+16, height:650});
+        await page.evaluate(({width, theme}) => {
+            document.querySelector('#terminal').style.width = `${width}px`;
+            document.documentElement.dataset.theme = theme;
+            document.body.classList.toggle('compact', width === 320);
+        }, {width, theme});
+        await drawer.fill('one\ntwo\nthree\nfour\nfive\nsix\nseven');
+        await page.waitForTimeout(250); await idle();
+        assert.ok(await drawer.evaluate(node => node.scrollHeight > node.clientHeight), 'input scrolls beyond five lines');
+        assert.ok(await page.locator('.terminal-footer').evaluate(node => node.scrollWidth <= node.clientWidth));
+        await page.locator('#terminal').screenshot({path:`test-results/terminal-footer-${width}-${theme}.png`});
+        await textButton.click();
+        for (const control of [textButton, toggle]) {
+            assert.equal(await control.getAttribute('aria-expanded'), 'true');
+            await page.waitForFunction(label => getComputedStyle(document.querySelector(`.terminal-footer button[aria-label="${label}"]`)).backgroundColor !== 'rgba(0, 0, 0, 0)', await control.getAttribute('aria-label'));
+        }
+        assert.equal(await textContent.evaluate(node => node.selectionEnd - node.selectionStart), 0);
+        const shades = await textContent.evaluate(node => {
+            const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+            const shade = color => { ctx.fillStyle = color; ctx.fillRect(0,0,1,1); return [...ctx.getImageData(0,0,1,1).data].slice(0,3).reduce((a,b)=>a+b); };
+            return [shade(getComputedStyle(node).backgroundColor), shade(getComputedStyle(document.documentElement).getPropertyValue('--bg'))];
+        });
+        assert.ok(theme === 'dark' ? shades[0] > shades[1] : shades[0] < shades[1], 'static surface reduces contrast in both themes');
+        const box = await page.locator('.terminal-text').boundingBox();
+        assert.ok(box.x >= 0 && box.x + box.width <= width+16 && box.y + box.height <= 650);
+        assert.deepEqual(box, await page.locator('.terminal-host').boundingBox(), 'text overlays the exact terminal rectangle');
+        const geometry = await textContent.evaluate(node => ({font:[getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight], width:node.clientWidth, scrollWidth:node.scrollWidth}));
+        assert.deepEqual(geometry.font, await page.locator('.xterm-rows').evaluate(node => [getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight]));
+        assert.equal(geometry.scrollWidth, geometry.width, 'wrapped text never needs horizontal scrolling');
+        for (const key of ['Control+a', 'Meta+a', 'Control+a']) {
+            await textContent.click({position:{x:40,y:30}});
+            await page.keyboard.press(key);
+            assert.deepEqual(await textContent.evaluate(node => [node.selectionStart, node.selectionEnd, document.activeElement === node]), [0, (await textContent.inputValue()).length, true]);
+            await page.keyboard.press('Control+c');
+            assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await textContent.inputValue(), 'copy contains the field only after repeated click/select-all');
+        }
+        await page.screenshot({path:`test-results/terminal-text-${width}-${theme}.png`});
+        await page.keyboard.press('Escape');
+    }
+    await toggle.click();
+    await drawer.waitFor({state:'hidden'});
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.deepEqual(errors, []);
     await page.evaluate(()=>view.dispose());
 } finally {
     await context.close();
