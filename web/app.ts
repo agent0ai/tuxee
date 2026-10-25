@@ -8,7 +8,7 @@ import verticalLogo from './tuxee-logo-vertical.webp';
 import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
-import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
+import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
 import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
@@ -1134,7 +1134,17 @@ async function restartTuxee() {
     for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;
     if (!await confirmAction('Restart Tuxee?', 'This restarts the Tuxee runtime, ends all running terminals and GUI applications for every user, and signs everyone out. Linux and other services keep running. To restart Linux, use reboot. For containers, restart the container or terminate its PID 1 according to your deployment.', 'Restart Tuxee')) return;
     await save();
-    await api('/restart', 'POST', {});
+    try { await api('/restart', 'POST', {}); }
+    catch (error) {
+        if (error instanceof APIError && error.status === 403 && error.command && error.message.startsWith('Cannot restart Tuxee:')) {
+            const content = el('div');
+            content.append(el('p', '', error.message), el('p', 'muted', 'If you have sudo access, run this command in a terminal:'));
+            content.append(el('code', 'update-command', error.command));
+            modal('Cannot restart Tuxee', content);
+            return;
+        }
+        throw error;
+    }
     window.dispatchEvent(new Event('tuxee-connection-lost'));
 }
 async function logout() {

@@ -292,7 +292,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err := processes.Run(ctx, session.user, processes.Request{Operation: "check-parent-signal"}); err != nil {
-			failure(w, 403, errors.New("Cannot restart Tuxee: "+err.Error()))
+			executable, pathErr := os.Executable()
+			if pathErr != nil {
+				failure(w, 500, pathErr)
+				return
+			}
+			command := update.Command(executable) + " restart"
+			if session.user.UID != 0 {
+				command = "sudo " + command
+			}
+			jsonResponse(w, 403, struct {
+				Error   string `json:"error"`
+				Command string `json:"command"`
+			}{"Cannot restart Tuxee: " + err.Error(), command})
 			return
 		}
 		if !s.closed.CompareAndSwap(false, true) {

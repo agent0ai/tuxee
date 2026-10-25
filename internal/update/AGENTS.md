@@ -9,7 +9,7 @@ GitHub release discovery, safe executable replacement, container setup and share
 Own release validation, downloads, installation, embedded `update.sh` and the daily check. CLI owns
 commands/restart guidance; server and browser expose checks, never installation.
 
-`Command(executable)` is shared by the update API and CLI restart guidance. Return `tuxee` only when PATH lookup resolves through symlinks to the target installation path; otherwise return the shell-quoted absolute path. Compare paths rather than the running inode so atomic replacement keeps the short command valid. This checks the calling process's PATH, not customized user shell or sudo settings.
+`Command(executable)` is shared by the update API, restart permission guidance and CLI restart hints. Return `tuxee` only when PATH lookup resolves through symlinks to the target installation path; otherwise return the shell-quoted absolute path. Compare paths rather than the running inode so atomic replacement keeps the short command valid. This checks the calling process's PATH, not customized user shell or sudo settings.
 
 # Local Contracts
 

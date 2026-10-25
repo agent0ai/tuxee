@@ -74,12 +74,17 @@ try {
         const denied = other.waitForResponse(base + '/api/restart');
         await other.getByRole('dialog', { name: 'Restart Tuxee?', exact: true }).getByRole('button', { name: 'Restart Tuxee', exact: true }).click();
         assert.equal((await denied).status(), 403);
-        await other.getByRole('status').filter({ hasText: 'Cannot restart Tuxee: operation not permitted' }).waitFor();
+        const deniedDialog = other.getByRole('dialog', { name: 'Cannot restart Tuxee', exact: true });
+        await deniedDialog.getByText('Cannot restart Tuxee: operation not permitted', { exact: false }).waitFor();
+        assert.match(await deniedDialog.textContent(), /If you have sudo access, run this command in a terminal/);
+        assert.equal(await deniedDialog.locator('.update-command').textContent(), `sudo '${executable}' restart`);
+        await deniedDialog.locator('.update-command').click();
+        assert.equal(await other.evaluate(() => window.getSelection().toString()), `sudo '${executable}' restart`);
         assert.equal(await other.locator('.connection-overlay').count(), 0);
         assert.deepEqual(await (await api(1, '/connection')).json(), { authenticated: true, uid: identities[1].user.uid, csrf: identities[1].csrf });
         for (const terminal of terminals) process.kill(terminal.pid, 0);
         assert.equal(starts, 1);
-        await other.getByRole('status').filter({ hasText: 'Cannot restart Tuxee' }).getByRole('button', { name: 'Dismiss' }).click();
+        await deniedDialog.getByRole('button', { name: 'Close dialog' }).click();
     }
     const anonymous = await browser.newContext();
     assert.equal((await anonymous.request.post(base + '/api/restart')).status(), 401); await anonymous.close();

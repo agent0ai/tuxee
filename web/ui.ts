@@ -27,7 +27,7 @@ export function button(label: string, name?: keyof typeof icons, action?: () => 
 }
 let csrf = '';
 export class APIError extends Error {
-    constructor(message: string, readonly status: number) { super(message); }
+    constructor(message: string, readonly status: number, readonly command?: string) { super(message); }
 }
 export function setCSRF(value: string) { csrf = value; }
 export function requestHeaders() { return { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' }; }
@@ -42,7 +42,7 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown,
             if (typeof data?.error !== 'string') throw new Error('Unexpected API response');
             if ((response.status === 401 || response.status === 403) && token && token === csrf)
                 window.dispatchEvent(new Event('tuxee-unauthorized'));
-            throw new APIError(data.error || `Request failed (${response.status})`, response.status);
+            throw new APIError(data.error || `Request failed (${response.status})`, response.status, typeof data.command === 'string' ? data.command : undefined);
         }
         return data;
     } catch (error) {
