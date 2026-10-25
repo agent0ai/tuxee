@@ -264,9 +264,6 @@ func runUpdate(args []string) (err error) {
 		return nil
 	}
 	updateResult(os.Stdout, "Successfully updated Tuxee to "+release.Tag+".", restartCommand(), false)
-	if _, err := os.Stat("/opt/tuxee/entrypoint.sh"); err == nil {
-		fmt.Println("\nOn next start, Tuxee installs missing runtime prerequisites. Recreating the container uses the image's version.")
-	}
 	return nil
 }
 func serviceName(args []string) (string, error) {
