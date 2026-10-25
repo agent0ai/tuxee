@@ -83,7 +83,7 @@ export class TerminalView implements View {
             bottom.hidden = buffer.type !== 'normal' || buffer.baseY - buffer.viewportY <= 3;
         };
         updateBottom();
-        const rendering = el('div', 'terminal-rendering', 'Rendering...');
+        const rendering = el('div', 'terminal-rendering', 'Loading...');
         rendering.setAttribute('role', 'status');
         this.host.append(bottom, rendering);
         this.term.onScroll(updateBottom);

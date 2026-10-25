@@ -67,7 +67,7 @@ try {
     const connected = () => page.waitForFunction(() => document.querySelector('#terminal').dataset.state === 'connected').catch(async error => { console.error({errors, state:await page.locator('#terminal').getAttribute('data-state'), notices:await page.locator('.toast').allTextContents(), connections,trace:trace.slice(-25)}); throw error; });
     const idle = () => page.waitForFunction(() => !view.inFlight.length && !view.resizing && view.queue.length === 0);
     const input = text => page.evaluate(text => view.term.input(text), text);
-    const rendering = page.getByRole('status', { includeHidden: true }).filter({ hasText: /^Rendering\.\.\.$/ });
+    const rendering = page.getByRole('status', { includeHidden: true }).filter({ hasText: /^Loading\.\.\.$/ });
     await rendering.waitFor();
     await mkdir('test-results', { recursive: true });
     for (const [width, theme] of [[800, 'dark'], [320, 'light']]) {
@@ -93,7 +93,7 @@ try {
     assert.equal(await rendering.count(), 1, 'snapshot restoration waits for the hidden terminal to paint');
     await page.locator('#terminal').evaluate(node => node.style.display = '');
     await rendering.waitFor({state:'detached'});
-    console.log('PASS centered Rendering... until first snapshot paint, including hidden terminals, in both themes');
+    console.log('PASS centered Loading... until first snapshot paint, including hidden terminals, in both themes');
     await connected(); await idle();
     await input("printf 'BINARY_%s\\n' WORKS\n");
     await page.waitForFunction(() => view.term.buffer.active.getLine(view.term.buffer.active.cursorY - 1)?.translateToString().includes('BINARY_WORKS'));
