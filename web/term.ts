@@ -3,7 +3,8 @@ import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask, popover } from './ui';
-import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop } from './file-drag';
+import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
+import { readFileClipboard } from './file-clipboard';
 import { uploadBatch, type UploadSource } from './transfers';
 import { join, type Panel, type Hooks, type View, type TerminalInfo } from './model';
 const creating = new Map<string, Promise<TerminalInfo>>();
@@ -44,6 +45,7 @@ export class TerminalView implements View {
     private name = 'Terminal';
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
+    private drawer = el('textarea', 'terminal-input');
     private closeText = () => {};
     private rendering = el('div', 'terminal-rendering', 'Loading...');
     private renderingStarted = performance.now();
@@ -67,15 +69,32 @@ export class TerminalView implements View {
             drop: drop => {
                 if (this.display.visible) {
                     try { void this.display.dropFiles(drop.files, this.display.dropTarget(drop)).catch(this.notice); } catch (error) { this.notice(error); }
-                } else { this.term.paste(shellPaths(drop.files)); this.term.focus(); animateFileDrop(drop.files, drop, this.host); }
+                } else {
+                    this.pasteFiles(drop.files, drop);
+                    if (this.drawer.hidden) this.term.focus(); else this.drawer.focus();
+                }
             }
         }, this.events.signal);
-        registerUploadInput(dropTarget, {
+        const paste = registerUploadInput(dropTarget, {
             accept: () => this.canDrop(),
             over: () => setDropFeedback(root, this.display?.visible ? 'Upload and drop' : 'Upload and paste'),
             leave: () => setDropFeedback(root),
-            upload: (sources, point) => { void this.uploadFiles(sources, point); }
+            upload: (sources, point) => { void this.uploadFiles(sources, point); },
+            paste: data => {
+                if (this.drawer.hidden || this.display.visible) return false;
+                try {
+                    const clipboard = readFileClipboard(data, this.hooks.user.uid);
+                    if (!clipboard) return false;
+                    this.pasteFiles(clipboard.paths.map(path => ({ path, name: path.split('/').pop()! })));
+                    this.drawer.focus();
+                } catch (error) { this.notice(error); }
+                return true;
+            }
         }, this.events.signal);
+        this.drawer.addEventListener('paste', event => {
+            if (!event.clipboardData || !paste(event.clipboardData)) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+        }, { signal: this.events.signal });
         this.term.open(this.host);
         installTerminalView(this.term);
         installTerminalMetrics(this.term);
@@ -93,7 +112,7 @@ export class TerminalView implements View {
             top.disabled = buffer.type !== 'normal' || buffer.viewportY === 0;
             bottom.disabled = buffer.type !== 'normal' || buffer.viewportY === buffer.baseY;
         };
-        const drawer = el('textarea', 'terminal-input');
+        const drawer = this.drawer;
         drawer.rows = 5; drawer.hidden = true; drawer.spellcheck = false;
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', 'Terminal input drawer');
@@ -185,11 +204,19 @@ export class TerminalView implements View {
     private notice = (value: unknown) => notify(value, this.root);
     private canUpload() { return this.ready && this.controller && !this.ended && !this.disposed && !this.closing; }
     private canDrop() { return this.display?.visible ? this.display.connected && !this.disposed && !this.closing : this.canUpload(); }
+    private pasteFiles(files: DraggedFile[], point?: { clientX: number; clientY: number }, toDrawer = !this.drawer.hidden) {
+        const target = toDrawer || !this.drawer.hidden ? this.drawer : this.host;
+        const text = shellPaths(files);
+        if (target === this.drawer) this.drawer.setRangeText(text, this.drawer.selectionStart, this.drawer.selectionEnd, 'end');
+        else this.term.paste(text);
+        if (point && target.checkVisibility()) animateFileDrop(files, point, target);
+    }
     private async uploadFiles(sources: UploadSource[], point?: { clientX: number; clientY: number }) {
+        const toDrawer = !this.drawer.hidden;
         let target: ReturnType<TerminalDisplay['dropTarget']> | undefined;
         if (this.display.visible) {
             try { target = this.display.dropTarget(point); } catch (error) { this.notice(error); return; }
-        } else this.term.focus();
+        } else if (toDrawer) this.drawer.focus(); else this.term.focus();
         let uploaded;
         try { uploaded = await uploadBatch(join(this.hooks.user.home, 'uploads'), sources, this.root, this.events.signal, true); }
         catch { return; } // The batch indicator owns upload errors and cancellation.
@@ -200,8 +227,7 @@ export class TerminalView implements View {
             return;
         }
         if (this.display.visible) { this.notice('Uploaded to ~/uploads; terminal is no longer visible'); return; }
-        this.term.paste(shellPaths(uploaded));
-        if (point) animateFileDrop(uploaded, point, this.host);
+        this.pasteFiles(uploaded, point, toDrawer);
     }
     private state(value: string) {
         if (value !== 'connected' && value !== 'viewing') this.resizeDisplay.release();

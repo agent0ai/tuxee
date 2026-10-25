@@ -31,6 +31,12 @@ const settings = { theme: 'dark', current: 'uploads', monitoring: { hidden: true
 ] };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
 const page = await context.newPage(), errors = [], external = [], published = [], lists = [];
+const terminalInputs = [];
+page.on('websocket', socket => {
+    if (/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) socket.on('framesent', frame => {
+        if (Buffer.isBuffer(frame.payload)) terminalInputs.push(frame.payload);
+    });
+});
 const activeUploads = new Set(); let maxUploads = 0;
 page.on('request', request => { if (request.url().includes('/api/upload?')) { activeUploads.add(request); maxUploads = Math.max(maxUploads, activeUploads.size); } });
 page.on('response', response => activeUploads.delete(response.request()));
@@ -330,6 +336,87 @@ try {
     await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await navigate(fixture);
     check('out-of-order uploads paste paths in source order without stealing focus from another field');
+
+    const toggleDrawer = terminal.getByRole('button', { name: 'Toggle terminal input', exact: true });
+    const drawer = terminal.getByRole('textbox', { name: 'Terminal input drawer', exact: true, includeHidden: true });
+    const pathText = path => `'${path.replaceAll("'", "'\\''")}' `;
+    const beforeDrawerInput = terminalInputs.length;
+    await toggleDrawer.click(); await drawer.fill('before REMOVE after');
+    await drawer.evaluate(node => node.setSelectionRange(7, 13));
+    const drawerImage = await pasteImage(drawer); published.push(drawerImage); await done(terminal);
+    assert.deepEqual(await readFile(drawerImage), png);
+    assert.equal(await drawer.inputValue(), 'before ' + pathText(drawerImage) + ' after');
+    assert.deepEqual(await drawer.evaluate(node => [node.selectionStart, node.selectionEnd, node === document.activeElement]),
+        [7 + pathText(drawerImage).length, 7 + pathText(drawerImage).length, true]);
+
+    await drawer.fill('file: ');
+    const filePaste = page.waitForResponse(response => response.ok() && response.url().includes('/api/upload?'));
+    assert.ok(await drawer.evaluate(node => {
+        const data = new DataTransfer(); data.items.add(new File(['drawer file bytes'], "drawer's file.txt", { type: 'text/plain' }));
+        const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data });
+        node.dispatchEvent(event); return event.defaultPrevented;
+    }));
+    const drawerFile = (await (await filePaste).json()).path; published.push(drawerFile); await done(terminal);
+    assert.equal(await readFile(drawerFile, 'utf8'), 'drawer file bytes');
+    assert.equal(await drawer.inputValue(), 'file: ' + pathText(drawerFile));
+
+    const drawerUploads = new Set(await readdir(home + '/uploads'));
+    await drawer.fill('drop: ');
+    await drop(terminal.locator('.terminal-host'), [quoted, terminalFolder]); await done(terminal);
+    const dropped = (await readdir(home + '/uploads')).filter(name => !drawerUploads.has(name));
+    assert.equal(dropped.length, 2);
+    const droppedFile = home + '/uploads/' + dropped.find(name => name.startsWith("host's file"));
+    const droppedFolder = home + '/uploads/' + dropped.find(name => name.startsWith('terminal-bundle'));
+    published.push(droppedFile, droppedFolder);
+    assert.equal(await drawer.inputValue(), 'drop: ' + pathText(droppedFile) + pathText(droppedFolder));
+    assert.equal(await readFile(droppedFolder + '/inside.txt', 'utf8'), 'folder to terminal');
+
+    const copiedRow = file.locator('.file-entry').filter({ has: page.locator('.file-name > span', { hasText: /^loose\.txt$/ }) });
+    await drawer.fill('copied: ');
+    await copiedRow.click(); await page.keyboard.press('Control+c');
+    const beforeCopied = await page.evaluate(() => window.batchCount);
+    await input.focus(); await page.keyboard.press('Shift+Insert');
+    assert.equal(await drawer.inputValue(), 'copied: ' + pathText(fixture + '/loose.txt'));
+    assert.equal(await page.evaluate(() => window.batchCount), beforeCopied, 'Tuxee paths are reused without upload');
+    await drawer.fill('dragged: ');
+    const from = await copiedRow.boundingBox(), to = await terminal.locator('.terminal-host').boundingBox();
+    await page.mouse.move(from.x + 35, from.y + from.height / 2); await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 15 }); await page.mouse.up();
+    assert.equal(await drawer.inputValue(), 'dragged: ' + pathText(fixture + '/loose.txt'));
+    assert.ok(await drawer.evaluate(node => document.activeElement === node));
+
+    await drawer.fill('draft ');
+    await page.evaluate(() => navigator.clipboard.writeText('ordinary text'));
+    await page.keyboard.press('Control+v');
+    assert.equal(await drawer.inputValue(), 'draft ordinary text');
+    const rendererImage = await pasteImage(input); published.push(rendererImage); await done(terminal);
+    assert.equal(await drawer.inputValue(), 'draft ordinary text' + pathText(rendererImage));
+    check('drawer receives real clipboard images, file payloads, native file/folder drops and internal copies/drags at its selection');
+
+    for (const startOpen of [true, false]) {
+        if (!startOpen) await toggleDrawer.click();
+        await drawer.evaluate(node => { node.value = 'delayed: '; node.setSelectionRange(node.value.length, node.value.length); });
+        const delayedBefore = new Set(await readdir(home + '/uploads'));
+        await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 20, downloadThroughput: 1024 * 1024, uploadThroughput: 128 * 1024 });
+        await drop(terminal.locator('.terminal-host'), [slowTerminalFile]);
+        await transfer(terminal).getByRole('button', { name: 'Cancel transfer', disabled: false }).waitFor();
+        await toggleDrawer.click();
+        await file.getByRole('button', { name: 'Filter files', exact: true }).click(); await filter.fill('keep focus');
+        await done(terminal);
+        const delayedFiles = (await readdir(home + '/uploads')).filter(name => !delayedBefore.has(name));
+        assert.equal(delayedFiles.length, 1);
+        const delayedPath = home + '/uploads/' + delayedFiles[0]; published.push(delayedPath);
+        assert.equal(await drawer.inputValue(), 'delayed: ' + pathText(delayedPath));
+        assert.equal(await drawer.isVisible(), !startOpen);
+        assert.ok(await filter.evaluate(node => document.activeElement === node), 'drawer upload completion stole focus');
+        await filter.press('Escape');
+        await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+        if (startOpen) await toggleDrawer.click();
+    }
+    await page.screenshot({ path: 'test-results/terminal-drawer-uploads.png' });
+    await toggleDrawer.click();
+    assert.equal(terminalInputs.length, beforeDrawerInput, 'drawer file pastes and drops must never send PTY input');
+    check('drawer upload completion preserves focus and draft across opening/closing, with no terminal input');
 
     await mkdir(fixture + '/other'); await chown(fixture + '/other', uid, gid);
     await cdp.send('Network.enable');
