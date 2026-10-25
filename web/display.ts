@@ -127,7 +127,7 @@ export class TerminalDisplay {
     private async connect() {
         this.disconnect();
         const request = this.request = new AbortController();
-        this.status.hidden = false; this.status.replaceChildren(el('span', '', 'Connecting…'));
+        this.status.hidden = false; this.status.replaceChildren(el('span', '', 'Loading...'));
         try {
             const session = await api<{ password: string }>(`/terminals/${this.id()}/display`, 'GET', undefined, request.signal);
             if (this.disposed || request.signal.aborted) return;
