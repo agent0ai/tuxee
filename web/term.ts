@@ -37,6 +37,8 @@ export class TerminalView implements View {
     private lastSize = '';
     private starting: Promise<void>;
     private closing = false;
+    private resetting = false;
+    private resetButton = button('Reset terminal', 'RotateCcw', () => this.reset());
     private events = new AbortController();
     private control = button('Take control', 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = 'Terminal';
@@ -116,7 +118,9 @@ export class TerminalView implements View {
         text.textContent = 'T'; text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
         left.append(toggle, text);
-        right.append(button('Reconnect terminal', 'RefreshCw', () => this.connect()), top, bottom);
+        const separator = el('span', 'terminal-footer-separator', '|');
+        separator.setAttribute('aria-hidden', 'true');
+        right.append(button('Reconnect terminal', 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -210,7 +214,7 @@ export class TerminalView implements View {
         this.uncertainInput ||= this.pendingBytes > 0;
         this.queue = []; this.pendingBytes = 0; this.inFlight = [];
     }
-    private sessionLost() {
+    private sessionLost(lost: string | undefined) {
         if (this.disposed || this.closing) return;
         this.ended = true; this.ready = false; this.control.hidden = true;
         this.state('ended');
@@ -222,7 +226,6 @@ export class TerminalView implements View {
         this.root.classList.add('session-lost');
         const recovery = el('div', 'terminal-recovery'), message = el('p', '', 'Terminal session lost');
         message.setAttribute('role', 'status');
-        const lost = this.panel.terminal;
         const restart = button('Restart terminal', undefined, () => {
             restart.disabled = true;
             if (this.panel.terminal === lost) delete this.panel.terminal;
@@ -231,9 +234,6 @@ export class TerminalView implements View {
                 // Retry a failed save without abandoning the replacement shell.
                 if (this.panel.terminal) await this.hooks.changed(true);
                 await this.start();
-                if (this.ended || this.disposed || this.closing) return;
-                recovery.remove(); this.root.classList.remove('session-lost');
-                this.surface.hidden = false;
             })().catch(error => { this.ended = true; this.notice(error); }).finally(() => { restart.disabled = false; });
         }, 'primary restart-terminal');
         recovery.append(message, restart);
@@ -250,14 +250,14 @@ export class TerminalView implements View {
                     return;
                 if (!(error instanceof APIError) || error.status !== 404)
                     throw error;
-                this.sessionLost();
+                this.sessionLost(this.panel.terminal);
                 return;
             }
         }
         else {
             let pending = creating.get(this.panel.id);
             if (!pending) {
-                pending = api<TerminalInfo>('/terminals', 'POST', { directory: this.panel.path, name: 'Terminal', columns: 80, rows: 24 }).then(async (value) => { this.panel.terminal = value.id; await this.hooks.changed(true); return value; }).finally(() => creating.delete(this.panel.id));
+                pending = api<TerminalInfo>('/terminals', 'POST', { directory: this.panel.path, name: this.name, columns: 80, rows: 24 }).then(async (value) => { this.panel.terminal = value.id; await this.hooks.changed(true); return value; }).finally(() => creating.delete(this.panel.id));
                 creating.set(this.panel.id, pending);
             }
             info = await pending;
@@ -265,8 +265,11 @@ export class TerminalView implements View {
         this.name = info.name;
         this.hooks.title?.(info.name); this.display.rename(info.name);
         this.root.dataset.terminal = info.id;
-        if (!this.disposed && !this.closing)
+        if (!this.disposed && !this.closing) {
+            this.root.querySelector('.terminal-recovery')?.remove(); this.root.classList.remove('session-lost');
+            this.surface.hidden = false;
             this.connect();
+        }
     }
     private connect() {
         if (this.disposed || this.closing || !this.panel.terminal)
@@ -283,7 +286,8 @@ export class TerminalView implements View {
         this.discardInput();
         this.resizing = false; this.lastSize = '';
         this.state('connecting');
-        const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${this.panel.terminal}/ws`);
+        const terminal = this.panel.terminal;
+        const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${terminal}/ws`);
         ws.binaryType = 'arraybuffer';
         let received = 0, queuedBytes = 0, queuedFrames = 0;
         const current = () => !this.disposed && this.socket === ws && ws.readyState === WebSocket.OPEN;
@@ -339,7 +343,7 @@ export class TerminalView implements View {
                             !Number.isInteger(value.rows) || value.rows < 1 || value.rows > 200) throw Error('Invalid terminal size');
                         break;
                     case 'exit': this.ended = true; this.display.update(); break;
-                    case 'closed': this.sessionLost(); return;
+                    case 'closed': this.sessionLost(terminal); return;
                     case 'display': break;
                     case 'data':
                         if (!(value.data instanceof Uint8Array)) throw Error('Invalid terminal output frame');
@@ -404,15 +408,15 @@ export class TerminalView implements View {
             this.state('disconnected');
             this.reconnect = setTimeout(async () => {
                 try {
-                    await api(`/terminals/${this.panel.terminal}`);
-                    if (this.socket || this.ended) return;
+                    await api(`/terminals/${terminal}`);
+                    if (this.socket || this.ended || this.resetting || this.panel.terminal !== terminal) return;
                     this.connect();
                 }
                 catch (error) {
-                    if (this.disposed || this.closing || this.socket || this.ended)
+                    if (this.disposed || this.closing || this.socket || this.ended || this.resetting || this.panel.terminal !== terminal)
                         return;
                     if (error instanceof APIError && error.status === 404) {
-                        this.sessionLost();
+                        this.sessionLost(terminal);
                     }
                     else {
                         this.state('unavailable');
@@ -489,6 +493,28 @@ export class TerminalView implements View {
         await this.starting;
         await terminateTerminal(this.panel);
         this.ended = true; this.state('ended');
+    }
+    private reset() {
+        if (this.disposed || this.closing || this.resetting) return;
+        this.resetting = this.resetButton.disabled = true;
+        this.starting = this.starting.then(async () => {
+            if (this.disposed || this.closing) return;
+            const lost = this.panel.terminal;
+            clearTimeout(this.reconnect);
+            const previous = this.socket; this.socket = undefined; previous?.close();
+            this.ready = this.controller = false;
+            this.discardInput(); this.closeText(); this.state('connecting');
+            try { await terminateTerminal(this.panel); }
+            catch (error) { this.connect(); throw error; }
+            delete this.panel.terminal;
+            this.ended = this.uncertainInput = false;
+            this.display.update();
+            if (this.disposed || this.closing) { await this.hooks.changed(true); return; }
+            try { await this.start(); }
+            catch (error) { this.sessionLost(lost); throw error; }
+        }).catch(error => { if (!this.disposed && !this.closing) this.notice(error); })
+            .finally(() => { this.resetting = this.resetButton.disabled = false; });
+        return this.starting;
     }
     dispose() { this.disposed = true; this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
 }
