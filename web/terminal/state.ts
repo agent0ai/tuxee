@@ -196,16 +196,18 @@ const geometryKeys = [
 
 function buffer(value: any) {
   return {
-    geometry: Object.fromEntries(geometryKeys.map((key) => [key, value[key]])),
-    tabs: { ...value.tabs },
-    savedAttrs: attrs(value.savedCurAttrData),
-    savedCharset: value.savedCharset,
+    ...JSON.parse(JSON.stringify({
+      geometry: Object.fromEntries(geometryKeys.map((key) => [key, value[key]])),
+      tabs: value.tabs,
+      savedAttrs: attrs(value.savedCurAttrData),
+      savedCharset: value.savedCharset,
+    })),
     lines: Array.from({ length: value.lines.length }, (_, index) => {
       const line = value.lines.get(index);
       return {
         wrapped: line.isWrapped,
         length: line.length,
-        data: [...line._data.subarray(0, line.length * 3)],
+        data: Array.prototype.slice.call(line._data, 0, line.length * 3),
         combined: { ...line._combined },
         extended: Object.fromEntries(
           Object.entries(line._extendedAttrs).map((
@@ -332,8 +334,9 @@ export function captureTerminal(terminal: any) {
     })),
     nextLinkId: c._oscLinkService._nextId,
   };
-  // Use the actual JSON boundary rather than preserving hidden JS references.
-  const result = JSON.parse(JSON.stringify(snapshot));
+  // Cell arrays are already detached; JSON-copy the remaining engine metadata.
+  const { normal, alternate, ...metadata } = snapshot;
+  const result = { ...JSON.parse(JSON.stringify(metadata)), normal, alternate };
   validateSnapshot(result);
   return result;
 }
@@ -423,6 +426,7 @@ export function restoreTerminal(terminal: any, snapshot: any) {
 export function validateSnapshot(snapshot: any): void {
   let nodes = 0;
   let strings = 0;
+  const cellArrays = new Set<any[]>();
   const walk = (value: any, depth: number): void => {
     if (++nodes > 3_000_000 || depth > 32) {
       throw new Error("terminal state exceeds structural bounds");
@@ -438,7 +442,13 @@ export function validateSnapshot(snapshot: any): void {
       }
     } else if (value !== null && typeof value === "object") {
       if (Array.isArray(value)) {
-        for (const item of value) walk(item, depth + 1);
+        if (cellArrays.has(value)) {
+          // Cells are already validated; retain their structural budget.
+          nodes += value.length;
+          if (nodes > 3_000_000 || (value.length && depth + 1 > 32)) {
+            throw new Error("terminal state exceeds structural bounds");
+          }
+        } else for (const item of value) walk(item, depth + 1);
       } else {
         if (Object.getPrototypeOf(value) !== Object.prototype) {
           throw new Error("terminal state must be plain JSON");
@@ -454,7 +464,6 @@ export function validateSnapshot(snapshot: any): void {
       throw new Error("terminal state must contain only JSON values");
     }
   };
-  walk(snapshot, 0);
   const integer = (n: any, min: number, max: number): boolean =>
     Number.isSafeInteger(n) && n >= min && n <= max;
   if (
@@ -489,10 +498,15 @@ export function validateSnapshot(snapshot: any): void {
       if (
         !integer(line.length, 0, 500) || !Array.isArray(line.data) ||
         line.data.length !== line.length * 3 ||
-        typeof line.wrapped !== "boolean" || line.data.some((n: any) =>
-          !integer(n, 0, 0xffff_ffff)
-        )
+        typeof line.wrapped !== "boolean"
       ) throw new Error("invalid terminal line");
+      const data = line.data;
+      for (let index = 0; index < data.length; index++) {
+        const n = data[index];
+        // Exact uint32 values only; indexed reads also reject sparse entries.
+        if ((n >>> 0) !== n) throw new Error("invalid terminal line");
+      }
+      cellArrays.add(data);
       for (const [key, text] of Object.entries(line.combined)) {
         if (
           !/^\d+$/.test(key) || !integer(Number(key), 0, 499) ||
@@ -516,6 +530,7 @@ export function validateSnapshot(snapshot: any): void {
     snapshot.palette?.colors.length !== 259 ||
     snapshot.palette?.defaults.length !== 259
   ) throw new Error("invalid terminal parser or palette state");
+  walk(snapshot, 0);
 }
 
 // Bound retained variable-width strings as well as cells. Called after bounded

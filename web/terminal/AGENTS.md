@@ -12,6 +12,8 @@ Canonical headless engine, browser snapshot restore, touch interaction.
 
 Pin browser and headless xterm to 6.0.0 with the same Unicode 11 width provider installed before parsing/restoring. Emoji such as 👋 and 👍 occupy two columns. Snapshot version `the8020.xterm-6.0.0.2` identifies this shared width contract. Preserve parser continuation, both buffers, modes, colors, links, and cursor. Only the canonical engine answers application queries; browser viewers do not replay historical effects. Keep private xterm access in state.ts.
 
+Capture cell arrays once and JSON-detach the remaining engine metadata; snapshots must stay independent of later output. Preserve the snapshot format and history limits. Validate every cell as an exact uint32, including sparse entries, and count validated arrays toward the same structural/depth bounds without walking their cells again. Retain generic metadata and text validation.
+
 state.ts's installTerminalMetrics replaces the pinned DOM renderer's integer offsetWidth measurement with computed CSS width for its 32-character measurement run. Preserve fractional precision, zero-width handling and font-variant caches; use untransformed layout dimensions so workspace motion does not corrupt measurements. Install after terminal.open and refresh the renderer's spacing cache. The same adapter paints Unicode Block Elements (U+2580–U+259F) with cell-sized geometry rather than font glyph bounds, retaining text for selection/copy and xterm foreground/background colors. Reassess these private-renderer adaptations when upgrading xterm.
 
 terminalDimensions uses untransformed xterm content-box dimensions and measured cells. Subtract element padding, never a scrollbar allowance; the scrollbar overlays the grid.
@@ -29,6 +31,8 @@ interaction.ts uses public terminal APIs and screen touch events. One-finger mov
 Preserve upstream validation and memory bounds. Bundle runtime.ts into the Go terminal package; share state.ts with browser rendering.
 
 # Verification
+
+`node tests/terminal-state.mjs` checks snapshot independence, parser continuation and validation bounds, including sparse cells and structural budgets for already-validated arrays. The server's `BenchmarkSnapshotCapture` measures full-history capture time and allocations in Goja.
 
 `node tests/terminal-metrics.mjs` verifies real Chromium column alignment across spaces, bold/italic text, wide/combined characters and emoji, three font stacks, 80/179/240 columns and DPR 1/1.25/2. It also verifies adjacent/split DEC 2026 frames retain the completed frame and its cursor, and query replies are suppressed without suppressing keyboard input. It checks block pixels/shapes and copied text, canonical snapshot background coverage, and full-width fitting without a scrollbar gutter. An optional recording path replays the supplied Spynel frame at its recorded dimensions and saves `test-results/spynel-replay-fixed.png`.
 

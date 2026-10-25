@@ -36,6 +36,8 @@ Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-col
 
 `TestShellUmask` covers interactive/command root shells, an unprivileged shell, child commands, login-profile overrides, file/directory modes, unchanged shell PID and the server's private mask.
 
+`go test ./internal/terminal -run '^$' -bench BenchmarkSnapshotCapture -benchtime=3x` measures server snapshot capture time and allocations for 5,000 lines at 80 columns and 2,000 at 240 columns. Setup/output parsing is excluded; this is not a network or browser measurement.
+
 # Child DOX Index
 
 No children.

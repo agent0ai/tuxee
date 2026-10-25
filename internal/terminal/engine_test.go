@@ -1,11 +1,42 @@
 package terminal
 
 import (
+	"bytes"
 	"encoding/json"
-	"github.com/dop251/goja"
 	"strings"
 	"testing"
+
+	"github.com/dop251/goja"
 )
+
+func BenchmarkSnapshotCapture(b *testing.B) {
+	for _, size := range []struct {
+		name        string
+		cols, lines int
+	}{{"80x5000", 80, 5000}, {"240x2000", 240, 2000}} {
+		b.Run(size.name, func(b *testing.B) {
+			e, err := NewEngine(size.cols, 24)
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer e.Close()
+			block := bytes.Repeat([]byte(strings.Repeat("x", size.cols-1)+"\r\n"), 100)
+			for i := 0; i < size.lines; i += 100 {
+				if _, err := e.Apply(block, 0, 0); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if _, err := e.Capture(); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.StopTimer()
+		})
+	}
+}
 
 func snapshotText(t *testing.T, data json.RawMessage, buffer string) string {
 	t.Helper()
