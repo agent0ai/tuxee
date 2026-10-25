@@ -35,6 +35,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     const sent = [], resizeRequests = [], trace=[], snapshots=[];
     let client, upstream, connections = 0, holdAcks = false, heldAcks = [], holdResize = false, heldResize = [];
+    let holdOutput = true, heldOutput = [];
     await page.routeWebSocket('**/api/terminals/*/ws', ws => {
         client = ws; upstream = ws.connectToServer(); connections++;
         const server = upstream;
@@ -45,6 +46,7 @@ try {
         });
         server.onClose((code,reason)=>{trace.push(['server close',code,reason]); ws.close({code,reason});});
         server.onMessage(message => {
+            if (holdOutput) { heldOutput.push(message); return; }
             trace.push(['receive',typeof message === 'string' ? message.slice(0,100) : message.length]);
             if (typeof message === 'string') {
                 const value = JSON.parse(message);
@@ -65,6 +67,33 @@ try {
     const connected = () => page.waitForFunction(() => document.querySelector('#terminal').dataset.state === 'connected').catch(async error => { console.error({errors, state:await page.locator('#terminal').getAttribute('data-state'), notices:await page.locator('.toast').allTextContents(), connections,trace:trace.slice(-25)}); throw error; });
     const idle = () => page.waitForFunction(() => !view.inFlight.length && !view.resizing && view.queue.length === 0);
     const input = text => page.evaluate(text => view.term.input(text), text);
+    const rendering = page.getByRole('status', { includeHidden: true }).filter({ hasText: /^Rendering\.\.\.$/ });
+    await rendering.waitFor();
+    await mkdir('test-results', { recursive: true });
+    for (const [width, theme] of [[800, 'dark'], [320, 'light']]) {
+        await page.evaluate(({width, theme}) => {
+            document.querySelector('#terminal').style.width = `${width}px`;
+            document.documentElement.dataset.theme = theme;
+        }, {width, theme});
+        const host = await page.locator('.terminal-host').boundingBox();
+        const text = await rendering.evaluate(node => {
+            const range = document.createRange(); range.selectNodeContents(node);
+            const rect = range.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, pointerEvents: getComputedStyle(node).pointerEvents };
+        });
+        assert.ok(Math.abs(text.x + text.width / 2 - host.x - host.width / 2) < 1);
+        assert.ok(Math.abs(text.y + text.height / 2 - host.y - host.height / 2) < 1);
+        assert.equal(text.pointerEvents, 'none');
+        await page.locator('#terminal').screenshot({path:`test-results/terminal-rendering-${theme}.png`});
+    }
+    await page.locator('#terminal').evaluate(node => { node.style.width = '800px'; node.style.display = 'none'; });
+    await page.waitForFunction(() => view.term._core._renderService._isPaused);
+    holdOutput = false; for (const message of heldOutput) client.send(message); heldOutput = [];
+    await connected();
+    assert.equal(await rendering.count(), 1, 'snapshot restoration waits for the hidden terminal to paint');
+    await page.locator('#terminal').evaluate(node => node.style.display = '');
+    await rendering.waitFor({state:'detached'});
+    console.log('PASS centered Rendering... until first snapshot paint, including hidden terminals, in both themes');
     await connected(); await idle();
     await input("printf 'BINARY_%s\\n' WORKS\n");
     await page.waitForFunction(() => view.term.buffer.active.getLine(view.term.buffer.active.cursorY - 1)?.translateToString().includes('BINARY_WORKS'));

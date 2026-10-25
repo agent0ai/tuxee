@@ -83,9 +83,14 @@ export class TerminalView implements View {
             bottom.hidden = buffer.type !== 'normal' || buffer.baseY - buffer.viewportY <= 3;
         };
         updateBottom();
-        this.host.append(bottom);
+        const rendering = el('div', 'terminal-rendering', 'Rendering...');
+        rendering.setAttribute('role', 'status');
+        this.host.append(bottom, rendering);
         this.term.onScroll(updateBottom);
-        this.term.onRender(updateBottom);
+        this.term.onRender(() => {
+            updateBottom();
+            if (this.ready) rendering.remove();
+        });
         installTerminalTouch(this.term, this.events.signal);
         this.display = new TerminalDisplay(root, this.host, () => this.panel.terminal, () => { this.resize(); this.term.focus(); }, this.hooks.user);
         this.term.onData(data => this.input(data));

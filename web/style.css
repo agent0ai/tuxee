@@ -691,6 +691,17 @@ h3 {
   height: 100%;
   padding: 2px 5px 0;
 }
+.terminal-rendering {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b949e;
+  font-size: 13px;
+  pointer-events: none;
+}
 .terminal-bottom {
   position: absolute;
   right: 18px;
