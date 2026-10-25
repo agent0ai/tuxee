@@ -2,7 +2,7 @@
 
 One Go executable with an embedded workspace for Linux files and retained terminals. Native mode manages the host's real accounts. Container mode manages the container's accounts and mounted files.
 
-All frontend dependencies are shipped locally. Editable TypeScript and CSS stay separate; the production build creates one self-contained, gzip-compressed `index.html` with a hash-protected inline script. No CDN, external font or external script request is required. A small local `sw.js` handles streaming download progress.
+All frontend dependencies are shipped locally. Editable TypeScript and CSS stay separate; the production build embeds application JavaScript and CSS in one gzip-compressed `index.html` with a hash-protected inline script. Images load separately when needed from the same Go executable. Logo URLs contain content hashes so unchanged images stay cached across versions and changed images get new URLs; the page and unversioned resources revalidate on refresh. No CDN, external font or external script request is required. A small local `sw.js` handles streaming download progress.
 
 This is a built, locally validated prototype, not a production release.
 

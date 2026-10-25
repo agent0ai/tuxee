@@ -221,6 +221,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))
 			return
 		}
+		w.Header().Set("Cache-Control", "no-cache")
+		if strings.HasPrefix(r.URL.Path, "/assets/") {
+			if info, err := fs.Stat(s.Assets, strings.TrimPrefix(r.URL.Path, "/")); err == nil && !info.IsDir() {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
+		}
 		http.FileServer(http.FS(s.Assets)).ServeHTTP(w, r)
 		return
 	}

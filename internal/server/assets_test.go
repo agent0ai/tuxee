@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"html"
 	"io"
+	"io/fs"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -54,6 +56,55 @@ func TestSelfContainedIndexAndCSP(t *testing.T) {
 	}
 	if !bytes.Equal(data, plain.Body.Bytes()) {
 		t.Fatal("compressed asset differs from source")
+	}
+}
+
+func TestPublicAssetCaching(t *testing.T) {
+	assets := web.Assets()
+	s := New(nil, nil, nil, "", assets)
+	index, err := fs.ReadFile(assets, "index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	logos, err := fs.Glob(assets, "assets/tuxee-logo-*.webp")
+	if err != nil || len(logos) != 6 {
+		t.Fatalf("expected six separate logo variants, got %v: %v", logos, err)
+	}
+	for _, name := range logos {
+		if !regexp.MustCompile(`^assets/tuxee-logo-[a-z-]+-[A-Z0-9]{8}\.webp$`).MatchString(name) {
+			t.Fatalf("logo filename lacks a content hash: %s", name)
+		}
+		data, err := fs.ReadFile(assets, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(index, []byte("/"+name)) || bytes.Contains(index, []byte(base64.StdEncoding.EncodeToString(data))) {
+			t.Fatalf("logo must be referenced by URL, not embedded: %s", name)
+		}
+		for _, method := range []string{"GET", "HEAD"} {
+			response := httptest.NewRecorder()
+			s.ServeHTTP(response, httptest.NewRequest(method, "http://tuxee.test/"+name, nil))
+			if response.Code != 200 || response.Header().Get("Content-Type") != "image/webp" || response.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
+				t.Fatalf("logo is not publicly cacheable: %s %d %v", name, response.Code, response.Header())
+			}
+			if method == "GET" && !bytes.Equal(response.Body.Bytes(), data) {
+				t.Fatalf("logo response differs from the build: %s", name)
+			}
+		}
+	}
+	for _, path := range []string{"/", "/index.html", "/favicon.png", "/social-preview.jpg", "/sw.js"} {
+		response := httptest.NewRecorder()
+		s.ServeHTTP(response, httptest.NewRequest("GET", "http://tuxee.test"+path, nil))
+		if response.Code != 200 || response.Header().Get("Cache-Control") != "no-cache" {
+			t.Fatalf("unversioned resource must revalidate: %s %d %v", path, response.Code, response.Header())
+		}
+	}
+	for _, path := range []string{"/assets/", "/assets/missing-AAAAAAAA.webp", "/assets/../favicon.png"} {
+		response := httptest.NewRecorder()
+		s.ServeHTTP(response, httptest.NewRequest("GET", "http://tuxee.test"+path, nil))
+		if strings.Contains(response.Header().Get("Cache-Control"), "immutable") {
+			t.Fatalf("only existing generated files may be immutable: %s", path)
+		}
 	}
 }
 

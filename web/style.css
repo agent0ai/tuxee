@@ -291,8 +291,15 @@ h3 {
 }
 .boot {
   margin: auto;
-  color: var(--muted);
+  width: min(220px, 50vmin);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+  background: url('./tuxee-logo-vertical.webp') center / contain no-repeat;
+  animation: boot-appear .6s ease-out both;
+  animation-play-state: paused;
 }
+.boot.ready { animation-play-state: running; }
+@keyframes boot-appear { from { opacity: 0; } to { opacity: 1; } }
 .topbar {
   height: 42px;
   flex-shrink: 0;

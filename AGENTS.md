@@ -83,7 +83,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Use `main` as the primary Git branch.
 - Root `LICENSE` uses Agent Zero's MIT license with Tuxee's repository URL (`https://github.com/agent0ai/tuxee`); preserve separate third-party licenses and reuse notices.
 - Tuxee is developed in-house. `CONTRIBUTING.md` politely asks others not to open pull requests; critical security fixes are the only accepted external contributions.
-- The frontend ships all dependencies locally. Production bundles into one fast index file, with separate source modules/styles for editing and only required local worker and public branding assets separate.
+- The frontend ships all dependencies locally. Production embeds application JavaScript and CSS in one index file, with separate source modules/styles for editing. Serve images and larger binary resources as separate local assets fetched only when needed; keep small interface SVGs inline and the required download worker separate. Use content-hashed asset URLs for cache busting across versions and revalidate the index and unversioned resources.
 - Compact mode depends only on the viewport. Use click-position/anchored context menus, local component notifications, and three-dot tab overflow. File browsers have no embedded command terminal.
 - Keep the UI free of promotional/descriptive microcopy except the About tagline. Panel edits preserve neighboring views; workspaces slide as full layouts. Closing a terminal panel terminates its process; workspace closure confirms and terminates every terminal in that workspace in the background.
 - Use the exact tagline `Tuxee - the most convenient linux for servers and agents.` in the README title, CLI help banner and About subtitle below the logo.

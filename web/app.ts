@@ -23,6 +23,12 @@ import { setFaviconColor } from './favicon';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
+const boot = root.querySelector<HTMLElement>('.boot');
+if (boot) {
+    const image = new Image();
+    image.src = verticalLogo;
+    void image.decode().then(() => boot.classList.add('ready')).catch(() => {});
+}
 const hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')!.content;
 let user: User, settings: Settings;
 let loggedIn = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();

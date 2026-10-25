@@ -131,7 +131,7 @@ async function checkAbout(source, screenshot) {
         ['User', `${a.name} (UID ${a.uid})`], ['Home directory', a.home], ['Shell', info.shell],
     ]);
     assert.ok(await dialog.locator('tr.about-update').evaluate(row => row.previousElementSibling?.querySelector('th')?.textContent === 'Tuxee version'));
-    assert.ok(await dialog.locator('img').evaluate(image => image.complete && image.naturalWidth > 0));
+    await dialog.locator('img').evaluate(image => image.decode());
     const box = await dialog.boundingBox(), viewport = page.viewportSize();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height);
     assert.ok(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth));
