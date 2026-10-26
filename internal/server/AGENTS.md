@@ -30,7 +30,7 @@ Optional `serverName` is a per-user display label in the existing user-owned `~/
 
 Optional `serverColor` in the same per-user settings stores the top-bar color marker. Accept only `#RRGGBB` hex colors or empty/absent values for the theme default; omit empty values when saving/returning JSON. Keep validation shared between load and save and never accept arbitrary CSS.
 
-Optional `terminalBackground` uses the same six-digit hex validation and omission rules; empty/absent means `#141922` in both UI themes. After a successful atomic save, update that Linux user's retained terminals through the manager. Creation reads the saved preference before starting the shell. Serialize settings saves and terminal creation so concurrent creation cannot miss a saved color; failed saves never change terminal palettes.
+Optional `terminalBackground` uses the same six-digit hex validation and omission rules; empty/absent means `#1b2230` in both UI themes. After a successful atomic save, update that Linux user's retained terminals through the manager. Creation reads the saved preference before starting the shell. Serialize settings saves and terminal creation so concurrent creation cannot miss a saved color; failed saves never change terminal palettes.
 
 Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 8 on load/save. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; retain the server's independent shared file-operation limit.
 

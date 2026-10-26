@@ -11,7 +11,7 @@ export function installTerminalUnicode(terminal: any): void {
 
 type Palette = { colors: number[]; defaults: number[] };
 export const terminalTheme = Object.freeze({
-  background: "#141922",
+  background: "#1b2230",
   foreground: "#e6edf3",
   cursor: "#58a6ff",
 });
