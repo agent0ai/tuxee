@@ -10,6 +10,8 @@ assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
 assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
 const dir = await mkdtemp(fields[5] + '/tuxee-toolbar-');
+const shell = '#!/bin/bash\n# Start the services\nset -e\ncd /root/workspace\nexec /usr/local/bin/spynel serve\nexec /root/.local/bin/codex-bridge --config /root/.config/codex-bridge/config.yaml\necho "# literal" "$HOME" # inline comment\n';
+await writeFile(dir + '/syntax.sh', shell);
 await mkdir(dir + '/copies'); await writeFile(dir + '/alpha.txt', 'toolbar fixture');
 await mkdir(dir + '/.hidden-folder'); await writeFile(dir + '/.hidden-folder/.nested', 'nested fixture');
 await writeFile(dir + '/.hidden.txt', 'hidden fixture');
@@ -50,6 +52,24 @@ async function edited(text) { await content.click(); await page.keyboard.press('
 try {
  assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'editor', workspaces: [{ id: 'editor', name: 'Editor', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: dir, x: 0, y: 0, w: 4, h: 2 }] }] })).status(), 200);
  await page.goto(base); await file.locator('.file-entry').first().waitFor();
+ await open(dir + '/syntax.sh'); await content.waitFor();
+ const shellSyntax = toolbar.getByRole('combobox', { name: 'Syntax', exact: true });
+ assert.equal(await shellSyntax.inputValue(), 'shell');
+ for (const theme of ['dark', 'light']) {
+  if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+  for (const [kind, text] of [['comment', '#!/bin/bash'], ['comment', '# Start the services'], ['comment', '# inline comment'], ['keyword', 'set'], ['function', 'cd'], ['function', 'exec'], ['function', 'echo'], ['function', '$HOME'], ['type', '-e'], ['type', '--config'], ['string', '"# literal"']]) {
+   const token = content.locator('.code-' + kind).filter({ hasText: text }).first(); await token.waitFor();
+   assert.ok(await token.evaluate(node => getComputedStyle(node).color !== getComputedStyle(node.closest('.cm-content')).color), `${text} needs visible color in ${theme}`);
+  }
+  await mkdir('test-results', { recursive: true });
+  await page.screenshot({ path: `test-results/inspector-shell-${theme}.png` });
+  await shellSyntax.selectOption('text'); await page.waitForFunction(() => !document.querySelector('.cm-content [class*="code-"]'));
+  await shellSyntax.selectOption('shell'); await content.locator('.code-comment').first().waitFor();
+ }
+ assert.equal((await content.locator('.cm-line').allTextContents()).join('\n'), shell);
+ assert.ok(await tool('Save file').isDisabled()); assert.equal(await readFile(dir + '/syntax.sh', 'utf8'), shell);
+ await back(); await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+ console.log('PASS shell shebang, comments, commands, options, strings and variables in both themes, syntax switching and unchanged bytes');
  await open(dir + '/alpha.txt'); await content.waitFor();
  assert.equal(await path.inputValue(), dir + '/alpha.txt'); assert.equal(await path.getAttribute('title'), dir + '/alpha.txt');
  assert.equal(await file.locator('.inspector-title').count(), 0); assert.equal(await tool('Close file').count(), 0);
