@@ -1072,19 +1072,20 @@ async function retainedTerminals() {
     paint();
 }
 async function openSettings() {
-    const content = el('form', 'form');
+    const content = el('form', 'form settings-form');
     const serverName = el('input');
     serverName.name = 'serverName';
     serverName.maxLength = 64;
     serverName.value = settings.serverName || '';
     serverName.placeholder = hostname;
-    const label = el('label', 'field', 'Server name');
+    const label = el('label', 'field');
+    label.append(el('span', 'settings-label', 'Server name'));
     label.append(serverName); content.append(label);
     let markerColor = settings.serverColor || '';
     const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
     const color = el('input');
     color.type = 'color'; color.id = 'server-color'; color.value = markerColor || defaultColor;
-    const colorLabel = el('label', '', 'Color marker'); colorLabel.htmlFor = color.id;
+    const colorLabel = el('label', 'settings-label', 'Color marker'); colorLabel.htmlFor = color.id;
     const reset = button('Reset', undefined, () => {
         markerColor = ''; color.value = defaultColor; reset.disabled = true; setColorMarker();
     });
@@ -1092,25 +1093,34 @@ async function openSettings() {
     color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
     const colors = el('div', 'settings-color'); colors.append(color, reset);
     const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
-    let terminalBackground = settings.terminalBackground || '';
-    const background = el('input');
-    background.type = 'color'; background.id = 'terminal-background'; background.value = terminalBackground || terminalTheme.background;
-    const backgroundLabel = el('label', '', 'Terminal background'); backgroundLabel.htmlFor = background.id;
-    const resetBackground = button('Reset terminal background', undefined, () => {
-        terminalBackground = ''; background.value = terminalTheme.background; resetBackground.disabled = true;
-    });
-    resetBackground.textContent = 'Reset';
-    resetBackground.disabled = !terminalBackground;
-    background.oninput = () => { terminalBackground = background.value; resetBackground.disabled = false; };
-    const backgroundControls = el('div', 'settings-color'); backgroundControls.append(background, resetBackground);
-    const backgroundField = el('div', 'field'); backgroundField.append(backgroundLabel, backgroundControls); content.append(backgroundField);
+    const terminalColors = { terminalBackground: settings.terminalBackground || '', terminalBackgroundLight: settings.terminalBackgroundLight || '' };
+    const backgroundField = el('fieldset', 'field terminal-colors');
+    backgroundField.append(el('legend', 'settings-label', 'Terminal background'));
+    const backgroundColumns = el('div', 'terminal-color-columns');
+    for (const [key, label, fallback] of [
+        ['terminalBackground', 'Dark', terminalTheme.background],
+        ['terminalBackgroundLight', 'Light', '#f8f9fc']
+    ] as const) {
+        const background = el('input');
+        background.type = 'color'; background.id = key; background.value = terminalColors[key] || fallback;
+        const backgroundLabel = el('label', '', label); backgroundLabel.htmlFor = background.id;
+        background.setAttribute('aria-label', `${label} terminal background`);
+        const resetBackground = button(`Reset ${label.toLowerCase()} terminal background`, undefined, () => {
+            terminalColors[key] = ''; background.value = fallback; resetBackground.disabled = true;
+        });
+        resetBackground.textContent = 'Reset'; resetBackground.disabled = !terminalColors[key];
+        background.oninput = () => { terminalColors[key] = background.value; resetBackground.disabled = false; };
+        const controls = el('div', 'settings-color'); controls.append(backgroundLabel, background, resetBackground);
+        backgroundColumns.append(controls);
+    }
+    backgroundField.append(backgroundColumns); content.append(backgroundField);
     const uploads = el('select');
     for (let n = 1; n <= 8; n++) {
         const option = el('option', '', n === 4 ? '4 (default)' : String(n));
         option.value = String(n); uploads.append(option);
     }
     uploads.value = String(settings.uploadConcurrency ?? 4);
-    const uploadsLabel = el('label', 'field', 'Parallel uploads'); uploadsLabel.append(uploads); content.append(uploadsLabel);
+    const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', 'Parallel uploads'), uploads); content.append(uploadsLabel);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';
     const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
@@ -1138,13 +1148,14 @@ async function openSettings() {
         const previousColor = settings.serverColor;
         const previousUploads = settings.uploadConcurrency;
         const previousBackground = settings.terminalBackground;
+        const previousLightBackground = settings.terminalBackgroundLight;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
-        settings.terminalBackground = terminalBackground;
+        Object.assign(settings, terminalColors);
         serverName.value = settings.serverName;
         try { await save(); setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close(); }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

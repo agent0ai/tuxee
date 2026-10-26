@@ -432,7 +432,7 @@ export class TerminalView implements View {
                     case 'closed': this.sessionLost(terminal); return;
                     case 'display': break;
                     case 'background':
-                        if (value.background !== undefined && (typeof value.background !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.background))) throw Error('Invalid terminal background');
+                        for (const color of [value.background, value.foreground]) if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw Error('Invalid terminal color');
                         break;
                     case 'data':
                         if (!(value.data instanceof Uint8Array)) throw Error('Invalid terminal output frame');
@@ -478,7 +478,7 @@ export class TerminalView implements View {
                             this.term.resize(value.columns, value.rows);
                             break;
                         case 'display': this.display.update(value.display); break;
-                        case 'background': setTerminalBackground(this.term, value.background || ''); break;
+                        case 'background': setTerminalBackground(this.term, value.background || '', value.foreground); break;
                     }
                     if (!current()) return;
                     rendered();

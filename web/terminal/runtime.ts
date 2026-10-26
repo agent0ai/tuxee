@@ -12,6 +12,6 @@ export async function apply(bytes: number[], columns?:number, rows?:number) {
   return result(Array.from(replies[0]??[]));
 }
 export async function capture() { return JSON.stringify(await engine.capture()); }
-export function background(color: string) { setTerminalBackground(engine.terminal, color); }
+export function background(color: string, foreground: string) { setTerminalBackground(engine.terminal, color, foreground); }
 export function flush() {endSynchronizedOutput(engine.terminal);return result();}
 export async function close() {await engine.close();}

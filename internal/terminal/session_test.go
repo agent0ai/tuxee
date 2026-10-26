@@ -65,7 +65,7 @@ func TestShellUmask(t *testing.T) {
 			if tc.interactive {
 				startup = ""
 			}
-			s, err := m.Create(user, dir, "mask", 80, 24, startup, "")
+			s, err := m.Create(user, dir, "mask", 80, 24, startup, "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -129,7 +129,7 @@ func TestBackgroundUpdatesOwnedSessions(t *testing.T) {
 	}
 	defer a.Close()
 	<-a.Events
-	m.SetBackground(owner, "#123456")
+	m.SetBackground(owner, "#123456", "")
 	if event := <-a.Events; event.Type != "background" || event.Background != "#123456" {
 		t.Fatalf("missing ordered background event: %+v", event)
 	}
@@ -147,13 +147,28 @@ func TestBackgroundUpdatesOwnedSessions(t *testing.T) {
 	if _, err := s.engine.Apply([]byte("\x1b]11;#654321\x07"), 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	m.SetBackground(owner, "#123456")
+	m.SetBackground(owner, "#123456", "")
 	if len(a.Events) != 0 {
 		t.Fatal("unchanged preference must not overwrite application colors")
 	}
-	m.SetBackground(owner, "")
+	m.SetBackground(owner, "", "")
 	if event := <-a.Events; event.Type != "background" || event.Background != "" {
 		t.Fatalf("missing reset event: %+v", event)
+	}
+
+	m.SetBackground(owner, "#f8f9fc", "#1c2638")
+	if event := <-a.Events; event.Type != "background" || event.Foreground != "#1c2638" || event.Background != "#f8f9fc" {
+		t.Fatalf("missing theme event: %+v", event)
+	}
+	for id, s := range m.sessions {
+		update, err := s.engine.Apply([]byte("\x1b]10;?\x07"), 0, 0)
+		want := "1c1c/2626/3838"
+		if id == "other" {
+			want = "e6e6/eded/f3f3"
+		}
+		if err != nil || !strings.Contains(string(update.Reply), want) {
+			t.Fatalf("%s foreground: %q %v", id, update.Reply, err)
+		}
 	}
 }
 
@@ -167,7 +182,7 @@ func TestDetachedPTYAndController(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done", "")
+	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +253,7 @@ func TestManagerCloseWaitsForClosingTerminal(t *testing.T) {
 	m := NewManager()
 	defer m.Close()
 	dir := t.TempDir()
-	s, err := m.Create(user, dir, "closing", 80, 24, "trap '' HUP; printf ready > ready; exec sleep 60", "")
+	s, err := m.Create(user, dir, "closing", 80, 24, "trap '' HUP; printf ready > ready; exec sleep 60", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +298,7 @@ func TestReattachEndedProcessReportsExit(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'", "")
+	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +386,7 @@ func TestSnapshotPermitFollowsAttachment(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "snapshot", 80, 24, "exec sleep 60", "")
+	s, err := m.Create(user, t.TempDir(), "snapshot", 80, 24, "exec sleep 60", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

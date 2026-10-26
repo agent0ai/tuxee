@@ -44,7 +44,7 @@ func terminalFixture(t *testing.T, command string) (*Server, *terminal.Session, 
 	}
 	manager := terminal.NewManager()
 	t.Cleanup(manager.Close)
-	session, err := manager.Create(user, t.TempDir(), "transport", 80, 24, command, "")
+	session, err := manager.Create(user, t.TempDir(), "transport", 80, 24, command, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

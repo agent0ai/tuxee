@@ -391,7 +391,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, err)
 			return
 		}
-		s.Terminals.SetBackground(session.user, value.TerminalBackground)
+		background, foreground := value.terminalColors()
+		s.Terminals.SetBackground(session.user, background, foreground)
 		jsonResponse(w, 200, value)
 	case r.URL.Path == "/api/files" && r.Method == "POST":
 		s.fileOperation(w, r, session)
@@ -427,7 +428,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 500, err)
 			return
 		}
-		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, settings.TerminalBackground)
+		background, foreground := settings.terminalColors()
+		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground)
 		if err != nil {
 			failure(w, 400, err)
 			return

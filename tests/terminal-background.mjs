@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { chown, copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, chown, copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const run = (command, args, input) => {
@@ -18,7 +18,9 @@ await chown(home, Number(fields[2]), Number(fields[3]));
 const password = randomBytes(24).toString('base64url');
 run('chpasswd', [], `${user}:${password}\n`);
 const state = await mkdtemp('/tmp/tuxee-background-');
+await chmod(state, 0o755);
 await copyFile('./bin/tuxee', state + '/tuxee');
+await chmod(state + '/tuxee', 0o755);
 const server = spawn(state + '/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state + '/state'], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => server.once('exit', resolve));
 let browser;
@@ -31,8 +33,11 @@ try {
     browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const login = async () => {
-        assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
-        return (await (await context.request.get(base + '/api/me')).json()).csrf;
+        const response = await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
+        assert.equal(response.status(), 200);
+        const token = (await response.json()).csrf;
+        assert.equal(typeof token, 'string');
+        return token;
     };
     let csrf = await login();
     const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
@@ -52,8 +57,8 @@ try {
     page.setDefaultTimeout(10000);
     const surface = color => page.waitForFunction(color => [...document.querySelectorAll('.xterm')].length > 0 && [...document.querySelectorAll('.xterm')].every(node => getComputedStyle(node).backgroundColor === color), color);
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
-    const picker = dialog.getByLabel('Terminal background', { exact: true });
-    const reset = dialog.getByRole('button', { name: 'Reset terminal background', exact: true });
+    const picker = dialog.getByLabel('Dark terminal background', { exact: true });
+    const reset = dialog.getByRole('button', { name: 'Reset dark terminal background', exact: true });
     const open = async () => {
         await page.getByRole('button', { name: 'User menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -81,6 +86,10 @@ try {
     await page.locator('[data-workspace=ws-a] .workspace-tab').click();
     const activeNode = await page.locator('[data-panel=a] .xterm').elementHandle();
     await open(); assert.equal(await picker.inputValue(), '#1b2230'); assert.ok(await reset.isDisabled());
+    assert.ok(await dialog.locator('.terminal-color-columns .settings-color').evaluateAll(rows => rows.every(row => {
+        const label = row.querySelector('label').getBoundingClientRect(), picker = row.querySelector('input').getBoundingClientRect();
+        return label.right <= picker.left && Math.abs((label.top + label.bottom) / 2 - (picker.top + picker.bottom) / 2) < 1;
+    })), 'theme labels sit immediately left of their pickers');
     await choose('#14283c'); await surface('rgb(27, 34, 48)');
     assert.equal((await saved()).terminalBackground, undefined);
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -102,7 +111,31 @@ try {
         assert.equal(palette.colors[257], 0x14283cff); assert.equal(palette.defaults[257], 0x14283cff);
     }
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+    await surface('rgb(248, 249, 252)');
+    const lightPicker = dialog.getByLabel('Light terminal background', { exact: true });
+    await open(); assert.equal(await lightPicker.inputValue(), '#f8f9fc');
+    assert.ok(await picker.evaluate((node, light) => node.getBoundingClientRect().left < light.getBoundingClientRect().left, await lightPicker.elementHandle()));
+    await lightPicker.evaluate(node => { node.value = '#fff5e6'; node.dispatchEvent(new Event('input', { bubbles: true })); });
+    await save(); await surface('rgb(255, 245, 230)');
+    assert.equal((await saved()).terminalBackgroundLight, '#fff5e6');
+    for (const terminal of [terminals[2], await create()]) {
+        const palette = await snapshotBackground(terminal.id);
+        assert.equal(palette.colors[257], 0xfff5e6ff); assert.equal(palette.defaults[257], 0xfff5e6ff);
+        assert.equal(palette.colors[256], 0x1c2638ff); assert.equal(palette.defaults[256], 0x1c2638ff);
+    }
+    await mkdir('test-results', { recursive: true });
+    await page.screenshot({ path: 'test-results/terminal-background-light.png' });
+    await open();
+    const resetLight = dialog.getByRole('button', { name: 'Reset light terminal background', exact: true });
+    await resetLight.click(); assert.equal(await lightPicker.inputValue(), '#f8f9fc');
+    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await surface('rgb(255, 245, 230)');
+    await open(); await resetLight.click(); await save(); await surface('rgb(248, 249, 252)');
+    assert.equal((await saved()).terminalBackgroundLight, undefined);
+    assert.equal((await saved()).terminalBackground, '#14283c');
+    await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await surface('rgb(20, 40, 60)');
+    assert.equal((await snapshotBackground(terminals[0].id)).colors[256], 0xe6edf3ff);
     await mkdir('test-results', { recursive: true });
     await open(); await page.screenshot({ path: 'test-results/terminal-background-settings.png' });
     await reset.click(); assert.equal(await picker.inputValue(), '#1b2230');

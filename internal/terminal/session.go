@@ -32,11 +32,12 @@ type Event struct {
 	Control    bool            `json:"control"`
 	Message    string          `json:"message,omitempty"`
 	Background string          `json:"background,omitempty"`
+	Foreground string          `json:"foreground,omitempty"`
 }
 
 // Bytes charges live output; serialized snapshots use separate recovery admission.
 func (e Event) Bytes() int {
-	n := len(e.Data) + len(e.Message) + len(e.Background) + 64
+	n := len(e.Data) + len(e.Message) + len(e.Background) + len(e.Foreground) + 64
 	if e.Display != nil {
 		for _, w := range e.Display.Windows {
 			n += len(w.Title) + len(w.Icon) + 64
@@ -81,6 +82,7 @@ type Session struct {
 	closed      bool
 	redrawTimer *time.Timer
 	background  string
+	foreground  string
 }
 
 type Attachment struct {
@@ -108,7 +110,7 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background string) (*Session, error) {
+func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground string) (*Session, error) {
 	if !validSize(columns, rows) {
 		return nil, errors.New("invalid terminal dimensions")
 	}
@@ -139,7 +141,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if err != nil {
 		return nil, err
 	}
-	if err = engine.SetBackground(background); err != nil {
+	if err = engine.SetBackground(background, foreground); err != nil {
 		engine.Close()
 		return nil, err
 	}
@@ -198,6 +200,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	slave.Close()
 	s := &Session{Display: display, manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
 	s.background = background
+	s.foreground = foreground
 	if s.info.Name == "" {
 		s.info.Name = "Terminal"
 	}
@@ -225,7 +228,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	return s, nil
 }
 
-func (m *Manager) SetBackground(user identity.User, color string) {
+func (m *Manager) SetBackground(user identity.User, color, foreground string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, s := range m.sessions {
@@ -233,13 +236,14 @@ func (m *Manager) SetBackground(user identity.User, color string) {
 			continue
 		}
 		s.mu.Lock()
-		if !s.closed && s.background != color {
-			if err := s.engine.SetBackground(color); err != nil {
+		if !s.closed && (s.background != color || s.foreground != foreground) {
+			if err := s.engine.SetBackground(color, foreground); err != nil {
 				s.broadcastLocked(Event{Type: "error", Message: "Terminal background update failed: " + err.Error()})
 			} else {
 				s.background = color
+				s.foreground = foreground
 				// A separate event preserves any partial application escape sequence.
-				s.broadcastLocked(Event{Type: "background", Background: color})
+				s.broadcastLocked(Event{Type: "background", Background: color, Foreground: foreground})
 			}
 		}
 		s.mu.Unlock()

@@ -133,8 +133,8 @@ func (e *Engine) Apply(data []byte, cols, rows int) (DisplayUpdate, error) {
 
 func (e *Engine) Flush() (DisplayUpdate, error) { return decodeUpdate(e.call("flush")) }
 
-func (e *Engine) SetBackground(color string) error {
-	_, err := e.call("background", color)
+func (e *Engine) SetBackground(color, foreground string) error {
+	_, err := e.call("background", color, foreground)
 	return err
 }
 

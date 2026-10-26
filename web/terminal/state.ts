@@ -99,18 +99,22 @@ export function installHeadlessColors(terminal: any) {
   });
 }
 
-export function setTerminalBackground(terminal: any, background: string) {
+export function setTerminalBackground(terminal: any, background: string, foreground?: string) {
   background ||= terminalTheme.background;
   if (!/^#[0-9a-f]{6}$/i.test(background)) throw new Error("invalid terminal background");
-  const rgba = ((parseInt(background.slice(1), 16) << 8) | 255) >>> 0;
+  if (foreground && !/^#[0-9a-f]{6}$/i.test(foreground)) throw new Error("invalid terminal foreground");
   const palette = headlessPalettes.get(terminal);
-  if (palette) {
-    palette.colors[257] = palette.defaults[257] = rgba;
-  } else {
-    const theme = terminal._core._themeService;
-    const color = { rgba, css: background };
-    theme._restoreColors.background = color;
-    theme.modifyColors((colors: any) => colors.background = color);
+  for (const [index, name, hex] of [[257, 'background', background], [256, 'foreground', foreground]] as const) {
+    if (!hex) continue;
+    const rgba = ((parseInt(hex.slice(1), 16) << 8) | 255) >>> 0;
+    if (palette) {
+      palette.colors[index] = palette.defaults[index] = rgba;
+    } else {
+      const theme = terminal._core._themeService;
+      const color = { rgba, css: hex };
+      theme._restoreColors[name] = color;
+      theme.modifyColors((colors: any) => colors[name] = color);
+    }
   }
 }
 

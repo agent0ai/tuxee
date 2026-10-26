@@ -22,6 +22,7 @@ export type Settings = {
     serverName?: string;
     serverColor?: string;
     terminalBackground?: string;
+    terminalBackgroundLight?: string;
     uploadConcurrency?: number;
     theme: 'dark' | 'light';
     current: string;

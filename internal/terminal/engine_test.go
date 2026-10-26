@@ -112,7 +112,7 @@ func TestTerminalBackground(t *testing.T) {
 	if _, err := e.Apply([]byte("\x1b]4;2;#112233\x07\x1b]10;#abcdef\x07\x1b]2;partial"), 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.SetBackground("#123456"); err != nil {
+	if err := e.SetBackground("#123456", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.Apply([]byte(" title\x07unchanged"), 0, 0); err != nil {
@@ -138,14 +138,51 @@ func TestTerminalBackground(t *testing.T) {
 		t.Fatal(err)
 	}
 	query("1212/3434/5656")
-	if err := e.SetBackground("red"); err == nil {
+	if err := e.SetBackground("red", ""); err == nil {
 		t.Fatal("accepted invalid background")
 	}
 	query("1212/3434/5656")
-	if err := e.SetBackground(""); err != nil {
+	if err := e.SetBackground("", ""); err != nil {
 		t.Fatal(err)
 	}
 	query("1b1b/2222/3030")
+}
+
+func TestTerminalLightColors(t *testing.T) {
+	e, err := NewEngine(40, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	if _, err := e.Apply([]byte("\x1b]4;2;#112233\x07\x1b]2;partial"), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SetBackground("#f8f9fc", "#1c2638"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Apply([]byte(" title\x07retained"), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := e.Capture()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved struct {
+		Palette struct{ Colors, Defaults []uint32 }
+	}
+	if err := json.Unmarshal(snapshot, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if saved.Palette.Colors[256] != 0x1c2638ff || saved.Palette.Defaults[256] != 0x1c2638ff || saved.Palette.Colors[257] != 0xf8f9fcff || saved.Palette.Colors[2] != 0x112233ff || !strings.Contains(snapshotText(t, snapshot, "normal"), "retained") {
+		t.Fatal("light colors lost palette or parser state")
+	}
+	if err := e.SetBackground("#000000", "invalid"); err == nil {
+		t.Fatal("accepted invalid foreground")
+	}
+	update, err := e.Apply([]byte("\x1b]10;#ffffff\x07\x1b]110\x07\x1b]10;?\x07\x1b]11;?\x07"), 0, 0)
+	if err != nil || string(update.Reply) != "\x1b]10;rgb:1c1c/2626/3838\x1b\\\x1b]11;rgb:f8f8/f9f9/fcfc\x1b\\" {
+		t.Fatalf("light query/reset or invalid update: %q %v", update.Reply, err)
+	}
 }
 
 func TestSynchronizedFrames(t *testing.T) {

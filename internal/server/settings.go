@@ -47,14 +47,15 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
-	ServerName         string      `json:"serverName,omitempty"`
-	ServerColor        string      `json:"serverColor,omitempty"`
-	TerminalBackground string      `json:"terminalBackground,omitempty"`
-	UploadConcurrency  *int        `json:"uploadConcurrency,omitempty"`
-	Theme              string      `json:"theme"`
-	Current            string      `json:"current"`
-	Workspaces         []Workspace `json:"workspaces"`
-	Monitoring         *Monitoring `json:"monitoring,omitempty"`
+	ServerName              string      `json:"serverName,omitempty"`
+	ServerColor             string      `json:"serverColor,omitempty"`
+	TerminalBackground      string      `json:"terminalBackground,omitempty"`
+	TerminalBackgroundLight string      `json:"terminalBackgroundLight,omitempty"`
+	UploadConcurrency       *int        `json:"uploadConcurrency,omitempty"`
+	Theme                   string      `json:"theme"`
+	Current                 string      `json:"current"`
+	Workspaces              []Workspace `json:"workspaces"`
+	Monitoring              *Monitoring `json:"monitoring,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -86,7 +87,7 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	if n := value.UploadConcurrency; n != nil && (*n < 1 || *n > 8) {
 		return errors.New("parallel uploads must be between 1 and 8")
 	}
-	for name, color := range map[string]string{"color marker": value.ServerColor, "terminal background": value.TerminalBackground} {
+	for name, color := range map[string]string{"color marker": value.ServerColor, "terminal background": value.TerminalBackground, "light terminal background": value.TerminalBackgroundLight} {
 		if color == "" {
 			continue
 		}
@@ -269,4 +270,15 @@ func validatePanelPositions(positions []PanelPosition, columns, rows int) error 
 		}
 	}
 	return nil
+}
+
+func (s Settings) terminalColors() (string, string) {
+	if s.Theme == "light" {
+		background := s.TerminalBackgroundLight
+		if background == "" {
+			background = "#f8f9fc"
+		}
+		return background, "#1c2638"
+	}
+	return s.TerminalBackground, "#e6edf3"
 }

@@ -70,6 +70,36 @@ func TestTerminalBackgroundSettings(t *testing.T) {
 	}
 }
 
+func TestTerminalThemeColors(t *testing.T) {
+	for _, tc := range []struct{ theme, dark, light, background, foreground string }{
+		{"dark", "", "", "", "#e6edf3"},
+		{"light", "", "", "#f8f9fc", "#1c2638"},
+		{"dark", "#123456", "#ffffff", "#123456", "#e6edf3"},
+		{"light", "#123456", "#ffffff", "#ffffff", "#1c2638"},
+	} {
+		s := Settings{Theme: tc.theme, Workspaces: []Workspace{}, TerminalBackground: tc.dark, TerminalBackgroundLight: tc.light}
+		if err := validateSettings(&s); err != nil {
+			t.Fatal(err)
+		}
+		background, foreground := s.terminalColors()
+		if background != tc.background || foreground != tc.foreground {
+			t.Fatalf("%+v: %s %s", tc, background, foreground)
+		}
+		data, err := json.Marshal(s)
+		var restored Settings
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &restored); err != nil || restored.TerminalBackgroundLight != tc.light {
+			t.Fatalf("light background round trip: %s %v", data, err)
+		}
+	}
+	s := Settings{Theme: "light", Workspaces: []Workspace{}, TerminalBackgroundLight: "red"}
+	if err := validateSettings(&s); err == nil {
+		t.Fatal("accepted invalid light background")
+	}
+}
+
 func TestEightCellSettings(t *testing.T) {
 	for _, grid := range [][2]int{{4, 2}, {2, 4}, {8, 2}, {4, 4}, {2, 2}} {
 		value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: grid[0], Rows: grid[1], Panels: []Panel{}}}}

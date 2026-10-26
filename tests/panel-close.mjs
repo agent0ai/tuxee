@@ -115,6 +115,9 @@ try {
     await page.screenshot({ path: 'test-results/terminal-bottom-after.png' });
     for (const theme of ['light', 'dark']) {
         await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+        await page.waitForFunction(color => getComputedStyle(document.querySelector('[data-panel=t1] .xterm')).backgroundColor === color,
+            theme === 'light' ? 'rgb(248, 249, 252)' : 'rgb(27, 34, 48)');
+        await paint('t1', '#153c35');
         for (const height of [900, 907, 914]) {
             await page.setViewportSize({ width: 1920, height }); await page.waitForTimeout(400);
             await checkSurface('t1', 'rgb(21, 60, 53)');

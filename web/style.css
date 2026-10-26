@@ -1441,3 +1441,12 @@ h3 {
 .terminal-display { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #111827; }
 .display-screen { width: 100%; height: 100%; overflow: hidden; }
 .display-status:not([hidden]) { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: var(--bg); overflow: auto; }
+
+.terminal-colors { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
+.terminal-color-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+
+.terminal-color-columns .settings-color { flex-wrap: wrap; }
+
+.settings-label { font-size: 13px; font-weight: 700; color: var(--text); }
+.settings-form > .field { gap: 10px; }
+.terminal-colors legend { padding: 0; margin-bottom: 10px; }
