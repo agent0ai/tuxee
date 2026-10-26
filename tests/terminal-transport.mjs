@@ -575,6 +575,18 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         const geometry = await textContent.evaluate(node => ({font:[getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight], width:node.clientWidth, scrollWidth:node.scrollWidth}));
         assert.deepEqual(geometry.font, await page.locator('.xterm-rows').evaluate(node => [getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight]));
         assert.equal(geometry.scrollWidth, geometry.width, 'wrapped text never needs horizontal scrolling');
+        const wrapping = await textContent.evaluate(node => {
+            const probe = node.cloneNode();
+            Object.assign(probe.style, { width: '10ch', height: '1px', padding: '0', lineHeight: '20px', position: 'fixed', visibility: 'hidden' });
+            node.parentElement.append(probe);
+            probe.value = '123456 frontend '.repeat(20).trimEnd();
+            const words = probe.scrollHeight;
+            probe.value = 'x'.repeat(probe.value.length);
+            const characters = probe.scrollHeight;
+            probe.remove();
+            return { words, characters };
+        });
+        assert.equal(wrapping.words, wrapping.characters, 'text wraps within words like a terminal character grid');
         for (const key of ['Control+a', 'Meta+a', 'Control+a']) {
             await textContent.click({position:{x:40,y:30}});
             await page.keyboard.press(key);
