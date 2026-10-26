@@ -1,3 +1,4 @@
+import { Power, RefreshCw } from 'lucide';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -75,6 +76,10 @@ try {
     assert.deepEqual(await terminal.locator('.terminal-footer > div').last().locator('button, span').evaluateAll(nodes =>
         nodes.map(node => node.getAttribute('aria-label') || node.textContent)),
     ['Rename terminal', 'Reconnect terminal', 'Reset terminal', '|', 'Jump to top', 'Jump to bottom']);
+    for (const [label, icon] of [['Reconnect terminal', RefreshCw], ['Reset terminal', Power]]) {
+        const paths = await terminal.getByRole('button', { name: label, exact: true }).locator('svg path').evaluateAll(nodes => nodes.map(node => node.getAttribute('d')));
+        assert.deepEqual(paths, icon[2].filter(([tag]) => tag === 'path').map(([, attrs]) => attrs.d), `${label} icon`);
+    }
     await command("printf 'OLD_%s\\n' HISTORY; xterm -title Reset-GUI &");
     await terminal.locator('.terminal-display[data-state=connected]').waitFor();
     const appPID = run('pgrep', ['-u', user, '-x', 'xterm']).stdout.trim();
