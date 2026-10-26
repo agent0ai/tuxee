@@ -117,7 +117,7 @@ export class TerminalView implements View {
         drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', 'Terminal input drawer');
-        drawer.placeholder = 'Enter: paste and send · Ctrl+Enter: paste only · Shift+Enter: new line';
+        drawer.placeholder = 'Enter: send · Ctrl+Enter: insert · Shift+Enter: new line';
         const drawerGrip = el('div', 'terminal-input-resize');
         drawerGrip.hidden = true; drawerGrip.tabIndex = 0;
         drawerGrip.setAttribute('role', 'separator');

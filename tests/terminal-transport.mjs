@@ -387,7 +387,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
     assert.equal(await drawer.getAttribute('rows'), '3');
-    assert.equal(await drawer.getAttribute('placeholder'), 'Enter: paste and send · Ctrl+Enter: paste only · Shift+Enter: new line');
+    assert.equal(await drawer.getAttribute('placeholder'), 'Enter: send · Ctrl+Enter: insert · Shift+Enter: new line');
     const drawerGrip = page.getByRole('separator', {name:'Resize terminal input', exact:true});
     const startHeight = (await drawer.boundingBox()).height;
     const startRows = await page.evaluate(() => view.term.rows), startResizes = resizeRequests.length;
