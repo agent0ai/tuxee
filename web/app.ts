@@ -403,7 +403,6 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             const content = el('div', 'grid-stack-item-content panel'), head = el('header', 'panel-header');
             const title = el('span', 'panel-title', panel.kind === 'files' ? 'Files' : 'Terminal');
             const tools = el('div', 'panel-tools');
-            if (panel.kind === 'terminal') tools.append(button('Rename terminal', 'Pencil', () => item!.view.renamePanel?.()));
             tools.append(button('Close panel', 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
             head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const owner = item!.owner, ws = owner.ws, before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(owner); } };

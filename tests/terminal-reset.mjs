@@ -74,7 +74,7 @@ try {
     const neighbor = await (await api(`/terminals/${panels[1].terminal}`)).json();
     assert.deepEqual(await terminal.locator('.terminal-footer > div').last().locator('button, span').evaluateAll(nodes =>
         nodes.map(node => node.getAttribute('aria-label') || node.textContent)),
-    ['Reconnect terminal', 'Reset terminal', '|', 'Jump to top', 'Jump to bottom']);
+    ['Rename terminal', 'Reconnect terminal', 'Reset terminal', '|', 'Jump to top', 'Jump to bottom']);
     await command("printf 'OLD_%s\\n' HISTORY; xterm -title Reset-GUI &");
     await terminal.locator('.terminal-display[data-state=connected]').waitFor();
     const appPID = run('pgrep', ['-u', user, '-x', 'xterm']).stdout.trim();

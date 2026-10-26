@@ -98,19 +98,20 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
         for (const [code, keysym] of modifiers) rfb.sendKey(keysym, code, false);
         rfb.sendKey(0xffe3, 'ControlLeft', true);
         if (shift) rfb.sendKey(0xffe1, 'ShiftLeft', true);
-        rfb.sendKey(letter.charCodeAt(0), 'Key' + letter.toUpperCase());
+        rfb.sendKey((shift ? letter.toUpperCase() : letter).charCodeAt(0), 'Key' + letter.toUpperCase());
         if (shift) rfb.sendKey(0xffe1, 'ShiftLeft', false);
         rfb.sendKey(0xffe3, 'ControlLeft', false);
         for (const [code, keysym] of modifiers) rfb.sendKey(keysym, code, true);
     };
     const copy = (letter: string, shift: boolean) => {
-        if (pending || pasting) { notify('Waiting for the clipboard operation.', owner); return; }
-        if (remoteVersion < 0) { notify('GUI clipboard is connecting. Try again.', owner); return; }
-        interacted = true; fallback?.remove(); clearFileCut();
+        // Ctrl+C may be a terminal interrupt inside the remote application.
+        if (pasting || remoteVersion < 0) { shortcut(letter, shift); return; }
+        cancel();
+        interacted = true; fallback?.remove();
         let operation!: Copy;
         const content = new Promise<Blob>((resolve, reject) => {
             operation = { resolve, reject, version: ++version, cancelled: false, blocked: false, timer: window.setTimeout(() => {
-                cancel(); interacted = false; notify('Nothing was copied. Select something and try again.', owner);
+                cancel(); interacted = false;
             }, 10000) };
         });
         pending = operation;

@@ -193,7 +193,7 @@ export class TerminalView implements View {
         left.append(toggle, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button('Reconnect terminal', 'Power', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button('Rename terminal', 'Pencil', () => this.renamePanel()), button('Reconnect terminal', 'Power', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -215,6 +215,11 @@ export class TerminalView implements View {
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.input(data, true));
         this.term.attachCustomKeyEventHandler(event => {
+            if (event.code === 'KeyC' && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey && !event.isComposing) {
+                event.preventDefault(); event.stopPropagation();
+                if (event.type === 'keydown' && !event.repeat && this.term.hasSelection()) document.execCommand('copy');
+                return false;
+            }
             if (event.key !== 'Enter' || !event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return true;
             // shortcut: CSI-u for Shift+Enter only; broader keyboard modes need shared engine support.
             event.preventDefault(); event.stopPropagation();

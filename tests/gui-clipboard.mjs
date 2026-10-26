@@ -71,7 +71,9 @@ try {
     await write('changed locally'); await page.keyboard.press('Control+C'); await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
     await write('before held modifier copy'); await page.keyboard.down('Control'); await page.keyboard.press('c');
     await until(async () => assert.equal(await read(), 'Device → GTK: café 日本語 🦊'));
-    await page.keyboard.press('a'); await page.keyboard.press('v'); await page.keyboard.up('Control');
+    await page.keyboard.press('a'); await page.keyboard.press('Backspace');
+    await until(async () => assert.equal((await record()).text, ''));
+    await page.keyboard.press('v'); await page.keyboard.up('Control');
     await until(async () => assert.equal((await record()).text, 'Device → GTK: café 日本語 🦊'));
     await page.keyboard.press('Control+a');
     await write('before GTK cut'); await page.keyboard.press('Control+X'); await until(async () => assert.equal((await record()).text, ''));
@@ -256,6 +258,42 @@ try {
     await page.evaluate(async bytes => navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([Uint8Array.from(bytes)], { type: 'image/png' }) })]), imageBytes);
     await canvas.focus(); await page.keyboard.press('Control+v');
     await until(async () => { const files = await remotePage.evaluate(() => window.receivedFiles); assert.equal(files?.[0]?.type, 'image/png'); assert.ok(files[0].size > 64 * 1024); });
+
+    // Run the production terminal inside the remote browser: Ctrl+C crosses both UIs.
+    const outerSettings = (await (await api('/me')).json()).settings;
+    const nestedResponse = await api('/terminals', 'POST', { directory: home, columns: 80, rows: 24,
+        command: `exec python3 -c 'import os,tty; tty.setraw(0); print("NESTED_COPY_MARKER",flush=True)
+with open("${home}/interrupts", "ab", buffering=0) as output:
+ while True: output.write(os.read(0, 1))'` });
+    assert.equal(nestedResponse.status(), 201); const nested = await nestedResponse.json();
+    assert.equal((await api('/settings', 'PUT', { ...outerSettings, current: 'nested', workspaces: [
+        { id: 'nested', name: 'Nested', columns: 4, rows: 2, active: 'inner', panels: [
+            { id: 'inner', kind: 'terminal', terminal: nested.id, path: home, x: 0, y: 0, w: 4, h: 2 },
+        ] },
+    ] })).status(), 200);
+    const remoteContext = remotePage.context();
+    assert.equal((await remoteContext.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
+    await remotePage.goto(base); await remotePage.locator('.terminal-view[data-state=connected]').waitFor();
+    await remotePage.locator('.xterm-helper-textarea').focus(); await canvas.focus();
+    await write('preserve on interrupt');
+    await page.keyboard.press('Control+Shift+c'); // No selection must not send an interrupt.
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+c');
+    await until(async () => assert.deepEqual(await readFile(home + '/interrupts'), Buffer.from([3, 3])));
+    await pause(10500);
+    assert.equal(await read(), 'preserve on interrupt');
+    assert.equal(await view.getByText(/Waiting for the clipboard|Nothing was copied/).count(), 0);
+    const marker = remotePage.locator('.xterm-rows > div').filter({ hasText: 'NESTED_COPY_MARKER' });
+    const markerBox = await marker.boundingBox();
+    await remotePage.mouse.dblclick(markerBox.x + 70, markerBox.y + 8);
+    await remotePage.locator('.xterm-selection > div').first().waitFor();
+    await canvas.focus(); await page.keyboard.press('Control+Shift+c');
+    await until(async () => assert.match(await read(), /NESTED_COPY_MARKER/));
+    assert.deepEqual(await readFile(home + '/interrupts'), Buffer.from([3, 3]), 'copy must not send PTY input');
+    await page.screenshot({ path: 'test-results/gui-nested-terminal-copy.png' });
+    await pause(400); await remotePage.goto('about:blank');
+    assert.equal((await api('/settings', 'PUT', outerSettings)).status(), 200);
+    assert.equal((await api(`/terminals/${nested.id}`, 'DELETE')).status(), 200);
+    console.log('PASS nested real terminal receives repeated Ctrl+C, preserves clipboard without toasts, and copies with Ctrl+Shift+C');
     await remoteBrowser.close(); app.kill('SIGTERM');
     console.log('PASS the same production clipboard integration in remote Chromium');
 

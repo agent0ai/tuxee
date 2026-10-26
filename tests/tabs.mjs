@@ -4,18 +4,20 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
-const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
-const fields = spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':');
+const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a', container = process.env.TUXEE_TEST_CONTAINER;
+const run = (command, args, input) => spawnSync(container ? 'docker' : command,
+    container ? ['exec', '-i', container, command, ...args] : args, { input, encoding: 'utf8' });
+const fields = run('getent', ['passwd', user]).stdout.trim().split(':');
 assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
-assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
+assert.equal(run('chpasswd', [], `${user}:${password}\n`).status, 0);
 const base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, hasTouch: true, viewport: { width: 1440, height: 1000 } });
 assert.equal((await context.request.post(base + '/api/login', {
     data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' },
 })).status(), 200);
-const { csrf } = await (await context.request.get(base + '/api/me')).json();
+const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, {
     method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' },
 });
@@ -92,9 +94,17 @@ try {
     assert.equal(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);
     assert.equal((await snapshot()).workspaces[0].panels[0].name, undefined);
     let save;
-    await panel('panel-6').getByRole('button', { name: 'Rename terminal', exact: true }).click();
+    assert.equal(await panel('panel-6').locator('.panel-header').getByRole('button', { name: 'Rename terminal', exact: true }).count(), 0);
+    const rename = panel('panel-6').locator('.terminal-footer').getByRole('button', { name: 'Rename terminal', exact: true });
+    assert.equal(await rename.evaluate(node => node.nextElementSibling?.getAttribute('aria-label')), 'Reconnect terminal');
+    await rename.click();
     await renameDialog('terminal', 'Build');
     await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Build');
+    await panel('panel-6').locator('.xterm-helper-textarea').focus();
+    await page.keyboard.insertText("printf '\\033]2;Application\\007TITLE_%s\\n' IGNORED");
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .xterm-rows')?.textContent.includes('TITLE_IGNORED'));
+    assert.equal(await panel('panel-6').locator('.panel-title').textContent(), 'Build');
     assert.equal((await (await api(`/terminals/${terminalID}`)).json()).name, 'Build');
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Build');
@@ -104,7 +114,7 @@ try {
     await path.fill('/var'); save = saved(); await path.press('Enter');
     assert.equal((await save).status(), 200);
     assert.equal(await path.inputValue(), '/var');
-    check('file paths replace rename controls; terminal names survive reload and file navigation');
+    check('footer rename precedes reconnect; manual names survive application titles, reload and file navigation');
 
     const workspace = id => page.locator(`.workspace-tab-item[data-workspace="${id}"]`);
     const workspaceOrder = async () => (await snapshot()).workspaces.map(ws => ws.id);
@@ -152,6 +162,7 @@ try {
         if (cancel === 'escape') await page.keyboard.press('Escape');
         else if (cancel === 'resize') await page.setViewportSize({ width: 1440, height: 1000 });
         else await page.evaluate(type => window.dispatchEvent(type === 'blur' ? new Event(type) : new PointerEvent(type)), cancel);
+        await page.waitForFunction(() => !document.querySelector('.tab-dragging'));
         await page.mouse.up(); await page.waitForTimeout(300);
         assert.equal(await page.locator('.tab-dragging, .tab-shifting').count(), 0);
         assert.deepEqual(await workspaceOrder(), originalOrder, `${cancel} preserves order`);
@@ -241,9 +252,16 @@ try {
     await menu.getByRole('menuitem', { name: 'Activate', exact: true }).tap();
     await panel('panel-6').waitFor({ state: 'visible' });
     assert.ok(!await panel('panel-0').isVisible());
+    await rename.tap(); await renameDialog('terminal', 'Mobile');
+    await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Mobile');
+    assert.equal(await tab('panel-6').locator('.component-tab-title').textContent(), 'Mobile');
+    await rename.tap(); await resetDialog('terminal');
+    await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Terminal');
+    assert.equal(await tab('panel-6').locator('.component-tab-title').textContent(), 'Terminal');
+    assert.equal((await (await api(`/terminals/${terminalID}`)).json()).name, 'Terminal');
     await (await reveal('panel-0')).tap();
     await panel('panel-0').waitFor({ state: 'visible' });
-    check('overflow long press, terminal Reset, explicit activation and normal tap');
+    check('overflow long press, terminal Reset, compact footer rename, explicit activation and normal tap');
 
     const target = await reveal('panel-0'), point = await press(target);
     await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, x: point.x + 30 }] });
@@ -305,5 +323,6 @@ try {
 } finally {
     await page.goto('about:blank');
     for (const terminal of await (await api('/terminals')).json()) await api(`/terminals/${terminal.id}`, 'DELETE');
+    assert.equal((await api('/settings', 'PUT', original)).status(), 200);
     await browser.close();
 }

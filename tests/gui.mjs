@@ -388,11 +388,11 @@ try {
         return [...header.querySelectorAll('.display-controls button')].filter(b => b.getClientRects().length)
             .every(b => b.getBoundingClientRect().right <= tools.left);
     });
-    assert.ok(await headerFits(), 'window row overlaps rename/close');
+    assert.ok(await headerFits(), 'window row overlaps Close');
     await page.screenshot({ path: 'test-results/gui-window-overflow.png' });
     const priorWidth = await firstPanel.evaluate(panel => { const old = panel.style.width; panel.style.width = '260px'; return old; });
     await poll(() => firstPanel.locator('.display-window.active').isVisible(), 'narrow header hid its selected window');
-    await poll(headerFits, 'narrow header overlaps rename/close');
+    await poll(headerFits, 'narrow header overlaps Close');
     await page.screenshot({ path: 'test-results/gui-window-narrow.png' });
     await firstPanel.evaluate((panel, width) => { panel.style.width = width; }, priorWidth);
 
@@ -421,7 +421,7 @@ try {
     await page.keyboard.press('End'); await page.keyboard.press('Enter');
     await first.locator('.terminal-display[data-state=connected]').waitFor();
     assert.ok(await headerFits());
-    console.log('PASS selected titles, icon-only alternatives, overflow selection/keyboard input and preserved rename/close space');
+    console.log('PASS selected titles, icon-only alternatives, overflow selection/keyboard input and preserved Close space');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.component-tab').filter({ hasText: 'Terminal' }).last().click();
