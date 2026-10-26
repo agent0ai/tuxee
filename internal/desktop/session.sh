@@ -4,7 +4,8 @@ runtime=$1
 IFS= read -r password
 printf '%s\n' "$password" | tuxee-vncpasswd -f > "$runtime/passwd"
 unset password
-mkfifo "$runtime/ready"
+# Separate writers so Xvnc closing its pipe cannot end the D-Bus readiness read.
+mkfifo "$runtime/ready" "$runtime/bus-ready"
 tuxee-Xvnc "$DISPLAY" -geometry 1024x768 -depth 24 -displayfd 3 \
     -rfbport -1 -rfbunixpath "$runtime/vnc" -rfbunixmode 0600 \
     -SecurityTypes VncAuth -PasswordFile "$runtime/passwd" \
@@ -14,8 +15,8 @@ vnc=$!
 trap 'kill "$vnc" 2>/dev/null || true; wait' EXIT
 trap 'exit 0' TERM INT HUP
 IFS= read -r display < "$runtime/ready"
-dbus-daemon --session --address="unix:path=$runtime/bus" --nofork --print-address=3 3>"$runtime/ready" >&2 &
-IFS= read -r bus < "$runtime/ready"
+dbus-daemon --session --address="unix:path=$runtime/bus" --nofork --print-address=3 3>"$runtime/bus-ready" >&2 &
+IFS= read -r bus < "$runtime/bus-ready"
 matchbox-window-manager -use_titlebar no >&2 &
 printf 'ready\n'
 wait "$vnc"

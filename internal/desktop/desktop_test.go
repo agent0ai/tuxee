@@ -102,6 +102,24 @@ func TestLazyDisplay(t *testing.T) {
 	}
 }
 
+func TestRepeatedDisplayStartup(t *testing.T) {
+	d, err := Prepare(testUser(t))
+	if err != nil || d == nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	defer d.Close()
+	for cycle := range 50 {
+		conn, err := d.connect()
+		if err != nil {
+			t.Fatalf("startup %d: %v", cycle+1, err)
+		}
+		conn.Close()
+		d.runtime.Lock()
+		d.stop("", nil)
+		d.runtime.Unlock()
+	}
+}
+
 func TestIconBounds(t *testing.T) {
 	for _, data := range [][]byte{nil, {1, 2, 3}, make([]byte, 8), {255, 255, 255, 255, 255, 255, 255, 255}} {
 		if windowIcon(data) != "" {
@@ -244,7 +262,7 @@ func TestIdleReleaseAndRelaunch(t *testing.T) {
 		if _, err := os.Stat(d.dir + "/Xauthority"); err != nil {
 			t.Fatal("reclamation removed the terminal's credentials")
 		}
-		for _, name := range []string{"ready", "vnc", "bus", "passwd"} {
+		for _, name := range []string{"ready", "bus-ready", "vnc", "bus", "passwd"} {
 			waitFor(t, func() bool { _, err := os.Stat(d.dir + "/" + name); return os.IsNotExist(err) })
 		}
 	}

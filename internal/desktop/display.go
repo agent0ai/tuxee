@@ -291,7 +291,7 @@ func (d *Display) stop(message string, idle *time.Timer) {
 	if p != nil {
 		p.close()
 	}
-	for _, name := range []string{"ready", "vnc", "bus", "passwd"} {
+	for _, name := range []string{"ready", "bus-ready", "vnc", "bus", "passwd"} {
 		os.Remove(d.dir + "/" + name)
 	}
 }
