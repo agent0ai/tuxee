@@ -2,7 +2,7 @@ import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
-import { api, APIError, button, el, notify, ask, popover } from './ui';
+import { api, APIError, button, el, notify, ask, popover, confirmAction } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
 import { readFileClipboard } from './file-clipboard';
 import { uploadBatch, type UploadSource } from './transfers';
@@ -39,7 +39,7 @@ export class TerminalView implements View {
     private starting: Promise<void>;
     private closing = false;
     private resetting = false;
-    private resetButton = button('Reset terminal', 'RotateCcw', () => this.reset());
+    private resetButton = button('Reset terminal', 'Power', () => this.reset());
     private events = new AbortController();
     private control = button('Take control', 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = 'Terminal';
@@ -524,6 +524,8 @@ export class TerminalView implements View {
         if (this.disposed || this.closing || this.resetting) return;
         this.resetting = this.resetButton.disabled = true;
         this.starting = this.starting.then(async () => {
+            if (this.disposed || this.closing) return;
+            if (!await confirmAction('Reset terminal?', 'This will kill all commands and GUI apps in this terminal and start a new shell here. Terminal output and unsaved work will be lost. This cannot be undone.', 'Kill and reset')) return;
             if (this.disposed || this.closing) return;
             const lost = this.panel.terminal;
             clearTimeout(this.reconnect);

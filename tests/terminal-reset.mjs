@@ -17,16 +17,25 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), created = [], errors = [];
+const page = await context.newPage(), created = [], errors = [], mutations = [], sockets = [];
 let creations = 0;
 page.on('pageerror', error => errors.push(error.message));
+page.on('request', request => {
+    if (/^\/api\/terminals(?:\/[^/]+)?$/.test(new URL(request.url()).pathname) && ['POST', 'DELETE'].includes(request.method())) mutations.push(request);
+});
+page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) sockets.push(socket); });
 page.on('response', async response => {
     if (response.url() === base + '/api/terminals' && response.request().method() === 'POST' && response.ok()) {
         created.push((await response.json()).id); creations++;
     }
 });
 const terminal = page.locator('[data-panel="reset"] .terminal-view');
-const reset = terminal.getByRole('button', { name: 'Reset terminal', exact: true });
+const reset = terminal.getByRole('button', { name: 'Reset terminal', exact: true, includeHidden: true });
+const confirmation = page.getByRole('dialog', { name: 'Reset terminal?', exact: true });
+const confirmReset = async (control = reset) => {
+    await control.click();
+    await confirmation.getByRole('button', { name: 'Kill and reset', exact: true }).click();
+};
 const connected = () => terminal.locator('..').locator('.terminal-view[data-state=connected]').waitFor();
 const info = async () => (await api(`/terminals/${await terminal.getAttribute('data-terminal')}`)).json();
 const command = async text => {
@@ -97,12 +106,33 @@ try {
             assert.ok(await terminal.locator('.terminal-footer').evaluate(node => node.scrollWidth <= node.clientWidth));
             if (!cycle) await page.screenshot({ path: `test-results/reset-terminal-${width}-${theme}.png` });
         }
+        const connections = sockets.length;
+        await reset.click(); await confirmation.waitFor();
+        assert.match(await confirmation.textContent(), /kill all commands and GUI apps/);
+        assert.match(await confirmation.textContent(), /cannot be undone/);
+        assert.equal(await reset.isDisabled(), true);
+        assert.equal(mutations.length, 0, 'opening confirmation must not delete or create a terminal');
+        assert.equal((await info()).pid, old.pid);
+        assert.equal(run('test', ['-e', `/proc/${appPID}`]).status, 0);
+        assert.equal(sockets.length, connections);
+        assert.ok(sockets.every(socket => !socket.isClosed()), 'confirmation must preserve terminal connections');
+        await page.screenshot({ path: `test-results/reset-confirm-${width}-${theme}.png` });
+        if (theme === 'dark') await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+        else await page.keyboard.press('Escape');
+        await confirmation.waitFor({ state: 'detached' });
+        await waitFor(async () => !await reset.isDisabled(), 'cancelled reset remained disabled');
+        assert.equal(mutations.length, 0, 'dismissed confirmation must not delete or create a terminal');
+        assert.equal(sockets.length, connections);
+        assert.ok(sockets.every(socket => !socket.isClosed()));
+        assert.equal(await drawer.inputValue(), 'unsent draft');
     }
-    console.log('PASS footer and drawer hide in GUI, return in terminal across repeated desktop/mobile switches and both themes');
+    await command("printf 'CANCEL_%s\\n' WORKS");
+    await waitFor(async () => (await terminal.locator('.xterm-rows').textContent()).includes('CANCEL_WORKS'), 'cancelled reset broke terminal input');
+    console.log('PASS desktop/mobile confirmation and Cancel/Escape preserve shell, GUI, connections and draft; footer hides only in GUI');
     await page.setViewportSize({ width: 1440, height: 950 });
     assert.equal(run('kill', ['-STOP', String(old.pid)]).status, 0);
     const deletion = await hold(`/terminals/${old.id}`, 'DELETE');
-    await reset.click(); await deletion.entered;
+    await confirmReset(); await deletion.entered;
     assert.equal(await reset.isDisabled(), true);
     await reset.evaluate(node => { node.click(); node.click(); });
     await terminal.getByRole('button', { name: 'Reconnect terminal', exact: true }).click();
@@ -125,25 +155,25 @@ try {
     console.log('PASS stopped shell and GUI killed; one replacement persists in the same panel, preserving name, draft and neighbor');
 
     await command('exit'); await page.locator('[data-panel="reset"] .terminal-view[data-state=ended]').waitFor();
-    await reset.click(); await connected();
+    await confirmReset(); await connected();
     await command("printf 'EXIT_RESET_%s\\n' WORKS");
     await waitFor(async () => (await terminal.locator('.xterm-rows').textContent()).includes('EXIT_RESET_WORKS'), 'exited shell cannot reset');
     const beforeFailure = await info();
     await page.route(base + `/api/terminals/${beforeFailure.id}`, route => route.request().method() === 'DELETE'
         ? route.fulfill({ status: 409, json: { error: 'Test delete rejection' } }) : route.continue());
-    await reset.click(); await page.getByText('Test delete rejection', { exact: true }).waitFor(); await connected();
+    await confirmReset(); await page.getByText('Test delete rejection', { exact: true }).waitFor(); await connected();
     assert.equal((await info()).id, beforeFailure.id);
     await page.unroute(base + `/api/terminals/${beforeFailure.id}`);
     await page.route(base + '/api/terminals', route => route.request().method() === 'POST'
         ? route.fulfill({ status: 400, json: { error: 'Test create rejection' } }) : route.continue());
-    await reset.click();
+    await confirmReset();
     const restart = terminal.getByRole('button', { name: 'Restart terminal', exact: true });
     await restart.waitFor();
     assert.equal((await api(`/terminals/${beforeFailure.id}`)).status(), 404);
     await page.unroute(base + '/api/terminals'); await restart.click(); await connected();
     await page.route(base + '/api/settings', route => route.request().method() === 'PUT'
         ? route.fulfill({ status: 409, json: { error: 'Test save rejection' } }) : route.continue());
-    await reset.click(); await restart.waitFor();
+    await confirmReset(); await restart.waitFor();
     const unsavedID = created.at(-1), beforeRetry = creations;
     await page.unroute(base + '/api/settings'); await restart.click(); await connected();
     assert.equal(creations, beforeRetry, 'save retry must reuse the replacement');
@@ -153,7 +183,7 @@ try {
 
     const closing = await info(), beforeClose = creations;
     const pendingDelete = await hold(`/terminals/${closing.id}`, 'DELETE');
-    await reset.click(); await pendingDelete.entered;
+    await confirmReset(); await pendingDelete.entered;
     await page.locator('[data-panel="reset"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await terminal.waitFor({ state: 'detached' }); await pendingDelete.release();
     await waitFor(async () => (await api(`/terminals/${closing.id}`)).status() === 404, 'close did not end resetting terminal');
@@ -161,7 +191,7 @@ try {
     assert.equal(creations, beforeClose, 'closing during delete must not create a shell');
     const pendingCreate = await hold('/terminals', 'POST');
     const neighborView = page.locator('[data-panel="neighbor"] .terminal-view');
-    await neighborView.getByRole('button', { name: 'Reset terminal', exact: true }).click(); await pendingCreate.entered;
+    await confirmReset(neighborView.getByRole('button', { name: 'Reset terminal', exact: true })); await pendingCreate.entered;
     await page.locator('[data-panel="neighbor"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await neighborView.waitFor({ state: 'detached' }); await pendingCreate.release();
     await waitFor(() => creations === beforeClose + 1, 'held creation did not finish');
