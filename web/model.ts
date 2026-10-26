@@ -21,6 +21,7 @@ export type Workspace = {
 export type Settings = {
     serverName?: string;
     serverColor?: string;
+    terminalBackground?: string;
     uploadConcurrency?: number;
     theme: 'dark' | 'light';
     current: string;

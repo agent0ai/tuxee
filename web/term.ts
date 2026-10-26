@@ -1,6 +1,6 @@
 import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
-import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
+import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { api, APIError, button, el, notify, ask, popover, confirmAction } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
@@ -200,6 +200,7 @@ export class TerminalView implements View {
         this.host.append(this.rendering);
         this.term.onScroll(updateScroll);
         this.term.onRender(() => {
+            this.rendering.style.backgroundColor = this.term.element!.style.backgroundColor;
             updateScroll();
             if (this.ready && this.rendering.isConnected && !this.renderingTimer) {
                 // Keep even a fast reconnect visible without delaying recovery or input.
@@ -425,6 +426,9 @@ export class TerminalView implements View {
                     case 'exit': this.ended = true; this.display.update(); break;
                     case 'closed': this.sessionLost(terminal); return;
                     case 'display': break;
+                    case 'background':
+                        if (value.background !== undefined && (typeof value.background !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.background))) throw Error('Invalid terminal background');
+                        break;
                     case 'data':
                         if (!(value.data instanceof Uint8Array)) throw Error('Invalid terminal output frame');
                         break;
@@ -469,6 +473,7 @@ export class TerminalView implements View {
                             this.term.resize(value.columns, value.rows);
                             break;
                         case 'display': this.display.update(value.display); break;
+                        case 'background': setTerminalBackground(this.term, value.background || ''); break;
                     }
                     if (!current()) return;
                     rendered();

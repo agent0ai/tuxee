@@ -133,6 +133,11 @@ func (e *Engine) Apply(data []byte, cols, rows int) (DisplayUpdate, error) {
 
 func (e *Engine) Flush() (DisplayUpdate, error) { return decodeUpdate(e.call("flush")) }
 
+func (e *Engine) SetBackground(color string) error {
+	_, err := e.call("background", color)
+	return err
+}
+
 func decodeUpdate(text string, err error) (DisplayUpdate, error) {
 	var update DisplayUpdate
 	if err != nil {

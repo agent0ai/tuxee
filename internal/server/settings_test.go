@@ -37,6 +37,39 @@ func TestUploadConcurrencySettings(t *testing.T) {
 	}
 }
 
+func TestTerminalBackgroundSettings(t *testing.T) {
+	for _, color := range []string{"", "#1a202c", "#ABCDEF", "#000000", "#ffffff", "red", "#123", "#12345678", "#12345g", " #123456", "rgb(26 32 44)"} {
+		t.Run(color, func(t *testing.T) {
+			value := Settings{Theme: "dark", Workspaces: []Workspace{}, TerminalBackground: color}
+			valid := color == "" || color == "#1a202c" || color == "#ABCDEF" || color == "#000000" || color == "#ffffff"
+			if err := validateSettings(&value); (err == nil) != valid {
+				t.Fatalf("save validation: %v", err)
+			}
+			if err := migrateSettings(&value); (err == nil) != valid {
+				t.Fatalf("load validation: %v", err)
+			}
+			if !valid {
+				return
+			}
+			data, err := json.Marshal(value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var restored Settings
+			if err := json.Unmarshal(data, &restored); err != nil || restored.TerminalBackground != color {
+				t.Fatalf("background did not round-trip: %s, %v", data, err)
+			}
+			var fields map[string]any
+			if err := json.Unmarshal(data, &fields); err != nil {
+				t.Fatal(err)
+			}
+			if _, present := fields["terminalBackground"]; present != (color != "") {
+				t.Fatal("reset color must be omitted")
+			}
+		})
+	}
+}
+
 func TestEightCellSettings(t *testing.T) {
 	for _, grid := range [][2]int{{4, 2}, {2, 4}, {8, 2}, {4, 4}, {2, 2}} {
 		value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: grid[0], Rows: grid[1], Panels: []Panel{}}}}

@@ -56,6 +56,7 @@ type Server struct {
 	Assets       fs.FS
 	cookieName   string
 	mu           sync.Mutex
+	settingsMu   sync.Mutex
 	closed       atomic.Bool
 	logins       map[[32]byte]*login
 	archives     map[string]*archiveDownload
@@ -384,10 +385,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data, _ := json.Marshal(value)
+		s.settingsMu.Lock()
+		defer s.settingsMu.Unlock()
 		if _, err = files.Run(ctx, session.user, files.Request{Operation: "settings-save", Settings: data}); err != nil {
 			failure(w, 400, err)
 			return
 		}
+		s.Terminals.SetBackground(session.user, value.TerminalBackground)
 		jsonResponse(w, 200, value)
 	case r.URL.Path == "/api/files" && r.Method == "POST":
 		s.fileOperation(w, r, session)
@@ -415,7 +419,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 400, err)
 			return
 		}
-		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command)
+		// Keep creation ordered with saved colors and updates to retained terminals.
+		s.settingsMu.Lock()
+		defer s.settingsMu.Unlock()
+		settings, err := LoadSettings(ctx, session.user)
+		if err != nil {
+			failure(w, 500, err)
+			return
+		}
+		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, settings.TerminalBackground)
 		if err != nil {
 			failure(w, 400, err)
 			return

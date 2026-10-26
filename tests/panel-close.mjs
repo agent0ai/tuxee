@@ -110,7 +110,7 @@ try {
     }
     console.log(`PASS ${checked} real-browser terminal closures at desktop/ultrawide/portrait sizes, both directions, T layouts and concurrent closes; saved geometry and surviving DOM/PIDs`);
     await fixture(1920, 1080, 4, 2, [[0, 0, 2, 2], [2, 0, 2, 2]]);
-    await checkSurface('t0', 'rgb(13, 17, 23)');
+    await checkSurface('t0', 'rgb(26, 32, 44)');
     await paint('t1', '#153c35'); await checkSurface('t1', 'rgb(21, 60, 53)');
     await page.screenshot({ path: 'test-results/terminal-bottom-after.png' });
     for (const theme of ['light', 'dark']) {

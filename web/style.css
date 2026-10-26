@@ -690,7 +690,7 @@ h3 {
 .terminal-view {
   display: flex;
   flex-direction: column;
-  background: #0d1117;
+  background: #1a202c;
   color: #e6edf3;
 }
 .terminal-surface { display: flex; flex-direction: column; flex: 1; min-height: 0; }

@@ -95,6 +95,59 @@ func TestCanonicalDisplay(t *testing.T) {
 	}
 }
 
+func TestTerminalBackground(t *testing.T) {
+	e, err := NewEngine(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	query := func(want string) {
+		t.Helper()
+		update, err := e.Apply([]byte("\x1b]11;?\x07"), 0, 0)
+		if err != nil || string(update.Reply) != "\x1b]11;rgb:"+want+"\x1b\\" {
+			t.Fatalf("background query: %q, %v", update.Reply, err)
+		}
+	}
+	query("1a1a/2020/2c2c")
+	if _, err := e.Apply([]byte("\x1b]4;2;#112233\x07\x1b]10;#abcdef\x07\x1b]2;partial"), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SetBackground("#123456"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Apply([]byte(" title\x07unchanged"), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	query("1212/3434/5656")
+	snapshot, err := e.Capture()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved struct {
+		Palette struct{ Colors, Defaults []uint32 }
+	}
+	if err := json.Unmarshal(snapshot, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if saved.Palette.Colors[257] != 0x123456ff || saved.Palette.Defaults[257] != 0x123456ff ||
+		saved.Palette.Colors[2] != 0x112233ff || saved.Palette.Colors[256] != 0xabcdefff ||
+		!strings.Contains(snapshotText(t, snapshot, "normal"), "unchanged") {
+		t.Fatal("background update lost palette or parser state")
+	}
+	if _, err := e.Apply([]byte("\x1b]11;#ffffff\x07\x1b]111\x07"), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	query("1212/3434/5656")
+	if err := e.SetBackground("red"); err == nil {
+		t.Fatal("accepted invalid background")
+	}
+	query("1212/3434/5656")
+	if err := e.SetBackground(""); err != nil {
+		t.Fatal(err)
+	}
+	query("1a1a/2020/2c2c")
+}
+
 func TestSynchronizedFrames(t *testing.T) {
 	e, err := NewEngine(40, 8)
 	if err != nil {

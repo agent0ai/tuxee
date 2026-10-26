@@ -11,7 +11,7 @@ export function installTerminalUnicode(terminal: any): void {
 
 type Palette = { colors: number[]; defaults: number[] };
 export const terminalTheme = Object.freeze({
-  background: "#0d1117",
+  background: "#1a202c",
   foreground: "#e6edf3",
   cursor: "#58a6ff",
 });
@@ -60,7 +60,8 @@ export function installHeadlessColors(terminal: any) {
   for (let i = 0; i < 24; i++) {
     colors.push(rgba(8 + i * 10, 8 + i * 10, 8 + i * 10));
   }
-  colors.push(rgba(230, 237, 243), rgba(13, 17, 23), rgba(88, 166, 255));
+  colors.push(...[terminalTheme.foreground, terminalTheme.background, terminalTheme.cursor]
+    .map(hex => ((parseInt(hex.slice(1), 16) << 8) | 255) >>> 0));
   const palette = { colors, defaults: [...colors] };
   headlessPalettes.set(terminal, palette);
   terminal._core._inputHandler.onColor((requests: any[]) => {
@@ -96,6 +97,21 @@ export function installHeadlessColors(terminal: any) {
       }
     }
   });
+}
+
+export function setTerminalBackground(terminal: any, background: string) {
+  background ||= terminalTheme.background;
+  if (!/^#[0-9a-f]{6}$/i.test(background)) throw new Error("invalid terminal background");
+  const rgba = ((parseInt(background.slice(1), 16) << 8) | 255) >>> 0;
+  const palette = headlessPalettes.get(terminal);
+  if (palette) {
+    palette.colors[257] = palette.defaults[257] = rgba;
+  } else {
+    const theme = terminal._core._themeService;
+    const color = { rgba, css: background };
+    theme._restoreColors.background = color;
+    theme.modifyColors((colors: any) => colors.background = color);
+  }
 }
 
 function paletteOf(terminal: any): Palette | undefined {

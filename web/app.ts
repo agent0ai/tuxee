@@ -14,6 +14,7 @@ import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
 import { TerminalView, terminateTerminal } from './term';
+import { terminalTheme } from './terminal/state';
 import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
 import { audio, audioControl } from './audio';
@@ -1092,6 +1093,18 @@ async function openSettings() {
     color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
     const colors = el('div', 'settings-color'); colors.append(color, reset);
     const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
+    let terminalBackground = settings.terminalBackground || '';
+    const background = el('input');
+    background.type = 'color'; background.id = 'terminal-background'; background.value = terminalBackground || terminalTheme.background;
+    const backgroundLabel = el('label', '', 'Terminal background'); backgroundLabel.htmlFor = background.id;
+    const resetBackground = button('Reset terminal background', undefined, () => {
+        terminalBackground = ''; background.value = terminalTheme.background; resetBackground.disabled = true;
+    });
+    resetBackground.textContent = 'Reset';
+    resetBackground.disabled = !terminalBackground;
+    background.oninput = () => { terminalBackground = background.value; resetBackground.disabled = false; };
+    const backgroundControls = el('div', 'settings-color'); backgroundControls.append(background, resetBackground);
+    const backgroundField = el('div', 'field'); backgroundField.append(backgroundLabel, backgroundControls); content.append(backgroundField);
     const uploads = el('select');
     for (let n = 1; n <= 8; n++) {
         const option = el('option', '', n === 4 ? '4 (default)' : String(n));
@@ -1125,12 +1138,14 @@ async function openSettings() {
         const previous = settings.serverName;
         const previousColor = settings.serverColor;
         const previousUploads = settings.uploadConcurrency;
+        const previousBackground = settings.terminalBackground;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
+        settings.terminalBackground = terminalBackground;
         serverName.value = settings.serverName;
         try { await save(); setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close(); }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

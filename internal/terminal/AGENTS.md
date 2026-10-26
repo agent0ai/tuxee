@@ -24,6 +24,8 @@ Snapshot capture is admitted before allocation: at most two unacknowledged recov
 
 Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
 
+Create initializes the canonical background before shell startup. Manager.SetBackground applies a changed user preference to every owned retained session, including detached/ended sessions, under its output lock and broadcasts an ordered `background` event. Keep the current/default background in snapshots and application query/reset replies. Unchanged preferences preserve application overrides; other palette entries, parser state, shell identity and other users stay untouched. Engine update errors use existing terminal error events without undoing saved settings.
+
 # Work Guidance
 
 Reuse the8020 kernel lifecycle and dev-core engine contracts.

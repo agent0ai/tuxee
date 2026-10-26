@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"unicode/utf16"
@@ -46,13 +47,14 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
-	ServerName        string      `json:"serverName,omitempty"`
-	ServerColor       string      `json:"serverColor,omitempty"`
-	UploadConcurrency *int        `json:"uploadConcurrency,omitempty"`
-	Theme             string      `json:"theme"`
-	Current           string      `json:"current"`
-	Workspaces        []Workspace `json:"workspaces"`
-	Monitoring        *Monitoring `json:"monitoring,omitempty"`
+	ServerName         string      `json:"serverName,omitempty"`
+	ServerColor        string      `json:"serverColor,omitempty"`
+	TerminalBackground string      `json:"terminalBackground,omitempty"`
+	UploadConcurrency  *int        `json:"uploadConcurrency,omitempty"`
+	Theme              string      `json:"theme"`
+	Current            string      `json:"current"`
+	Workspaces         []Workspace `json:"workspaces"`
+	Monitoring         *Monitoring `json:"monitoring,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -84,12 +86,15 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	if n := value.UploadConcurrency; n != nil && (*n < 1 || *n > 8) {
 		return errors.New("parallel uploads must be between 1 and 8")
 	}
-	if color := value.ServerColor; color != "" {
+	for name, color := range map[string]string{"color marker": value.ServerColor, "terminal background": value.TerminalBackground} {
+		if color == "" {
+			continue
+		}
 		if len(color) != 7 || color[0] != '#' {
-			return errors.New("color marker must be a six-digit hex color")
+			return fmt.Errorf("%s must be a six-digit hex color", name)
 		}
 		if _, err := hex.DecodeString(color[1:]); err != nil {
-			return errors.New("color marker must be a six-digit hex color")
+			return fmt.Errorf("%s must be a six-digit hex color", name)
 		}
 	}
 	value.ServerName = strings.TrimSpace(value.ServerName)

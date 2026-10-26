@@ -23,19 +23,20 @@ import (
 )
 
 type Event struct {
-	Display  *desktop.State  `json:"display,omitempty"`
-	Type     string          `json:"type"`
-	Data     []byte          `json:"data,omitempty"`
-	Snapshot json.RawMessage `json:"snapshot,omitempty"`
-	Columns  int             `json:"columns,omitempty"`
-	Rows     int             `json:"rows,omitempty"`
-	Control  bool            `json:"control"`
-	Message  string          `json:"message,omitempty"`
+	Display    *desktop.State  `json:"display,omitempty"`
+	Type       string          `json:"type"`
+	Data       []byte          `json:"data,omitempty"`
+	Snapshot   json.RawMessage `json:"snapshot,omitempty"`
+	Columns    int             `json:"columns,omitempty"`
+	Rows       int             `json:"rows,omitempty"`
+	Control    bool            `json:"control"`
+	Message    string          `json:"message,omitempty"`
+	Background string          `json:"background,omitempty"`
 }
 
 // Bytes charges live output; serialized snapshots use separate recovery admission.
 func (e Event) Bytes() int {
-	n := len(e.Data) + len(e.Message) + 64
+	n := len(e.Data) + len(e.Message) + len(e.Background) + 64
 	if e.Display != nil {
 		for _, w := range e.Display.Windows {
 			n += len(w.Title) + len(w.Icon) + 64
@@ -79,6 +80,7 @@ type Session struct {
 	exited      chan struct{}
 	closed      bool
 	redrawTimer *time.Timer
+	background  string
 }
 
 type Attachment struct {
@@ -106,7 +108,7 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command string) (*Session, error) {
+func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background string) (*Session, error) {
 	if !validSize(columns, rows) {
 		return nil, errors.New("invalid terminal dimensions")
 	}
@@ -135,6 +137,10 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	}
 	engine, err := NewEngine(columns, rows)
 	if err != nil {
+		return nil, err
+	}
+	if err = engine.SetBackground(background); err != nil {
+		engine.Close()
 		return nil, err
 	}
 	audioEnv, releaseAudio, err := m.Audio.Environment(user)
@@ -191,6 +197,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	}
 	slave.Close()
 	s := &Session{Display: display, manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
+	s.background = background
 	if s.info.Name == "" {
 		s.info.Name = "Terminal"
 	}
@@ -216,6 +223,27 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		close(s.exited)
 	}()
 	return s, nil
+}
+
+func (m *Manager) SetBackground(user identity.User, color string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.sessions {
+		if s.user.UID != user.UID {
+			continue
+		}
+		s.mu.Lock()
+		if !s.closed && s.background != color {
+			if err := s.engine.SetBackground(color); err != nil {
+				s.broadcastLocked(Event{Type: "error", Message: "Terminal background update failed: " + err.Error()})
+			} else {
+				s.background = color
+				// A separate event preserves any partial application escape sequence.
+				s.broadcastLocked(Event{Type: "background", Background: color})
+			}
+		}
+		s.mu.Unlock()
+	}
 }
 
 func (m *Manager) Get(user identity.User, id string) (*Session, error) {
