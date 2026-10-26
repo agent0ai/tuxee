@@ -48,7 +48,7 @@ func terminalFixture(t *testing.T, command string) (*Server, *terminal.Session, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := New(nil, manager, nil, "", fstest.MapFS{})
+	server := New("test-instance", nil, manager, nil, "", fstest.MapFS{})
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		server.terminalRoute(w, r, &login{user: user})
 	}))

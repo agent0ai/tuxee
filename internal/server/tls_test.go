@@ -36,7 +36,7 @@ func TestTLSStatusDescribesRequestInsteadOfAvailableCertificate(t *testing.T) {
 		{name: "anonymous", scheme: "https", anonymous: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := New(nil, nil, manager, "", fstest.MapFS{})
+			s := New("test-instance", nil, nil, manager, "", fstest.MapFS{})
 			defer s.Close()
 			if tc.unmanaged {
 				s.TLS = nil
@@ -52,7 +52,7 @@ func TestTLSStatusDescribesRequestInsteadOfAvailableCertificate(t *testing.T) {
 				r.Header.Set(tc.header, "https")
 			}
 			if !tc.anonymous {
-				r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+				r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 			}
 			w := httptest.NewRecorder()
 			s.ServeHTTP(w, r)

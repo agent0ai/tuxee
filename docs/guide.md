@@ -25,6 +25,8 @@ sudo ./bin/tuxee serve --bind 127.0.0.1:9443 \
 
 Open `https://127.0.0.1:9443`. Sign in with a Linux username and password. PAM authentication and account policy apply; non-login shells are rejected. Passwords are never stored by Tuxee. File operations and shells run with the user's UID, GID and supplementary groups. User layouts live in `~/.config/tuxee/settings.json`; server keys live under the separate state directory.
 
+Each state directory also stores a random `instance-id`, created on first start and retained across restarts and upgrades. Tuxee uses `tuxee_session_<instance-id>` as its session cookie name, allowing multiple servers on different localhost ports to stay logged in independently. Login and logout affect only that instance. Give independent installations separate state directories or Docker state volumes. Preserve `instance-id` when restoring an installation; when copying state for a separate instance, remove the copied `instance-id` while that clone is stopped so it generates its own ID. Login sessions remain in memory and end when their server restarts. Cookie names prevent collisions; browsers still send cookies to every port on the same hostname.
+
 Use `tuxee serve --help`, `tuxee help`, and `tuxee version` for CLI help. Defaults work both directly and behind a reverse proxy; no configuration file or public hostname is required. Terminal access is exclusively through the web UI; shells run directly on local PTYs.
 
 ## GUI applications in terminals

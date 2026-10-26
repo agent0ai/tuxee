@@ -504,6 +504,10 @@ func serve(value *config) error {
 		return err
 	}
 	defer lock.Close()
+	instanceID, err := loadInstanceID(value.State)
+	if err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 	listeners := make([]net.Listener, 0, len(configs))
@@ -542,7 +546,7 @@ func serve(value *config) error {
 		}
 		go tls.Run(ctx)
 	}
-	app := server.New(gate, terminals, tls, value.Origin, web.Assets())
+	app := server.New(instanceID, gate, terminals, tls, value.Origin, web.Assets())
 	defer app.Close()
 	restart := make(chan struct{}, 1)
 	app.Restart = func() { restart <- struct{}{} }

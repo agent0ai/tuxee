@@ -18,7 +18,7 @@ import (
 func TestArchiveDownloadOwnershipAndCancellation(t *testing.T) {
 	manager := terminal.NewManager()
 	defer manager.Close()
-	s := New(identity.NewGate("login"), manager, nil, "", fstest.MapFS{})
+	s := New("test-instance", identity.NewGate("login"), manager, nil, "", fstest.MapFS{})
 	defer s.Close()
 	for _, token := range []string{"owner", "other"} {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -26,7 +26,7 @@ func TestArchiveDownloadOwnershipAndCancellation(t *testing.T) {
 	}
 	request := func(method, path, cookie, csrf, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://tuxee.test"+path, strings.NewReader(body))
-		r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: cookie})
+		r.AddCookie(&http.Cookie{Name: s.cookieName, Value: cookie})
 		r.Header.Set("X-Tuxee-CSRF", csrf)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, r)

@@ -115,7 +115,8 @@ try {
         const loginResponse = await login;
         assert.equal(loginResponse.status(), 200);
         assert.equal((await loginResponse.request().allHeaders()).origin, base);
-        const cookie = (await context.cookies()).find(cookie => cookie.name === 'tuxee_session');
+        const cookieName = `tuxee_session_${(await readFile(`${state}/instance-id`, 'utf8')).trim()}`;
+        const cookie = (await context.cookies()).find(cookie => cookie.name === cookieName);
         assert.ok(cookie && cookie.secure === encrypted && cookie.httpOnly && cookie.sameSite === 'Strict');
         const terminal = page.locator('.terminal-view[data-state=connected]');
         await terminal.waitFor(); await page.locator('.file-view').waitFor();
@@ -163,7 +164,7 @@ try {
         await page.getByRole('button', { name: 'User menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
         await page.locator('[name=username]').waitFor();
-        assert.ok(!(await context.cookies()).some(cookie => cookie.name === 'tuxee_session'));
+        assert.ok(!(await context.cookies()).some(cookie => cookie.name === cookieName));
         assert.deepEqual(await (await context.request.get(base + '/api/connection')).json(), { authenticated: false });
         assert.deepEqual(errors, []);
         await context.close();

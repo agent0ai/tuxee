@@ -15,7 +15,7 @@ import (
 )
 
 func TestMetricsAdmission(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	request := httptest.NewRequest("GET", "http://tuxee.test/api/metrics", nil)
 	response := httptest.NewRecorder()
 	s.ServeHTTP(response, request)
@@ -25,7 +25,7 @@ func TestMetricsAdmission(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.logins[sha256.Sum256([]byte("metrics-token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
-	request.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "metrics-token"})
+	request.AddCookie(&http.Cookie{Name: s.cookieName, Value: "metrics-token"})
 	response = httptest.NewRecorder()
 	s.ServeHTTP(response, request)
 	var value monitor.Snapshot

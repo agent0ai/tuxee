@@ -18,7 +18,7 @@ import (
 )
 
 func TestSelfContainedIndexAndCSP(t *testing.T) {
-	s := New(nil, nil, nil, "", web.Assets())
+	s := New("test-instance", nil, nil, nil, "", web.Assets())
 	s.Version = "0.2.1"
 	request := httptest.NewRequest("GET", "https://tuxee.test/", nil)
 	plain := httptest.NewRecorder()
@@ -61,7 +61,7 @@ func TestSelfContainedIndexAndCSP(t *testing.T) {
 
 func TestPublicAssetCaching(t *testing.T) {
 	assets := web.Assets()
-	s := New(nil, nil, nil, "", assets)
+	s := New("test-instance", nil, nil, nil, "", assets)
 	index, err := fs.ReadFile(assets, "index.html")
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func TestBrandingOrigin(t *testing.T) {
 		{"https://local.test/", "", "https://local.test"},
 		{"http://internal.test/", "https://public.test", "https://public.test"},
 	} {
-		s := New(nil, nil, nil, test.origin, web.Assets())
+		s := New("test-instance", nil, nil, nil, test.origin, web.Assets())
 		request := httptest.NewRequest("GET", test.request, nil)
 		request.Header.Set("X-Forwarded-Host", "untrusted.test")
 		response := httptest.NewRecorder()
@@ -132,7 +132,7 @@ func TestBrandingOrigin(t *testing.T) {
 			t.Fatal("metadata leaked request state or used forwarded headers")
 		}
 	}
-	s := New(nil, nil, nil, "", web.Assets())
+	s := New("test-instance", nil, nil, nil, "", web.Assets())
 	request := httptest.NewRequest("GET", "http://local.test/", nil)
 	request.Host = `local.test"><script>injected</script>`
 	response := httptest.NewRecorder()
@@ -149,7 +149,7 @@ func TestPublicServerIdentity(t *testing.T) {
 	}
 	for _, version := range []string{"0.0.0", "0.2.1", `test"><script>injected</script>{{origin}}`} {
 		for _, path := range []string{"/", "/index.html"} {
-			s := New(nil, nil, nil, "", web.Assets())
+			s := New("test-instance", nil, nil, nil, "", web.Assets())
 			s.Version = version
 			response := httptest.NewRecorder()
 			s.ServeHTTP(response, httptest.NewRequest("GET", "http://local.test"+path, nil))

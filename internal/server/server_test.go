@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -30,7 +32,7 @@ func TestMain(m *testing.M) {
 func TestSessionAdmissionAndLogout(t *testing.T) {
 	manager := terminal.NewManager()
 	defer manager.Close()
-	s := New(identity.NewGate("login"), manager, nil, "", fstest.MapFS{})
+	s := New("test-instance", identity.NewGate("login"), manager, nil, "", fstest.MapFS{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.logins[sha256.Sum256([]byte("token"))] = &login{csrf: "csrf", ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
@@ -38,7 +40,7 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 		r := httptest.NewRequest(method, "http://tuxee.test"+path, nil)
 		r.Header.Set("Origin", origin)
 		r.Header.Set("X-Tuxee-CSRF", csrf)
-		r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+		r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, r)
 		return w
@@ -57,6 +59,74 @@ func TestSessionAdmissionAndLogout(t *testing.T) {
 	}
 	if got := request("GET", "/api/terminals", "", "").Code; got != 401 {
 		t.Fatalf("revoked cookie: %d", got)
+	}
+}
+
+func TestInstanceCookiesShareHostWithoutSharingSessions(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	var instances []*Server
+	var addresses []*url.URL
+	var sessions []context.Context
+	for _, id := range []string{"instance-a", "instance-b"} {
+		s := New(id, nil, nil, nil, "", fstest.MapFS{})
+		t.Cleanup(s.Close)
+		ctx, cancel := context.WithCancel(context.Background())
+		s.logins[sha256.Sum256([]byte("token"))] = &login{csrf: id, ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
+		httpServer := httptest.NewServer(s)
+		t.Cleanup(httpServer.Close)
+		address, err := url.Parse(httpServer.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		instances = append(instances, s)
+		addresses = append(addresses, address)
+		sessions = append(sessions, ctx)
+	}
+	check := func(index int, want bool) {
+		t.Helper()
+		response, err := client.Get(addresses[index].String() + "/api/connection")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var state struct {
+			Authenticated bool `json:"authenticated"`
+		}
+		if response.StatusCode != 200 || json.NewDecoder(response.Body).Decode(&state) != nil || state.Authenticated != want {
+			t.Fatalf("instance %d authentication = %v, want %v", index, state.Authenticated, want)
+		}
+	}
+	jar.SetCookies(addresses[0], []*http.Cookie{{Name: "tuxee_session", Value: "token", Path: "/"}})
+	check(0, false)
+	check(1, false)
+	jar.SetCookies(addresses[0], []*http.Cookie{{Name: instances[0].cookieName, Value: "token", Path: "/"}})
+	check(0, true)
+	check(1, false)
+	jar.SetCookies(addresses[1], []*http.Cookie{{Name: instances[1].cookieName, Value: "token", Path: "/"}})
+	check(0, true)
+	check(1, true)
+	request, err := http.NewRequest("POST", addresses[0].String()+"/api/logout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("X-Tuxee-CSRF", "instance-a")
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	cookies := response.Cookies()
+	if response.StatusCode != 200 || len(cookies) != 1 || cookies[0].Name != instances[0].cookieName || cookies[0].MaxAge != -1 {
+		t.Fatal("logout must clear only its instance cookie")
+	}
+	check(0, false)
+	check(1, true)
+	if sessions[0].Err() == nil || sessions[1].Err() != nil {
+		t.Fatal("logout must revoke only its own transports")
 	}
 }
 
@@ -80,7 +150,7 @@ func TestRestartAdmission(t *testing.T) {
 		{name: "signal permitted", method: "POST", csrf: "csrf", want: 202},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := New(nil, nil, nil, "", fstest.MapFS{})
+			s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 			defer s.Close()
 			if tc.busy {
 				s.processKills <- struct{}{}
@@ -96,7 +166,7 @@ func TestRestartAdmission(t *testing.T) {
 			r.Header.Set("Origin", tc.origin)
 			r.Header.Set("X-Tuxee-CSRF", tc.csrf)
 			if !tc.anonymous {
-				r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+				r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 			}
 			w := httptest.NewRecorder()
 			s.ServeHTTP(w, r)
@@ -132,7 +202,7 @@ func TestRestartAdmission(t *testing.T) {
 }
 
 func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	defer s.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.logins[sha256.Sum256([]byte("token"))] = &login{user: identity.User{UID: 1234}, csrf: "csrf", ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
@@ -141,7 +211,7 @@ func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
 	for _, token := range []string{"", "invalid", "token", "expired"} {
 		r := httptest.NewRequest("GET", "/api/connection", nil)
 		if token != "" {
-			r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: token})
+			r.AddCookie(&http.Cookie{Name: s.cookieName, Value: token})
 		}
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, r)
@@ -166,7 +236,7 @@ func TestConnectionReadinessIncludesAuthentication(t *testing.T) {
 	}
 }
 func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.logins[sha256.Sum256([]byte("token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
@@ -186,7 +256,7 @@ func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
 				r.Method = "POST"
 			}
 			if cookie {
-				r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+				r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 			}
 			w := httptest.NewRecorder()
 			s.ServeHTTP(w, r)

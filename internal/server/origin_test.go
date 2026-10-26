@@ -31,7 +31,7 @@ func TestProxyOriginAdmission(t *testing.T) {
 		{name: "unexpected browser metadata", site: "invalid"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := New(nil, nil, nil, tc.configured, fstest.MapFS{})
+			s := New("test-instance", nil, nil, nil, tc.configured, fstest.MapFS{})
 			for _, method := range []string{"GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"} {
 				r := httptest.NewRequest(method, "http://tuxee.test/api/connection", nil)
 				if tc.host != "" {
@@ -70,7 +70,7 @@ func TestPublicScheme(t *testing.T) {
 		{"http://tuxee.test/", "", "https", "https://tuxee.test"},
 		{"http://tuxee.test/", "", "invalid", "http://tuxee.test"},
 	} {
-		s := New(nil, nil, nil, "", fstest.MapFS{})
+		s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 		r := httptest.NewRequest("POST", tc.request, nil)
 		r.Header.Set("Origin", tc.origin)
 		r.Header.Set("X-Forwarded-Proto", tc.forwarded)

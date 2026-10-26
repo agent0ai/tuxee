@@ -54,6 +54,7 @@ type Server struct {
 	Updates      *update.Checker
 	Restart      func()
 	Assets       fs.FS
+	cookieName   string
 	mu           sync.Mutex
 	closed       atomic.Bool
 	logins       map[[32]byte]*login
@@ -67,8 +68,9 @@ type Server struct {
 	processKills chan struct{}
 }
 
-func New(gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
+func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32), clipSlots: make(chan struct{}, 2)}
+	s.cookieName = "tuxee_session_" + instanceID
 	s.monitor = monitor.New()
 	s.processReads = make(chan struct{}, 2)
 	s.sizeSlots = make(chan struct{}, 2)
@@ -239,7 +241,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.signIn(w, r)
 		return
 	}
-	cookie, err := r.Cookie("tuxee_session")
+	cookie, err := r.Cookie(s.cookieName)
 	var key [32]byte
 	if err == nil {
 		key = sha256.Sum256([]byte(cookie.Value))
@@ -364,7 +366,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		delete(s.logins, key)
 		session.cancel()
 		s.mu.Unlock()
-		http.SetCookie(w, &http.Cookie{Name: "tuxee_session", Path: "/", MaxAge: -1, HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode})
+		http.SetCookie(w, &http.Cookie{Name: s.cookieName, Path: "/", MaxAge: -1, HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode})
 		jsonResponse(w, 200, map[string]bool{"ok": true})
 	case r.URL.Path == "/api/settings" && r.Method == "PUT":
 		// Accept old clients' timeout field without retaining or applying it.
@@ -490,7 +492,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		failure(w, 503, errors.New("too many active login sessions"))
 		return
 	}
-	if old, err := r.Cookie("tuxee_session"); err == nil {
+	if old, err := r.Cookie(s.cookieName); err == nil {
 		key := sha256.Sum256([]byte(old.Value))
 		if oldSession := s.logins[key]; oldSession != nil {
 			oldSession.cancel()
@@ -499,7 +501,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logins[sha256.Sum256([]byte(token))] = session
 	s.mu.Unlock()
-	http.SetCookie(w, &http.Cookie{Name: "tuxee_session", Value: token, Path: "/", HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode, MaxAge: 86400})
+	http.SetCookie(w, &http.Cookie{Name: s.cookieName, Value: token, Path: "/", HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode, MaxAge: 86400})
 	jsonResponse(w, 200, map[string]any{"user": user, "csrf": session.csrf})
 }
 

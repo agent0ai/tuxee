@@ -18,13 +18,13 @@ import (
 )
 
 func TestUpdateChecksRequireSessionAndCSRF(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	s.Updates = update.NewChecker("1.0.0")
 	request := func(method string, authenticated, csrf bool) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://tuxee.test/api/update", nil)
 		r.Header.Set("X-Tuxee-Client", "web")
 		if authenticated {
-			r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+			r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 		}
 		if csrf {
 			r.Header.Set("X-Tuxee-CSRF", "csrf")

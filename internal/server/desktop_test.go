@@ -12,7 +12,7 @@ import (
 )
 
 func TestDisplayAdmission(t *testing.T) {
-	s := New(nil, terminal.NewManager(), nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, terminal.NewManager(), nil, "", fstest.MapFS{})
 	defer s.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.logins[sha256.Sum256([]byte("token"))] = &login{csrf: "csrf", ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
@@ -47,7 +47,7 @@ func TestDisplayAdmission(t *testing.T) {
 		{"POST", "/api/terminals/aaaaaaaaaaaaaaaaaaaaaaaa/display/drop", "token", "http://evil.test", "csrf", 403},
 	} {
 		r := httptest.NewRequest(tc.method, "http://tuxee.test"+tc.path, nil)
-		r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: tc.token})
+		r.AddCookie(&http.Cookie{Name: s.cookieName, Value: tc.token})
 		r.Header.Set("Origin", tc.origin)
 		r.Header.Set("X-Tuxee-CSRF", tc.csrf)
 		w := httptest.NewRecorder()

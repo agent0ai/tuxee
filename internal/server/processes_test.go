@@ -15,7 +15,7 @@ import (
 )
 
 func TestProcessAdmissionAndSnapshotTargets(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	session := &login{ctx: ctx, cancel: cancel, csrf: "csrf", expires: time.Now().Add(time.Hour)}
@@ -24,7 +24,7 @@ func TestProcessAdmissionAndSnapshotTargets(t *testing.T) {
 	request := func(method, path, cookie, csrf, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, "http://tuxee.test"+path, strings.NewReader(body))
 		if cookie != "" {
-			r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: cookie})
+			r.AddCookie(&http.Cookie{Name: s.cookieName, Value: cookie})
 		}
 		r.Header.Set("X-Tuxee-CSRF", csrf)
 		w := httptest.NewRecorder()

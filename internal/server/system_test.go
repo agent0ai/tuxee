@@ -15,7 +15,7 @@ import (
 )
 
 func TestSystemInfoRequiresSessionAndUsesItsUser(t *testing.T) {
-	s := New(nil, nil, nil, "", fstest.MapFS{})
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
 	s.Version = "1.2.3-test"
 	r := httptest.NewRequest("GET", "http://tuxee.test/api/system", nil)
 	w := httptest.NewRecorder()
@@ -27,7 +27,7 @@ func TestSystemInfoRequiresSessionAndUsesItsUser(t *testing.T) {
 	defer cancel()
 	user := identity.User{Name: "signed-in-user", UID: 60001, Home: "/home/signed-in-user", Shell: "/bin/sh"}
 	s.logins[sha256.Sum256([]byte("token"))] = &login{user: user, ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour)}
-	r.AddCookie(&http.Cookie{Name: "tuxee_session", Value: "token"})
+	r.AddCookie(&http.Cookie{Name: s.cookieName, Value: "token"})
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || w.Header().Get("Cache-Control") != "no-store" {
