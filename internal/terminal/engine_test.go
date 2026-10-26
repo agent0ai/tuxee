@@ -108,7 +108,7 @@ func TestTerminalBackground(t *testing.T) {
 			t.Fatalf("background query: %q, %v", update.Reply, err)
 		}
 	}
-	query("1a1a/2020/2c2c")
+	query("1414/1919/2222")
 	if _, err := e.Apply([]byte("\x1b]4;2;#112233\x07\x1b]10;#abcdef\x07\x1b]2;partial"), 0, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestTerminalBackground(t *testing.T) {
 	if err := e.SetBackground(""); err != nil {
 		t.Fatal(err)
 	}
-	query("1a1a/2020/2c2c")
+	query("1414/1919/2222")
 }
 
 func TestSynchronizedFrames(t *testing.T) {

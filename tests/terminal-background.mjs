@@ -74,20 +74,20 @@ try {
     }), id);
     await page.goto(base);
     await page.locator('.terminal-view[data-state=connected]').waitFor();
-    await surface('rgb(26, 32, 44)');
+    await surface('rgb(20, 25, 34)');
     await page.locator('[data-workspace=ws-b] .workspace-tab').click();
     await page.locator('[data-panel=b] .terminal-view[data-state=connected]').waitFor();
     const warmNode = await page.locator('[data-panel=b] .xterm').elementHandle();
     await page.locator('[data-workspace=ws-a] .workspace-tab').click();
     const activeNode = await page.locator('[data-panel=a] .xterm').elementHandle();
-    await open(); assert.equal(await picker.inputValue(), '#1a202c'); assert.ok(await reset.isDisabled());
-    await choose('#14283c'); await surface('rgb(26, 32, 44)');
+    await open(); assert.equal(await picker.inputValue(), '#141922'); assert.ok(await reset.isDisabled());
+    await choose('#14283c'); await surface('rgb(20, 25, 34)');
     assert.equal((await saved()).terminalBackground, undefined);
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    await open(); assert.equal(await picker.inputValue(), '#1a202c');
+    await open(); assert.equal(await picker.inputValue(), '#141922');
     await choose('#14283c');
     await page.route(base + '/api/settings', route => route.fulfill({ status: 400, json: { error: 'save rejected' } }));
-    await save(400); await surface('rgb(26, 32, 44)');
+    await save(400); await surface('rgb(20, 25, 34)');
     await page.unroute(base + '/api/settings');
     await save(); await surface('rgb(20, 40, 60)');
     assert.equal((await saved()).terminalBackground, '#14283c');
@@ -105,7 +105,7 @@ try {
     await surface('rgb(20, 40, 60)');
     await mkdir('test-results', { recursive: true });
     await open(); await page.screenshot({ path: 'test-results/terminal-background-settings.png' });
-    await reset.click(); assert.equal(await picker.inputValue(), '#1a202c');
+    await reset.click(); assert.equal(await picker.inputValue(), '#141922');
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await surface('rgb(20, 40, 60)');
     await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor(); await surface('rgb(20, 40, 60)');
@@ -124,9 +124,9 @@ try {
     await open(); assert.equal(await picker.inputValue(), '#234567');
     assert.ok(await dialog.evaluate(node => { const r = node.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; }));
     await page.screenshot({ path: 'test-results/terminal-background-mobile.png' });
-    await reset.click(); await save(); await surface('rgb(26, 32, 44)');
+    await reset.click(); await save(); await surface('rgb(20, 25, 34)');
     assert.equal((await saved()).terminalBackground, undefined);
-    await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor(); await surface('rgb(26, 32, 44)');
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor(); await surface('rgb(20, 25, 34)');
     assert.deepEqual(errors, []);
     console.log('PASS terminal background defaults, save/cancel/failure/reset, warm/detached/new terminals, live DOM/PID retention, themes, mobile, reconnect, login and application palette preservation');
 } finally {
