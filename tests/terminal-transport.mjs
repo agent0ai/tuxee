@@ -360,16 +360,20 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
 
     const textButton = page.getByRole('button', {name:'Terminal contents as text', exact:true});
     const textContent = page.getByRole('textbox', {name:'Terminal contents as text', exact:true});
+    const spaced = 's'.repeat(await page.evaluate(() => view.term.cols - 1)) + ' [271 kB]';
+    await input(`printf '%s\\n' '${spaced}'\n`);
     const wrapped = 'x'.repeat(await page.evaluate(() => view.term.cols - 1)) + '界_WRAP_DONE';
     await input(`printf '%s\\n' '${wrapped}'\n`);
     await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).some(line => line.endsWith('界_WRAP_DONE')));
     const beforeText = await page.evaluate(() => [view.term.cols, view.term.rows]);
     await textButton.click();
-    assert.ok((await textContent.inputValue()).includes('HISTORY_0001'));
-    assert.ok((await textContent.inputValue()).includes('HISTORY_2000'));
-    assert.ok((await textContent.inputValue()).split('\n').includes(wrapped), 'wide-character wrap padding is not copied');
+    assert.ok((await textContent.textContent()).includes('HISTORY_0001'));
+    assert.ok((await textContent.textContent()).includes('HISTORY_2000'));
+    assert.ok((await textContent.textContent()).includes('s'.repeat(beforeText[0] - 1) + ' \n[271 kB]'), 'space at the wrap boundary is retained');
+    assert.ok((await textContent.textContent()).includes('x'.repeat(beforeText[0] - 1) + ' \n界_WRAP_DONE'), 'wide-character wrap padding and row break are preserved');
+    assert.equal(await textContent.textContent(), await page.evaluate(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(false)).join('\n')), 'every buffer row and space is preserved');
     assert.deepEqual(await page.evaluate(() => [view.term.cols, view.term.rows]), beforeText, 'popover does not resize PTY');
-    assert.equal(await textContent.evaluate(node => node.selectionEnd - node.selectionStart), 0, 'opening static text does not select it');
+    assert.equal(await textContent.evaluate(() => window.getSelection().toString().length), 0, 'opening static text does not select it');
     assert.equal(await textButton.getAttribute('aria-expanded'), 'true');
     await textButton.click();
     await textContent.waitFor({state:'detached'});
@@ -379,6 +383,22 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await textContent.waitFor({state:'detached'});
     assert.equal(await textButton.getAttribute('aria-expanded'), 'false');
     assert.ok(await textButton.evaluate(node => node === document.activeElement));
+
+    for (const position of ['top', 'middle', 'bottom']) {
+        const expected = await page.evaluate(position => {
+            const buffer = view.term.buffer.active;
+            const line = position === 'top' ? 0 : position === 'middle' ? Math.floor(buffer.baseY / 2) : buffer.baseY;
+            view.term.scrollToLine(line);
+            return line;
+        }, position);
+        await page.waitForFunction(line => view.term.buffer.active.viewportY === line, expected);
+        await textButton.click();
+        const offset = await textContent.evaluate(node => ({ actual: node.scrollTop, lineHeight: parseFloat(getComputedStyle(node).lineHeight) }));
+        assert.ok(Math.abs(offset.actual - expected * offset.lineHeight) <= 1, `${position}: text opens at terminal scroll position`);
+        await textContent.evaluate(node => node.scrollTop = 0);
+        await page.keyboard.press('Escape');
+        assert.equal(await page.evaluate(() => view.term.buffer.active.viewportY), expected, 'snapshot scrolling leaves the live terminal position unchanged');
+    }
 
     const toggle = page.getByRole('button', {name:'Toggle terminal input', exact:true});
     const drawer = page.getByRole('textbox', {name:'Terminal input drawer', exact:true});
@@ -492,7 +512,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(raw).toString('base64')}'))"\n`);
     await page.waitForFunction(() => view.term.buffer.active.type === 'alternate' && view.term.modes.bracketedPasteMode);
     await textButton.click();
-    assert.equal(await textContent.inputValue(), 'TUI_TEXT_界');
+    assert.equal((await textContent.textContent()).trimEnd(), 'TUI_TEXT_界');
     await page.keyboard.press('Escape');
     for (const [text, key] of [['first\n界', 'Enter'], ['second', 'Control+Enter']]) {
         await drawer.fill(text); await page.keyboard.press(key); await idle();
@@ -562,7 +582,8 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
             assert.equal(await control.getAttribute('aria-expanded'), 'true');
             await page.waitForFunction(label => getComputedStyle(document.querySelector(`.terminal-footer button[aria-label="${label}"]`)).backgroundColor !== 'rgba(0, 0, 0, 0)', await control.getAttribute('aria-label'));
         }
-        assert.equal(await textContent.evaluate(node => node.selectionEnd - node.selectionStart), 0);
+        assert.equal(await textContent.evaluate(() => window.getSelection().toString().length), 0);
+        assert.ok(await textContent.evaluate((node, line) => Math.abs(node.scrollTop - line * parseFloat(getComputedStyle(node).lineHeight)) <= 1, await page.evaluate(() => view.term.buffer.active.viewportY)), 'desktop/mobile opening preserves the terminal scroll position');
         const shades = await textContent.evaluate(node => {
             const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
             const shade = color => { ctx.fillStyle = color; ctx.fillRect(0,0,1,1); return [...ctx.getImageData(0,0,1,1).data].slice(0,3).reduce((a,b)=>a+b); };
@@ -573,26 +594,26 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         assert.ok(box.x >= 0 && box.x + box.width <= width+16 && box.y + box.height <= 650);
         assert.deepEqual(box, await page.locator('.terminal-host').boundingBox(), 'text overlays the exact terminal rectangle');
         const geometry = await textContent.evaluate(node => ({font:[getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight], width:node.clientWidth, scrollWidth:node.scrollWidth}));
-        assert.deepEqual(geometry.font, await page.locator('.xterm-rows').evaluate(node => [getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, getComputedStyle(node).lineHeight]));
-        assert.equal(geometry.scrollWidth, geometry.width, 'wrapped text never needs horizontal scrolling');
-        const wrapping = await textContent.evaluate(node => {
-            const probe = node.cloneNode();
-            Object.assign(probe.style, { width: '10ch', height: '1px', padding: '0', lineHeight: '20px', position: 'fixed', visibility: 'hidden' });
-            node.parentElement.append(probe);
-            probe.value = '123456 frontend '.repeat(20).trimEnd();
-            const words = probe.scrollHeight;
-            probe.value = 'x'.repeat(probe.value.length);
-            const characters = probe.scrollHeight;
-            probe.remove();
-            return { words, characters };
+        assert.deepEqual(geometry.font, await page.locator('.xterm-rows').evaluate(node => [getComputedStyle(node).fontFamily, getComputedStyle(node).fontSize, `${node.firstElementChild.getBoundingClientRect().height}px`]));
+        assert.equal(await textContent.evaluate(node => getComputedStyle(node).whiteSpace), 'pre', 'browser wrapping is disabled');
+        assert.equal(await textContent.evaluate(node => getComputedStyle(node).overflowX), 'hidden', 'font rounding does not show a horizontal scrollbar');
+        assert.equal(await textContent.evaluate(node => node.offsetHeight - node.clientHeight), 0, 'horizontal scrollbar reserves no vertical space');
+        assert.equal(await textContent.textContent(), await page.evaluate(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(false)).join('\n')), 'desktop/mobile text preserves terminal rows exactly');
+        const rowHeight = await textContent.evaluate(node => {
+            const range = document.createRange();
+            const start = node.textContent.indexOf('\n') + 1;
+            range.setStart(node.firstChild, 0); range.setEnd(node.firstChild, 1);
+            const first = range.getBoundingClientRect().top;
+            range.setStart(node.firstChild, start); range.setEnd(node.firstChild, start + 1);
+            return [range.getBoundingClientRect().top - first, parseFloat(getComputedStyle(node).lineHeight)];
         });
-        assert.equal(wrapping.words, wrapping.characters, 'text wraps within words like a terminal character grid');
+        assert.equal(rowHeight[0], rowHeight[1], 'each buffer row occupies exactly one rendered line');
         for (const key of ['Control+a', 'Meta+a', 'Control+a']) {
             await textContent.click({position:{x:40,y:30}});
             await page.keyboard.press(key);
-            assert.deepEqual(await textContent.evaluate(node => [node.selectionStart, node.selectionEnd, document.activeElement === node]), [0, (await textContent.inputValue()).length, true]);
+            assert.deepEqual(await textContent.evaluate(node => [window.getSelection().toString(), document.activeElement === node]), [await textContent.textContent(), true]);
             await page.keyboard.press('Control+c');
-            assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await textContent.inputValue(), 'copy contains the field only after repeated click/select-all');
+            assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await textContent.textContent(), 'copy contains the field only after repeated click/select-all');
         }
         await page.screenshot({path:`test-results/terminal-text-${width}-${theme}.png`});
         await page.keyboard.press('Escape');

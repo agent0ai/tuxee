@@ -233,33 +233,38 @@ export class TerminalView implements View {
     private showText(anchor: HTMLElement) {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
         this.closeText();
-        const content = el('div', 'terminal-text'), text = el('textarea');
+        const content = el('div', 'terminal-text'), text = el('pre');
         content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'Terminal contents');
         const rect = this.host.getBoundingClientRect();
         content.style.width = `${rect.width}px`; content.style.height = `${rect.height}px`;
         const style = getComputedStyle(this.term.element!);
-        const rows = getComputedStyle(this.term.element!.querySelector('.xterm-rows')!);
-        Object.assign(text.style, { fontFamily: rows.fontFamily, fontSize: rows.fontSize, lineHeight: rows.lineHeight, letterSpacing: rows.letterSpacing, fontVariantLigatures: rows.fontVariantLigatures });
+        const row = this.term.element!.querySelector('.xterm-rows > div')!;
+        const rows = getComputedStyle(row), rowHeight = row.getBoundingClientRect().height;
+        Object.assign(text.style, { fontFamily: rows.fontFamily, fontSize: rows.fontSize, lineHeight: `${rowHeight}px`, letterSpacing: rows.letterSpacing, fontVariantLigatures: rows.fontVariantLigatures });
         text.style.padding = style.padding;
-        text.readOnly = true; text.spellcheck = false; text.wrap = 'soft';
+        text.tabIndex = 0;
+        text.setAttribute('role', 'textbox'); text.setAttribute('aria-readonly', 'true'); text.setAttribute('aria-multiline', 'true');
         text.setAttribute('aria-label', 'Terminal contents as text');
         text.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
-                event.preventDefault(); event.stopPropagation(); text.select();
+                event.preventDefault(); event.stopPropagation();
+                const range = document.createRange(); range.selectNodeContents(text);
+                const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
             }
         };
         const buffer = this.term.buffer.active, lines: string[] = [];
         for (let i = 0; i < buffer.length; i++) {
             const line = buffer.getLine(i)!;
-            const value = line.translateToString(true);
-            if (line.isWrapped && lines.length) lines[lines.length - 1] += value;
-            else lines.push(value);
+            lines.push(line.translateToString(false));
         }
-        text.value = lines.join('\n').trimEnd();
+        text.textContent = lines.join('\n');
         content.append(text);
         ({ close: this.closeText } = popover(anchor, content));
         content.style.left = `${rect.left}px`; content.style.top = `${rect.top}px`;
-        text.focus();
+        text.focus({ preventScroll: true });
+        // Keep the spare pixels below the last terminal row so bottom scrolling stays aligned.
+        text.style.paddingBottom = `${Math.max(parseFloat(style.paddingBottom), text.clientHeight - parseFloat(style.paddingTop) - this.term.rows * rowHeight)}px`;
+        text.scrollTop = buffer.viewportY * rowHeight;
     }
     private notice = (value: unknown) => notify(value, this.root);
     private canUpload() { return this.ready && this.controller && !this.ended && !this.disposed && !this.closing; }
