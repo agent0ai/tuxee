@@ -61,6 +61,7 @@ ARG VERSION=0.0.0
 RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee \
     && printf '%s\n' "${VERSION#v}" > /usr/local/lib/tuxee/update-version
 COPY docker/tuxee.profile.sh /etc/profile.d/tuxee.sh
+COPY internal/update/root-prompt.bash /etc/profile.d/zz-tuxee-root.sh
 # Initialize ROOT_PASSWORD (default: toor) on the first container start.
 COPY --chmod=0755 docker/entrypoint.sh /opt/tuxee/entrypoint.sh
 COPY --chmod=0755 docker/docker-init.sh /opt/tuxee/docker-init.sh

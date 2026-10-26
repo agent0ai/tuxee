@@ -18,6 +18,9 @@ import (
 //go:embed update.sh
 var setupScript string
 
+//go:embed root-prompt.bash
+var rootPrompt string
+
 // Setup runs the release's container migration before accepting connections.
 // The marker belongs to the container's writable layer, not a persisted volume.
 func Setup(ctx context.Context, version string, output io.Writer) error {
@@ -57,7 +60,7 @@ func setup(ctx context.Context, version, directory, script string, output io.Wri
 	defer os.RemoveAll(temporary)
 	fmt.Fprintf(output, "Tuxee %s: preparing container runtime\n", version)
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-s", "--", version, runtime.GOARCH)
-	cmd.Env = append(os.Environ(), "TMPDIR="+temporary)
+	cmd.Env = append(os.Environ(), "TMPDIR="+temporary, "TUXEE_ROOT_PROMPT="+strings.TrimRight(rootPrompt, "\n"))
 	cmd.Stdin = strings.NewReader(script)
 	cmd.Stdout, cmd.Stderr = output, output
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

@@ -27,7 +27,7 @@ class SetupScript(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         for command in ("sh", "grep", "id", "cat", "cp", "rm", "mktemp", "awk",
-                        "sha256sum", "mkdir", "tar", "gzip", "install", "dirname"):
+                        "sha256sum", "mkdir", "tar", "gzip", "install", "dirname", "chmod", "mv"):
             source = Path(shutil.which(command))
             target = "/bin/sh" if command == "sh" else "/usr/bin/" + command
             self.copy_executable(source, target)
@@ -95,7 +95,8 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
 
     def run_script(self, success=True, arch="amd64"):
         result = subprocess.run(["chroot", str(self.root), "/bin/sh", "/update.sh", "0.2.1", arch],
-                                text=True, capture_output=True, timeout=10)
+                                text=True, capture_output=True, timeout=10,
+                                env=dict(os.environ, TUXEE_ROOT_PROMPT=(REPO / "internal/update/root-prompt.bash").read_text().rstrip("\n")))
         self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
         self.assertEqual(list((self.root / "tmp").iterdir()), [], "temporary downloads leaked")
         return result
@@ -108,6 +109,7 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         for command in ("dpkg-query", "apt-get", "curl", "mktemp"):
             self.write("/usr/bin/" + command, "#!/bin/sh\necho unexpected > /slow-work\nexit 99\n", 0o755)
         self.write("/etc/bash.bashrc", '# Existing system settings\n')
+        (self.root / "etc/profile.d/zz-tuxee-root.sh").unlink()
         script = (self.root / "update.sh").read_text()
         self.write("/update.sh", script + "\nprintf continued > /next-step\n")
         self.run_script()
@@ -115,6 +117,8 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertEqual((self.root / "next-step").read_text(), "continued")
         self.assertEqual((self.root / "downloads").read_text(), downloads)
         self.assertIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
+        self.assertEqual((self.root / "etc/profile.d/zz-tuxee-root.sh").read_text(),
+                         (REPO / "internal/update/root-prompt.bash").read_text())
 
     def test_bash_newline_preserves_enter_application_input_and_settings(self):
         self.write("/root/.bashrc", "# Existing user settings\n")
@@ -158,6 +162,24 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
             os.killpg(shell.pid, signal.SIGKILL)
             shell.wait()
             os.close(master)
+
+    def test_root_prompt_matches_image_preserves_user_settings_and_repairs_old_defaults(self):
+        self.write("/root/.bashrc", "PS1='custom> '\n")
+        self.write("/etc/profile.d/tuxee.sh", "# Existing non-root prompt\n")
+        self.run_script()
+        profile = self.root / "etc/profile.d/zz-tuxee-root.sh"
+        expected = (REPO / "internal/update/root-prompt.bash").read_text()
+        self.assertEqual(profile.read_text(), expected)
+        modified = profile.stat().st_mtime_ns
+        self.run_script()
+        self.assertEqual(profile.stat().st_mtime_ns, modified)
+        profile.write_text("# Earlier Tuxee default\n")
+        self.run_script()
+        self.assertEqual(profile.read_text(), expected)
+        self.assertEqual(profile.stat().st_mode & 0o777, 0o644)
+        self.assertEqual((self.root / "root/.bashrc").read_text(), "PS1='custom> '\n")
+        self.assertEqual((self.root / "etc/profile.d/tuxee.sh").read_text(), "# Existing non-root prompt\n")
+        self.assertFalse(profile.with_suffix(".sh.tmp").exists())
 
     def test_partial_runtime_is_repaired_before_later_steps(self):
         self.run_script()
@@ -253,6 +275,7 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertNotIn("preparing container", serve())
         self.assertFalse(marker.exists())
         self.assertNotIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
+        self.assertFalse((self.root / "etc/profile.d/zz-tuxee-root.sh").exists())
         self.write("/opt/tuxee/entrypoint.sh", "#!/bin/sh\n")
         result = subprocess.run(command + ["version"], capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout, "Tuxee 0.2.1\n")
@@ -266,6 +289,7 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertFalse((self.root / "downloads").exists())
 
         # A legacy image has no marker. Failure still serves the UI and retries.
+        self.assertFalse((self.root / "etc/profile.d/zz-tuxee-root.sh").exists())
         marker.unlink()
         self.write("/var/lib/tuxee/update-version", "0.2.1\n")
         self.assertIn("setup failed; will retry", serve())
@@ -275,6 +299,8 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertEqual(marker.read_text(), "0.2.1\n")
         self.assertIn('13;2u', (self.root / "etc/bash.bashrc").read_text())
         self.write("/mode", "download-failed")
+        self.assertEqual((self.root / "etc/profile.d/zz-tuxee-root.sh").read_text(),
+                         (REPO / "internal/update/root-prompt.bash").read_text())
         self.assertNotIn("preparing container", serve())
 
 

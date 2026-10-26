@@ -73,6 +73,17 @@ ensure_bash_keys() (
     printf '\n%s\n' "$binding" >> /etc/bash.bashrc
 )
 
+ensure_root_prompt() (
+    profile=/etc/profile.d/zz-tuxee-root.sh
+    : "${TUXEE_ROOT_PROMPT:?missing embedded root prompt}"
+    if [ -r "$profile" ] && [ "$(cat "$profile")" = "$TUXEE_ROOT_PROMPT" ]; then return 0; fi
+    mkdir -p /etc/profile.d
+    trap 'rm -f "$profile.tmp"' EXIT
+    printf '%s\n' "$TUXEE_ROOT_PROMPT" > "$profile.tmp"
+    chmod 0644 "$profile.tmp"
+    mv -f "$profile.tmp" "$profile"
+)
+
 # Keep the complete list of requirements here, in dependency order.
 main() {
     version=$1
@@ -83,6 +94,7 @@ main() {
 
     ensure_audio
     ensure_bash_keys
+    ensure_root_prompt
 }
 
 main "$@"
