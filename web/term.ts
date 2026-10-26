@@ -39,7 +39,7 @@ export class TerminalView implements View {
     private starting: Promise<void>;
     private closing = false;
     private resetting = false;
-    private resetButton = button('Reset terminal', 'Power', () => this.reset());
+    private resetButton = button('Reset terminal', 'RefreshCw', () => this.reset());
     private events = new AbortController();
     private control = button('Take control', 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = 'Terminal';
@@ -193,7 +193,7 @@ export class TerminalView implements View {
         left.append(toggle, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button('Reconnect terminal', 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button('Reconnect terminal', 'Power', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
