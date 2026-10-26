@@ -52,12 +52,14 @@ async function processStopped(pid) {
 async function refresh(){await file.getByRole('button',{name:'Refresh files',exact:true}).click();await page.waitForTimeout(100);}
 async function dragFiles(source,target,modifierTiming='during',modifier='Control'){
  await source.scrollIntoViewIfNeeded();const a=await source.boundingBox(),b=await target.boundingBox();
- await page.mouse.move(a.x+Math.min(60,a.width/2),a.y+a.height/2);if(modifierTiming==='before')await page.keyboard.down(modifier);
+ await page.mouse.move(a.x+Math.min(60,a.width/2),a.y+a.height/2);if(['before','released'].includes(modifierTiming))await page.keyboard.down(modifier);
  await page.mouse.down();await page.mouse.move(a.x+Math.min(60,a.width/2)+20,a.y+a.height/2+4,{steps:4});
  if(modifierTiming==='during')await page.keyboard.down(modifier);
  await page.mouse.move(b.x+b.width/2,b.y+Math.min(b.height-4,24),{steps:15});await page.mouse.move(b.x+b.width/2+1,b.y+Math.min(b.height-4,24));
- assert.equal(await target.evaluate(node=>node.closest('.panel')?.querySelector('.file-view')?.getAttribute('data-drop')),modifierTiming==='none'?'Move here':'Copy here');
- const feedback=await page.locator('.file-drag-label').textContent();assert.equal(await page.locator('.file-drag-group').textContent(),feedback,'operation hints belong only to the drop target');await page.mouse.up();if(modifierTiming!=='none')await page.keyboard.up(modifier);return feedback;
+ if(modifierTiming==='released')await page.keyboard.up(modifier);
+ assert.equal(await target.evaluate(node=>node.closest('.panel')?.querySelector('.file-view')?.getAttribute('data-drop')),['before','during'].includes(modifierTiming)&&modifier==='Control'?'Copy here':'Move here');
+ assert.equal(await target.evaluate(node=>getComputedStyle(node.closest('.panel').querySelector('.file-view'),'::before').content),'"(Ctrl to copy)"');
+ const feedback=await page.locator('.file-drag-label').textContent();assert.equal(await page.locator('.file-drag-group').textContent(),feedback,'operation hints belong only to the drop target');await page.mouse.up();if(['before','during'].includes(modifierTiming))await page.keyboard.up(modifier);return feedback;
 }
 try{
  await page.goto(base);await row('alpha.txt').waitFor();await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);
@@ -182,11 +184,16 @@ try{
  const copyResponse=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='copy');
  await dragFiles(row('charlie.txt'),row('destination'),'before');assert.equal((await copyResponse).status(),200);assert.equal(await readFile(`${dir}/destination/charlie.txt`,'utf8'),'charlie');check('same-browser moves do nothing; Ctrl-drop onto a folder copies');
  await row('charlie.txt').locator('.file-name').click();await dragFiles(row('charlie.txt'),row('charlie.txt'),'during');await row('charlie (copy).txt').waitFor();check('drag away and back onto the source row also copies');
- for(const [modifier,timing] of [['Control','before'],['Meta','before'],['Meta','during'],['Alt','during']]) {
+ for(const [modifier,timing] of [['Control','before'],['Control','during']]) {
   const beforeNames=new Set(await readdir(dir));await row('bravo.txt').locator('.file-name').click();const response=page.waitForResponse(r=>r.url().endsWith('/api/files')&&r.request().postDataJSON()?.operation==='copy'&&r.request().postDataJSON()?.path===`${dir}/bravo.txt`);await dragFiles(row('bravo.txt'),file.locator('.file-columns'),timing,modifier);assert.equal((await response).status(),200);const created=(await readdir(dir)).filter(name=>!beforeNames.has(name));assert.equal(created.length,1);assert.equal(await readFile(`${dir}/${created[0]}`,'utf8'),'bravo');await row(created[0]).waitFor();assert.equal(await readFile(`${dir}/bravo.txt`,'utf8'),'bravo');
  }
+ for(const [modifier,timing] of [['Control','released'],['Meta','before'],['Meta','during'],['Alt','before'],['Alt','during']]) {
+  await page.evaluate(()=>window.fileOperations=[]);const names=await readdir(dir);
+  await row('bravo.txt').locator('.file-name').click();await dragFiles(row('bravo.txt'),file.locator('.file-columns'),timing,modifier);
+  assert.deepEqual(await page.evaluate(()=>window.fileOperations),[]);assert.deepEqual(await readdir(dir),names);
+ }
  await page.evaluate(()=>window.fileOperations=[]);await row('bravo.txt').scrollIntoViewIfNeeded();const cancelRow=await row('bravo.txt').boundingBox();await page.mouse.move(cancelRow.x+50,cancelRow.y+12);await page.mouse.down();await page.mouse.move(cancelRow.x+100,cancelRow.y+25,{steps:5});await page.locator('.file-drag-group').waitFor();await page.keyboard.press('Escape');await page.mouse.up();assert.equal(await page.locator('.file-drag-group').count(),0);assert.deepEqual(await page.evaluate(()=>window.fileOperations),[]);check('Escape cancels file dragging without issuing any filesystem operation');
- assert.equal(await page.evaluate(()=>window.nativeDrags),0);assert.equal(await page.locator('.popover-menu').count(),0);check('Command and Option drags copy real files without native OS drag negotiation');
+ assert.equal(await page.evaluate(()=>window.nativeDrags),0);assert.equal(await page.locator('.popover-menu').count(),0);check('only Ctrl selects copy; Command/Option retain same-browser no-op moves');
  const terminal=page.locator('[data-panel="terminal-3"]'),h=await terminal.locator('.panel-header').boundingBox(),grid=await page.locator('.grid-stack').boundingBox();
  await page.mouse.move(h.x+50,h.y+15);await page.mouse.down();await page.mouse.move(grid.x+grid.width*.8,grid.y+2,{steps:15});await page.locator('.dock-preview[data-edge=snap]:not(.invalid)').waitFor();await page.locator('.dock-preview').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{}))));const cover=await page.locator('.dock-preview').boundingBox();assert.ok(Math.abs(cover.width-grid.width/2)<2);await page.mouse.up();await page.waitForTimeout(250);assert.equal(await terminal.getAttribute('gs-w'),'2');assert.equal(await page.locator('.grid-stack-item').count(),5);assert.ok(await page.locator('.grid-stack').evaluate(grid=>{const bounds=grid.getBoundingClientRect(), rects=[...grid.querySelectorAll('.grid-stack-item')].map(node=>node.getBoundingClientRect());return rects.every((rect,i)=>rect.x>=bounds.x-1&&rect.y>=bounds.y-1&&rect.right<=bounds.right+1&&rect.bottom<=bounds.bottom+1&&!rects.some((other,j)=>j!==i&&rect.x<other.right-1&&rect.right>other.x+1&&rect.y<other.bottom-1&&rect.bottom>other.y+1))}));check('screen-edge quarter snap grows a small terminal and reflows neighbors');
  const neighbors=await page.locator('.grid-stack-item:not([data-panel="terminal-3"])').evaluateAll(nodes=>nodes.map(node=>({id:node.dataset.panel,rect:node.getBoundingClientRect().toJSON()})));
@@ -195,13 +202,18 @@ try{
  await page.getByRole('button',{name:'Rearrange workspace',exact:true}).click();await page.waitForTimeout(300);assert.equal(await page.locator('.grid-stack-item').count(),5);assert.ok((await page.locator('[data-panel=files]').boundingBox()).width<=640);check('double-click uses free space or shrinks without touching neighbors; rearrange balances panels');
  await page.getByRole('button',{name:'Add file browser',exact:true}).click();const targetBrowser=page.locator('.file-view').last();await targetBrowser.locator('..').getByRole('textbox',{name:'File or directory path'}).fill(dir+'/destination');await targetBrowser.locator('..').getByRole('textbox',{name:'File or directory path'}).press('Enter');await targetBrowser.locator('.file-entry').filter({hasText:'charlie.txt'}).waitFor();
  assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'),'0','adding a panel starts a new custom layout');
- for(const [name,modifier,timing] of [['alpha.txt','Control','before'],['bravo.txt','Meta','during']]) {
+ for(const [name,modifier,timing] of [['alpha.txt','Control','before'],['bravo.txt','Control','during']]) {
   await row(name).locator('.file-name').click();await dragFiles(row(name).locator('.file-size'),targetBrowser.locator('..').locator('.panel-header'),timing,modifier);await targetBrowser.locator('.file-entry').filter({hasText:name}).waitFor();assert.equal(await readFile(`${dir}/destination/${name}`,'utf8'),await readFile(`${dir}/${name}`,'utf8'));
+ }
+ for(const modifier of ['Meta','Alt']) {
+  const name=`move-${modifier}.txt`;await writeFile(`${dir}/${name}`,modifier);await chown(`${dir}/${name}`,Number(fields[2]),Number(fields[3]));await refresh();
+  await row(name).waitFor();await row(name).locator('.file-name').click();await dragFiles(row(name),targetBrowser.locator('..').locator('.panel-header'),'during',modifier);
+  await targetBrowser.locator('.file-entry').filter({hasText:name}).waitFor();assert.equal(await readFile(`${dir}/destination/${name}`,'utf8'),modifier);await assert.rejects(stat(`${dir}/${name}`),{code:'ENOENT'});
  }
  await row('script.js').locator('.file-name').click();await row('windows.txt').locator('.file-name').click({modifiers:['Control']});
  assert.equal(await dragFiles(row('script.js').locator('.file-size'),targetBrowser.locator('..').locator('.panel-header')),'2 files');
  for(const name of ['script.js','windows.txt']){await targetBrowser.locator('.file-entry').filter({hasText:name}).waitFor();assert.equal(await readFile(`${dir}/destination/${name}`,'utf8'),await readFile(`${dir}/${name}`,'utf8'));}
- await targetBrowser.locator('..').getByRole('button',{name:'Close panel',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.file-view').length===1);check('Control and Command copy across browsers, including header drops; source and destination bytes match');
+ await targetBrowser.locator('..').getByRole('button',{name:'Close panel',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.file-view').length===1);check('Ctrl copies across browsers with matching bytes; Command/Option move without copying');
  // Make room for a readable editor without creating new processes.
  await page.setViewportSize({width:2560,height:1080});await page.waitForTimeout(250);
  await row('script.js').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await file.locator('.code-keyword').first().waitFor();assert.equal(await file.getByRole('combobox',{name:'Syntax'}).inputValue(),'javascript');

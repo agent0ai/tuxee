@@ -407,6 +407,11 @@ try {
     const toClose = overflowMenu.getByRole('button', { name: 'Extra window 24', exact: true });
     const closedID = '0x' + Number(await toClose.getAttribute('data-window')).toString(16);
     await toClose.click({ button: 'right' });
+    assert.ok(await overflowMenu.isVisible(), 'window options retain their overflow list');
+    await page.keyboard.press('Escape');
+    assert.ok(await toClose.evaluate(node => node === document.activeElement));
+    assert.ok(await overflowMenu.isVisible());
+    await toClose.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await poll(() => !runX(env, 'xprop', ['-root', '_NET_CLIENT_LIST']).includes(closedID), 'overflow context menu did not close its window');
     await firstPanel.locator('.terminal-tab').click();

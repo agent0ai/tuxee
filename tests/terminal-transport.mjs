@@ -387,6 +387,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
     assert.equal(await drawer.getAttribute('rows'), '3');
+    assert.equal(await drawer.getAttribute('placeholder'), 'Enter: paste and send · Ctrl+Enter: paste only · Shift+Enter: new line');
     const drawerGrip = page.getByRole('separator', {name:'Resize terminal input', exact:true});
     const startHeight = (await drawer.boundingBox()).height;
     const startRows = await page.evaluate(() => view.term.rows), startResizes = resizeRequests.length;
@@ -493,14 +494,18 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await textButton.click();
     assert.equal(await textContent.inputValue(), 'TUI_TEXT_界');
     await page.keyboard.press('Escape');
-    for (const [text, key] of [['first\n界', 'Enter'], ['second', 'Control+Enter'], ['third', 'Meta+Enter']]) {
+    for (const [text, key] of [['first\n界', 'Enter'], ['second', 'Control+Enter']]) {
         await drawer.fill(text); await page.keyboard.press(key); await idle();
         assert.equal(await drawer.inputValue(), '');
     }
-    const bytes = '\x1b[200~first\r界\x1b[201~\r\x1b[200~second\x1b[201~\x1b[200~third\x1b[201~END_RAW';
+    const beforeMeta = sent.length;
+    await drawer.fill('keep this draft'); await page.keyboard.press('Meta+Enter'); await idle();
+    assert.equal(sent.length, beforeMeta, 'Command+Enter sends no terminal input');
+    assert.ok((await drawer.inputValue()).includes('keep this draft'), 'Command+Enter preserves the draft');
+    const bytes = '\x1b[200~first\r界\x1b[201~\r\x1b[200~second\x1b[201~END_RAW';
     await input('END_RAW');
     await page.waitForFunction(hash => document.querySelector('.xterm-rows').textContent.includes('DRAWER_HASH_'+hash), createHash('sha256').update(bytes).digest('hex'));
-    console.log('PASS plain-text TUI snapshot and exact multiline Unicode bracketed paste, Ctrl/Cmd paste-only and Enter bytes');
+    console.log('PASS plain-text TUI snapshot, exact Unicode bracketed paste, Ctrl+Enter paste-only and ignored Command+Enter');
     await input(`for i in {1..6000}; do printf '\\e[48;5;%dm%05d%*s\\e[0m\\r\\n' "$((16+i%216))" "$i" "$((COLUMNS-5))" ''; done; printf 'REFRESH_%s\\n' READY\n`);
     await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'));
     await idle();

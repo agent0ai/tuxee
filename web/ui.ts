@@ -92,7 +92,7 @@ export function modal(title: string, content: HTMLElement): {
     dialog.showModal();
     return { dialog, close: () => dialog.close() };
 }
-let closePopover = () => {};
+const popovers: { content: HTMLElement; close: () => void }[] = [];
 export function bindContextMenu(target: HTMLElement, open: (position?: { x: number; y: number }) => void, longPress = false) {
     const events = new AbortController();
     if (longPress) target.classList.add('long-press');
@@ -116,7 +116,7 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
         const press = new AbortController(), signal = press.signal;
         const timer = setTimeout(() => {
             cancelPress();
-            // Overflow tabs leave the DOM when their menu opens; consume release at document level.
+            // The menu may cover the pressed tab; consume release at document level.
             const release = new AbortController(), signal = release.signal;
             let releaseTimer: ReturnType<typeof setTimeout> | undefined;
             cancelRelease = () => { clearTimeout(releaseTimer); release.abort(); };
@@ -141,15 +141,16 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
     return () => { events.abort(); cancelPress(); cancelRelease(); target.classList.remove('long-press'); };
 }
 export function popover(anchor: HTMLElement | { x: number; y: number }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement) {
-    closePopover();
-    content.classList.add('popover-menu');
     const control = anchor instanceof HTMLElement ? anchor : undefined;
+    const parent = (control || returnFocus)?.closest<HTMLElement>('.popover-menu:popover-open');
+    while (popovers.length && popovers.at(-1)!.content !== parent) popovers.at(-1)!.close();
+    content.classList.add('popover-menu');
     // A right-click opens before pointerup; native light-dismiss would immediately close it.
     content.popover = control ? 'auto' : 'manual';
     if (!content.hasAttribute('role')) content.setAttribute('role', 'menu');
     const events = new AbortController();
     control?.setAttribute('aria-expanded', 'true');
-    document.body.append(content);
+    (parent || document.body).append(content);
     content.showPopover();
     const rect = control?.getBoundingClientRect();
     const left = rect ? rect.right - content.offsetWidth : (anchor as { x: number }).x;
@@ -157,22 +158,26 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
     content.style.left = `${Math.max(4, Math.min(left, innerWidth - content.offsetWidth - 4))}px`;
     content.style.top = `${Math.max(4, Math.min(top, innerHeight - content.offsetHeight - 4))}px`;
     const close = () => {
-        if (!content.isConnected) return;
+        if (!popovers.includes(popup)) return;
+        while (popovers.at(-1) !== popup) popovers.at(-1)!.close();
+        popovers.pop();
         if (content.contains(document.activeElement)) (control || returnFocus)?.focus({ preventScroll: true });
         if (content.matches(':popover-open')) content.hidePopover();
-        content.remove(); events.abort(); closePopover = () => {}; control?.setAttribute('aria-expanded', 'false');
+        content.remove(); events.abort(); control?.setAttribute('aria-expanded', 'false');
     };
     if (!control) document.addEventListener('pointerdown', event => { if (!content.contains(event.target as Node)) close(); }, { capture: true, signal: events.signal });
     content.addEventListener('toggle', event => { if (event.newState === 'closed') close(); }, { signal: events.signal });
     window.addEventListener('resize', close, { signal: events.signal });
-    document.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } }, { signal: events.signal });
-    closePopover = close;
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && popovers.at(-1)?.content === content) { event.preventDefault(); close(); } }, { signal: events.signal });
+    const popup = { content, close };
+    popovers.push(popup);
     content.onkeydown = event => {
+        if ((event.target as HTMLElement).closest('.popover-menu') !== content) return;
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
         if (content.getAttribute('role') !== 'menu') return;
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
-        const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => item.checkVisibility());
+        const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => item.checkVisibility() && item.closest('.popover-menu') === content);
         const index = items.indexOf(document.activeElement as HTMLButtonElement);
         items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
     };

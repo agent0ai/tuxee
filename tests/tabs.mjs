@@ -195,18 +195,28 @@ try {
         for (const id of ['work', 'other-4']) {
             if (!await workspace(id).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
             const arrow = workspace(id).getByRole('button', { name: 'Workspace menu', exact: true });
+            const overflow = await arrow.evaluate(node => !!node.closest('.overflow-tabs'));
             const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
             await arrow.tap(); await menu.waitFor();
+            if (overflow) assert.ok(await page.locator('.overflow-tabs:popover-open').isVisible(), 'workspace options retain their overflow list');
+            if (overflow) await page.screenshot({ path: `test-results/workspace-overflow-options-${width}.png` });
             assert.equal((await snapshot()).current, 'work', 'workspace arrow never activates its tab');
             assert.equal(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled(), id === 'work');
             await page.keyboard.press('Escape');
+            assert.ok(await arrow.evaluate(node => node === document.activeElement));
+            if (overflow) await page.keyboard.press('Escape');
         }
         for (const id of ['panel-0', 'panel-6']) {
             const label = await reveal(id), arrow = label.locator('..').getByRole('button', { name: 'Component menu', exact: true });
+            const overflow = await arrow.evaluate(node => !!node.closest('.overflow-tabs'));
             const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
             await arrow.tap(); await menu.waitFor(); assert.ok(await panel('panel-0').isVisible());
+            if (overflow) assert.ok(await page.locator('.overflow-tabs:popover-open').isVisible(), 'component options retain their overflow list');
+            if (overflow) await page.screenshot({ path: `test-results/component-overflow-options-${width}.png` });
             assert.equal(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled(), id === 'panel-0');
             await page.keyboard.press('Escape');
+            assert.ok(await arrow.evaluate(node => node === document.activeElement));
+            if (overflow) await page.keyboard.press('Escape');
         }
     }
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);
@@ -250,6 +260,9 @@ try {
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);
     await (await reveal('panel-6')).focus(); await page.keyboard.press('Shift+F10');
     await menu.waitFor(); await page.keyboard.press('Escape');
+    assert.ok(await tab('panel-6').evaluate(node => node === document.activeElement));
+    assert.ok(await page.locator('.overflow-tabs:popover-open').isVisible());
+    await page.keyboard.press('Escape');
     assert.ok(await page.getByRole('button', { name: 'More components', exact: true }).evaluate(node => node === document.activeElement));
     check('movement/cancel/resize cleanup and overflow keyboard focus restoration');
 

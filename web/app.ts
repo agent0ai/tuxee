@@ -922,9 +922,7 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
         control.append(el('span', '', label)); control.setAttribute('role', 'menuitem'); content.append(control);
     }
     const rect = tab.getBoundingClientRect();
-    const host = tab.closest('.component-tab-item') ? '.component-tabs' : '.workspace-tabs';
-    const returnFocus = tab.closest('.overflow-tabs') ? document.querySelector<HTMLElement>(`${host} .overflow-toggle`)!
-        : tab.classList.contains('panel-header') ? document.activeElement as HTMLElement : tab;
+    const returnFocus = tab.classList.contains('panel-header') ? document.activeElement as HTMLElement : tab;
     ({ close } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
 }
 async function closeWorkspace(ws = current()) {

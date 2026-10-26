@@ -118,10 +118,8 @@ export class TerminalDisplay {
             return api(`/terminals/${this.id()}/display/window`, 'DELETE', { id });
         });
         close.append(el('span', '', 'Close')); close.setAttribute('role', 'menuitem'); content.append(close);
-        // Opening a context menu dismisses overflow, so return focus to its visible control.
-        const returnFocus = anchor.closest('.overflow-tabs') ? this.windows.querySelector<HTMLElement>('.overflow-toggle')! : anchor;
         const rect = anchor.getBoundingClientRect();
-        ({ close: this.closeMenu } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
+        ({ close: this.closeMenu } = popover(position || { x: rect.left, y: rect.bottom }, content, anchor));
     }
 
     private async connect() {

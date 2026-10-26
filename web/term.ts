@@ -117,7 +117,7 @@ export class TerminalView implements View {
         drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', 'Terminal input drawer');
-        drawer.placeholder = 'Enter: paste and send · Ctrl/Cmd+Enter: paste only · Shift+Enter: new line';
+        drawer.placeholder = 'Enter: paste and send · Ctrl+Enter: paste only · Shift+Enter: new line';
         const drawerGrip = el('div', 'terminal-input-resize');
         drawerGrip.hidden = true; drawerGrip.tabIndex = 0;
         drawerGrip.setAttribute('role', 'separator');
@@ -178,13 +178,13 @@ export class TerminalView implements View {
         });
         toggle.setAttribute('aria-expanded', 'false');
         drawer.onkeydown = event => {
-            if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.isComposing || event.keyCode === 229) return;
+            if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
             event.preventDefault(); event.stopPropagation();
             if (!this.canUpload()) { this.notice('Terminal is not ready for input'); return; }
             // Queue paste and Enter atomically so a rejected paste can never execute a partial command.
             let data = drawer.value.replace(/\r?\n/g, '\r');
             if (this.term.modes.bracketedPasteMode && data) data = '\x1b[200~' + data + '\x1b[201~';
-            if (!event.ctrlKey && !event.metaKey) data += '\r';
+            if (!event.ctrlKey) data += '\r';
             if (this.input(data)) { drawer.value = ''; this.term.scrollToBottom(); }
         };
         const text = button('Terminal contents as text', undefined, () => this.showText(text));

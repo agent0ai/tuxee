@@ -93,7 +93,7 @@ export function startFileDrag(event: PointerEvent, source: string, selection: ()
     const trigger = event.currentTarget as HTMLElement, events = new AbortController();
     const group = el('div', 'file-drag-group');
     let files: DraggedFile[] | undefined, receiver: DropTarget | undefined, drop: FileDrop | undefined;
-    let x = event.clientX, y = event.clientY, copy = event.ctrlKey || event.metaKey || event.altKey, accepted = false;
+    let x = event.clientX, y = event.clientY, copy = event.ctrlKey, accepted = false;
     trigger.focus({ preventScroll: true }); trigger.setPointerCapture(event.pointerId);
     function update() {
         if (!files) return;
@@ -121,7 +121,7 @@ export function startFileDrag(event: PointerEvent, source: string, selection: ()
     const cancel = () => finish();
     lifetime.addEventListener('abort', cancel, { once: true });
     trigger.addEventListener('pointermove', move => {
-        x = move.clientX; y = move.clientY; copy = move.ctrlKey || move.metaKey || move.altKey;
+        x = move.clientX; y = move.clientY; copy = move.ctrlKey;
         if (!files && Math.hypot(x - event.clientX, y - event.clientY) >= 5) {
             files = selection();
             group.append(icon(files.every(file => file.directory) ? 'Folder' : 'File'), el('span', 'file-drag-label', fileGroupLabel(files)));
@@ -129,7 +129,7 @@ export function startFileDrag(event: PointerEvent, source: string, selection: ()
         }
         update();
     }, { signal: events.signal });
-    trigger.addEventListener('pointerup', up => { x = up.clientX; y = up.clientY; copy = up.ctrlKey || up.metaKey || up.altKey; update(); finish(true); }, { signal: events.signal });
+    trigger.addEventListener('pointerup', up => { x = up.clientX; y = up.clientY; copy = up.ctrlKey; update(); finish(true); }, { signal: events.signal });
     trigger.addEventListener('pointercancel', cancel, { signal: events.signal });
     trigger.addEventListener('lostpointercapture', cancel, { signal: events.signal });
     window.addEventListener('blur', cancel, { signal: events.signal });
@@ -137,7 +137,7 @@ export function startFileDrag(event: PointerEvent, source: string, selection: ()
     const key = (e: KeyboardEvent) => {
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); return; }
         if (files) { e.preventDefault(); e.stopPropagation(); }
-        copy = e.ctrlKey || e.metaKey || e.altKey; update();
+        copy = e.ctrlKey; update();
     };
     document.addEventListener('keydown', key, { capture: true, signal: events.signal });
     document.addEventListener('keyup', key, { capture: true, signal: events.signal });

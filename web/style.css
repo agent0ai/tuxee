@@ -1247,7 +1247,7 @@ h3 {
 .compact .workspace-tabs { margin-left: 0; }
 .compact .workspace-tab { max-width: 84px; }
 
-.file-view::before { content: '(Ctrl / ⌘ to copy)'; position: absolute; top: calc(50% + 24px); left: 50%; transform: translateX(-50%); z-index: 46; font-size: 12px; color: #ccd4e8; pointer-events: none; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .08s ease-out, visibility 0s linear .08s; }
+.file-view::before { content: '(Ctrl to copy)'; position: absolute; top: calc(50% + 24px); left: 50%; transform: translateX(-50%); z-index: 46; font-size: 12px; color: #ccd4e8; pointer-events: none; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .08s ease-out, visibility 0s linear .08s; }
 .file-view[data-drop="Move here"]::before { opacity: 1; visibility: visible; transition-delay: 0s; }
 .file-drag-group { position: fixed; z-index: 1600; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--raised); color: var(--text); border: 1px solid var(--accent); border-radius: 7px; box-shadow: 3px 3px 0 var(--surface), 5px 5px 0 var(--line), 8px 8px 0 var(--surface); pointer-events: none; }
 
