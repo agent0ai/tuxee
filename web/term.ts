@@ -46,6 +46,7 @@ export class TerminalView implements View {
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
     private drawer = el('textarea', 'terminal-input');
+    private cancelDrawerResize?: () => void;
     private closeText = () => {};
     private rendering = el('div', 'terminal-rendering', 'Loading...');
     private renderingStarted = performance.now();
@@ -113,13 +114,66 @@ export class TerminalView implements View {
             bottom.disabled = buffer.type !== 'normal' || buffer.viewportY === buffer.baseY;
         };
         const drawer = this.drawer;
-        drawer.rows = 5; drawer.hidden = true; drawer.spellcheck = false;
+        drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', 'Terminal input drawer');
-        drawer.placeholder = 'Enter: paste and send · Shift+Enter: new line · Ctrl/Cmd+Enter: paste only';
+        drawer.placeholder = 'Enter: paste and send · Ctrl/Cmd+Enter: paste only · Shift+Enter: new line';
+        const drawerGrip = el('div', 'terminal-input-resize');
+        drawerGrip.hidden = true; drawerGrip.tabIndex = 0;
+        drawerGrip.setAttribute('role', 'separator');
+        drawerGrip.setAttribute('aria-label', 'Resize terminal input');
+        drawerGrip.setAttribute('aria-orientation', 'horizontal');
+        const updateDrawerGrip = () => {
+            if (drawer.hidden) return;
+            const minimum = parseFloat(getComputedStyle(drawer).lineHeight) + 18;
+            drawerGrip.setAttribute('aria-valuemin', String(Math.round(minimum)));
+            drawerGrip.setAttribute('aria-valuemax', String(Math.round(Math.max(minimum, this.surface.clientHeight - 72))));
+            drawerGrip.setAttribute('aria-valuenow', String(drawer.offsetHeight));
+            drawerGrip.setAttribute('aria-valuetext', `${drawer.offsetHeight} pixels`);
+        };
+        const setDrawerHeight = (height: number) => {
+            drawer.style.height = `${Math.max(0, height)}px`;
+            updateDrawerGrip();
+        };
+        drawerGrip.onpointerdown = event => {
+            if (event.button !== 0 || !event.isPrimary || this.cancelDrawerResize) return;
+            event.preventDefault(); event.stopPropagation();
+            this.resizeDisplay.release(); this.closeText();
+            const original = drawer.style.height, height = drawer.offsetHeight, start = event.clientY;
+            const events = new AbortController(), signal = events.signal;
+            drawerGrip.setPointerCapture(event.pointerId);
+            drawerGrip.classList.add('dragging');
+            const finish = (cancelled: boolean) => {
+                events.abort(); this.cancelDrawerResize = undefined;
+                if (drawerGrip.hasPointerCapture(event.pointerId)) drawerGrip.releasePointerCapture(event.pointerId);
+                drawerGrip.classList.remove('dragging');
+                drawer.style.height = cancelled ? original : `${drawer.offsetHeight}px`;
+                updateDrawerGrip(); this.resize();
+            };
+            this.cancelDrawerResize = () => finish(true);
+            drawerGrip.addEventListener('pointermove', move => {
+                if (move.pointerId === event.pointerId) setDrawerHeight(height + start - move.clientY);
+            }, { signal });
+            drawerGrip.addEventListener('pointerup', up => { if (up.pointerId === event.pointerId) finish(false); }, { signal });
+            drawerGrip.addEventListener('pointercancel', () => finish(true), { signal });
+            drawerGrip.addEventListener('lostpointercapture', () => finish(true), { signal });
+            window.addEventListener('blur', () => finish(true), { signal });
+            window.addEventListener('resize', () => finish(true), { signal });
+            window.addEventListener('keydown', key => {
+                if (key.key === 'Escape') { key.preventDefault(); key.stopPropagation(); finish(true); }
+            }, { capture: true, signal });
+        };
+        drawerGrip.onkeydown = event => {
+            if (this.cancelDrawerResize || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault(); event.stopPropagation();
+            const step = parseFloat(getComputedStyle(drawer).lineHeight);
+            setDrawerHeight(event.key === 'Home' ? 0 : event.key === 'End' ? this.surface.clientHeight - 72 : drawer.offsetHeight + (event.key === 'ArrowUp' ? step : -step));
+        };
         const toggle = button('Toggle terminal input', 'TextCursorInput', () => {
-            drawer.hidden = !drawer.hidden;
+            this.cancelDrawerResize?.();
+            drawerGrip.hidden = drawer.hidden = !drawer.hidden;
             toggle.setAttribute('aria-expanded', String(!drawer.hidden));
+            updateDrawerGrip();
             if (drawer.hidden) this.term.focus(); else drawer.focus();
         });
         toggle.setAttribute('aria-expanded', 'false');
@@ -140,7 +194,7 @@ export class TerminalView implements View {
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
         right.append(button('Reconnect terminal', 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
-        footer.append(left, right); this.surface.append(drawer, footer);
+        footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
         this.host.append(this.rendering);
@@ -166,7 +220,7 @@ export class TerminalView implements View {
             if (event.type === 'keydown') this.term.input('\x1b[13;2u');
             return false;
         });
-        this.observer = new ResizeObserver(() => { this.closeText(); this.resize(); });
+        this.observer = new ResizeObserver(() => { updateDrawerGrip(); this.closeText(); this.resize(); });
         this.observer.observe(this.host);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
     }
@@ -489,9 +543,9 @@ export class TerminalView implements View {
             catch { this.socket.close(); return; }
         }
     }
-    resize = () => { if (!this.host.checkVisibility()) this.closeText(); this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
+    resize = () => { if (!this.host.checkVisibility()) { this.cancelDrawerResize?.(); this.closeText(); } this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {
-        if (this.disposed || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
+        if (this.disposed || this.cancelDrawerResize || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
         this.term.refresh(0, this.term.rows - 1);
         if (this.root.closest('.resizing-panel, .resizing-dividers')) return;
@@ -544,5 +598,5 @@ export class TerminalView implements View {
             .finally(() => { this.resetting = this.resetButton.disabled = false; });
         return this.starting;
     }
-    dispose() { this.disposed = true; this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
+    dispose() { this.disposed = true; this.cancelDrawerResize?.(); this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
 }

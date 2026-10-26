@@ -7,9 +7,12 @@ import { chromium } from 'playwright';
 
 const base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
-assert.equal(spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':')[4], 'Tuxee prototype test');
+const container = process.env.TUXEE_TEST_CONTAINER;
+const run = (command, args, input) => spawnSync(container ? 'docker' : command,
+    container ? ['exec', '-i', container, command, ...args] : args, { input, encoding: 'utf8' });
+assert.equal(run('getent', ['passwd', user]).stdout.trim().split(':')[4], 'Tuxee prototype test');
 const password = randomBytes(24).toString('base64url');
-assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
+assert.equal(run('chpasswd', [], `${user}:${password}\n`).status, 0);
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, bypassCSP: true });
 await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
@@ -383,7 +386,53 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await toggle.click();
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
-    assert.equal(await drawer.getAttribute('rows'), '5');
+    assert.equal(await drawer.getAttribute('rows'), '3');
+    const drawerGrip = page.getByRole('separator', {name:'Resize terminal input', exact:true});
+    const startHeight = (await drawer.boundingBox()).height;
+    const startRows = await page.evaluate(() => view.term.rows), startResizes = resizeRequests.length;
+    await drawer.fill('draft stays through resize');
+    await page.evaluate(() => {
+        window.drawerRefreshes = 0; window.originalRefresh = view.term.refresh;
+        view.term.refresh = function(...args) { drawerRefreshes++; return originalRefresh.apply(this, args); };
+    });
+    let grip = await drawerGrip.boundingBox();
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
+    await page.evaluate(() => drawerRefreshes = 0);
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2 - 90, {steps:8});
+    await page.waitForTimeout(300);
+    assert.ok((await drawer.boundingBox()).height > startHeight + 80, 'drawer follows the drag');
+    assert.equal(resizeRequests.length, startResizes, 'no PTY resize while dragging');
+    assert.equal(await page.evaluate(() => view.term.rows), startRows);
+    assert.equal(await page.evaluate(() => drawerRefreshes), 0, 'no explicit terminal redraw while dragging');
+    await page.mouse.up();
+    await page.waitForFunction(rows => view.term.rows < rows, startRows); await idle();
+    assert.equal(resizeRequests.length, startResizes + 1, 'one PTY resize after release');
+    const resizedHeight = (await drawer.boundingBox()).height;
+    await toggle.click(); assert.equal(await drawerGrip.isVisible(), false);
+    await toggle.click(); await page.waitForTimeout(250); await idle();
+    assert.equal((await drawer.boundingBox()).height, resizedHeight, 'toggle remembers chosen height');
+    assert.equal(await drawer.inputValue(), 'draft stays through resize');
+    for (const cancel of ['Escape', 'pointercancel', 'blur']) {
+        const before = resizeRequests.length;
+        grip = await drawerGrip.boundingBox();
+        await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
+        await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2 + 40, {steps:4});
+        await page.waitForTimeout(150);
+        if (cancel === 'Escape') await page.keyboard.press('Escape');
+        else if (cancel === 'blur') await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+        else await drawerGrip.dispatchEvent('pointercancel', {pointerId:1});
+        await page.mouse.up(); await page.waitForTimeout(250); await idle();
+        assert.equal((await drawer.boundingBox()).height, resizedHeight, `${cancel} restores height`);
+        assert.equal(resizeRequests.length, before, `${cancel} must not resize the PTY`);
+    }
+    await drawerGrip.focus(); await page.keyboard.press('Home'); await page.waitForTimeout(250); await idle();
+    assert.ok((await drawer.boundingBox()).height < startHeight, 'keyboard can shrink to one line');
+    await page.keyboard.press('End'); await page.waitForTimeout(250); await idle();
+    assert.ok((await page.locator('.terminal-host').boundingBox()).height >= 39, 'maximum leaves terminal visible');
+    await drawer.evaluate(node => node.style.height = '');
+    await page.waitForTimeout(250); await idle();
+    await page.evaluate(() => view.term.refresh = originalRefresh);
+    console.log('PASS three-line drawer, drag preview without PTY resize/redraw, one release resize, retained height/draft, cancellation and keyboard bounds');
     await page.evaluate(() => view.term.scrollToTop());
     await drawer.fill('printf DRAWER_ONE'); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('DRAWER_ONE'));
@@ -424,7 +473,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(connections, beforeReconnect + 1);
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
     assert.equal(await drawer.inputValue(), 'retained draft');
-    console.log('PASS text history, no-resize popover, five-line input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
+    console.log('PASS text history, no-resize popover, three-line input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
 
     // A real raw-mode TUI receives exact paste framing and Enter bytes.
     await drawer.fill('');
@@ -485,7 +534,22 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         }, {width, theme});
         await drawer.fill('one\ntwo\nthree\nfour\nfive\nsix\nseven');
         await page.waitForTimeout(250); await idle();
-        assert.ok(await drawer.evaluate(node => node.scrollHeight > node.clientHeight), 'input scrolls beyond five lines');
+        assert.ok(await drawer.evaluate(node => node.scrollHeight > node.clientHeight), 'input scrolls beyond three lines');
+        if (width === 320 && theme === 'dark') {
+            const touch = await context.newCDPSession(page), before = resizeRequests.length;
+            const rows = await page.evaluate(() => view.term.rows), bounds = await drawerGrip.boundingBox();
+            const point = {x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2};
+            await touch.send('Input.dispatchTouchEvent', {type:'touchStart', touchPoints:[point]});
+            await touch.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[{...point, y:point.y - 55}]});
+            await page.waitForTimeout(250);
+            assert.equal(resizeRequests.length, before, 'touch preview does not resize PTY');
+            await touch.send('Input.dispatchTouchEvent', {type:'touchEnd', touchPoints:[]});
+            await page.waitForFunction(rows => view.term.rows < rows, rows); await idle();
+            assert.equal(resizeRequests.length, before + 1);
+            await page.locator('#terminal').screenshot({path:'test-results/terminal-drawer-touch.png'});
+            await drawer.evaluate(node => node.style.height = '');
+            await page.waitForTimeout(250); await idle(); await touch.detach();
+        }
         assert.ok(await page.locator('.terminal-footer').evaluate(node => node.scrollWidth <= node.clientWidth));
         await page.locator('#terminal').screenshot({path:`test-results/terminal-footer-${width}-${theme}.png`});
         await textButton.click();
