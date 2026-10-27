@@ -119,6 +119,21 @@ try {
     await page.goto(base); await terminal.locator('[data-state=connected]').waitFor();
     session = await terminal.locator('[data-terminal]').getAttribute('data-terminal');
     await file.locator('.file-list').waitFor();
+    const uploadOptions = await openUploadSettings();
+    assert.equal(await uploadOptions.inputValue(), '4');
+    assert.deepEqual(await uploadOptions.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['1', '2', '4', '8', '16', '32', '64']);
+    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    for (const count of [3, 5, 6, 7]) {
+        await page.goto('about:blank');
+        const saved = (await (await api('/me')).json()).settings;
+        assert.equal((await api('/settings', 'PUT', { ...saved, uploadConcurrency: count })).status(), 200);
+        await page.goto(base); await terminal.locator('[data-state=connected]').waitFor();
+        assert.equal(await (await openUploadSettings()).inputValue(), count === 3 ? '4' : '8');
+        await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, count);
+    }
+    await saveUploadSettings(4);
+    check('legacy upload limits display the next available choice without changing saved settings on cancellation');
     await page.evaluate(() => {
         window.batchCount = 0; window.maxTransfers = 0;
         new MutationObserver(records => {
@@ -152,23 +167,23 @@ try {
     assert.equal(await readFile(fixture + '/loose.txt', 'utf8'), 'loose bytes');
     check('repeat uploads allocate numbered files/folders and preserve originals');
 
-    await saveUploadSettings(8);
+    for (const count of [2, 8, 16, 32, 64]) await saveUploadSettings(count);
     await (await openUploadSettings()).selectOption('1');
-    const rejectSave = route => route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), uploadConcurrency: 9 }) });
+    const rejectSave = route => route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), uploadConcurrency: 65 }) });
     await page.route('**/api/settings', rejectSave);
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.getByText('parallel uploads must be between 1 and 8', { exact: true }).waitFor();
+    await page.getByText('parallel uploads must be between 1 and 64', { exact: true }).waitFor();
     await page.unroute('**/api/settings', rejectSave);
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, 8);
-    const configuredFiles = Array.from({ length: 24 }, (_, i) => ({ name: `configured-${i}.bin`, mimeType: 'application/octet-stream', buffer: Buffer.alloc(4096, i) }));
+    assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, 64);
+    const configuredFiles = Array.from({ length: 192 }, (_, i) => ({ name: `configured-${i}.bin`, mimeType: 'application/octet-stream', buffer: Buffer.alloc(4096, i) }));
     let arrivals = 0, firstWave;
     const ready = new Promise(resolve => { firstWave = resolve; });
     const held = new Promise(resolve => { releaseUploads = resolve; });
     const holdUploads = async route => {
         const response = await route.fetch();
-        if (++arrivals <= 8) {
-            if (arrivals === 8) firstWave();
+        if (++arrivals <= 64) {
+            if (arrivals === 64) firstWave();
             await held;
         } else await new Promise(resolve => setTimeout(resolve, 100));
         await route.fulfill({ response });
@@ -176,12 +191,12 @@ try {
     await page.route('**/api/upload?*', holdUploads);
     maxUploads = 0;
     await file.locator('input[type=file]').setInputFiles(configuredFiles);
-    await Promise.race([ready, new Promise((_, reject) => setTimeout(() => reject(Error('eight uploads did not start')), 10000))]);
-    assert.equal(maxUploads, 8, 'failed save must preserve eight concurrent uploads');
+    await Promise.race([ready, new Promise((_, reject) => setTimeout(() => reject(Error('64 uploads did not start')), 10000))]);
+    assert.equal(maxUploads, 64, 'failed save must preserve 64 concurrent uploads');
     await saveUploadSettings(1);
     activeUploads.clear(); maxUploads = 0; releaseUploads();
     await done(file);
-    assert.equal(maxUploads, 8, 'a running batch must keep the limit captured at its start');
+    assert.equal(maxUploads, 64, 'a running batch must keep the limit captured at its start');
     await page.unroute('**/api/upload?*', holdUploads);
     for (const item of configuredFiles) assert.deepEqual(await readFile(`${fixture}/${item.name}`), item.buffer);
     maxUploads = 0;

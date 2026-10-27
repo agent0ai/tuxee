@@ -1208,11 +1208,12 @@ async function openSettings() {
     }
     backgroundField.append(backgroundColumns);
     const uploads = el('select');
-    for (let n = 1; n <= 8; n++) {
+    const uploadOptions = [1, 2, 4, 8, 16, 32, 64];
+    for (const n of uploadOptions) {
         const option = el('option', '', n === 4 ? t("settings.defaultUploadConcurrency", { count: n }) : String(n));
         option.value = String(n); uploads.append(option);
     }
-    uploads.value = String(settings.uploadConcurrency ?? 4);
+    uploads.value = String(uploadOptions.find(n => n >= (settings.uploadConcurrency ?? 4)));
     const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', t("app.parallelUploads")), uploads);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';

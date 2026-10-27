@@ -19,7 +19,7 @@ const (
 	maxShellCommandBytes     = 4096
 	maxDefaultDirectoryBytes = 4096
 	minUploadConcurrency     = 1
-	maxUploadConcurrency     = 8
+	maxUploadConcurrency     = 64
 	maxServerNameUnits       = 64
 	maxWorkspaces            = 24
 )

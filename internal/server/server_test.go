@@ -29,6 +29,24 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestFileSlotsAllowMaximumUploadBatch(t *testing.T) {
+	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
+	defer s.Close()
+	for i := 0; i < maxUploadConcurrency; i++ {
+		if !s.fileSlot(httptest.NewRecorder()) {
+			t.Fatalf("upload %d rejected before the maximum batch was admitted", i+1)
+		}
+	}
+	w := httptest.NewRecorder()
+	if s.fileSlot(w) || w.Code != http.StatusTooManyRequests {
+		t.Fatal("file operations must remain bounded")
+	}
+	<-s.fileSlots
+	if !s.fileSlot(httptest.NewRecorder()) {
+		t.Fatal("released file slot was not reusable")
+	}
+}
+
 func TestSessionAdmissionAndLogout(t *testing.T) {
 	manager := terminal.NewManager()
 	defer manager.Close()

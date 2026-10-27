@@ -542,7 +542,7 @@ try {
     assert.equal(await page.getByRole('spinbutton').count(), 0);
     const parallelUploads = page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
     assert.equal(await parallelUploads.inputValue(), '4');
-    assert.deepEqual(await parallelUploads.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['1', '2', '3', '4', '5', '6', '7', '8']);
+    assert.deepEqual(await parallelUploads.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['1', '2', '4', '8', '16', '32', '64']);
     await parallelUploads.selectOption('8');
     const hostname = await page.locator('meta[name="tuxee-hostname"]').getAttribute('content');
     const serverName = page.getByRole('textbox', { name: 'Server name', exact: true });

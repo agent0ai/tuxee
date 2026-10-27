@@ -40,7 +40,7 @@ Optional user/workspace `defaultDirectory` persists in the existing per-user set
 
 Optional `shellCommand` and `useTuxeePrompt` are per-user creation preferences: blank/absent command means `bash`, absent/null prompt means enabled, and explicit false must round-trip. Trim command whitespace; reject NUL/line breaks and more than 4096 bytes. Pass the saved settings to terminal creation under the existing settings lock. Never alter retained shells or execute/validate command text under server credentials.
 
-Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 8 on load/save. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; retain the server's independent shared file-operation limit.
+Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 64 on load/save, preserving legacy values between the browser's power-of-two choices. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; the server independently limits shared file operations to 64 and rejects excess operations with 429.
 
 `POST /api/upload?path=…&unique=true` streams a size-declared file through the credential-dropped worker and returns its actual `path`. The worker owns collision naming; the HTTP layer must not pre-check or retry destinations. Omitted/false unique keeps explicit no-overwrite behavior for New file. Directory upload preparation uses the existing files API's mkdir with unique or parents flags.
 

@@ -73,7 +73,7 @@ type Server struct {
 }
 
 func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
-	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32), clipSlots: make(chan struct{}, 2)}
+	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 64), clipSlots: make(chan struct{}, 2)}
 	s.cookieName = "tuxee_session_" + instanceID
 	s.languageCookie = "tuxee_language_" + instanceID
 	s.Translations = i18n.NewStore(i18n.SystemDirectory)

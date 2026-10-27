@@ -89,18 +89,21 @@ func TestTrashPanelLocation(t *testing.T) {
 }
 
 func TestUploadConcurrencySettings(t *testing.T) {
-	for _, raw := range []string{"null", "1", "4", "8", "0", "9", "-1", "1.5", `"4"`} {
+	for _, raw := range []string{"null", "1", "2", "3", "4", "5", "6", "7", "8", "9", "16", "32", "64", "0", "65", "-1", "1.5", `"4"`} {
 		t.Run(raw, func(t *testing.T) {
 			var value Settings
 			err := json.Unmarshal([]byte(`{"theme":"dark","workspaces":[],"uploadConcurrency":`+raw+`}`), &value)
 			if err == nil {
 				err = validateSettings(&value)
 			}
-			valid := raw == "null" || raw == "1" || raw == "4" || raw == "8"
+			valid := raw != "0" && raw != "65" && raw != "-1" && raw != "1.5" && raw != `"4"`
 			if (err == nil) != valid {
 				t.Fatalf("unexpected validation result: %v", err)
 			}
 			if valid {
+				if err := migrateSettings(&value); err != nil {
+					t.Fatalf("load validation: %v", err)
+				}
 				data, err := json.Marshal(value)
 				if err != nil {
 					t.Fatal(err)
