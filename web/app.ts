@@ -766,16 +766,30 @@ function layoutChanged(ws: Workspace, before?: Panel[]) {
     changed();
     if (ws === current()) updateLayoutButton();
 }
+function panelSize(panel: Panel) {
+    if (!mounted!.compact) return mounted!.items.get(panel.id)!.node.querySelector('.panel')!.getBoundingClientRect();
+    // Compact tabs share one screen; measure their saved rectangles in the workspace grid.
+    const { width, height } = mounted!.gridEl.getBoundingClientRect(), ws = current();
+    return { width: panel.w * width / ws.columns, height: panel.h * height / ws.rows };
+}
+function splitPanel(target: Panel, panel: Panel) {
+    const { width, height } = panelSize(target);
+    const edge = target.w > 1 && (target.h === 1 || width >= height) ? 'right' : 'bottom';
+    return split(current(), target.id, panel, edge);
+}
 function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
-    if (!addCompact(ws, panel, near)) throw new Error('Workspace full');
+    const target = !near && ws.panels.filter(p => p.w > 1 || p.h > 1).map(panel => {
+        const { width, height } = panelSize(panel);
+        return { panel, area: width * height };
+    }).sort((a, b) => b.area - a.area)[0]?.panel;
+    if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error('Workspace full');
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function addSplitPanel(kind: Kind, target: Panel) {
     const ws = current(), panel = newPanel(kind, defaultDirectory(ws));
-    const edge = target.w > target.h || target.w === target.h && target.kind === 'files' ? 'right' : 'bottom';
-    if (!split(ws, target.id, panel, edge)) return;
+    if (!splitPanel(target, panel)) return;
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function stopPanel(panel: Panel, value?: Mounted) {

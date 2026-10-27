@@ -213,26 +213,34 @@ try {
     await page.keyboard.press('Escape');
 
     const geometry = ({ x, y, w, h }) => [x, y, w, h];
-    for (const [name, columns, rows, w, h, kind, addition, expectedTarget, expectedNew, compact = false] of [
+    for (const [name, columns, rows, w, h, kind, addition, expectedTarget, expectedNew, options = {}] of [
         ['terminal-square', 4, 2, 2, 2, 'terminal', 'terminal', [0, 0, 2, 1], [0, 1, 2, 1]],
         ['terminal-square-files', 4, 2, 2, 2, 'terminal', 'files', [0, 0, 2, 1], [0, 1, 2, 1]],
-        ['files-square', 4, 2, 2, 2, 'files', 'files', [0, 0, 1, 2], [1, 0, 1, 2]],
-        ['files-square-terminal', 4, 2, 2, 2, 'files', 'terminal', [0, 0, 1, 2], [1, 0, 1, 2]],
+        ['files-square', 4, 2, 2, 2, 'files', 'files', [0, 0, 2, 1], [0, 1, 2, 1]],
+        ['files-square-terminal', 4, 2, 2, 2, 'files', 'terminal', [0, 0, 2, 1], [0, 1, 2, 1]],
         ['wide', 4, 2, 4, 2, 'terminal', 'files', [0, 0, 2, 2], [2, 0, 2, 2]],
         ['wide-odd', 4, 2, 3, 2, 'terminal', 'terminal', [0, 0, 1, 2], [1, 0, 2, 2]],
-        ['tall-odd', 2, 4, 2, 3, 'files', 'files', [0, 0, 2, 1], [0, 1, 2, 2]],
+        ['tall-odd', 2, 4, 2, 3, 'files', 'files', [0, 0, 1, 3], [1, 0, 1, 3]],
         ['tall', 2, 4, 2, 4, 'files', 'terminal', [0, 0, 2, 2], [0, 2, 2, 2]],
         ['thin', 4, 2, 1, 2, 'terminal', 'files', [0, 0, 1, 1], [0, 1, 1, 1]],
         ['short', 4, 2, 2, 1, 'files', 'terminal', [0, 0, 1, 1], [1, 0, 1, 1]],
-        ['compact', 2, 4, 2, 2, 'terminal', 'files', [0, 0, 2, 1], [0, 1, 2, 1], true],
+        ['compact', 2, 4, 2, 2, 'terminal', 'files', [0, 0, 1, 2], [1, 0, 1, 2], { compact: true }],
+        ['ultrawide-terminal', 4, 2, 2, 2, 'terminal', 'files', [0, 0, 1, 2], [1, 0, 1, 2], { width: 3440, height: 1440 }],
+        ['ultrawide-files', 4, 2, 2, 2, 'files', 'terminal', [0, 0, 1, 2], [1, 0, 1, 2], { width: 3440, height: 1440 }],
+        ['wide-locked', 4, 2, 1, 2, 'terminal', 'files', [0, 0, 1, 1], [0, 1, 1, 1], { width: 5120, height: 1080 }],
+        ['tall-locked', 2, 4, 2, 1, 'files', 'files', [0, 0, 1, 1], [1, 0, 1, 1], { width: 900, height: 4200 }],
+        ['navbar-wide-terminal', 4, 2, 3, 2, 'terminal', 'terminal', [0, 0, 1, 2], [1, 0, 2, 2], { navbar: true, width: 3440, height: 1440 }],
+        ['navbar-wide-files', 4, 2, 3, 2, 'files', 'files', [0, 0, 1, 2], [1, 0, 2, 2], { navbar: true, width: 3440, height: 1440 }],
+        ['navbar-tall', 4, 2, 3, 2, 'files', 'terminal', [0, 0, 3, 1], [0, 1, 3, 1], { navbar: true, width: 1000, height: 1000 }],
         ['terminal-cell', 4, 2, 1, 1, 'terminal', 'files', null, null],
         ['files-cell', 4, 2, 1, 1, 'files', 'terminal', null, null],
     ]) {
+        const compact = options.compact || false;
         await page.goto('about:blank');
-        await page.setViewportSize(compact ? { width: 390, height: 844 } : columns === 4 ? { width: 1440, height: 1000 } : { width: 900, height: 1200 });
+        await page.setViewportSize(options.width ? { width: options.width, height: options.height } : compact ? { width: 390, height: 844 } : columns === 4 ? { width: 1440, height: 1000 } : { width: 900, height: 1200 });
         const target = panel('target', 0, 0, w, h, kind);
         const neighbor = w < columns ? panel('fixed', w, 0, columns - w, rows) : h < rows ? panel('fixed', 0, h, columns, rows - h) : undefined;
-        const panels = neighbor ? [target, neighbor] : [target];
+        const panels = neighbor ? options.navbar ? [neighbor, target] : [target, neighbor] : [target];
         const layout = { mode: 1, custom: panels.map(({ id, x, y, w, h }) => ({ id, x, y, w, h })) };
         const settings = { theme: 'dark', current: 'split', workspaces: [{ ...ws('split', 'Split', panels), columns, rows, layout }] };
         assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
@@ -246,9 +254,11 @@ try {
             draft = await editor.elementHandle();
         }
         const connected = sockets.length;
-        if (compact) await page.locator('[data-component-menu=target]').click(); else await headerMenu('target');
-        const actions = await menu.getByRole('menuitem').allTextContents();
-        assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to workspace') + 1), ['Add terminal', 'Add file browser', 'Move to workspace']);
+        if (!options.navbar) {
+            if (compact) await page.locator('[data-component-menu=target]').click(); else await headerMenu('target');
+            const actions = await menu.getByRole('menuitem').allTextContents();
+            assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to workspace') + 1), ['Add terminal', 'Add file browser', 'Move to workspace']);
+        }
         if (!expectedTarget) {
             for (const label of ['Add terminal', 'Add file browser']) assert.ok(await menu.getByRole('menuitem', { name: label, exact: true }).isDisabled());
             await page.keyboard.press('Escape');
@@ -256,7 +266,8 @@ try {
             continue;
         }
         const saved = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === panels.length + 1);
-        await menu.getByRole('menuitem', { name: addition === 'terminal' ? 'Add terminal' : 'Add file browser', exact: true }).click(); await saved;
+        const label = addition === 'terminal' ? 'Add terminal' : 'Add file browser';
+        await (options.navbar ? page.getByRole('button', { name: label, exact: true }) : menu.getByRole('menuitem', { name: label, exact: true })).click(); await saved;
         const result = (await snapshot()).workspaces[0], added = result.panels.find(panel => !panels.some(before => before.id === panel.id));
         assert.deepEqual(geometry(result.panels.find(panel => panel.id === target.id)), expectedTarget, name);
         assert.deepEqual(geometry(added), expectedNew, name); assert.equal(added.kind, addition);
@@ -284,7 +295,7 @@ try {
             const before = await item('target').boundingBox(), after = await item(added.id).boundingBox();
             assert.ok(expectedNew[0] > 0 ? before.x + before.width <= after.x + 1 : before.y + before.height <= after.y + 1, `${name}: split panes do not overlap after settling`);
         }
-        if (name === 'terminal-square' || name === 'files-square') await page.screenshot({ path: `test-results/component-split-${name}.png` });
+        if (['terminal-square', 'files-square', 'ultrawide-terminal', 'navbar-wide-files'].includes(name)) await page.screenshot({ path: `test-results/component-split-${name}.png` });
         if (name === 'wide') {
             await page.reload(); await item(added.id).waitFor();
             const restored = (await snapshot()).workspaces[0];
@@ -292,7 +303,7 @@ try {
             assert.equal(restored.layout, undefined);
         }
     }
-    console.log('PASS header split additions, square type preferences, long/odd/thin panes, compact actions, disabled cells, Custom persistence and live component/draft preservation');
+    console.log('PASS pixel-based header/navbar splits, largest-panel selection, ultrawide/portrait/odd panes, locked-axis fallback, compact actions, disabled cells, Custom persistence and live component/draft preservation');
     assert.deepEqual(errors, []);
 } catch (error) {
     await page.screenshot({ path: 'test-results/component-failure.png' }); throw error;

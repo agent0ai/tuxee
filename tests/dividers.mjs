@@ -154,20 +154,21 @@ try {
             const added = page.locator('[data-panel]:not([data-panel=a]):not([data-panel=b])');
             await added.waitFor();
             const id = await added.getAttribute('data-panel');
-            const expected = [portrait ? 0 : 2, portrait ? 2 : 0, kind === 'files' ? 1 : 2, 2];
-            assert.deepEqual(await rect(id), expected, `${width}x${height} ${kind} uses the largest suitable gap`);
-            for (const p of panels) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h]);
+            const expected = [1, 1, 1, 1];
+            assert.deepEqual(await rect(id), expected, `${width}x${height} ${kind} splits the largest panel even with free space`);
+            assert.deepEqual(await rect('a'), portrait ? [0, 1, 1, 1] : [1, 0, 1, 1]);
+            for (const p of panels.slice(1)) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h]);
             assert.ok(await originalTerminal.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')));
             assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
             if (width >= 760) assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), '0');
-            if (width === 1440) await page.screenshot({ path: `test-results/add-${kind}-free-space.png` });
+            if (width === 1440) await page.screenshot({ path: `test-results/add-${kind}-split.png` });
             await page.waitForTimeout(400); await page.reload(); await added.waitFor();
-            assert.deepEqual(await rect(id), expected, 'expanded size persists after reload');
+            assert.deepEqual(await rect(id), expected, 'split size persists after reload');
             assert.equal((await (await api('/me')).json()).settings.workspaces[0].layout, undefined, 'adding resets the saved automatic layout');
             if (width < 760) assert.equal(await page.locator('[data-panel]:visible').getAttribute('data-panel'), id, 'activate the added compact component');
         }
     }
-    console.log('PASS new terminals maximize free area and file browsers grow vertically on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
+    console.log('PASS navbar additions split the largest panel before using gaps on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
     const resizeCases = [
         { name: 'exposed east edge', edge: 'e', panels: [panel('a', 0, 0, 1, 2), panel('b', 3, 0, 1, 2)], dx: .8, dy: 0, expected: [[0, 0, 2, 2], [3, 0, 1, 2]] },
         { name: 'exposed west edge', edge: 'w', panels: [panel('a', 3, 0, 1, 2), panel('b', 0, 0, 1, 2)], dx: -.8, dy: 0, expected: [[2, 0, 2, 2], [0, 0, 1, 2]] },
