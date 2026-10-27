@@ -1,0 +1,160 @@
+name: Rebuild stable Docker image
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tuxee-release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ${{ vars.DOCKERHUB_IMAGE || 'agent0ai/tuxee' }}
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - name: Select latest published stable release
+        id: release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {data: release} = await github.rest.repos.getLatestRelease(context.repo);
+            if (release.draft || release.prerelease || !/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(release.tag_name)) {
+              throw new Error('Latest release must have a stable vMAJOR.MINOR.PATCH tag');
+            }
+            core.setOutput('tag', release.tag_name);
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          persist-credentials: false
+      - name: Pin source for both architectures
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.commit }}
+          persist-credentials: false
+      - name: Prepare Debian package refresh
+        run: |
+          cp Dockerfile "$RUNNER_TEMP/Dockerfile.nightly"
+          # Upgrade base packages even when the released Dockerfile only installs prerequisites.
+          cat >> "$RUNNER_TEMP/Dockerfile.nightly" <<'EOF'
+
+          RUN apt-get update \
+              && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --with-new-pkgs --no-install-recommends \
+                  -o Dpkg::Options::=--force-confold \
+              && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb \
+              && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
+          EOF
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_ORG }}
+          password: ${{ secrets.DOCKERHUB_OAT_TOKEN }}
+      - name: Rebuild and push native image by digest
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ runner.temp }}/Dockerfile.nightly
+          platforms: linux/${{ matrix.arch }}
+          build-args: VERSION=${{ needs.release.outputs.tag }}
+          pull: true
+          no-cache: true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - name: Verify rebuilt runtime
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          docker pull "$IMAGE@$DIGEST"
+          test "$(docker run --rm --entrypoint /usr/local/bin/tuxee "$IMAGE@$DIGEST" version)" = "Tuxee ${TAG#v}"
+          docker run --rm --entrypoint /bin/sh "$IMAGE@$DIGEST" -ec '
+            test "$(cat /usr/local/lib/tuxee/update-version)" = "$1"
+            test -z "$(dpkg --audit)"
+            /usr/local/bin/tuxee-Xvnc -version
+            /usr/local/bin/tuxee-pulseaudio --version
+            /usr/local/bin/tuxee-pacat --version
+          ' -- "${TAG#v}"
+          ROOT_PASSWORD=$(openssl rand -hex 24)
+          export ROOT_PASSWORD
+          container=$(docker run --detach --env ROOT_PASSWORD "$IMAGE@$DIGEST")
+          trap 'status=$?; if [ "$status" -ne 0 ]; then docker logs "$container"; fi; docker rm -fv "$container" >/dev/null; exit "$status"' EXIT
+          for attempt in {1..30}; do
+            if docker exec "$container" tuxee healthcheck --config /etc/tuxee/config.json; then break; fi
+            sleep 1
+          done
+          docker exec "$container" tuxee healthcheck --config /etc/tuxee/config.json
+          csrf=$(printf '{"username":"root","password":"%s"}' "$ROOT_PASSWORD" |
+            docker exec -i "$container" curl --fail --silent --show-error --max-time 15 \
+              -H 'Content-Type: application/json' -H 'X-Tuxee-Client: web' \
+              -c /tmp/nightly.cookies --data-binary @- http://localhost/api/login |
+            python3 -c 'import json, sys; print(json.load(sys.stdin)["csrf"])')
+          test "$(docker exec "$container" curl --fail --silent --show-error --max-time 15 \
+            -H 'Content-Type: application/json' -H "X-Tuxee-CSRF: $csrf" \
+            -b /tmp/nightly.cookies -d '{"name":"Nightly smoke","columns":80,"rows":24}' \
+            -o /tmp/nightly-terminal.json -w '%{http_code}' http://localhost/api/terminals)" = 201
+          docker exec "$container" cat /tmp/nightly-terminal.json |
+            python3 -c 'import json, sys; terminal = json.load(sys.stdin); assert terminal["id"] and terminal["pid"] > 0'
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+
+  publish:
+    needs: [release, build]
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_ORG }}
+          password: ${{ secrets.DOCKERHUB_OAT_TOKEN }}
+      - name: Refresh existing tags for both platforms
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/releases/latest" --jq '.tag_name')
+          if [ "$current" != "$TAG" ]; then
+            echo '::notice::Latest release changed; skipping publication.'
+            exit 0
+          fi
+          sources=()
+          for digest in digests/*; do sources+=("$IMAGE@sha256:${digest##*/}"); done
+          test "${#sources[@]}" -eq 2
+          docker buildx imagetools create \
+            -t "$IMAGE:latest" -t "$IMAGE:$TAG" -t "$IMAGE:${TAG#v}" "${sources[@]}"

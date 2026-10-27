@@ -91,6 +91,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - The README's centered vertical logo selects the transparent dark web asset for dark mode and the transparent light asset otherwise.
 - Stable version tags publish Linux amd64/arm64 binaries and matching Docker Hub images, with version-named GitHub releases and commit-based notes. Use a checksum-verified installer and explicit `tuxee update`; never restart automatically. About checks versions and shows a terminal command, with update warnings on About and the hamburger. Check at startup and daily at 00:01 in the server timezone.
+- Rebuild the latest published stable release's Docker images daily for Debian updates. Refresh only its existing `latest`, `vMAJOR.MINOR.PATCH` and `MAJOR.MINOR.PATCH` tags after both architectures pass checks. Keep the application version and published GitHub assets intact; pinned dependency updates remain manual. Create no extra image tags or releases, and never restart deployed containers automatically.
 - Go and Docker builds default to version `0.0.0` when no version is injected; release builds use their Git tag.
 - The install script also upgrades existing default installations, including releases without `tuxee update`. Use the downloaded binary's installer, preserve configuration/state, and leave restarts explicit.
 - `tuxee upgrade` is an alias for `tuxee update`, using the same handler and options.
@@ -108,7 +109,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-- [.github/AGENTS.md](.github/AGENTS.md): Version-tag release builds, commit notes, GitHub/Docker Hub publication, sponsorship configuration and README resources.
+- [.github/AGENTS.md](.github/AGENTS.md): Version-tag releases, daily stable-image rebuilds, commit notes, GitHub/Docker Hub publication, sponsorship configuration and README resources.
 
 - [internal/AGENTS.md](internal/AGENTS.md): Linux identity, file operations, terminal lifecycle, transport, TLS, and service implementation.
 - [web/AGENTS.md](web/AGENTS.md): Embedded frontend and browser dependency builds.

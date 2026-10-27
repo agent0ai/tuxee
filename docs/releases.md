@@ -82,6 +82,25 @@ behavior of a release; an explicit older installer version is available if neede
 Compose uses the multi-platform `agent0ai/tuxee:latest` image. Version tags
 `agent0ai/tuxee:v1.2.3` and `agent0ai/tuxee:1.2.3` select a specific release.
 
+The **Rebuild stable Docker image** workflow runs daily at **03:17 UTC** and can
+also be started manually in GitHub Actions. Scheduled runs can be delayed by
+GitHub. It checks out the latest published stable release's tag, pulls fresh base
+images and rebuilds both architectures without cached build layers. A final
+Debian package upgrade also updates packages already present in the base image.
+Pinned application dependencies and the Tuxee version stay fixed until manually
+updated in a new release.
+
+After both images pass runtime smoke checks, the workflow refreshes `latest` and
+both existing version aliases (`vX.Y.Z` and `X.Y.Z`). It creates no additional
+image tags or GitHub releases and does not replace published release assets.
+Older version tags are left alone. Pin an image by digest when exact image
+contents must remain fixed. Rebuilds share the release workflow's concurrency
+group and recheck the latest release before publication.
+
+Image rebuilds do not trigger the application's version-update notice or update
+running containers automatically. Apply them with the same pull/recreate commands
+below. The workflow uses the existing Docker Hub secrets and image variable.
+
 For a complete image update, on the Docker host:
 
 ```sh
