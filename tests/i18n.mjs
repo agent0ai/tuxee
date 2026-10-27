@@ -198,6 +198,15 @@ try {
         const sessionBundle = (await (await localized.request.get(base + '/api/me')).json()).i18n;
         assert.equal(sessionBundle.language, code);
         assert.equal(sessionBundle.texts['common.save'], texts['common.save'], 'session retains the exact catalog');
+        const tabName = texts['app.workspaceNumber'].replace('{count}', '12');
+        await view.locator('.workspace-tab-item.active .workspace-menu').click();
+        await view.getByRole('menuitem', { name: texts['common.rename'], exact: true }).click();
+        await view.locator('dialog input').fill(tabName);
+        const savedName = view.waitForResponse(response => response.url().endsWith('/api/settings') && response.request().method() === 'PUT'
+            && response.request().postDataJSON().workspaces.some(workspace => workspace.name === tabName));
+        await view.getByRole('button', { name: texts['common.continue'], exact: true }).click();
+        assert.ok((await savedName).ok());
+        await view.reload(); await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).waitFor();
         if (['ca', 'ms', 'sr-Latn'].includes(code)) {
             const preference = (await localized.cookies()).find(cookie => cookie.name.startsWith('tuxee_language_'));
             assert.equal(preference?.value, code, 'preference keeps the exact locale code');
@@ -272,6 +281,10 @@ try {
         }
         for (const width of [1440, 390, 320]) {
             await view.setViewportSize({ width, height: width === 1440 ? 900 : 740 });
+            const tab = view.locator('.workspace-tab.active');
+            await tab.waitFor();
+            assert.equal(await tab.textContent(), tabName);
+            assert.ok(await tab.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${code}: ${tabName} must fit the ${width}px workspace tab`);
             for (const action of ['Settings', 'RefreshCw']) {
                 await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).click();
                 await view.locator(`.account-menu [data-action="${action}"]`).click();

@@ -397,10 +397,10 @@ try {
     appPIDs.push(Number(shellLines[1])); assert.notEqual(shellLines[2], input.display);
     const panels = await sessionPanels(); assert.equal(panels.length, 2); assert.notEqual(panels[0].terminal, panels[1].terminal);
     await page.waitForTimeout(250); await page.screenshot({ path: 'test-results/gui-components.png' });
-    await page.getByRole('button', { name: 'Rearrange workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'Rearrange desktop', exact: true }).click();
     assert.equal(await page.locator('.terminal-view').count(), 2, 'auto layout discarded GUI panels');
     assert.ok(await terminalDOM.evaluate(node => node === document.querySelector('[data-panel="shell"] .xterm')));
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.locator('[data-workspace]:not([data-workspace="gui-proof"]) .terminal-view[data-state=connected]').waitFor();
     const savedWorkspace = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().current === 'gui-proof');
     await page.getByRole('button', { name: 'GUI proof', exact: true }).click();
@@ -549,7 +549,7 @@ try {
 
     await page.getByRole('button', { name: 'GUI proof', exact: true }).click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
-    await page.getByRole('button', { name: 'Close workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'Close desktop', exact: true }).click();
     await poll(async () => !await alive(input.pid), 'workspace closure left GUI running');
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     assert.ok(!logs.includes('Invalid screen layout'), 'hidden component requested an invalid display size');

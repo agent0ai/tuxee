@@ -156,7 +156,7 @@ print('KEYS_RESULT_${width}_'+data.hex(),flush=True)`;
         assert.equal(await page.locator('.component-tab:visible').count(), 3);
         await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'User menu', exact: true }).tap();
-        assert.equal(await page.getByRole('menuitem', { name: 'Close workspace', exact: true }).count(), 0);
+        assert.equal(await page.getByRole('menuitem', { name: 'Close desktop', exact: true }).count(), 0);
         await page.keyboard.press('Escape');
     }
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250);

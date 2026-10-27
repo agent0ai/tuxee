@@ -33,7 +33,7 @@ page.on('websocket', socket => {
 const connections = index => sockets.filter(socket => socket.url.includes(`/terminals/${terminals[index].id}/ws`));
 const tab = index => page.locator('.workspace-tab').filter({ hasText: new RegExp(`^Warm ${index}$`) });
 async function select(index) {
-    if (!await tab(index).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    if (!await tab(index).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await tab(index).click();
 }
 async function settled(index) {
@@ -127,9 +127,9 @@ try {
     await first.dispose();
     await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.json()).then(info => info.attached === 0), terminals[1].id);
     assert.ok(connections(1)[0].closed, 'next eviction follows insertion order');
-    if (!await tab(2).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    if (!await tab(2).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await tab(2).click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
-    await page.getByRole('button', { name: 'Close workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'Close desktop', exact: true }).click();
     await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.status === 404), terminals[2].id);
     assert.ok(connections(2)[0].closed, 'closing an inactive cached workspace cleans up its connection');
     const beforeReload = sockets.length;

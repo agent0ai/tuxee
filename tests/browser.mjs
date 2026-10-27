@@ -379,19 +379,19 @@ try {
     await page.mouse.up();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 4);
     check('edge-drop preview and split');
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     const rightSlide = await page.evaluate(() => document.querySelector('.workspace-track').getAnimations()[0]?.effect.getKeyframes().map(frame => frame.transform));
     assert.ok(rightSlide?.includes('translateX(-100%)'), 'new workspace must enter from the right');
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1 && document.querySelector('.panel-body.terminal-view')?.dataset.state === 'connected');
     assert.equal(await page.getByRole('dialog').count(), 0, 'creation must not ask for a workspace name');
-    assert.equal(await page.locator('.workspace-tab.active').textContent(), 'Workspace 2');
+    assert.equal(await page.locator('.workspace-tab.active').textContent(), 'Desktop 2');
     await twoPanelFixture();
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('Motion');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
-    assert.equal(await page.getByRole('menuitem', { name: 'Rename workspace', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('menuitem', { name: 'Rename desktop', exact: true }).count(), 0);
     await page.keyboard.press('Escape');
     const motionTerminalID = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
     const fixedFile = page.locator('.grid-stack-item:has(.file-view)');
@@ -504,13 +504,13 @@ try {
     assert.equal((await terminatedPending).status(), 200);
     assert.equal((await (await api('/terminals')).json()).length, sessionCount);
     check('closing a still-starting terminal leaves no orphan process');
-    await page.getByRole('button', { name: 'Workspace 1', exact: true }).click();
+    await page.getByRole('button', { name: 'Desktop 1', exact: true }).click();
     const leftSlide = await page.evaluate(() => document.querySelector('.workspace-track').getAnimations()[0]?.effect.getKeyframes().map(frame => frame.transform));
     assert.ok(leftSlide?.includes('translateX(100%)'), 'earlier workspace must enter from the left');
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
     check('workspace transitions slide two complete adjacent layouts in either direction');
 
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('Other');
@@ -521,11 +521,11 @@ try {
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
-    await page.waitForFunction(() => document.querySelector('.workspace-tab.active')?.textContent === 'Workspace 1');
+    await page.waitForFunction(() => document.querySelector('.workspace-tab.active')?.textContent === 'Desktop 1');
     assert.ok(await page.evaluate(() => document.querySelector('.workspace-track').getAnimations()[0]?.effect.getKeyframes().some(frame => frame.transform === 'translateX(100%)')));
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
     check('closing a middle workspace confirms and slides to its previous neighbor');
-    await page.getByRole('button', { name: 'Workspace 1', exact: true }).click();
+    await page.getByRole('button', { name: 'Desktop 1', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.panel-body.terminal-view[data-state=connected]'));
     assert.equal((await (await api(`/terminals/${retained.id}`)).json()).pid, retained.pid);
     check('workspace switch retains terminal');
@@ -636,7 +636,7 @@ try {
     check('orientation preserves the visible terminal');
     await page.setViewportSize({ width: 2560, height: 1080 });
     await page.waitForTimeout(250);
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 4);
     assert.equal(await page.locator('.file-view').count(), 2);
     assert.equal(await page.locator('.panel-body.terminal-view').count(), 2);
@@ -662,7 +662,7 @@ try {
     await page.setViewportSize({ width: 900, height: 1200 });
     await page.waitForTimeout(250);
     assert.equal(await page.locator('#app').evaluate(node => node.classList.contains('compact')), false);
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 2 && !document.querySelector('#app').classList.contains('compact'));
     await page.waitForTimeout(400);
     const portrait = (await (await api('/me')).json()).settings;
@@ -673,7 +673,7 @@ try {
     check('portrait two-by-four grid');
     const portraitTerminal = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
     if (!await page.locator('.workspace-tab-item.active .workspace-menu').isVisible())
-        await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+        await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
@@ -752,18 +752,18 @@ try {
     assert.equal((await api('/settings', 'PUT', crowded)).status(), 200);
     await page.goto(base); await page.locator('.topbar').waitFor();
     await page.locator('.terminal-view[data-state=connected]').waitFor();
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).waitFor();
     const fullFile = page.locator('.file-view').first();
     const terminalCount = (await (await api('/terminals')).json()).length;
     await fullFile.getByRole('button', { name: 'File actions', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Open terminal here', exact: true }).click();
-    await fullFile.locator('..').locator('.component-notifications').getByRole('status').filter({ hasText: 'Workspace full' }).waitFor();
+    await fullFile.locator('..').locator('.component-notifications').getByRole('status').filter({ hasText: 'Desktop full' }).waitFor();
     assert.equal((await (await api('/terminals')).json()).length, terminalCount);
     await page.setViewportSize({ width: 900, height: 750 }); await page.waitForTimeout(250);
     assert.ok(await fullFile.locator('.file-actions').evaluate(bar => [...bar.children].every(button => button.getBoundingClientRect().right <= bar.getBoundingClientRect().right)));
     const headerFit = () => [...document.querySelectorAll('.workspace-tabs, .component-tabs')].filter(node => node.clientWidth).every(node => node.scrollWidth <= node.clientWidth + 1);
     assert.ok(await page.evaluate(headerFit));
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await page.locator('.overflow-tabs:popover-open').waitFor();
     assert.equal(await page.locator('dialog[open]').count(), 0);
     await page.keyboard.press('ArrowDown');
@@ -793,15 +793,15 @@ try {
     assert.equal(await page.locator('.panel:visible').count(), 1);
     assert.ok(await page.evaluate(headerFit));
     await page.screenshot({ path: 'test-results/mobile-overflow.png' });
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     const workspaceChoice = page.locator('.overflow-tabs:popover-open .workspace-tab').first();
     await workspaceChoice.click({ button: 'right' });
     assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
     await page.keyboard.press('Escape');
     assert.ok(await workspaceChoice.evaluate(node => node === document.activeElement));
     await page.keyboard.press('Escape');
-    assert.ok(await page.getByRole('button', { name: 'More workspaces', exact: true }).evaluate(node => node === document.activeElement));
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    assert.ok(await page.getByRole('button', { name: 'More desktops', exact: true }).evaluate(node => node === document.activeElement));
+    await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await workspaceChoice.click();
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
     assert.ok(await page.locator('#app').evaluate(node => node.classList.contains('compact')));
@@ -815,7 +815,7 @@ try {
     for (const [width, height, directory] of [[1440, 1000, shellDirectory], [390, 844, a.home]]) {
         await page.setViewportSize({ width, height });
         await page.waitForFunction(compact => document.querySelector('#app').classList.contains('compact') === compact, width < 760);
-        await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+        await page.getByRole('button', { name: 'New desktop', exact: true }).click();
         await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
         if (width >= 760) await twoPanelFixture();
         const browser = page.locator('.file-view');
@@ -844,7 +844,7 @@ try {
         assert.equal(await page.getByRole('textbox', { name: 'File or directory path', includeHidden: true }).inputValue(), directory);
         if (width < 760) assert.equal(await page.locator('.terminal-view:visible').getAttribute('data-terminal'), terminal.id);
         const activeTab = page.locator('.workspace-tab.active');
-        if (!await activeTab.isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+        if (!await activeTab.isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
         if (width < 760) {
             await activeTab.click({ button: 'right' });
             await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
@@ -859,7 +859,7 @@ try {
     }
     check('Open terminal here uses the actual directory on desktop/mobile, survives reload, and respects workspace capacity');
     await page.setViewportSize({ width: 320, height: 844 }); await page.waitForTimeout(300);
-    await page.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
     assert.equal(await page.getByRole('dialog').count(), 0);
     await page.locator('.component-controls').getByRole('button', { name: 'Add file browser', exact: true }).click();

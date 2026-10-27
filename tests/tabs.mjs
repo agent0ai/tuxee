@@ -68,7 +68,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to workspace'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Default directory']), 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Default directory']), 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -123,11 +123,11 @@ try {
     const connectionCount = sockets.length;
     const terminalPID = (await (await api(`/terminals/${terminalID}`)).json()).pid;
     await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
-    await workspace('other-0').getByRole('button', { name: 'Workspace menu', exact: true }).click();
+    await workspace('other-0').getByRole('button', { name: 'Desktop menu', exact: true }).click();
     assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
-    save = saved(); await renameDialog('workspace', 'A much wider workspace'); await save;
+    save = saved(); await renameDialog('desktop', 'A much wider workspace'); await save;
     assert.equal((await snapshot()).current, 'work', 'opening an inactive chevron does not activate it');
     await workspace('work').locator('.workspace-menu').click();
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isDisabled());
@@ -169,7 +169,7 @@ try {
         assert.equal((await snapshot()).current, 'work', 'a cancelled drag does not activate a workspace');
     }
     await page.setViewportSize({ width: 1024, height: 900 }); await page.waitForTimeout(250);
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     const hidden = await page.locator('.overflow-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace));
     assert.ok(hidden.length >= 2);
     await dragWorkspace(hidden[0], hidden.at(-1), true);
@@ -193,7 +193,7 @@ try {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await workspace('other-0').locator('.workspace-menu').click();
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
-    save = saved(); await renameDialog('workspace', 'Other 0'); await save;
+    save = saved(); await renameDialog('desktop', 'Other 0'); await save;
     await page.screenshot({ path: 'test-results/workspace-tabs-desktop.png' });
     check('workspace chevrons, animated/persisted reordering, stable terminals, cancellation, overflow, keyboard and reduced motion');
 
@@ -204,8 +204,8 @@ try {
     for (const width of [390, 320]) {
         await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(250);
         for (const id of ['work', 'other-4']) {
-            if (!await workspace(id).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
-            const arrow = workspace(id).getByRole('button', { name: 'Workspace menu', exact: true });
+            if (!await workspace(id).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).tap();
+            const arrow = workspace(id).getByRole('button', { name: 'Desktop menu', exact: true });
             const overflow = await arrow.evaluate(node => !!node.closest('.overflow-tabs'));
             const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
             await arrow.tap(); await menu.waitFor();
@@ -286,18 +286,18 @@ try {
 
     await hold(page.locator('.workspace-tabs .workspace-tab.active'));
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).tap();
     const other = page.getByRole('button', { name: 'Other 4', exact: true });
     await hold(other);
     assert.equal(await page.locator('.workspace-tabs .workspace-tab.active').textContent(), 'Work');
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).tap();
-    save = saved(); await renameDialog('workspace', 'Spare'); await save;
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
+    save = saved(); await renameDialog('desktop', 'Spare'); await save;
+    await page.getByRole('button', { name: 'More desktops', exact: true }).tap();
     await hold(page.getByRole('button', { name: 'Spare', exact: true }));
     await menu.getByRole('menuitem', { name: 'Close', exact: true }).tap();
     await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
     assert.ok((await snapshot()).workspaces.some(ws => ws.name === 'Spare'));
-    await page.getByRole('button', { name: 'More workspaces', exact: true }).tap();
+    await page.getByRole('button', { name: 'More desktops', exact: true }).tap();
     await hold(page.getByRole('button', { name: 'Spare', exact: true }));
     await menu.getByRole('menuitem', { name: 'Close', exact: true }).tap();
     save = saved(); await page.keyboard.press('Enter'); await save;

@@ -27,7 +27,7 @@ try {
     const lost = await response.json(); created.push(lost.id);
     assert.equal((await api('/settings', 'PUT', {
         theme: 'dark', current: 'work', workspaces: [{
-            id: 'work', name: 'Workspace 1', columns: 4, rows: 2, active: 'terminal',
+            id: 'work', name: 'Desktop 1', columns: 4, rows: 2, active: 'terminal',
             panels: [
                 { id: 'files', kind: 'files', path: fields[5], x: 0, y: 0, w: 2, h: 2 },
                 { id: 'terminal', kind: 'terminal', terminal: lost.id, path: fields[5], x: 2, y: 0, w: 2, h: 2 },

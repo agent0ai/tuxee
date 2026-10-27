@@ -134,7 +134,7 @@ try {
   await more.click(); await menu.waitFor();
   const items = await menu.getByRole('menuitem').allTextContents();
   assert.deepEqual(items.slice(0, hidden.length), hidden);
-  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Paste', 'Workspace default', 'Properties'].filter(label => !hidden.includes(label)));
+  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Paste', 'Desktop default', 'Properties'].filter(label => !hidden.includes(label)));
   assert.equal(await menu.getByRole('separator').count(), hidden.length ? 1 : 0);
   if (hidden.length) assert.ok(await menu.getByRole('separator').evaluate(node => {
    const rect = node.getBoundingClientRect();

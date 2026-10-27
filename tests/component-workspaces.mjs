@@ -31,7 +31,7 @@ const snapshot = async () => (await (await api('/me')).json()).settings;
 const panel = (id, x, y, w, h, kind = 'files') => ({ id, kind, path: dir, x, y, w, h, ...(kind === 'terminal' ? { terminal: terminal.id } : {}) });
 const ws = (id, name, panels) => ({ id, name, columns: 4, rows: 2, active: panels[0]?.id || '', panels });
 async function select(name) {
-    if (!await tab(name).isVisible()) await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
+    if (!await tab(name).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await tab(name).click();
     await page.waitForFunction(() => document.querySelectorAll('.board').length === 1 && !document.querySelector('.workspace-track').getAnimations().length);
 }
@@ -46,7 +46,7 @@ async function moved(id, target) {
 }
 async function headerMenu(id) { await item(id).locator('.panel-header').click({ button: 'right', position: { x: 20, y: 10 } }); }
 async function moveMenu(target) {
-    await menu.getByRole('menuitem', { name: 'Move to workspace', exact: true }).click();
+    await menu.getByRole('menuitem', { name: 'Move to desktop', exact: true }).click();
     await menu.getByRole('menuitem', { name: target, exact: true }).click();
 }
 async function drag(id, name, finish = true) {
@@ -101,8 +101,8 @@ try {
     console.log('PASS blank-space menu places a component at the closest cell and expands it without replacing neighbors');
 
     await headerMenu('shell');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Move to workspace', 'Rename', 'Close']);
-    await menu.getByRole('menuitem', { name: 'Move to workspace', exact: true }).press('ArrowRight');
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Move to desktop', 'Rename', 'Close']);
+    await menu.getByRole('menuitem', { name: 'Move to desktop', exact: true }).press('ArrowRight');
     assert.ok(await menu.getByRole('menuitem', { name: 'Origin', exact: true }).isDisabled());
     assert.ok(await menu.getByRole('menuitem', { name: 'Full', exact: true }).isDisabled());
     await page.screenshot({ path: 'test-results/component-header-menu.png' });
@@ -161,7 +161,7 @@ try {
     await page.setViewportSize({ width: 390, height: 844 }); await page.locator('.compact-board').waitFor();
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await page.locator('[data-component-menu=files]').click();
-    await menu.getByRole('menuitem', { name: 'Move to workspace', exact: true }).click();
+    await menu.getByRole('menuitem', { name: 'Move to desktop', exact: true }).click();
     await page.screenshot({ path: 'test-results/component-move-mobile.png' });
     await menu.getByRole('menuitem', { name: 'Destination', exact: true }).click(); await moved('files', 'Destination');
     assert.equal((await snapshot()).current, 'fresh');
@@ -175,7 +175,7 @@ try {
     await select('Destination');
     await page.setViewportSize({ width: 800, height: 700 }); await page.waitForTimeout(200);
     const head = await item('shell').locator('.panel-header').boundingBox();
-    const more = page.getByRole('button', { name: 'More workspaces', exact: true }), moreBox = await more.boundingBox();
+    const more = page.getByRole('button', { name: 'More desktops', exact: true }), moreBox = await more.boundingBox();
     await page.mouse.move(head.x + 20, head.y + 10); await page.mouse.down(); await page.mouse.move(head.x + 40, head.y + 40, { steps: 4 });
     await page.mouse.move(moreBox.x + moreBox.width / 2, moreBox.y + moreBox.height / 2, { steps: 10 });
     await page.locator('.overflow-tabs:popover-open').waitFor();
@@ -257,7 +257,7 @@ try {
         if (!options.navbar) {
             if (compact) await page.locator('[data-component-menu=target]').click(); else await headerMenu('target');
             const actions = await menu.getByRole('menuitem').allTextContents();
-            assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to workspace') + 1), ['Add terminal', 'Add file browser', 'Move to workspace']);
+            assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to desktop') + 1), ['Add terminal', 'Add file browser', 'Move to desktop']);
         }
         if (!expectedTarget) {
             for (const label of ['Add terminal', 'Add file browser']) assert.ok(await menu.getByRole('menuitem', { name: label, exact: true }).isDisabled());

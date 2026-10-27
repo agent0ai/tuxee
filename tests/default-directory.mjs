@@ -59,7 +59,7 @@ try {
     };
     const openDirectory = async id => {
         const menu = page.locator(`.workspace-tab-item[data-workspace="${id}"] .workspace-menu`);
-        if (!await menu.isVisible()) await button('More workspaces').click();
+        if (!await menu.isVisible()) await button('More desktops').click();
         await menu.click();
         await menuitem('Default directory').click(); await dialog('Default directory').waitFor();
     };
@@ -94,7 +94,7 @@ try {
     await openDirectory(wsID); assert.equal(await dialog('Default directory').getByLabel('Directory', { exact: true }).inputValue(), '~/global folder');
     await button('Save', dialog('Default directory')).click(); await dialog('Default directory').waitFor({ state: 'hidden' });
     assert.equal(await override(wsID), undefined);
-    await row('workspace folder').click({ button: 'right' }); await menuitem('Workspace default').click();
+    await row('workspace folder').click({ button: 'right' }); await menuitem('Desktop default').click();
     await waitFor(async () => await override(wsID) === workspacePath, 'folder menu default');
     assert.equal(await filePath().inputValue(), home); assert.equal(await cwd(original.id), home);
     await button('Home directory', file).click(); await waitFor(async () => await filePath().inputValue() === workspacePath, 'workspace Home');
@@ -120,14 +120,14 @@ try {
     console.log('PASS per-user default, inheritance, real shell cwd, reset/recovery and retained sessions');
 
     await navigate(home);
-    await row('file.txt').click({ button: 'right' }); assert.equal(await menuitem('Workspace default').count(), 0); await page.keyboard.press('Escape');
+    await row('file.txt').click({ button: 'right' }); assert.equal(await menuitem('Desktop default').count(), 0); await page.keyboard.press('Escape');
     await row('global folder').click(); await row('workspace folder').click({ modifiers: ['Control'] });
-    await button('File actions', file).click(); assert.equal(await menuitem('Workspace default').count(), 0); await page.keyboard.press('Escape');
-    await button('Properties', file).click(); assert.equal(await button('Workspace default', dialog('Properties')).count(), 0); await button('Close dialog', dialog('Properties')).click();
-    await row('global folder').click(); await button('File actions', file).click(); await menuitem('Workspace default').click();
+    await button('File actions', file).click(); assert.equal(await menuitem('Desktop default').count(), 0); await page.keyboard.press('Escape');
+    await button('Properties', file).click(); assert.equal(await button('Desktop default', dialog('Properties')).count(), 0); await button('Close dialog', dialog('Properties')).click();
+    await row('global folder').click(); await button('File actions', file).click(); await menuitem('Desktop default').click();
     await waitFor(async () => await override(wsID) === undefined, 'global-equivalent folder removes override');
     await row('workspace folder').click(); await button('Properties', file).click();
-    await button('Workspace default', dialog('Properties')).click(); await waitFor(async () => await override(wsID) === workspacePath, 'properties shortcut');
+    await button('Desktop default', dialog('Properties')).click(); await waitFor(async () => await override(wsID) === workspacePath, 'properties shortcut');
     const permissions = dialog('Properties').getByLabel('Permissions', { exact: true });
     const apply = button('Apply', dialog('Properties'));
     const inputBox = await permissions.boundingBox(), applyBox = await apply.boundingBox();
@@ -136,9 +136,9 @@ try {
     assert.equal((await stat(workspacePath)).mode & 0o777, 0o750);
     await row('file.txt').waitFor(); await row('file.txt').click();
     await list.click({ button: 'right', position: { x: 20, y: (await list.boundingBox()).height - 8 } });
-    await menuitem('Workspace default').click(); await waitFor(async () => await override(wsID) === home, 'background menu targets current folder');
+    await menuitem('Desktop default').click(); await waitFor(async () => await override(wsID) === home, 'background menu targets current folder');
     await button('File actions', file).click(); await menuitem('Properties').click();
-    await button('Workspace default', dialog('Properties')).click(); assert.equal(await override(wsID), home);
+    await button('Desktop default', dialog('Properties')).click(); assert.equal(await override(wsID), home);
     await button('Close dialog', dialog('Properties')).click();
     await setDirectory(wsID, globalPath + '/'); assert.equal(await override(wsID), undefined);
     await button('Home directory', file).click(); await waitFor(async () => await filePath().inputValue() === globalPath, 'global Home');
@@ -149,7 +149,7 @@ try {
     const explicit = (await saved()).workspaces[0].panels.at(-1); assert.equal(await cwd(explicit.terminal), otherPath);
     console.log('PASS single-folder shortcuts, background/Properties targeting, Apply permissions and explicit terminal directory');
 
-    await button('New workspace').click();
+    await button('New desktop').click();
     await waitFor(async () => (await saved()).workspaces.length === 2 && (await saved()).workspaces[1].panels.every(p => p.path === globalPath && (p.kind !== 'terminal' || p.terminal)), 'new workspace inherits global');
     const secondID = (await saved()).current;
     await setDirectory(secondID, '~/other');
@@ -164,12 +164,12 @@ try {
     await page.locator(`.workspace-tab-item[data-workspace="${wsID}"] .workspace-tab`).click();
     const movedDOM = await file.elementHandle();
     await file.locator('.panel-header').click({ button: 'right' });
-    await menuitem('Move to workspace').click(); await menuitem('Workspace 2').click();
+    await menuitem('Move to desktop').click(); await menuitem('Desktop 2').click();
     await waitFor(async () => (await saved()).workspaces.find(ws => ws.id === secondID).panels.some(p => p.id === filePanel.id), 'component move');
     await page.locator(`.workspace-tab-item[data-workspace="${secondID}"] .workspace-tab`).click();
     assert.ok(await movedDOM.evaluate(node => node.isConnected)); assert.equal(await filePath().inputValue(), home);
     await button('Home directory', file).click(); await waitFor(async () => await filePath().inputValue() === otherPath, 'moved Home uses destination workspace');
-    await navigate(workspacePath); await button('File actions', file).click(); await menuitem('Workspace default').click();
+    await navigate(workspacePath); await button('File actions', file).click(); await menuitem('Desktop default').click();
     await waitFor(async () => await override(secondID) === workspacePath, 'moved shortcut updates destination workspace');
     assert.equal(await override(wsID), undefined); await setDirectory(secondID, '~/other');
     for (const theme of ['dark', 'light']) {

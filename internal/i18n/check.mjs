@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
@@ -42,6 +42,25 @@ export function compare(catalogs) {
     return errors;
 }
 
+export function lengthWarnings(catalogs) {
+    const segments = new Intl.Segmenter('en', { granularity: 'grapheme' });
+    // Variable names have no bearing on rendered length; give each substitution equal weight.
+    const length = text => [...segments.segment(text.replace(variable, '◊').normalize('NFC'))].length;
+    const warnings = [];
+    for (const [key, english] of Object.entries(catalogs.en?.texts || {})) {
+        const sourceLength = length(english);
+        if (!sourceLength) continue;
+        for (const [language, catalog] of Object.entries(catalogs)) {
+            const translated = catalog.texts[key];
+            if (language === 'en' || typeof translated !== 'string') continue;
+            const translatedLength = length(translated), ratio = translatedLength / sourceLength;
+            if (ratio < (sourceLength <= 30 ? 1.75 : 2) || translatedLength - sourceLength < (sourceLength <= 30 ? 8 : 20)) continue;
+            warnings.push({ language, key, english, translated, sourceLength, translatedLength, increasePercent: Math.round((ratio - 1) * 100) });
+        }
+    }
+    return warnings.sort((a, b) => b.increasePercent - a.increasePercent || a.language.localeCompare(b.language) || a.key.localeCompare(b.key));
+}
+
 async function sourceFiles(directory, suffixes) {
     let entries;
     try { entries = await readdir(directory, { withFileTypes: true }); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
@@ -83,7 +102,14 @@ export async function check() {
         }
     }
     if (errors.length) throw Error(`Translation check failed:\n${errors.join('\n')}`);
+    const warnings = lengthWarnings(catalogs), report = 'test-results/i18n-length-report.json';
+    await mkdir('test-results', { recursive: true });
+    await writeFile(report, JSON.stringify(warnings, null, 2) + '\n');
     console.log(`Translations: ${Object.keys(texts).length} keys, ${Object.keys(catalogs).join(', ')} complete.`);
+    if (warnings.length) {
+        console.warn(`Translation length: ${warnings.length} advisory warnings; full report: ${report}. Largest increases:`);
+        for (const warning of warnings.slice(0, 10)) console.warn(`  ${warning.language} ${warning.key}: +${warning.increasePercent}% (${warning.sourceLength} → ${warning.translatedLength}) ${JSON.stringify(warning.english)} → ${JSON.stringify(warning.translated)}`);
+    }
 }
 
 function selfTest() {
@@ -102,6 +128,16 @@ function selfTest() {
     assert.ok(compare({ en, cs: { name: 'Čeština', texts: {} } }).some(error => error.includes('missing test.message')));
     assert.ok(compare({ en, cs: { name: 'Čeština', texts: { 'test.message': 'Ahoj {other}' } } }).some(error => error.includes('variables differ')));
     assert.ok(compare({ en, cs: { name: 'Čeština', texts: { ...en.texts, 'test.extra': 'Navíc' } } }).some(error => error.includes('extra')));
+    const lengths = translated => lengthWarnings({ en: { texts: { 'test.label': 'Workspace {longVariableName}' } }, cs: { texts: { 'test.label': translated } } });
+    assert.equal(lengths('Plocha {longVariableName}').length, 0, 'shorter translations never warn');
+    assert.equal(lengths('Pracovní plocha {longVariableName}').length, 0, 'small expansions do not warn');
+    assert.equal(lengths('Velmi dlouhá pracovní plocha {longVariableName}')[0].sourceLength, 11);
+    assert.equal(lengths('Velmi dlouhá pracovní plocha {longVariableName}')[0].increasePercent, 173);
+    assert.equal(lengths('Velmi dlouhá pracovní plocha {longVariableName}'.normalize('NFD'))[0].translatedLength, 30, 'combining marks do not inflate lengths');
+    assert.deepEqual(lengthWarnings({ cs: en }), []);
+    assert.deepEqual(lengthWarnings({ en: { texts: { 'test.empty': '' } }, cs: { texts: { 'test.empty': 'Dlouhý text' } } }), []);
+    assert.deepEqual(lengthWarnings({ en: { texts: { 'test.long': 'a'.repeat(40) } }, cs: { texts: { 'test.long': 'b'.repeat(79) } } }), []);
+    assert.equal(lengthWarnings({ en: { texts: { 'test.long': 'a'.repeat(40) } }, cs: { texts: { 'test.long': 'b'.repeat(80) } } })[0].increasePercent, 100);
     console.log('Translation checker self-test passed.');
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
