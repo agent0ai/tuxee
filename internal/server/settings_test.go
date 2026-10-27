@@ -4,8 +4,89 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestShellSettings(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"shellCommand":"  zsh -l  ","useTuxeePrompt":false}`, `{"shellCommand":"fish","useTuxeePrompt":true}`, `{"useTuxeePrompt":null}`, `{"useTuxeePrompt":"false"}`, `{"shellCommand":"bash\nexit"}`, `{"shellCommand":"bash\u0000"}`} {
+		var settings Settings
+		settings.Theme, settings.Workspaces = "dark", []Workspace{}
+		err := json.Unmarshal([]byte(raw), &settings)
+		if err == nil {
+			err = validateSettings(&settings)
+		}
+		invalid := strings.Contains(raw, `"false"`) || strings.Contains(raw, `\n`) || strings.Contains(raw, `\u0000`)
+		if (err != nil) != invalid {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		if invalid {
+			continue
+		}
+		data, err := json.Marshal(settings)
+		var restored Settings
+		if err != nil || json.Unmarshal(data, &restored) != nil || !reflect.DeepEqual(settings, restored) {
+			t.Fatalf("shell settings did not round-trip: %s", data)
+		}
+		if settings.ShellCommand != strings.TrimSpace(settings.ShellCommand) {
+			t.Fatal("shell command was not trimmed")
+		}
+	}
+	settings := Settings{Theme: "dark", Workspaces: []Workspace{}, ShellCommand: strings.Repeat("a", 4097)}
+	if validateSettings(&settings) == nil {
+		t.Fatal("accepted oversized shell command")
+	}
+}
+
+func TestDefaultDirectorySettings(t *testing.T) {
+	for _, path := range []string{"", "~", "~/projects", "/", "/tmp/a b", "/tmp/", "relative", "~other", "~other/projects", "trash:///", "/tmp/\x00", "/" + strings.Repeat("a", 4096)} {
+		valid := path == "" || path == "~" || path == "~/projects" || path == "/" || path == "/tmp/a b" || path == "/tmp/"
+		for _, workspace := range []bool{false, true} {
+			settings := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{}}}}
+			if workspace {
+				settings.Workspaces[0].DefaultDirectory = path
+			} else {
+				settings.DefaultDirectory = path
+			}
+			if err := validateSettings(&settings); (err == nil) != valid {
+				t.Fatalf("path %q, workspace %v: %v", path, workspace, err)
+			}
+			if valid {
+				data, err := json.Marshal(settings)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var loaded Settings
+				if err := json.Unmarshal(data, &loaded); err != nil {
+					t.Fatal(err)
+				}
+				if err := migrateSettings(&loaded); err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(settings, loaded) {
+					t.Fatalf("directory setting changed on load: %s", data)
+				}
+			}
+		}
+	}
+	for path, want := range map[string]string{"": "/home/test", "~": "/home/test", "~/projects": "/home/test/projects", "/tmp": "/tmp"} {
+		if got := (Settings{DefaultDirectory: path}).defaultDirectory("/home/test"); got != want {
+			t.Fatalf("default %q = %q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestTrashPanelLocation(t *testing.T) {
+	for _, kind := range []string{"files", "terminal"} {
+		for _, path := range []string{"trash:///", "trash:///child", "relative", "/home/user"} {
+			settings := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Workspace", Columns: 4, Rows: 2, Panels: []Panel{{ID: "p", Kind: kind, Path: path, W: 1, H: 1}}}}}
+			valid := path == "/home/user" || kind == "files" && path == "trash:///"
+			if err := validateSettings(&settings); (err == nil) != valid {
+				t.Fatalf("%s %s: %v", kind, path, err)
+			}
+		}
+	}
+}
 
 func TestUploadConcurrencySettings(t *testing.T) {
 	for _, raw := range []string{"null", "1", "4", "8", "0", "9", "-1", "1.5", `"4"`} {

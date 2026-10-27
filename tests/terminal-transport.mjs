@@ -32,7 +32,7 @@ try {
         window.mount = (me, id) => {
             setCSRF(me.csrf);
             const panel = {id:'test',kind:'terminal',terminal:id,path:me.user.home,x:0,y:0,w:4,h:2};
-            window.view = new TerminalView(document.querySelector('#terminal'), panel, {user:me.user, changed(){}, close(){}, openTerminal(){}});
+            window.view = new TerminalView(document.querySelector('#terminal'), panel, {user:me.user, defaultDirectory:()=>me.user.home, changed(){}, close(){}, openTerminal(){}});
         };
     `, resolveDir: process.cwd() }, bundle: true, platform: 'browser', format: 'esm', write: false });
     const page = await context.newPage();

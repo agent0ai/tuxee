@@ -18,7 +18,10 @@ type Entry = {
     gid: number;
     modified: string;
     link?: string;
+    originalPath?: string;
+    deleted?: string;
 };
+const trashPath = 'trash:///';
 const instances = new Set<FileView>();
 const nameOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 export class FileView implements View {
@@ -48,6 +51,9 @@ export class FileView implements View {
     private inspector?: FileInspector;
     private uploadInput = el('input');
     private pasteInput: (data: DataTransfer) => boolean;
+    private actionButtons: HTMLButtonElement[] = [];
+    private fitActions = () => {};
+    private get inTrash() { return this.panel.path === trashPath; }
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         instances.add(this);
         window.addEventListener('tuxee-file-cut', event => {
@@ -59,7 +65,7 @@ export class FileView implements View {
             if (!this.request) this.refreshUploaded();
         }, { signal: this.events.signal });
         root.classList.add('file-view');
-        this.pathInput.value = panel.path || hooks.user.home;
+        this.pathInput.value = panel.path || hooks.defaultDirectory();
         this.pathInput.setAttribute('aria-label', 'File or directory path');
         this.pathInput.autocomplete = 'off'; this.pathInput.spellcheck = false;
         let editTimer: number | undefined;
@@ -94,10 +100,12 @@ export class FileView implements View {
         };
         root.closest('.panel')!.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
-        const actionButtons = [button('Parent directory', 'ArrowUp', () => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/'), 'file-navigation'), button('Home directory', 'House', () => this.navigate(hooks.user.home), 'file-navigation'), button('Refresh files', 'RefreshCw', () => this.refresh()), button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Cut', 'Scissors', () => this.copySelection(true)), button('Copy', 'Copy', () => this.copySelection()), button('Paste', 'ClipboardPaste', () => this.paste()), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const actionButtons = this.actionButtons = [button('Parent directory', 'ArrowUp', () => this.parent(), 'file-navigation'), button('Home directory', 'House', () => this.navigate(hooks.defaultDirectory()), 'file-navigation'), button('Trash bin', 'Trash2', () => this.navigate(trashPath), 'file-navigation'), button('Restore', 'Undo2', () => this.restore()), button('Empty bin', 'Trash2', () => this.emptyTrash()), button('Refresh files', 'RefreshCw', () => this.refresh()), button('New folder', 'FolderPlus', () => this.mkdir()), button('New file', 'FilePlus', () => this.createFile()), button('Upload files', 'Upload', () => this.uploadInput.click()), button('Download selected', 'Download', () => this.downloadSelected()), button('Cut', 'Scissors', () => this.copySelection(true)), button('Copy', 'Copy', () => this.copySelection()), button('Paste', 'ClipboardPaste', () => this.paste()), button('Open terminal here', 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
         const separator = el('span', 'file-navigation-separator', '|'); separator.setAttribute('aria-hidden', 'true');
-        const actionItems = [...actionButtons.slice(0, 2), separator, ...actionButtons.slice(2)];
-        const more = button('File actions', 'Ellipsis', () => this.menu(more, !this.selected.size, actionButtons.filter(item => item.hidden)));
+        const trashSeparator = separator.cloneNode(true) as HTMLElement;
+        const trashItems = [actionButtons[3], actionButtons[4], trashSeparator];
+        const actionItems = [...actionButtons.slice(0, 3), separator, ...trashItems, ...actionButtons.slice(5)];
+        const more = button('File actions', 'Ellipsis', () => this.menu(more, !this.selected.size, actionButtons.filter(item => item.hidden && (this.inTrash || !trashItems.includes(item)))));
         more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
         actions.append(...actionItems, more);
         this.uploadInput.type = 'file';
@@ -145,15 +153,16 @@ export class FileView implements View {
         this.list.onclick = e => { if (!(e.target as Element).closest('.file-entry') && !e.ctrlKey && !e.metaKey && !e.shiftKey) this.clearSelection(); };
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         for (const type of ['copy', 'cut'] as const) dropTarget.addEventListener(type, event => {
-            if (this.disposed || this.inspector || (event.target as Element).closest('input:not([type=checkbox]), textarea, [contenteditable]')) return;
+            if (this.disposed || this.inspector || this.inTrash || (event.target as Element).closest('input:not([type=checkbox]), textarea, [contenteditable]')) return;
             if (this.selected.size) {
                 try { this.copySelection(type === 'cut', event); } catch (error) { this.notice(error); }
             }
         }, { signal: this.events.signal });
         registerFileDrop(dropTarget, {
-            over: drop => { setDropFeedback(root, drop.copy ? 'Copy here' : 'Move here'); return drop.copy || drop.source !== panel.id; },
+            over: drop => { if (this.inTrash) return false; setDropFeedback(root, drop.copy ? 'Copy here' : 'Move here'); return drop.copy || drop.source !== panel.id; },
             leave: () => setDropFeedback(root),
             drop: drop => {
+                if (this.inTrash) return;
                 const entries = drop.files, operation = drop.copy ? 'copy' : 'move';
                 const targetRow = drop.target.closest<HTMLElement>('.file-entry');
                 const folder = this.entries.find(entry => entry.path === targetRow?.dataset.path && entry.directory && !entries.some(source => source.path === entry.path));
@@ -165,7 +174,7 @@ export class FileView implements View {
             }
         }, this.events.signal);
         this.pasteInput = registerUploadInput(dropTarget, {
-            accept: () => !this.disposed && !this.inspector,
+            accept: () => !this.disposed && !this.inspector && !this.inTrash,
             over: () => setDropFeedback(root, 'Upload'),
             leave: () => setDropFeedback(root),
             upload: (sources, point) => { void this.uploadFiles(sources, point); },
@@ -200,19 +209,25 @@ export class FileView implements View {
         table.append(header, this.list);
         root.append(actions, table, footer, this.uploadInput);
         this.resize();
-        const fitActions = () => {
+        const fitActions = this.fitActions = () => {
             if (!actions.getClientRects().length) return;
             this.closeMenu();
-            actionItems.forEach(item => { item.hidden = false; });
+            for (const item of trashItems) {
+                if (!this.inTrash) item.remove();
+                else if (item.parentElement !== actions) actions.insertBefore(item, actionButtons[5]);
+            }
+            const items = actionItems.filter(item => this.inTrash || !trashItems.includes(item));
+            actionItems.forEach(item => { item.hidden = !items.includes(item); });
             const style = getComputedStyle(actions), gap = parseFloat(style.columnGap) || 0;
             const available = actions.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
             // Count the permanent menu button too, so it always retains its space.
-            const count = fittingHeaderItemCount([...actionItems, more].map(item => item.getBoundingClientRect().width), available, more.getBoundingClientRect().width, gap);
-            actionItems.forEach((item, index) => { item.hidden = index >= count; });
+            const count = fittingHeaderItemCount([...items, more].map(item => item.getBoundingClientRect().width), available, more.getBoundingClientRect().width, gap);
+            items.forEach((item, index) => { item.hidden = index >= count; });
             if (actionButtons.some(item => item.hidden && item === document.activeElement)) more.focus();
         };
         const observer = new ResizeObserver(fitActions); observer.observe(actions); fitActions();
         this.events.signal.addEventListener('abort', () => { observer.disconnect(); this.closeMenu(); }, { once: true });
+        this.paintSelection();
         this.navigate(this.pathInput.value).catch(this.notice);
     }
     private notice = (value: unknown) => notify(value, this.root);
@@ -221,9 +236,14 @@ export class FileView implements View {
         this.pathInput.title = path;
         if (document.activeElement !== this.pathInput) this.pathInput.value = path;
         this.modified.hidden = !dirty;
-        this.hooks.title?.((path.split('/').filter(Boolean).at(-1) || 'Files') + (dirty ? ' •' : ''));
+        this.hooks.title?.((path === trashPath ? 'Trash bin' : path.split('/').filter(Boolean).at(-1) || 'Files') + (dirty ? ' •' : ''));
     };
     private async openPath(path: string) {
+        if (path === trashPath) {
+            if (this.inspector) await this.inspector.leave(async () => { if (await this.navigate(path)) { this.inspector?.dispose(); this.inspector = undefined; this.showPath(path); } });
+            else await this.navigate(path);
+            return;
+        }
         this.request?.abort();
         const request = this.request = new AbortController();
         try {
@@ -265,7 +285,7 @@ export class FileView implements View {
         this.status.textContent = 'Loading…';
         this.list.classList.add('loading');
         try {
-            const response = await api('/files', 'POST', { operation: 'list', path }, request.signal);
+            const response = await api('/files', 'POST', { operation: path === trashPath ? 'trash-list' : 'list', path }, request.signal);
             if (this.disposed || request.signal.aborted)
                 return;
             this.panel.path = response.path;
@@ -277,6 +297,7 @@ export class FileView implements View {
             else this.selected = new Set(this.entries.filter(entry => this.selected.has(entry.path)).map(entry => entry.path));
             const focusStillHere = document.activeElement === focusOwner || this.list.contains(document.activeElement);
             this.render();
+            this.fitActions();
             if (restoreFocus && focusStillHere) this.focus(focused);
             this.hooks.changed();
             if (response.truncated)
@@ -303,9 +324,10 @@ export class FileView implements View {
         if (affected && !this.disposed) this.refresh().catch(this.notice);
     }
     refresh = () => this.navigate(this.panel.path);
+    private parent() { return this.navigate(this.inTrash ? this.hooks.defaultDirectory() : this.panel.path.split('/').slice(0, -1).join('/') || '/', this.panel.path); }
     private visibleEntries() {
         const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry =>
-            (this.showHidden.checked || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
+            (this.inTrash || this.showHidden.checked || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
         if (this.sort) {
             const { column, descending } = this.sort;
             entries.sort((a, b) => ((column === 'size' ? a.size - b.size : column === 'modified' ? Date.parse(a.modified) - Date.parse(b.modified) : nameOrder.compare(a.name, b.name)) || a.name.localeCompare(b.name)) * (descending ? -1 : 1));
@@ -329,6 +351,7 @@ export class FileView implements View {
             const row = el('div', 'file-entry');
             row.dataset.path = entry.path;
             row.dataset.directory = String(entry.directory);
+            if (entry.originalPath) row.title = `${entry.originalPath}${entry.deleted ? `\nDeleted: ${entry.deleted.replace('T', ' ')}` : ''}`;
             row.tabIndex = -1;
             row.addEventListener('focusin', () => { this.focusedPath = entry.path; });
             row.setAttribute('role', 'option');
@@ -367,7 +390,7 @@ export class FileView implements View {
                 const touch = (e as PointerEvent).pointerType === 'touch';
                 const twice = touch ? this.lastTap?.path === entry.path && e.timeStamp - this.lastTap.time < 400 : e.detail === 2;
                 this.lastTap = touch && !twice ? { path: entry.path, time: e.timeStamp } : undefined;
-                if (twice) (entry.directory ? this.navigate(entry.path) : this.openFile(entry)).catch(this.notice);
+                if (twice && !this.inTrash) (entry.directory ? this.navigate(entry.path) : this.openFile(entry)).catch(this.notice);
             };
             this.rowMenus.push(bindContextMenu(row, position => { if (!this.selected.has(entry.path)) {
                 this.selected.clear();
@@ -375,6 +398,7 @@ export class FileView implements View {
                 this.paintSelection();
             } row.focus({ preventScroll: true }); this.menu(position || row); }, true));
             row.onpointerdown = e => {
+                if (this.inTrash) return;
                 if (!this.selected.has(entry.path) && !(e.target as Element).closest('.file-name')) return;
                 startFileDrag(e, this.panel.id, () => {
                     row.focus({ preventScroll: true });
@@ -403,11 +427,11 @@ export class FileView implements View {
             else this.selectionAnchor = next?.path || '';
             this.focus(next?.path || '');
         });
-        else if (e.key === 'ArrowLeft') run(() => this.navigate(this.panel.path.split('/').slice(0, -1).join('/') || '/', this.panel.path));
-        else if (e.key === 'ArrowRight' || e.key === 'Enter') run(() => entry?.directory ? this.navigate(entry.path, '') : e.key === 'Enter' && entry ? this.openFile(entry) : undefined);
+        else if (e.key === 'ArrowLeft') run(() => this.parent());
+        else if (e.key === 'ArrowRight' || e.key === 'Enter') run(() => !this.inTrash ? entry?.directory ? this.navigate(entry.path, '') : e.key === 'Enter' && entry ? this.openFile(entry) : undefined : undefined);
         else if (e.key === ' ' && entry) run(() => { if (this.selected.has(entry.path)) this.selected.delete(entry.path); else this.selected.add(entry.path); this.selectionAnchor = entry.path; this.paintSelection(); });
-        else if (e.key === 'Delete') run(() => this.remove());
-        else if (e.key === 'F2') run(() => this.rename());
+        else if (e.key === 'Delete') run(() => this.remove(e.shiftKey));
+        else if (e.key === 'F2' && !this.inTrash) run(() => this.rename());
         else if (e.key === 'F5') run(() => this.refresh());
         else if (e.key === 'Escape' && !this.filter) run(clearFileCut);
         else if (e.key === 'ContextMenu' || e.shiftKey && e.key === 'F10' || e.key === 'Alt' && !e.ctrlKey) run(() => {
@@ -561,6 +585,15 @@ export class FileView implements View {
         this.selectAll.checked = rows.length > 0 && selected === rows.length;
         this.selectAll.indeterminate = selected > 0 && selected < rows.length;
         this.selectAll.disabled = !rows.length;
+        this.showHidden.disabled = this.inTrash;
+        const properties = this.root.querySelector<HTMLButtonElement>('.file-footer button[title="Properties"]');
+        if (properties) properties.disabled = this.inTrash && !this.selected.size;
+        for (const action of this.actionButtons) {
+            action.disabled = ['Download selected', 'Cut', 'Copy'].includes(action.title) ? !this.selected.size || this.inTrash
+                : action.title === 'Restore' ? !this.selected.size
+                : action.title === 'Empty bin' ? !this.entries.length
+                : this.inTrash && ['New folder', 'New file', 'Upload files', 'Paste', 'Open terminal here'].includes(action.title);
+        }
         this.status.textContent = `${this.filter || rows.length !== this.entries.length ? `${rows.length}/${this.entries.length}` : this.entries.length} items${this.selected.size ? ` · ${this.selected.size} selected` : ''}`;
     }
     private single() { const values = this.chosen(); if (values.length !== 1)
@@ -573,19 +606,55 @@ export class FileView implements View {
         throw new Error('Use a filename without slashes'); }
     private async rename() { const entry = this.single(), name = await ask('Rename', 'New name', entry.name); if (!name || name === entry.name)
         return; this.checkName(name); await api('/files', 'POST', { operation: 'rename', path: entry.path, destination: join(this.panel.path, name) }); await this.refresh(); }
-    private async remove() {
-        const entries = this.chosen();
+    private async remove(permanent = false) {
+        const entries = this.chosen(), inTrash = this.inTrash;
         if (!entries.length)
             throw new Error('Select files to delete');
-        if (!await confirmAction('Delete selected items?', `Permanently delete ${entries.length} item(s), including any folder contents? There is no trash recovery.`, 'Delete'))
-            return;
+        const folders = entries.filter(entry => entry.directory && !entry.symlink).length, files = entries.length - folders;
+        const summary = [files ? `${files} file${files === 1 ? '' : 's'}` : '', folders ? `${folders} folder${folders === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+        const choice = await new Promise<boolean | undefined>(resolve => {
+            const content = el('div', 'form'), checkbox = el('input'), label = el('label', 'file-delete-permanent');
+            checkbox.type = 'checkbox'; checkbox.checked = permanent || inTrash; checkbox.disabled = inTrash;
+            label.append(checkbox, 'Delete permanently instead');
+            const message = el('p', 'muted'), actions = el('div', 'actions');
+            const submit = button('', undefined, () => { resolve(checkbox.checked); dialog.close(); }, 'primary');
+            const update = () => {
+                message.textContent = checkbox.checked ? `Permanently delete ${summary}?` : `Move ${summary} to trash bin?`;
+                submit.textContent = submit.title = checkbox.checked ? 'Delete permanently' : 'Move to bin';
+                submit.setAttribute('aria-label', submit.title);
+            };
+            checkbox.onchange = update; update();
+            content.append(message);
+            if (!inTrash) content.append(label);
+            const { dialog } = modal('Delete selected items?', content);
+            actions.append(button('Cancel', undefined, () => dialog.close()), submit); content.append(actions); submit.focus();
+            dialog.addEventListener('close', () => resolve(undefined), { once: true });
+        });
+        if (choice === undefined) return;
+        const operation = inTrash ? 'trash-delete' : choice ? 'delete' : 'trash';
         try {
             for (const entry of entries)
-                await api('/files', 'POST', { operation: 'delete', path: entry.path });
+                await api('/files', 'POST', { operation, path: entry.path }, this.events.signal);
         }
         finally {
-            await this.refresh();
+            this.refreshTrash(entries);
         }
+    }
+    private refreshTrash(entries: Entry[]) {
+        const directories = new Set([trashPath, ...entries.flatMap(entry => [entry.path, entry.originalPath].filter(Boolean).map(path => path!.split('/').slice(0, -1).join('/') || '/'))]);
+        window.dispatchEvent(new CustomEvent('tuxee-files-uploaded', { detail: directories }));
+    }
+    private async restore() {
+        const entries = this.chosen();
+        if (!entries.length) return;
+        try { for (const entry of entries) await api('/files', 'POST', { operation: 'trash-restore', path: entry.path }, this.events.signal); }
+        finally { this.refreshTrash(entries); }
+    }
+    private async emptyTrash() {
+        const entries = this.entries;
+        if (!await confirmAction('Empty trash bin?', 'Permanently delete everything in the trash bin?', 'Empty bin')) return;
+        try { await api('/files', 'POST', { operation: 'trash-empty' }, this.events.signal); }
+        finally { this.refreshTrash(entries); }
     }
     private async downloadSelected() {
         const entries = this.chosen();
@@ -711,34 +780,55 @@ export class FileView implements View {
         input.value = mode === 'Multiple' ? '' : mode;
         input.placeholder = mode; input.required = true; input.pattern = '[0-7]{3,4}'; input.setAttribute('aria-label', 'Permissions');
         label.append(input);
-        content.append(details, label, button('Save permissions', undefined, async () => {
+        const permissions = el('div', 'permissions-row');
+        permissions.append(label, button('Apply', undefined, async () => {
             if (!input.reportValidity()) return;
             try { for (const entry of entries) await api('/files', 'POST', { operation: 'chmod', path: entry.path, mode: input.value }); close(); }
             finally { await this.refresh(); }
         }, 'primary'));
+        content.append(details, permissions);
+        if (entries.length === 1 && entries[0].directory) {
+            const actions = el('div', 'actions');
+            const workspaceDefault = button('Workspace default', 'House', () => this.workspaceDefault(entries[0].path));
+            workspaceDefault.append(el('span', '', 'Workspace default'));
+            actions.append(workspaceDefault);
+            content.append(actions);
+        }
         const { close, dialog } = modal('Properties', content);
         dialog.addEventListener('close', () => lifetime.abort(), { once: true });
         this.events.signal.addEventListener('abort', () => { lifetime.abort(); close(); }, { once: true, signal: lifetime.signal });
+    }
+    private async workspaceDefault(path: string) {
+        await this.hooks.workspaceDefault(path);
+        this.notice('Workspace default updated');
     }
     private menu(anchor: HTMLElement | { x: number; y: number }, background = !this.selected.size, overflow: HTMLButtonElement[] = []) {
         const content = el('div', 'menu-actions');
         scopeNotifications(content, this.root);
         let close = () => {};
+        const chosen = this.chosen();
+        const directory = background ? this.panel.path : chosen.length === 1 && chosen[0].directory ? chosen[0].path : undefined;
         for (const source of overflow) {
             const item = button(source.title, undefined, () => { close(); source.click(); });
             item.replaceChildren(...[...source.childNodes].map(node => node.cloneNode(true)), el('span', '', source.title));
             item.disabled = source.disabled; item.setAttribute('role', 'menuitem'); content.append(item);
         }
         if (overflow.length) content.append(el('hr', 'menu-separator'));
-        for (const [label, name, action] of background ? [
-            ['New file', 'FilePlus', () => this.createFile()], ['New folder', 'FolderPlus', () => this.mkdir()], ['Paste', 'ClipboardPaste', () => this.paste()], ['Properties', 'Info', () => this.properties()]
+        for (const [label, name, action] of this.inTrash ? (background ? [
+            ['Empty bin', 'Trash2', () => this.emptyTrash()]
+        ] as const : [
+            ['Restore', 'Undo2', () => this.restore()], ['Delete permanently', 'Trash2', () => this.remove(true)]
+        ] as const) : background ? [
+            ['New file', 'FilePlus', () => this.createFile()], ['New folder', 'FolderPlus', () => this.mkdir()], ['Paste', 'ClipboardPaste', () => this.paste()], ['Workspace default', 'House', () => this.workspaceDefault(directory!)], ['Properties', 'Info', () => this.properties()]
         ] as const : [
             ['Open', 'FilePenLine', () => this.openFile()], ['Compress…', 'Archive', () => this.archiveDialog()], ['Extract…', 'FolderOpen', () => this.archiveDialog(true)],
             ['Cut', 'Scissors', () => this.copySelection(true)], ['Copy', 'Copy', () => this.copySelection()], ['Paste', 'ClipboardPaste', () => this.paste()],
-            ['Rename', 'Pencil', () => this.rename()], ['Copy to…', 'Copy', () => this.transferPrompt('copy')], ['Move to…', 'MoveRight', () => this.transferPrompt('move')], ['Download', 'Download', () => this.downloadSelected()], ['Properties', 'Info', () => this.properties()], ['Delete', 'Trash2', () => this.remove()]
+            ['Rename', 'Pencil', () => this.rename()], ['Copy to…', 'Copy', () => this.transferPrompt('copy')], ['Move to…', 'MoveRight', () => this.transferPrompt('move')], ['Download', 'Download', () => this.downloadSelected()], ['Workspace default', 'House', () => this.workspaceDefault(directory!)], ['Properties', 'Info', () => this.properties()], ['Delete', 'Trash2', () => this.remove()]
         ] as const) {
             if (overflow.some(source => source.title === label)) continue;
+            if (label === 'Workspace default' && !directory) continue;
             const b = button(label, name, () => { close(); return action(); });
+            b.disabled = this.actionButtons.find(source => source.title === label)?.disabled || false;
             b.append(el('span', '', label)); b.setAttribute('role', 'menuitem');
             content.append(b);
         }

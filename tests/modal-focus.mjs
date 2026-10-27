@@ -79,7 +79,7 @@ try {
             const deletion = page.getByRole('dialog', { name: 'Delete selected items?', exact: true });
             await deletion.waitFor();
             const label = `${theme}-${viewport.width}x${viewport.height}`;
-            await focusRing(deletion, 'Delete', `${label}-delete`);
+            await focusRing(deletion, 'Move to bin', `${label}-delete`);
             await page.keyboard.press('Shift+Tab');
             await focusRing(deletion, 'Cancel', `${label}-cancel`);
             await page.keyboard.press('Enter'); await deletion.waitFor({ state: 'detached' });
@@ -93,7 +93,7 @@ try {
             await row.click({ button: 'right' });
             await page.getByRole('menuitem', { name: 'Properties', exact: true }).click();
             const properties = page.getByRole('dialog', { name: 'Properties', exact: true });
-            await properties.waitFor(); await focusRing(properties, 'Save permissions', `${label}-permissions`);
+            await properties.waitFor(); await focusRing(properties, 'Apply', `${label}-permissions`);
             await page.keyboard.press('Escape'); await properties.waitFor({ state: 'detached' });
 
             await page.getByRole('button', { name: 'User menu', exact: true }).click();

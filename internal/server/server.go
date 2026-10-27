@@ -429,7 +429,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		background, foreground := settings.terminalColors()
-		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground)
+		if input.Directory == "" {
+			input.Directory = settings.defaultDirectory(session.user.Home)
+		}
+		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground, settings.ShellCommand, settings.UseTuxeePrompt == nil || *settings.UseTuxeePrompt)
 		if err != nil {
 			failure(w, 400, err)
 			return
@@ -535,7 +538,7 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 		return
 	}
 	switch input.Operation {
-	case "list", "stat", "mkdir", "delete", "chmod", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
+	case "list", "stat", "mkdir", "delete", "trash", "trash-list", "trash-restore", "trash-delete", "trash-empty", "chmod", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
 	default:
 		failure(w, 400, errors.New("invalid file operation"))
 		return

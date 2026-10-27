@@ -213,6 +213,15 @@ h3 {
   font-size: 12px;
   color: var(--muted);
 }
+.permissions-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.permissions-row .field {
+  flex: 1;
+  min-width: 0;
+}
 .form {
   display: flex;
   flex-direction: column;
@@ -502,6 +511,7 @@ h3 {
   color: var(--muted);
 }
 .file-actions .file-navigation { color: var(--text); }
+.file-delete-permanent { display: flex; align-items: center; gap: 8px; }
 .file-navigation-separator {
   flex-shrink: 0;
   align-self: center;
@@ -918,8 +928,6 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-top: 1px solid var(--line);
-  padding-top: 18px;
   font-size: 12px;
 }
 .retained-list {
@@ -1314,11 +1322,12 @@ h3 {
 .monitor-modal .modal-head h2 { flex: 1; }
 .monitor-content { display: flex; flex-direction: column; gap: 12px; }
 .monitor-display { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; cursor: pointer; }
-.monitor-display input { appearance: none; width: 32px; height: 20px; padding: 2px; margin: 0; border-radius: 12px; flex-shrink: 0; cursor: pointer; transition: background .12s; }
-.monitor-display input::before { content: ''; display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .12s; }
-.monitor-display input:checked { background: var(--accent-bg); border-color: var(--accent); }
-.monitor-display input:checked::before { transform: translateX(12px); background: var(--accent); }
-.monitor-display input:disabled { opacity: .5; cursor: wait; }
+.settings-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+input[role=switch] { appearance: none; width: 32px; height: 20px; padding: 2px; margin: 0; border-radius: 12px; flex-shrink: 0; cursor: pointer; transition: background .12s; }
+input[role=switch]::before { content: ''; display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .12s; }
+input[role=switch]:checked { background: var(--accent-bg); border-color: var(--accent); }
+input[role=switch]:checked::before { transform: translateX(12px); background: var(--accent); }
+input[role=switch]:disabled { opacity: .5; cursor: wait; }
 .monitor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .monitor-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); overflow-wrap: anywhere; }
 .monitor-card .monitor-chip { font-size: 32px; margin-bottom: 8px; }
@@ -1449,4 +1458,5 @@ h3 {
 
 .settings-label { font-size: 13px; font-weight: 700; color: var(--text); }
 .settings-form > .field { gap: 10px; }
+.settings-form > hr { margin: 0; border: 0; border-top: 1px solid var(--line); }
 .terminal-colors legend { padding: 0; margin-bottom: 10px; }

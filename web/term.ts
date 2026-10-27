@@ -320,6 +320,7 @@ export class TerminalView implements View {
         const restart = button('Restart terminal', undefined, () => {
             restart.disabled = true;
             if (this.panel.terminal === lost) delete this.panel.terminal;
+            if (!this.panel.terminal) this.panel.path = this.hooks.defaultDirectory();
             this.ended = false;
             this.starting = (async () => {
                 // Retry a failed save without abandoning the replacement shell.
@@ -594,7 +595,7 @@ export class TerminalView implements View {
         this.resetting = this.resetButton.disabled = true;
         this.starting = this.starting.then(async () => {
             if (this.disposed || this.closing) return;
-            if (!await confirmAction('Reset terminal?', 'This will kill all commands and GUI apps in this terminal and start a new shell here. Terminal output and unsaved work will be lost. This cannot be undone.', 'Kill and reset')) return;
+            if (!await confirmAction('Reset terminal?', 'This will kill all commands and GUI apps in this terminal and start a new shell in the default directory. Terminal output and unsaved work will be lost. This cannot be undone.', 'Kill and reset')) return;
             if (this.disposed || this.closing) return;
             const lost = this.panel.terminal;
             clearTimeout(this.reconnect);
@@ -604,6 +605,7 @@ export class TerminalView implements View {
             try { await terminateTerminal(this.panel); }
             catch (error) { this.connect(); throw error; }
             delete this.panel.terminal;
+            this.panel.path = this.hooks.defaultDirectory();
             this.ended = this.uncertainInput = false;
             this.display.update();
             if (this.disposed || this.closing) { await this.hooks.changed(true); return; }

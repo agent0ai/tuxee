@@ -164,10 +164,10 @@ try {
     check('failed PAM login');
     await login(a);
     assert.equal(await page.locator('.panel').count(), 3);
-    assert.deepEqual(await page.getByRole('textbox', { name: 'File or directory path' }).evaluateAll(nodes => nodes.map(node => node.value)), ['/', a.home]);
+    assert.deepEqual(await page.getByRole('textbox', { name: 'File or directory path' }).evaluateAll(nodes => nodes.map(node => node.value)), [a.home, a.home]);
     assert.deepEqual(await page.locator('.grid-stack-item').evaluateAll(nodes => nodes.map(node => ['x', 'y', 'w', 'h'].map(key => Number(node.getAttribute(`gs-${key}`) || (key === 'w' || key === 'h' ? 1 : 0))))), [[0, 0, 2, 1], [0, 1, 2, 1], [2, 0, 2, 2]]);
     await twoPanelFixture();
-    assert.equal(await page.getByRole('textbox', { name: 'File or directory path' }).inputValue(), '/');
+    assert.equal(await page.getByRole('textbox', { name: 'File or directory path' }).inputValue(), a.home);
     assert.equal(await page.locator('.poc, .panel-location, .terminal-toolbar, .terminal-keys').count(), 0);
     check('real PAM login and simplified desktop controls');
     await checkAbout('logo', 'about-desktop');
@@ -222,7 +222,7 @@ try {
     await file.locator('.file-entry').filter({ hasText: 'upload.txt' }).locator('.file-name').click();
     await file.getByRole('button', { name: 'Properties', exact: true }).click();
     await page.getByRole('textbox', { name: 'Permissions', exact: true }).fill('0640');
-    await page.getByRole('button', { name: 'Save permissions', exact: true }).click();
+    await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await page.locator('dialog').waitFor({ state: 'detached' });
     await file.locator('.file-list:not(.loading)').waitFor();
     const stat = await (await api('/files', 'POST', { operation: 'stat', path: `${a.home}/tuxee-fixtures/upload.txt` })).json();
@@ -255,7 +255,7 @@ try {
     await page.locator('dialog .properties').filter({ hasText: '2 items' }).waitFor();
     assert.ok((await page.locator('dialog .properties').textContent()).includes('Total size'));
     await page.getByRole('textbox', { name: 'Permissions', exact: true }).fill('0600');
-    await page.getByRole('button', { name: 'Save permissions', exact: true }).click();
+    await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await page.locator('dialog').waitFor({ state: 'detached' });
     for (const path of selectedPaths) assert.equal((await (await api('/files', 'POST', { operation: 'stat', path })).json()).entry.mode, '0600');
     check('arrow navigation preserves focus; Space, keyboard menus and multi-file permissions work');
@@ -357,7 +357,7 @@ try {
     await targetBrowser.locator('.file-entry').filter({ hasText: 'renamed.txt' }).waitFor();
     await targetBrowser.locator('.file-entry').filter({ hasText: 'renamed.txt' }).locator('.file-name').click();
     await targetBrowser.locator('.file-list').press('Delete');
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Move to bin', exact: true }).click();
     await page.waitForFunction(() => !document.querySelectorAll('.file-view')[1].textContent.includes('renamed.txt'));
     check('context rename and confirmed keyboard deletion');
     const cdp = await context.newCDPSession(page);
@@ -640,7 +640,7 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 4);
     assert.equal(await page.locator('.file-view').count(), 2);
     assert.equal(await page.locator('.panel-body.terminal-view').count(), 2);
-    assert.deepEqual(await page.getByRole('textbox', { name: 'File or directory path' }).evaluateAll(inputs => inputs.map(input => input.value)), ['/', a.home]);
+    assert.deepEqual(await page.getByRole('textbox', { name: 'File or directory path' }).evaluateAll(inputs => inputs.map(input => input.value)), [a.home, a.home]);
     await page.screenshot({ path: 'test-results/ultrawide.png' });
     check('ultrawide eight-cell default');
     const widget = page.locator('.grid-stack-item').first(), oldBox = await widget.boundingBox();
@@ -796,7 +796,9 @@ try {
     await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
     const workspaceChoice = page.locator('.overflow-tabs:popover-open .workspace-tab').first();
     await workspaceChoice.click({ button: 'right' });
-    assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Close']);
+    assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
+    await page.keyboard.press('Escape');
+    assert.ok(await workspaceChoice.evaluate(node => node === document.activeElement));
     await page.keyboard.press('Escape');
     assert.ok(await page.getByRole('button', { name: 'More workspaces', exact: true }).evaluate(node => node === document.activeElement));
     await page.getByRole('button', { name: 'More workspaces', exact: true }).click();
@@ -817,7 +819,7 @@ try {
         await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
         if (width >= 760) await twoPanelFixture();
         const browser = page.locator('.file-view');
-        assert.equal(await browser.locator('..').getByRole('textbox', { name: 'File or directory path' }).inputValue(), '/');
+        assert.equal(await browser.locator('..').getByRole('textbox', { name: 'File or directory path' }).inputValue(), a.home);
         const listed = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'list' && response.request().postDataJSON()?.path === directory);
         await browser.locator('..').getByRole('textbox', { name: 'File or directory path' }).fill(directory);
         await browser.locator('..').getByRole('textbox', { name: 'File or directory path' }).press('Enter');

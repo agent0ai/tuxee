@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { chown, mkdir, writeFile, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import './editor-page.mjs';
@@ -30,16 +29,16 @@ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R
 const controls=dir+'/controls';await mkdir(controls+'/z-folder',{recursive:true});await mkdir(controls+'/z-rows');
 for(const folder of [controls,controls+'/z-folder'])for(const [name,data,date] of [['a.txt','a',3],['b.txt','bbb',1],['c.txt','cc',2]]){await writeFile(`${folder}/${name}`,data);await utimes(`${folder}/${name}`,new Date(2020,0,date),new Date(2020,0,date));}
 for(let i=0;i<70;i++)await writeFile(`${controls}/z-rows/row-${String(i).padStart(2,'0')}.txt`,'row');
-const profile=dir+'/.tuxee.profile.sh';await writeFile(profile,await readFile(fileURLToPath(new URL('../docker/tuxee.profile.sh',import.meta.url))));
 assert.equal(spawnSync('chown',['-R',`${fields[2]}:${fields[3]}`,dir]).status,0);
 const base=process.env.TUXEE_TEST_URL||'https://127.0.0.1:9443',browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
 const context=await browser.newContext({ignoreHTTPSErrors:true,hasTouch:true,permissions:['clipboard-read','clipboard-write'],viewport:{width:1440,height:1000}});
 await context.request.post(base+'/api/login',{data:{username:user,password},headers:{'X-Tuxee-Client':'web'}});
 let me=await(await context.request.get(base+'/api/me')).json();
 const api=(path,method='GET',data,headers={})=>context.request.fetch(base+'/api'+path,{method,data,headers:{'X-Tuxee-CSRF':me.csrf,'X-Tuxee-Client':'web',...headers}});
+assert.equal((await api('/settings','PUT',{...me.settings,shellCommand:'bash',useTuxeePrompt:true})).status(),200);
 for (const terminal of await(await api('/terminals')).json()) if (!terminal.attached) await api(`/terminals/${terminal.id}`,'DELETE');
 await api('/terminals','POST',{directory:home,name:'Detached regression',columns:80,rows:24});
-const promptSession=await(await api('/terminals','POST',{directory:home,name:'Prompt',command:`exec /bin/bash --noprofile --rcfile '${profile.replaceAll("'", "'\\''")}' -i`,columns:80,rows:24})).json();
+const promptSession=await(await api('/terminals','POST',{directory:home,name:'Prompt',columns:80,rows:24})).json();
 const settings={theme:'dark',current:'features',workspaces:[{id:'features',name:'Features',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:dir,x:0,y:0,w:2,h:2},...Array.from({length:4},(_,i)=>({id:`terminal-${i}`,terminal:i===0?promptSession.id:undefined,kind:'terminal',path:home,x:2+i%2,y:Math.floor(i/2),w:1,h:1}))]}]};
 assert.equal((await api('/settings','PUT',settings)).status(),200);
 const page=await context.newPage(),errors=[],external=[];page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(!request.url().startsWith(base)&&!['data:','blob:','chrome-extension:','chrome:'].includes(new URL(request.url()).protocol))external.push(request.url())});
@@ -64,7 +63,7 @@ async function dragFiles(source,target,modifierTiming='during',modifier='Control
 try{
  await page.goto(base);await row('alpha.txt').waitFor();await page.waitForFunction(()=>document.querySelectorAll('.terminal-view[data-state=connected]').length===4);
  assert.equal(await page.locator('.panel-header > svg, .panel-header .terminal-tab > svg').count(),5);
- await page.waitForFunction(()=>{const spans=[...document.querySelector('[data-panel=terminal-0] .xterm-rows').querySelectorAll('span')];const green=spans.find(s=>s.textContent.includes('@')),blue=spans.find(s=>s.textContent.includes('~'));if(!green||!blue)return false;const g=getComputedStyle(green).color.match(/\d+/g).map(Number),b=getComputedStyle(blue).color.match(/\d+/g).map(Number);return g[1]>g[0]&&g[1]>g[2]&&b[2]>b[0]});check('8020 shell profile renders a green user/host and blue directory');
+ await page.waitForFunction(()=>{const spans=[...document.querySelector('[data-panel=terminal-0] .xterm-rows').querySelectorAll('span')];const green=spans.find(s=>s.textContent.includes('~'));return green&&getComputedStyle(green).color==='rgb(54, 207, 167)'&&spans.some(s=>s.textContent.includes('❯'))});check('Tuxee shell prompt renders a green path and prompt marker');
  const plus=await page.getByRole('button',{name:'New workspace',exact:true}).boundingBox(),tab=await page.locator('.workspace-tab-item.active').boundingBox();assert.ok(plus.x-tab.x-tab.width<15);
  const add=await page.getByRole('button',{name:'Add file browser',exact:true}).boundingBox(),monitor=await page.locator('.topbar .monitor-summary').boundingBox(),theme=await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).boundingBox();assert.ok(add.x>plus.x+plus.width&&add.x+add.width<monitor.x&&monitor.x+monitor.width<theme.x);check('workspace plus follows tabs; component tools precede the monitor and theme control');
  await row('alpha.txt').locator('.file-name').click();await page.keyboard.type('brav');await page.waitForFunction(()=>document.querySelectorAll('.file-view .file-entry').length===1);assert.equal(await file.locator('.file-entry .file-name span').textContent(),'bravo.txt');assert.equal(await file.getByRole('searchbox',{name:'Filter files'}).inputValue(),'brav');assert.ok(await file.getByRole('searchbox',{name:'Filter files'}).evaluate(node=>node===document.activeElement));await page.keyboard.press('Escape');await row('alpha.txt').waitFor();
@@ -87,7 +86,7 @@ try{
  }
  check('editable footer filter and three-state Name/Size/Modified sorting; sorting survives folder navigation');
  await row('a.txt').locator('.file-name').click();const bounds=await list.boundingBox();await page.mouse.click(bounds.x+10,bounds.y+200);assert.deepEqual(await selected(),[]);
- await page.mouse.click(bounds.x+10,bounds.y+200,{button:'right'});assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['New file','New folder','Paste','Properties']);
+ await page.mouse.click(bounds.x+10,bounds.y+200,{button:'right'});assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['New file','New folder','Paste','Workspace default','Properties']);
  await page.getByRole('menuitem',{name:'New file',exact:true}).click();await page.getByLabel('File name',{exact:true}).fill('created.txt');await page.getByRole('button',{name:'Continue',exact:true}).click();await row('created.txt').waitFor();assert.equal((await stat(controls+'/created.txt')).size,0);assert.equal((await stat(controls+'/created.txt')).uid,Number(fields[2]));
  await page.mouse.click(bounds.x+10,bounds.y+240,{button:'right'});await page.getByRole('menuitem',{name:'New folder',exact:true}).click();await page.getByLabel('Folder name',{exact:true}).fill('created-folder');await page.getByRole('button',{name:'Continue',exact:true}).click();await row('created-folder').waitFor();assert.ok((await stat(controls+'/created-folder')).isDirectory());
  await file.getByRole('button',{name:'New file',exact:true}).click();await page.getByLabel('File name',{exact:true}).fill('a.txt');const collision=page.waitForResponse(r=>r.url().includes('/api/upload?'));await page.getByRole('button',{name:'Continue',exact:true}).click();assert.equal((await collision).status(),400);assert.equal(await readFile(controls+'/a.txt','utf8'),'a');
@@ -98,7 +97,7 @@ try{
  await row('b.txt').locator('.file-name').click({modifiers:['Control']});await file.getByRole('button',{name:'Properties',exact:true}).click();await properties.waitFor();assert.equal(await property('Name'),'2 items');await properties.getByRole('button',{name:'Close dialog',exact:true}).click();
  await page.mouse.click(bounds.x+10,bounds.y+bounds.height-30,{button:'right'});await page.getByRole('menuitem',{name:'Properties',exact:true}).click();await properties.waitFor();assert.equal(await property('Path'),controls);assert.equal(await property('Type'),'Directory');assert.deepEqual(await selected(),[]);await properties.getByRole('button',{name:'Close dialog',exact:true}).click();
  await navigate(controls+'/created-folder');await file.getByRole('button',{name:'Properties',exact:true}).click();await properties.waitFor();assert.equal(await property('Path'),controls+'/created-folder');assert.equal(await property('Type'),'Directory');
- await properties.getByRole('textbox',{name:'Permissions',exact:true}).fill('0750');await properties.getByRole('button',{name:'Save permissions',exact:true}).click();await properties.waitFor({state:'detached'});await file.locator('.file-list:not(.loading)').waitFor();assert.equal((await stat(controls+'/created-folder')).mode&0o777,0o750);
+ await properties.getByRole('textbox',{name:'Permissions',exact:true}).fill('0750');await properties.getByRole('button',{name:'Apply',exact:true}).click();await properties.waitFor({state:'detached'});await file.locator('.file-list:not(.loading)').waitFor();assert.equal((await stat(controls+'/created-folder')).mode&0o777,0o750);
  await navigate('/');await file.getByRole('button',{name:'Properties',exact:true}).click();await properties.waitFor();assert.equal(await property('Path'),'/');assert.equal(await property('Type'),'Directory');await properties.getByRole('button',{name:'Close dialog',exact:true}).click();await navigate(controls);
  check('background Properties targets the current folder; footer handles empty folders/root, permissions and selected files');
  // Selected rows drag their group anywhere; unselected stats and margins start rectangles.
@@ -406,7 +405,7 @@ try{
  const closingSessions=await(await api('/terminals')).json(),closingIDs=await page.locator('.terminal-view').evaluateAll(nodes=>nodes.map(node=>node.dataset.terminal));
  await page.getByRole('button',{name:'New workspace',exact:true}).click();assert.equal(await page.getByRole('dialog').count(),0);await page.locator('.workspace-tab-item.active .workspace-menu').click();await page.getByRole('menuitem',{name:'Rename',exact:true}).click();await page.locator('dialog input').fill('Keep alive');await page.getByRole('button',{name:'Continue',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.terminal-view')?.dataset.state==='connected');await page.waitForFunction(()=>document.querySelectorAll('.board').length===1);const keepID=await page.locator('.terminal-view').getAttribute('data-terminal');
  await page.getByRole('button',{name:'Features',exact:true}).click({button:'right'});
- assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Activate','Rename','Close']);
+ assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Activate','Rename','Default directory','Close']);
  assert.equal(await page.locator('.workspace-tab-item.active .workspace-tab').textContent(),'Keep alive');
  await page.getByRole('menuitem',{name:'Rename',exact:true}).click();await page.locator('dialog input').fill('Renamed features');await page.getByRole('button',{name:'Continue',exact:true}).click();
  assert.equal(await page.locator('.workspace-tab-item.active .workspace-tab').textContent(),'Keep alive');

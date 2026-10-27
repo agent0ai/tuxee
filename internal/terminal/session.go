@@ -110,7 +110,7 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground string) (*Session, error) {
+func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground, shell string, prompt bool) (*Session, error) {
 	if !validSize(columns, rows) {
 		return nil, errors.New("invalid terminal dimensions")
 	}
@@ -163,13 +163,16 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 			releaseAudio()
 		}
 	}()
-	args := []string{"-l"}
-	if command != "" {
-		args = []string{"-lc", command}
+	cmd, releaseShell, err := prepareShell(user, shell, command, prompt)
+	if err != nil {
+		engine.Close()
+		return nil, err
 	}
-	// Reset only the child's mask before login profiles; keep server files private.
-	args = append([]string{"-c", `umask 022; exec "$@"`, "tuxee-shell", user.Shell}, args...)
-	cmd := user.Command(context.Background(), "/bin/sh", args...)
+	defer func() {
+		if !created {
+			releaseShell()
+		}
+	}()
 	cmd.Dir = directory
 	cmd.Env = append(cmd.Env, audioEnv...)
 	if display != nil {
@@ -223,6 +226,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		s.mu.Unlock()
 		display.Close()
 		releaseAudio()
+		releaseShell()
 		close(s.exited)
 	}()
 	return s, nil

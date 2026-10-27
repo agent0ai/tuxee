@@ -22,7 +22,7 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 
 # Child DOX Index
 
-- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, display interpreter, attachments, and explicit termination.
+- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, shell commands and embedded prompts, display interpreter, attachments, and explicit termination.
 - [desktop/AGENTS.md](desktop/AGENTS.md): Lazy terminal X/VNC runtimes, native window discovery, credentials and process cleanup.
 - [audio/AGENTS.md](audio/AGENTS.md): Shared per-user PulseAudio, lazy client endpoints, silence suppression and browser capture subscriptions.
 

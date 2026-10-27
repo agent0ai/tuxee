@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/model.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/model.mjs' });
-const { newWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
+const { directoryPath, newWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
+for (const [path, expected] of [[undefined, '/home/test'], ['', '/home/test'], ['~', '/home/test'], ['~/projects with spaces', '/home/test/projects with spaces'], ['/tmp/', '/tmp'], ['/', '/']]) assert.equal(directoryPath(path, '/home/test'), expected);
+for (const path of ['relative', '~other', '/tmp/\0']) assert.throws(() => directoryPath(path, '/home/test'));
 for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280, 800, 4, 2, 3], [1440, 1000, 4, 2, 3], [1920, 1080, 4, 2, 4], [2560, 1080, 4, 2, 4], [5120, 1440, 4, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 2, 4, 2], [844, 390, 4, 2, 2], [1000, 1000, 4, 2, 2]]) {
     const ws = newWorkspace('test', '/home/test', width, height);
     assert.equal(ws.columns, columns);
     assert.equal(ws.rows, rows);
     assert.equal(ws.panels.length, count);
-    assert.deepEqual(ws.panels.filter(panel => panel.kind === 'files').map(panel => panel.path), count >= 3 ? ['/', '/home/test'] : ['/']);
+    assert.deepEqual(ws.panels.filter(panel => panel.kind === 'files').map(panel => panel.path), count >= 3 ? ['/home/test', '/home/test'] : ['/home/test']);
     if (count === 3) assert.deepEqual(ws.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]), [
         ['files', 0, 0, 2, 1], ['files', 0, 1, 2, 1], ['terminal', 2, 0, 2, 2],
     ]);
@@ -20,7 +22,7 @@ for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280
     assert.equal(ws.panels.length, columns * rows);
     assert.equal(addCompact(ws, newPanel('files', '/')), false);
 }
-assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/', '/root']);
+assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/root', '/root']);
 for (const [columns, rows, occupied, terminalRect, fileRect] of [
     [4, 2, [], [0, 0, 4, 2], [0, 0, 1, 2]],
     [2, 4, [], [0, 0, 2, 4], [0, 0, 1, 4]],

@@ -65,7 +65,7 @@ func TestShellUmask(t *testing.T) {
 			if tc.interactive {
 				startup = ""
 			}
-			s, err := m.Create(user, dir, "mask", 80, 24, startup, "", "")
+			s, err := m.Create(user, dir, "mask", 80, 24, startup, "", "", user.Shell, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,7 +182,7 @@ func TestDetachedPTYAndController(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done", "", "")
+	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "printf 'STARTED'; while :; do printf '.'; sleep 0.05; done", "", "", "/bin/sh", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestManagerCloseWaitsForClosingTerminal(t *testing.T) {
 	m := NewManager()
 	defer m.Close()
 	dir := t.TempDir()
-	s, err := m.Create(user, dir, "closing", 80, 24, "trap '' HUP; printf ready > ready; exec sleep 60", "", "")
+	s, err := m.Create(user, dir, "closing", 80, 24, "trap '' HUP; printf ready > ready; exec sleep 60", "", "", "/bin/sh", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestReattachEndedProcessReportsExit(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'", "", "")
+	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'", "", "", "/bin/sh", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestSnapshotPermitFollowsAttachment(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "snapshot", 80, 24, "exec sleep 60", "", "")
+	s, err := m.Create(user, t.TempDir(), "snapshot", 80, 24, "exec sleep 60", "", "", "/bin/sh", false)
 	if err != nil {
 		t.Fatal(err)
 	}

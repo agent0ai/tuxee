@@ -12,6 +12,7 @@ export type Panel = {
 export type Workspace = {
     id: string;
     name: string;
+    defaultDirectory?: string;
     columns: number;
     rows: number;
     panels: Panel[];
@@ -19,6 +20,9 @@ export type Workspace = {
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
+    shellCommand?: string;
+    useTuxeePrompt?: boolean;
+    defaultDirectory?: string;
     serverName?: string;
     serverColor?: string;
     terminalBackground?: string;
@@ -48,6 +52,8 @@ export type Hooks = {
     changed: (immediate?: boolean) => void | Promise<void>;
     close: () => void;
     openTerminal: (path: string) => void;
+    defaultDirectory: () => string;
+    workspaceDefault: (path: string) => Promise<void>;
     user: User;
     title?: (name: string) => void;
 };
@@ -59,6 +65,13 @@ export type View = {
 };
 export const id = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 export const join = (path: string, name: string) => `${path.replace(/\/$/, '')}/${name}`;
+export function directoryPath(path: string | undefined, home: string): string {
+    path = path || '~';
+    if (path === '~') path = home;
+    else if (path.startsWith('~/')) path = join(home, path.slice(2));
+    if (!path.startsWith('/') || path.includes('\0')) throw new Error('Directory must be an absolute path or start with ~/');
+    return path.replace(/\/+$/, '') || '/';
+}
 export function dimensions(width = innerWidth, height = innerHeight): [number, number] {
     return height > width ? [2, 4] : [4, 2];
 }
@@ -72,15 +85,15 @@ export function orientWorkspace(ws: Workspace, width = innerWidth, height = inne
     return true;
 }
 export function newPanel(kind: Kind, path: string): Panel { return { id: id(), kind, path, x: 0, y: 0, w: 1, h: 1 }; }
-export function newWorkspace(name: string, home: string, width = innerWidth, height = innerHeight): Workspace {
+export function newWorkspace(name: string, directory: string, width = innerWidth, height = innerHeight): Workspace {
     const [columns, rows] = dimensions(width, height);
-    const panels = [newPanel('files', '/'), newPanel('terminal', home)].map((panel, i) => ({ ...panel, x: columns === 2 ? 0 : i * 2, y: columns === 2 ? i * 2 : 0, w: 2, h: 2 }));
+    const panels = [newPanel('files', directory), newPanel('terminal', directory)].map((panel, i) => ({ ...panel, x: columns === 2 ? 0 : i * 2, y: columns === 2 ? i * 2 : 0, w: 2, h: 2 }));
     if (columns === 4 && width >= 1200 && height >= 700) {
         panels[0].h = 1;
-        panels.splice(1, 0, { ...newPanel('files', home), x: 0, y: 1, w: 2, h: 1 });
+        panels.splice(1, 0, { ...newPanel('files', directory), x: 0, y: 1, w: 2, h: 1 });
         if (width >= 1920 && height >= 1000) {
             panels[2].h = 1;
-            panels.push({ ...newPanel('terminal', home), x: 2, y: 1, w: 2, h: 1 });
+            panels.push({ ...newPanel('terminal', directory), x: 2, y: 1, w: 2, h: 1 });
         }
     }
     return { id: id(), name, columns, rows, panels, active: panels[0].id };

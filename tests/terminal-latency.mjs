@@ -48,7 +48,7 @@ try {
         import { setCSRF } from './web/ui';
         window.mount = (me, id) => {
             setCSRF(me.csrf);
-            window.view = new TerminalView(document.querySelector('#terminal'), {id:'test',kind:'terminal',terminal:id}, {user:me.user, changed(){}});
+            window.view = new TerminalView(document.querySelector('#terminal'), {id:'test',kind:'terminal',terminal:id}, {user:me.user, defaultDirectory:()=>me.user.home, changed(){}});
         };
     `, resolveDir: process.cwd() }, bundle: true, platform: 'browser', format: 'esm', write: false });
     const page = await context.newPage(), errors = [];

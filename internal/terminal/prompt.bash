@@ -1,6 +1,5 @@
-# Root's container login prompt; keep other users and non-Bash shells unchanged.
+# Tuxee's optional prompt for this interactive Bash only.
 [ -n "${BASH_VERSION:-}" ] || return 0
-[ "${EUID:-1}" = 0 ] || return 0
 [[ $- == *i* ]] || return 0
 
 _tuxee_prompt() {
@@ -40,12 +39,12 @@ _tuxee_prompt() {
     return "$status"
 }
 
-for _tuxee_hook in "${PROMPT_COMMAND[@]}"; do
-    [[ $_tuxee_hook == _tuxee_prompt ]] && { unset _tuxee_hook; return 0; }
-done
-unset _tuxee_hook
 # The prompt already shows the active environment; avoid duplicate prefixes.
 VIRTUAL_ENV_DISABLE_PROMPT=1
 export CONDA_CHANGEPS1=false
+for _tuxee_hook in "${PROMPT_COMMAND[@]}"; do
+    [[ $_tuxee_hook == _tuxee_prompt ]] && { unset _tuxee_hook; _tuxee_prompt; return 0; }
+done
+unset _tuxee_hook
 _tuxee_prompt
 PROMPT_COMMAND+=(_tuxee_prompt)

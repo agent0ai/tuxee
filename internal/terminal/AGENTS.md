@@ -10,7 +10,13 @@ Own session identity, process groups, bounded output, browser controller leases,
 
 # Local Contracts
 
-Start shells with `umask 022` in the credential-dropped child before login startup files run, for both interactive and command terminals. System/user shell profiles may override it; commands and GUI apps inherit the resulting mask. Keep the server's `077` mask and private helper/runtime files unchanged. Exec the login shell in place to preserve the tracked PID and process-group cleanup.
+Start shells with `umask 022` in the credential-dropped child before login startup files run, for both interactive and command terminals. System/user shell profiles may override it; commands and GUI apps inherit the resulting mask. Keep the server's `077` mask and private helper/runtime files unchanged. Exec the selected shell in place to preserve the tracked PID and process-group cleanup.
+
+`shell.go` embeds the small shell startup/prompt scripts. Shell command defaults to `bash`; interpret its executable/arguments only in the credential-dropped child, never in the server. Set SHELL to the selected executable. Ordinary interactive shells use login startup; command terminals use `-lc` without prompt injection. Missing shells fail visibly; never install a shell or silently substitute one.
+
+The per-user prompt preference defaults on and affects only new interactive Bash, Zsh and Fish terminals. Write embedded scripts into a private per-session directory under `/tmp`, readable by its owner; remove it after shell exit or failed creation. Bash uses `--rcfile` and explicitly sources `/etc/profile` plus the first readable `.bash_profile`, `.bash_login` or `.profile`, then the app prompt. This mode is interactive rather than Bash's `login_shell` mode. Zsh temporarily redirects ZDOTDIR through startup wrappers, sources the user's files and restores ZDOTDIR before the prompt; Fish uses its native `--init-command`. Other shells retain their own prompts. Startup-disabling flags may bypass shell integration. Never edit user startup files, change their login shell, add prompt dependencies or install global profiles.
+
+`prompt.bash`, `prompt.zsh` and `prompt.fish` show a bold green `#36cfa7` home-abbreviated path, gold `#fdbc03` active virtualenv/Conda name, purple `#ad94f7` Git branch (short hash when detached), and default-foreground `❯`. Count the full inline text without color codes: below 25 characters stays inline; otherwise prepend a blank line and put `❯` on the second line. Bound Git calls to 250 ms, tolerate absent Git, sanitize control characters and render names as data, including Zsh percent escapes. Reset color before input, honor NO_COLOR/TERM=dumb, preserve existing prompt hooks and avoid duplicate environment labels. No runtimes, tags or commit counts.
 
 Attachment loss never kills a shell. There is no idle or detached timeout. Explicit termination, process exit, unrecoverable terminal failure, and server shutdown end it. User ownership is checked before attachment and control.
 
@@ -35,6 +41,8 @@ do not edit or commit it.
 # Verification
 
 Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Snapshot tests cover serialized byte limits, global admission/waiter bounds, cancellation and release on acknowledgement/closure. Use `-race` for lifecycle changes.
+
+`TestShellPrompt` uses real credential-dropped PTYs for Bash/Zsh/Fish, enabled/disabled prompts, startup files, selected SHELL and retained PID. `TestPromptLengthsAndLiteralNames` checks 24/25/26 characters, Unicode and literal unsafe names across installed shells; optional Zsh/Fish checks skip when unavailable. `bash tests/shell-prompt.bash` checks detailed Bash colors, metadata and hook behavior. `node tests/shell-settings.mjs` verifies settings through the real browser/API.
 
 `TestShellUmask` covers interactive/command root shells, an unprivileged shell, child commands, login-profile overrides, file/directory modes, unchanged shell PID and the server's private mask.
 

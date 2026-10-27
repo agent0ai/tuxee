@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
 set -eu
-prompt_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../internal/update" && pwd)
+prompt_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../internal/terminal" && pwd)
 if [[ ${1:-} != --interactive ]]; then
-    bash --noprofile --norc -c 'PS1=original; source "$1/root-prompt.bash"; [[ $PS1 == original ]] && ! declare -F _tuxee_prompt' _ "$prompt_directory"
-    sh -c 'PS1=original; . "$1/root-prompt.bash"; [ "$PS1" = original ]' _ "$prompt_directory"
-    if [[ $EUID != 0 ]]; then echo 'SKIP: root prompt fixtures require root'; exit 0; fi
-    nonroot_profile=$(mktemp /tmp/tuxee-root-prompt.XXXXXX)
-    trap 'rm -f -- "$nonroot_profile"' EXIT
-    cp "$prompt_directory/root-prompt.bash" "$nonroot_profile"
-    chmod 0644 "$nonroot_profile"
-    setpriv --reuid=65534 --regid=65534 --clear-groups bash --noprofile --norc -ic 'PS1=original; source "$1"; [[ $PS1 == original ]] && ! declare -F _tuxee_prompt' _ "$nonroot_profile"
-    rm -- "$nonroot_profile"
-    trap - EXIT
+    bash --noprofile --norc -c 'PS1=original; source "$1/prompt.bash"; [[ $PS1 == original ]] && ! declare -F _tuxee_prompt' _ "$prompt_directory"
+    sh -c 'PS1=original; . "$1/prompt.bash"; [ "$PS1" = original ]' _ "$prompt_directory"
     exec bash --noprofile --norc -ic 'source "$1" --interactive' _ "${BASH_SOURCE[0]}"
 fi
 fixture=$(mktemp -d /tmp/tuxee.XXXXXX)
 trap 'rm -rf -- "$fixture"' EXIT
 unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV NO_COLOR
 PROMPT_COMMAND=': existing-hook'
-source "$prompt_directory/root-prompt.bash"
-source "$prompt_directory/root-prompt.bash"
+source "$prompt_directory/prompt.bash"
+source "$prompt_directory/prompt.bash"
 [[ ${#PROMPT_COMMAND[@]} == 2 && ${PROMPT_COMMAND[0]} == ': existing-hook' && ${PROMPT_COMMAND[1]} == _tuxee_prompt ]]
 PROMPT_COMMAND=(': first-hook' ': second-hook')
-source "$prompt_directory/root-prompt.bash"
+source "$prompt_directory/prompt.bash"
 [[ ${#PROMPT_COMMAND[@]} == 3 && ${PROMPT_COMMAND[1]} == ': second-hook' ]]
 render() { _tuxee_prompt; printf -v rendered '%s' "${PS1@P}"; rendered=${rendered//[$'\r\001\002']/}; }
 commit() { git -c user.name='Jan Tomášek' -c user.email='tomasekhonza@gmail.com' commit --quiet --allow-empty -m "${1:-Prompt fixture}"; }

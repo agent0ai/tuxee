@@ -9,7 +9,7 @@ import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
+import { directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
@@ -68,6 +68,7 @@ function hidePreview() {
     else previewRemoval = setTimeout(() => preview.remove(), 80);
 }
 const current = () => settings.workspaces.find(ws => ws.id === settings.current)!;
+const defaultDirectory = (ws?: Workspace) => directoryPath(ws?.defaultDirectory || settings.defaultDirectory, user.home);
 const changed = (immediate = false) => { if (!loggedIn)
     return; clearTimeout(saveTimer); if (immediate)
     return save(); saveTimer = setTimeout(() => save().catch(notify), 250); };
@@ -200,7 +201,7 @@ async function load(signal?: AbortSignal) {
         try { await save(); } catch (error) { settings.monitoring = previous; throw error; }
     });
     if (!settings.workspaces.length) {
-        const ws = newWorkspace('Workspace 1', user.home);
+        const ws = newWorkspace('Workspace 1', defaultDirectory());
         settings.workspaces = [ws];
         settings.current = ws.id;
         await save();
@@ -223,7 +224,7 @@ function mountWorkspace(ws: Workspace): Mounted {
         const content = el('div', 'menu-actions');
         let close = () => {};
         for (const [kind, label, name] of [['terminal', 'Add terminal', 'SquareTerminal'], ['files', 'Add file browser', 'FolderPlus']] as const) {
-            const control = button(label, name, () => { close(); addPanel(kind, user.home, undefined, near); });
+            const control = button(label, name, () => { close(); addPanel(kind, defaultDirectory(ws), undefined, near); });
             control.append(el('span', '', label)); control.setAttribute('role', 'menuitem');
             control.disabled = ws.panels.length >= 8; content.append(control);
         }
@@ -419,7 +420,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 grip.onpointerdown = event => beginPanelResize(item!.owner, panel, edge, event);
                 node.append(grip);
             }
-            const hooks = { user, changed, close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
+            const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
@@ -621,7 +622,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     if (existing && mounted.items.get(existing.id)?.node.dataset.moving) return;
     cancelDrag(); finishSlide();
     const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
-    const panel = existing || newPanel(kind, user.home);
+    const panel = existing || newPanel(kind, defaultDirectory(ws));
     const node = existing ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
     node.getAnimations().forEach(animation => animation.cancel());
     const origin = existing ? node.getBoundingClientRect() : new DOMRect(event.clientX, event.clientY, 180, 100);
@@ -765,14 +766,14 @@ function layoutChanged(ws: Workspace, before?: Panel[]) {
     changed();
     if (ws === current()) updateLayoutButton();
 }
-function addPanel(kind: Kind, path = user.home, terminal?: TerminalInfo, near?: { x: number; y: number }) {
+function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
     if (!addCompact(ws, panel, near)) throw new Error('Workspace full');
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function addSplitPanel(kind: Kind, target: Panel) {
-    const ws = current(), panel = newPanel(kind, user.home);
+    const ws = current(), panel = newPanel(kind, defaultDirectory(ws));
     const edge = target.w > target.h || target.w === target.h && target.kind === 'files' ? 'right' : 'bottom';
     if (!split(ws, target.id, panel, edge)) return;
     ws.active = panel.id; layoutChanged(ws); render();
@@ -858,7 +859,7 @@ async function switchWorkspace(value: string, checked = false) {
 async function createWorkspace() {
     if (settings.workspaces.length >= 12) { notify('Workspace limit reached'); return; }
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
-    const ws = newWorkspace(`Workspace ${settings.workspaces.length + 1}`, user.home); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
+    const ws = newWorkspace(`Workspace ${settings.workspaces.length + 1}`, defaultDirectory()); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
 }
 async function renameWorkspace(ws: Workspace) {
     const name = await ask('Rename workspace', 'Name', ws.name);
@@ -866,10 +867,40 @@ async function renameWorkspace(ws: Workspace) {
     if (name.length > 60) throw new Error('Name is too long');
     ws.name = name; changed(); renderChrome();
 }
+async function setWorkspaceDirectory(ws: Workspace, path: string) {
+    const previous = ws.defaultDirectory;
+    if (!path || directoryPath(path, user.home) === defaultDirectory()) delete ws.defaultDirectory;
+    else ws.defaultDirectory = path;
+    try { await save(); }
+    catch (error) { ws.defaultDirectory = previous; throw error; }
+}
+function editWorkspaceDirectory(ws: Workspace) {
+    const form = el('form', 'form'), input = el('input'), field = el('label', 'field', 'Directory');
+    input.value = ws.defaultDirectory || settings.defaultDirectory || '~';
+    input.maxLength = 4096; input.autocomplete = 'off'; input.spellcheck = false;
+    field.append(input);
+    const description = el('small', 'muted', 'Used as entry directory for new terminals and file managers.');
+    description.id = 'default-directory-description'; input.setAttribute('aria-describedby', description.id);
+    const submit = button('Save', undefined, undefined, 'primary'); submit.type = 'submit';
+    const actions = el('div', 'actions');
+    actions.append(button('Cancel', undefined, () => dialog.close()), submit);
+    form.append(field, description, actions);
+    const dialog = modal('Default directory', form);
+    form.onsubmit = async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        submit.disabled = true;
+        try { await setWorkspaceDirectory(ws, input.value); dialog.close(); }
+        catch (error) { notify(error, form); }
+        finally { submit.disabled = false; }
+    };
+    input.focus(); input.select();
+}
 function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; y: number }) {
     tabMenu(tab, `${ws.name} workspace`, ws.id === settings.current, [
         ['Activate', 'ArrowRight', () => switchWorkspace(ws.id)],
         ['Rename', 'Pencil', () => renameWorkspace(ws)],
+        ['Default directory', 'Folder', () => editWorkspaceDirectory(ws)],
         ['Close', 'X', () => closeWorkspace(ws)],
     ], position);
 }
@@ -934,7 +965,7 @@ async function closeWorkspace(ws = current()) {
     settings.workspaces = settings.workspaces.filter(value => value.id !== ws.id);
     warmWorkspaces.delete(ws.id);
     if (value !== mounted && value !== outgoing) destroyWorkspace(value);
-    if (!settings.workspaces.length) settings.workspaces.push(newWorkspace('Workspace 1', user.home));
+    if (!settings.workspaces.length) settings.workspaces.push(newWorkspace('Workspace 1', defaultDirectory()));
     if (active) settings.current = settings.workspaces[Math.max(0, index - 1)].id;
     changed(); render(active ? (index ? -1 : 1) : 0);
 }
@@ -1080,7 +1111,21 @@ async function openSettings() {
     serverName.placeholder = hostname;
     const label = el('label', 'field');
     label.append(el('span', 'settings-label', 'Server name'));
-    label.append(serverName); content.append(label);
+    label.append(serverName);
+    const directory = el('input');
+    directory.name = 'defaultDirectory'; directory.value = settings.defaultDirectory || '~';
+    directory.maxLength = 4096; directory.autocomplete = 'off'; directory.spellcheck = false;
+    const directoryLabel = el('label', 'field');
+    directoryLabel.append(el('span', 'settings-label', 'Default directory'), directory);
+    const shell = el('input');
+    shell.name = 'shellCommand'; shell.value = settings.shellCommand || 'bash';
+    shell.maxLength = 4096; shell.autocomplete = 'off'; shell.spellcheck = false;
+    const shellLabel = el('label', 'field');
+    shellLabel.append(el('span', 'settings-label', 'Shell command'), shell);
+    const prompt = el('input'); prompt.type = 'checkbox'; prompt.name = 'useTuxeePrompt';
+    prompt.setAttribute('role', 'switch'); prompt.checked = settings.useTuxeePrompt !== false;
+    const promptLabel = el('label', 'settings-switch');
+    promptLabel.append(prompt, el('span', '', 'Use Tuxee shell prompt'));
     let markerColor = settings.serverColor || '';
     const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
     const color = el('input');
@@ -1092,7 +1137,7 @@ async function openSettings() {
     reset.disabled = !markerColor;
     color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
     const colors = el('div', 'settings-color'); colors.append(color, reset);
-    const marker = el('div', 'field'); marker.append(colorLabel, colors); content.append(marker);
+    const marker = el('div', 'field'); marker.append(colorLabel, colors);
     const terminalColors = { terminalBackground: settings.terminalBackground || '', terminalBackgroundLight: settings.terminalBackgroundLight || '' };
     const backgroundField = el('fieldset', 'field terminal-colors');
     backgroundField.append(el('legend', 'settings-label', 'Terminal background'));
@@ -1113,14 +1158,14 @@ async function openSettings() {
         const controls = el('div', 'settings-color'); controls.append(backgroundLabel, background, resetBackground);
         backgroundColumns.append(controls);
     }
-    backgroundField.append(backgroundColumns); content.append(backgroundField);
+    backgroundField.append(backgroundColumns);
     const uploads = el('select');
     for (let n = 1; n <= 8; n++) {
         const option = el('option', '', n === 4 ? '4 (default)' : String(n));
         option.value = String(n); uploads.append(option);
     }
     uploads.value = String(settings.uploadConcurrency ?? 4);
-    const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', 'Parallel uploads'), uploads); content.append(uploadsLabel);
+    const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', 'Parallel uploads'), uploads);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';
     const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
@@ -1137,7 +1182,7 @@ async function openSettings() {
     const submit = button('Save');
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(details, actions);
+    content.append(label, marker, el('hr'), shellLabel, promptLabel, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
     const dialog = modal('Settings', content);
     dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
     content.onsubmit = async event => {
@@ -1149,13 +1194,17 @@ async function openSettings() {
         const previousUploads = settings.uploadConcurrency;
         const previousBackground = settings.terminalBackground;
         const previousLightBackground = settings.terminalBackgroundLight;
+        const previousDirectory = settings.defaultDirectory;
+        const previousShell = settings.shellCommand, previousPrompt = settings.useTuxeePrompt;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
+        settings.defaultDirectory = directory.value || '~';
+        settings.shellCommand = shell.value.trim() || 'bash'; settings.useTuxeePrompt = prompt.checked;
         Object.assign(settings, terminalColors);
         serverName.value = settings.serverName;
         try { await save(); setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close(); }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

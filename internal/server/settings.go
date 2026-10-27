@@ -27,13 +27,14 @@ type Panel struct {
 	H        int    `json:"h"`
 }
 type Workspace struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	Columns int     `json:"columns"`
-	Rows    int     `json:"rows"`
-	Panels  []Panel `json:"panels"`
-	Active  string  `json:"active"`
-	Layout  *Layout `json:"layout,omitempty"`
+	DefaultDirectory string  `json:"defaultDirectory,omitempty"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Columns          int     `json:"columns"`
+	Rows             int     `json:"rows"`
+	Panels           []Panel `json:"panels"`
+	Active           string  `json:"active"`
+	Layout           *Layout `json:"layout,omitempty"`
 }
 type PanelPosition struct {
 	ID string `json:"id"`
@@ -47,6 +48,9 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
+	ShellCommand            string      `json:"shellCommand,omitempty"`
+	UseTuxeePrompt          *bool       `json:"useTuxeePrompt,omitempty"`
+	DefaultDirectory        string      `json:"defaultDirectory,omitempty"`
 	ServerName              string      `json:"serverName,omitempty"`
 	ServerColor             string      `json:"serverColor,omitempty"`
 	TerminalBackground      string      `json:"terminalBackground,omitempty"`
@@ -84,6 +88,13 @@ func validateSettings(value *Settings) error {
 }
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
+	value.ShellCommand = strings.TrimSpace(value.ShellCommand)
+	if len(value.ShellCommand) > 4096 || strings.ContainsAny(value.ShellCommand, "\x00\r\n") {
+		return errors.New("shell command must be at most 4096 bytes with no NUL or line breaks")
+	}
+	if err := validateDefaultDirectory(value.DefaultDirectory); err != nil {
+		return err
+	}
 	if n := value.UploadConcurrency; n != nil && (*n < 1 || *n > 8) {
 		return errors.New("parallel uploads must be between 1 and 8")
 	}
@@ -135,6 +146,9 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	seen := map[string]bool{}
 	current := value.Current == "" && len(value.Workspaces) == 0
 	for _, ws := range value.Workspaces {
+		if err := validateDefaultDirectory(ws.DefaultDirectory); err != nil {
+			return err
+		}
 		if ws.Panels == nil {
 			return errors.New("workspace panels must be an array")
 		}
@@ -159,7 +173,7 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 			}
 			seen[panel.ID] = true
 			panelIDs[panel.ID] = true
-			if panel.Path != "" && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
+			if panel.Path != "" && !(panel.Kind == "files" && panel.Path == files.TrashPath) && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
 				return errors.New("invalid panel location")
 			}
 			positions = append(positions, PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H})
@@ -186,6 +200,23 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 		return errors.New("current workspace does not exist")
 	}
 	return nil
+}
+
+func validateDefaultDirectory(path string) error {
+	if len(path) > 4096 || strings.ContainsRune(path, 0) || path != "" && path != "~" && !strings.HasPrefix(path, "~/") && !filepath.IsAbs(path) {
+		return errors.New("default directory must be an absolute path or start with ~/ (at most 4096 bytes, no NUL)")
+	}
+	return nil
+}
+
+func (s Settings) defaultDirectory(home string) string {
+	if s.DefaultDirectory == "" || s.DefaultDirectory == "~" {
+		return home
+	}
+	if strings.HasPrefix(s.DefaultDirectory, "~/") {
+		return filepath.Join(home, s.DefaultDirectory[2:])
+	}
+	return s.DefaultDirectory
 }
 
 func migrateSettings(value *Settings) error {

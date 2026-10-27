@@ -31,7 +31,7 @@ const api = (path, method, data) => context.request.fetch(base + '/api' + path, 
 const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
 page.setDefaultTimeout(10000);
 const file = page.locator('.file-view'), more = file.getByRole('button', { name: 'File actions', exact: true }), menu = page.locator('.menu-actions.popover-menu');
-const names = ['Parent directory', 'Home directory', 'Refresh files', 'New folder', 'New file', 'Upload files', 'Download selected', 'Cut', 'Copy', 'Paste', 'Open terminal here'];
+const names = ['Parent directory', 'Home directory', 'Trash bin', 'Refresh files', 'New folder', 'New file', 'Upload files', 'Download selected', 'Cut', 'Copy', 'Paste', 'Open terminal here'];
 async function singleRows() {
  await page.waitForTimeout(150); // Wait for the workspace's debounced viewport reconciliation.
  await page.locator('.grid-stack-item').evaluateAll(nodes => Promise.all(nodes.flatMap(node => node.getAnimations().map(animation => animation.finished.catch(() => {})))));
@@ -44,7 +44,7 @@ async function singleRows() {
  assert.equal(await page.locator('.panel-header .path-input').count(), compact ? 0 : 1);
  assert.equal(await file.locator('.file-nav').count(), compact ? 1 : 0);
  assert.equal(await page.getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);
- assert.ok(await file.locator('.file-navigation-separator').evaluate(node => node.previousElementSibling.title === 'Home directory' && node.nextElementSibling.title === 'Refresh files'));
+ assert.ok(await file.locator('.file-navigation-separator').evaluate(node => node.previousElementSibling.title === 'Trash bin' && node.nextElementSibling.title === 'Refresh files'));
  assert.ok(await file.locator('.file-navigation').first().evaluate(node => getComputedStyle(node).color !== getComputedStyle(node.parentElement.querySelector('[title="Refresh files"]')).color));
 }
 try {
@@ -134,7 +134,7 @@ try {
   await more.click(); await menu.waitFor();
   const items = await menu.getByRole('menuitem').allTextContents();
   assert.deepEqual(items.slice(0, hidden.length), hidden);
-  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Paste', 'Properties'].filter(label => !hidden.includes(label)));
+  assert.deepEqual(items.slice(hidden.length), ['New file', 'New folder', 'Paste', 'Workspace default', 'Properties'].filter(label => !hidden.includes(label)));
   assert.equal(await menu.getByRole('separator').count(), hidden.length ? 1 : 0);
   if (hidden.length) assert.ok(await menu.getByRole('separator').evaluate(node => {
    const rect = node.getBoundingClientRect();

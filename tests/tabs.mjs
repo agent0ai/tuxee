@@ -68,7 +68,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to workspace'] : []), ...(canRename ? ['Rename'] : []), 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to workspace'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Default directory']), 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -124,7 +124,7 @@ try {
     const terminalPID = (await (await api(`/terminals/${terminalID}`)).json()).pid;
     await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
     await workspace('other-0').getByRole('button', { name: 'Workspace menu', exact: true }).click();
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     save = saved(); await renameDialog('workspace', 'A much wider workspace'); await save;

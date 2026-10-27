@@ -39,18 +39,20 @@ type Request struct {
 }
 
 type Entry struct {
-	Name      string    `json:"name"`
-	Path      string    `json:"path"`
-	Directory bool      `json:"directory"`
-	Symlink   bool      `json:"symlink"`
-	Size      int64     `json:"size"`
-	Mode      string    `json:"mode"`
-	UID       uint32    `json:"uid"`
-	GID       uint32    `json:"gid"`
-	Modified  time.Time `json:"modified"`
-	Accessed  time.Time `json:"accessed"`
-	Changed   time.Time `json:"changed"`
-	Link      string    `json:"link,omitempty"`
+	OriginalPath string    `json:"originalPath,omitempty"`
+	Deleted      string    `json:"deleted,omitempty"`
+	Name         string    `json:"name"`
+	Path         string    `json:"path"`
+	Directory    bool      `json:"directory"`
+	Symlink      bool      `json:"symlink"`
+	Size         int64     `json:"size"`
+	Mode         string    `json:"mode"`
+	UID          uint32    `json:"uid"`
+	GID          uint32    `json:"gid"`
+	Modified     time.Time `json:"modified"`
+	Accessed     time.Time `json:"accessed"`
+	Changed      time.Time `json:"changed"`
+	Link         string    `json:"link,omitempty"`
 }
 
 type Response struct {
@@ -130,6 +132,10 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
+	if strings.HasPrefix(r.Operation, "trash-") || r.Operation == "trash" {
+		response, err := trashOperation(ctx, r)
+		return response, nil, err
+	}
 	if r.Operation == "settings-load" || r.Operation == "settings-save" {
 		home, err := os.UserHomeDir()
 		if err != nil {
