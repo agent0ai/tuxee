@@ -93,6 +93,7 @@ try {
                 const viewport = { width: Math.round(width / zoom), height: Math.round(height / zoom) };
                 await display.send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: scale * zoom, mobile: false });
                 await page.waitForTimeout(350);
+                await page.locator('.grid-stack-item').evaluateAll(nodes => Promise.allSettled(nodes.flatMap(node => node.getAnimations()).map(animation => animation.finished)));
                 const label = `${theme} ${width}x${height}, scale ${scale}, zoom ${zoom}`;
                 if (viewport.width < 760 || viewport.height < 480) {
                     assert.equal(await page.locator('.panel-resize:visible').count(), 0, label);

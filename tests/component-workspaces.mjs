@@ -86,13 +86,13 @@ try {
     await page.mouse.click(grid.x + grid.width * .88, grid.y + grid.height * .75, { button: 'right' });
     assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser']);
     await page.screenshot({ path: 'test-results/component-add-menu.png' });
-    const save = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT');
+    const save = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === 3);
     await menu.getByRole('menuitem', { name: 'Add file browser', exact: true }).click(); await save;
     const added = (await snapshot()).workspaces[0].panels.find(panel => !['files', 'shell'].includes(panel.id));
     assert.deepEqual([added.x, added.y, added.w, added.h], [3, 0, 1, 2]);
     assert.ok(await shellDOM.evaluate(node => node === document.querySelector('[data-panel=shell] .xterm')));
     await page.mouse.click(grid.x + grid.width * .625, grid.y + grid.height * .75, { button: 'right' });
-    const terminalSave = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT');
+    const terminalSave = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === 4);
     await menu.getByRole('menuitem', { name: 'Add terminal', exact: true }).click(); await terminalSave;
     const addedTerminal = (await snapshot()).workspaces[0].panels.find(panel => !['files', 'shell', added.id].includes(panel.id));
     await item(addedTerminal.id).locator('[data-state=connected]').waitFor();
