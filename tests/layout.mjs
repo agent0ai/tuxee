@@ -127,7 +127,7 @@ const added = newPanel('terminal', '/');
 assert.ok(place(hole, added, { x: 0, y: 0, w: 2, h: 2 }));
 assert.ok(validGrid(hole));
 console.log('PASS pointer grid targets: single cells, adjacent pairs, crossings, bounds and resizing into a smaller hole without moving neighbors');
-await build({ entryPoints: ['web/file-drag.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/file-drag.mjs' });
+await build({ stdin: { contents: "import { setTranslations } from './web/i18n'; import catalog from './internal/i18n/locales/en.json'; setTranslations({ language: 'en', direction: 'ltr', texts: catalog.texts, languages: [], cookie: '' }); export * from './web/file-drag';", resolveDir: process.cwd(), loader: 'ts' }, bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/file-drag.mjs' });
 const { shellPaths, fileGroupLabel } = await import('../.test-state/file-drag.mjs');
 const files = [{path:"/tmp/it's a file.txt",name:"it's a file.txt",directory:false}];
 assert.equal(shellPaths(files), "'/tmp/it'\\''s a file.txt' ");

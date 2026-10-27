@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/go-acme/lego/v4/challenge/tlsalpn01"
 )
@@ -25,21 +26,23 @@ type Options struct {
 	Automatic                       bool
 }
 type Status struct {
-	Host      string    `json:"host"`
-	Source    string    `json:"source"`
-	Expires   time.Time `json:"expires"`
-	Error     string    `json:"error,omitempty"`
-	Automatic bool      `json:"automatic"`
+	Text      *i18n.Message `json:"text,omitempty"`
+	Host      string        `json:"host"`
+	Source    string        `json:"source"`
+	Expires   time.Time     `json:"expires"`
+	Error     string        `json:"error,omitempty"`
+	Automatic bool          `json:"automatic"`
 }
 type record struct {
 	local, public *tls.Certificate
 	last          time.Time
 	err           string
+	text          *i18n.Message
 	pending       bool
 	used          time.Time
 }
 
-var errHostCapacity = errors.New("public enrollment is busy; using an uncached local certificate")
+var errHostCapacity = i18n.New("backend.tlsmanager.publicEnrollmentIsBusyUsingAnUncachedLocalCertificate")
 
 type Manager struct {
 	mu        sync.Mutex
@@ -54,7 +57,7 @@ type Manager struct {
 
 func New(options Options) (*Manager, error) {
 	if !filepath.IsAbs(options.Directory) {
-		return nil, errors.New("TLS state path must be absolute")
+		return nil, i18n.New("backend.tlsmanager.tlsStatePathMustBeAbsolute")
 	}
 	if err := os.MkdirAll(options.Directory, 0700); err != nil {
 		return nil, err
@@ -64,7 +67,7 @@ func New(options Options) (*Manager, error) {
 		return nil, err
 	}
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, errors.New("TLS state must be a real directory")
+		return nil, i18n.New("backend.tlsmanager.tlsStateMustBeARealDirectory")
 	}
 	if err = os.Chmod(options.Directory, 0700); err != nil {
 		return nil, err
@@ -92,8 +95,9 @@ func New(options Options) (*Manager, error) {
 			m.names = append(m.names, name)
 		}
 	}
-	if len(m.names) > 32 {
-		return nil, errors.New("at most 32 TLS hostnames are supported")
+	const maxTLSHostnames = 32
+	if len(m.names) > maxTLSHostnames {
+		return nil, i18n.New("backend.tlsmanager.hostnameCountLimit", i18n.Vars{"max": maxTLSHostnames})
 	}
 	for _, name := range m.names {
 		if _, err = m.ensureLocked(name); err != nil {
@@ -137,10 +141,12 @@ func (m *Manager) ensureLocked(name string) (*record, error) {
 		}
 		if err != nil {
 			r.public = nil
-			r.err = "Cached public certificate is unusable: " + err.Error()
+			r.text = &i18n.Message{Key: "tls.cachedUnusable", Vars: i18n.Vars{"detail": i18n.Describe(err)}}
+			r.err = i18n.New(r.text.Key, r.text.Vars).Error()
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		r.err = "Cannot read cached public certificate: " + err.Error()
+		r.text = &i18n.Message{Key: "tls.cachedUnreadable", Vars: i18n.Vars{"detail": i18n.Describe(err)}}
+		r.err = i18n.New(r.text.Key, r.text.Vars).Error()
 	}
 	m.records[name] = r
 	return r, nil
@@ -152,7 +158,7 @@ func (m *Manager) TLSConfig() *tls.Config {
 			m.mu.Lock()
 			defer m.mu.Unlock()
 			if m.challenge == nil {
-				return nil, errors.New("no TLS-ALPN challenge active")
+				return nil, i18n.New("backend.tlsmanager.noTLSALPNChallengeActive")
 			}
 			return &tls.Config{MinVersion: tls.VersionTLS12, NextProtos: []string{tlsalpn01.ACMETLS1Protocol}, Certificates: []tls.Certificate{*m.challenge}}, nil
 		}
@@ -215,6 +221,7 @@ func (m *Manager) Status(name string) Status {
 	status := Status{Host: name, Automatic: m.options.Automatic && publicName(name), Source: "local"}
 	if err != nil {
 		status.Error = err.Error()
+		status.Text = i18n.Describe(err)
 		return status
 	}
 	m.mu.Lock()
@@ -223,9 +230,11 @@ func (m *Manager) Status(name string) Status {
 	status.Expires = cert.Leaf.NotAfter
 	if r == nil {
 		status.Error = errHostCapacity.Error()
+		status.Text = i18n.Describe(errHostCapacity)
 		return status
 	}
 	status.Error = r.err
+	status.Text = r.text
 	if cert == r.public {
 		status.Source = "public"
 	}
@@ -251,8 +260,10 @@ func (m *Manager) Run(ctx context.Context) {
 			r.pending = false
 			if err != nil {
 				r.err = err.Error()
+				r.text = i18n.Describe(err)
 			} else {
 				r.err = ""
+				r.text = nil
 			}
 			m.mu.Unlock()
 			select {
@@ -282,11 +293,11 @@ func normalize(name string) (string, error) {
 		return ip.Unmap().String(), nil
 	}
 	if name == "" || len(name) > 253 {
-		return "", errors.New("invalid TLS hostname")
+		return "", i18n.New("backend.tlsmanager.invalidTLSHostname")
 	}
 	for _, part := range strings.Split(name, ".") {
 		if !label.MatchString(part) {
-			return "", errors.New("invalid TLS hostname")
+			return "", i18n.New("backend.tlsmanager.invalidTLSHostname")
 		}
 	}
 	return name, nil
@@ -323,11 +334,11 @@ func verifyPublic(ctx context.Context, name string) error {
 		return err
 	}
 	if len(addresses) == 0 {
-		return errors.New("hostname has no public addresses")
+		return i18n.New("backend.tlsmanager.hostnameHasNoPublicAddresses")
 	}
 	for _, ip := range addresses {
 		if !publicAddress(ip) {
-			return errors.New("public issuance requires exclusively public addresses")
+			return i18n.New("backend.tlsmanager.publicIssuanceRequiresExclusivelyPublicAddresses")
 		}
 	}
 	return nil

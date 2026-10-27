@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +12,7 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
@@ -62,10 +62,10 @@ func (m *Manager) acquire(user identity.User, browser bool) (*runtime, func(), e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
-		return nil, nil, errors.New("audio is stopping")
+		return nil, nil, i18n.New("backend.audio.audioIsStopping")
 	}
 	if !Available() {
-		return nil, nil, errors.New("audio runtime is unavailable")
+		return nil, nil, i18n.New("backend.audio.audioRuntimeIsUnavailable")
 	}
 	if m.users == nil {
 		m.users = make(map[uint32]*runtime)
@@ -81,7 +81,7 @@ func (m *Manager) acquire(user identity.User, browser bool) (*runtime, func(), e
 	}
 	if browser {
 		if a.browsers >= 8 {
-			return nil, nil, errors.New("too many audio listeners")
+			return nil, nil, i18n.New("backend.audio.tooManyAudioListeners")
 		}
 		a.browsers++
 	} else {
@@ -278,7 +278,7 @@ func (a *runtime) connect() (net.Conn, error) {
 		case <-a.ctx.Done():
 			return nil, a.ctx.Err()
 		case <-time.After(5 * time.Second):
-			return nil, errors.New("audio capture did not become ready")
+			return nil, i18n.New("backend.audio.audioCaptureDidNotBecomeReady")
 		}
 	}
 	upstream, err := (&net.Dialer{}).DialContext(a.ctx, "unix", a.dir+"/pulse/native")
@@ -287,7 +287,7 @@ func (a *runtime) connect() (net.Conn, error) {
 	}
 	if !sameUser(upstream.(*net.UnixConn), a.user.UID) {
 		upstream.Close()
-		return nil, errors.New("audio socket belongs to another user")
+		return nil, i18n.New("backend.audio.audioSocketBelongsToAnotherUser")
 	}
 	return upstream, nil
 }
@@ -306,7 +306,7 @@ func (a *runtime) startLocked() error {
 		return err
 	}
 	if a.terminals == 0 {
-		return errors.New("no running terminals")
+		return i18n.New("backend.audio.noRunningTerminals")
 	}
 	if a.process != nil {
 		select {
@@ -338,7 +338,7 @@ func (a *runtime) startLocked() error {
 		select {
 		case <-exited:
 			a.process = nil
-			return errors.New("audio server stopped during startup")
+			return i18n.New("backend.audio.audioServerStoppedDuringStartup")
 		case <-a.ctx.Done():
 			return a.ctx.Err()
 		case <-time.After(20 * time.Millisecond):
@@ -347,7 +347,7 @@ func (a *runtime) startLocked() error {
 	cmd.Process.Kill()
 	<-exited
 	a.process = nil
-	return errors.New("audio server startup timed out")
+	return i18n.New("backend.audio.audioServerStartupTimedOut")
 }
 
 func (a *runtime) captureLocked() error {

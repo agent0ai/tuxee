@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -23,6 +23,7 @@ import (
 )
 
 type Event struct {
+	Text       *i18n.Message   `json:"text,omitempty"`
 	Display    *desktop.State  `json:"display,omitempty"`
 	Type       string          `json:"type"`
 	Data       []byte          `json:"data,omitempty"`
@@ -38,6 +39,10 @@ type Event struct {
 // Bytes charges live output; serialized snapshots use separate recovery admission.
 func (e Event) Bytes() int {
 	n := len(e.Data) + len(e.Message) + len(e.Background) + len(e.Foreground) + 64
+	if e.Text != nil {
+		data, _ := json.Marshal(e.Text)
+		n += len(data)
+	}
 	if e.Display != nil {
 		for _, w := range e.Display.Windows {
 			n += len(w.Title) + len(w.Icon) + 64
@@ -110,23 +115,23 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground, shell string, prompt bool) (*Session, error) {
+func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground, shell string, prompt bool, language string) (*Session, error) {
 	if !validSize(columns, rows) {
-		return nil, errors.New("invalid terminal dimensions")
+		return nil, i18n.New("backend.terminal.invalidTerminalDimensions")
 	}
 	if directory == "" {
 		directory = user.Home
 	}
 	if !filepath.IsAbs(directory) || strings.ContainsRune(directory, 0) {
-		return nil, errors.New("working directory must be absolute")
+		return nil, i18n.New("backend.terminal.workingDirectoryMustBeAbsolute")
 	}
-	if len(name) > 80 || len(command) > 16384 {
-		return nil, errors.New("terminal name or command is too long")
+	if len(name) > maxTerminalNameBytes || len(command) > 16384 {
+		return nil, i18n.New("backend.terminal.terminalNameOrCommandIsTooLong")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
-		return nil, errors.New("server is stopping")
+		return nil, i18n.New("backend.terminal.serverIsStopping")
 	}
 	count := 0
 	for _, s := range m.sessions {
@@ -135,7 +140,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		}
 	}
 	if count >= 32 || len(m.sessions) >= 128 {
-		return nil, errors.New("close unused terminals before creating another")
+		return nil, i18n.New("backend.terminal.closeUnusedTerminalsBeforeCreatingAnother")
 	}
 	engine, err := NewEngine(columns, rows)
 	if err != nil {
@@ -174,6 +179,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		}
 	}()
 	cmd.Dir = directory
+	cmd.Env = append(cmd.Env, languageEnvironment(language, installedLocales())...)
 	cmd.Env = append(cmd.Env, audioEnv...)
 	if display != nil {
 		cmd.Env = append(cmd.Env, display.Env...)
@@ -242,7 +248,7 @@ func (m *Manager) SetBackground(user identity.User, color, foreground string) {
 		s.mu.Lock()
 		if !s.closed && (s.background != color || s.foreground != foreground) {
 			if err := s.engine.SetBackground(color, foreground); err != nil {
-				s.broadcastLocked(Event{Type: "error", Message: "Terminal background update failed: " + err.Error()})
+				s.broadcastLocked(Event{Type: "error", Message: i18n.New("terminal.backgroundFailed", i18n.Vars{"detail": i18n.Describe(err)}).Error(), Text: &i18n.Message{Key: "terminal.backgroundFailed", Vars: i18n.Vars{"detail": i18n.Describe(err)}}})
 			} else {
 				s.background = color
 				s.foreground = foreground
@@ -259,7 +265,7 @@ func (m *Manager) Get(user identity.User, id string) (*Session, error) {
 	defer m.mu.Unlock()
 	s := m.sessions[id]
 	if s == nil || s.user.UID != user.UID {
-		return nil, errors.New("terminal not found")
+		return nil, i18n.New("backend.terminal.terminalNotFound")
 	}
 	return s, nil
 }
@@ -295,9 +301,12 @@ func (s *Session) Info() Info {
 	info.Attached = len(s.views)
 	return info
 }
+
+const maxTerminalNameBytes = 80
+
 func (s *Session) Rename(name string) error {
-	if len(name) == 0 || len(name) > 80 {
-		return errors.New("name must be 1–80 characters")
+	if len(name) == 0 || len(name) > maxTerminalNameBytes {
+		return i18n.New("backend.terminal.nameLengthRange", i18n.Vars{"min": 1, "max": maxTerminalNameBytes})
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -309,7 +318,7 @@ func (m *Manager) acquireSnapshot(ctx context.Context) (func(), error) {
 	select {
 	case m.recoveryWaiters <- struct{}{}:
 	default:
-		return nil, errors.New("terminal recovery queue is full")
+		return nil, i18n.New("backend.terminal.terminalRecoveryQueueIsFull")
 	}
 	select {
 	case m.recoveries <- struct{}{}:
@@ -339,10 +348,10 @@ func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
-		return nil, errors.New("terminal is closed")
+		return nil, i18n.New("backend.terminal.terminalIsClosed")
 	}
 	if len(s.views) >= 8 {
-		return nil, errors.New("too many terminal attachments")
+		return nil, i18n.New("backend.terminal.tooManyTerminalAttachments")
 	}
 	a := &Attachment{session: s, ID: newID(), Events: make(chan Event, 512), releaseSnapshot: release}
 	snapshot, err := s.engine.Capture()
@@ -351,7 +360,7 @@ func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
 	}
 	event := Event{Type: "snapshot", Snapshot: snapshot, Display: s.Display.State()}
 	if event.Bytes() > 1<<20 {
-		return nil, errors.New("terminal display metadata is too large")
+		return nil, i18n.New("backend.terminal.terminalDisplayMetadataIsTooLarge")
 	}
 	s.views[a.ID] = a
 	if s.controller == "" {
@@ -361,7 +370,7 @@ func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
 	a.queued = event.Bytes()
 	a.Events <- event
 	if s.info.Exited {
-		s.sendLocked(a, Event{Type: "exit", Message: "Process exited"})
+		s.sendLocked(a, Event{Type: "exit", Message: i18n.New("terminal.exited").Error(), Text: i18n.Describe(i18n.New("terminal.exited"))})
 	}
 	attached = true
 	return a, nil
@@ -372,10 +381,10 @@ func (a *Attachment) TakeControl() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if a.closed {
-		return errors.New("attachment closed")
+		return i18n.New("backend.terminal.attachmentClosed")
 	}
 	if old := s.views[s.controller]; old != nil && old != a {
-		s.sendLocked(old, Event{Type: "control", Message: "Control moved to another attachment"})
+		s.sendLocked(old, Event{Type: "control", Message: i18n.New("terminal.controlMoved").Error(), Text: i18n.Describe(i18n.New("terminal.controlMoved"))})
 	}
 	s.controller = a.ID
 	s.sendLocked(a, Event{Type: "control", Control: true})
@@ -416,11 +425,11 @@ func (a *Attachment) Write(ctx context.Context, data []byte) error {
 	s.mu.Lock()
 	if a.closed || s.closed || s.info.Exited {
 		s.mu.Unlock()
-		return errors.New("terminal is not running")
+		return i18n.New("backend.terminal.terminalIsNotRunning")
 	}
 	if s.controller != a.ID {
 		s.mu.Unlock()
-		return errors.New("take control before sending input")
+		return i18n.New("backend.terminal.takeControlBeforeSendingInput")
 	}
 	consumed := make(chan error, 1)
 	err := s.enqueueInputLocked(data, consumed)
@@ -432,11 +441,11 @@ func (a *Attachment) Write(ctx context.Context, data []byte) error {
 	case err := <-consumed:
 		return err
 	case <-s.done:
-		return errors.New("terminal closed")
+		return i18n.New("backend.terminal.terminalClosed")
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-time.After(10 * time.Second):
-		return errors.New("input acknowledgement timed out; do not replay it")
+		return i18n.New("backend.terminal.inputAcknowledgementTimedOutDoNotReplayIt")
 	}
 }
 func (s *Session) inputLocked(data []byte) error {
@@ -444,28 +453,28 @@ func (s *Session) inputLocked(data []byte) error {
 }
 func (s *Session) enqueueInputLocked(data []byte, consumed chan error) error {
 	if len(data) == 0 || len(data) > 65536 {
-		return errors.New("input is too large")
+		return i18n.New("backend.terminal.inputIsTooLarge")
 	}
 	select {
 	case s.input <- inputFrame{append([]byte(nil), data...), consumed}:
 		return nil
 	default:
-		return errors.New("terminal input buffer is full")
+		return i18n.New("backend.terminal.terminalInputBufferIsFull")
 	}
 }
 func validSize(cols, rows int) bool { return cols >= 2 && cols <= 500 && rows >= 1 && rows <= 200 }
 func (a *Attachment) Resize(cols, rows int) error {
 	if !validSize(cols, rows) {
-		return errors.New("invalid terminal dimensions")
+		return i18n.New("backend.terminal.invalidTerminalDimensions")
 	}
 	s := a.session
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if a.closed || s.closed {
-		return errors.New("attachment closed")
+		return i18n.New("backend.terminal.attachmentClosed")
 	}
 	if s.controller != a.ID {
-		return errors.New("take control before resizing")
+		return i18n.New("backend.terminal.takeControlBeforeResizing")
 	}
 	update, err := s.engine.Apply(nil, cols, rows)
 	if err != nil {
@@ -528,14 +537,14 @@ func (s *Session) readOutput() {
 			data := append([]byte(nil), buffer[:n]...)
 			update, displayErr := s.engine.Apply(data, 0, 0)
 			if displayErr != nil {
-				s.broadcastLocked(Event{Type: "error", Message: "Terminal display failed: " + displayErr.Error()})
+				s.broadcastLocked(Event{Type: "error", Message: i18n.New("terminal.displayFailed", i18n.Vars{"detail": i18n.Describe(displayErr)}).Error(), Text: &i18n.Message{Key: "terminal.displayFailed", Vars: i18n.Vars{"detail": i18n.Describe(displayErr)}}})
 				s.mu.Unlock()
 				s.Close()
 				return
 			}
 			if len(update.Reply) > 0 {
 				if replyErr := s.inputLocked(update.Reply); replyErr != nil {
-					s.broadcastLocked(Event{Type: "error", Message: replyErr.Error()})
+					s.broadcastLocked(Event{Type: "error", Message: replyErr.Error(), Text: i18n.Describe(replyErr)})
 					s.mu.Unlock()
 					s.Close()
 					return
@@ -551,7 +560,7 @@ func (s *Session) readOutput() {
 				if update, err := s.engine.Flush(); err == nil {
 					s.syncDisplayLocked(update)
 				}
-				s.broadcastLocked(Event{Type: "exit", Message: "Process exited"})
+				s.broadcastLocked(Event{Type: "exit", Message: i18n.New("terminal.exited").Error(), Text: i18n.Describe(i18n.New("terminal.exited"))})
 			}
 			s.mu.Unlock()
 			return
@@ -595,7 +604,7 @@ func (s *Session) destroy() {
 		s.redrawTimer.Stop()
 	}
 	for _, a := range s.views {
-		s.sendLocked(a, Event{Type: "closed", Message: "Terminal closed"})
+		s.sendLocked(a, Event{Type: "closed", Message: i18n.New("terminal.closed").Error(), Text: i18n.Describe(i18n.New("terminal.closed"))})
 		s.detachLocked(a)
 	}
 	close(s.done)

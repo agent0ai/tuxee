@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { button, el, notify } from './ui';
 
 export const isImage = (name: string) => /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/i.test(name);
@@ -5,14 +6,14 @@ export const isImage = (name: string) => /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/i
 export class ImageViewer {
     readonly controls = el('div', 'image-controls');
     readonly copyButton = typeof navigator.clipboard?.write === 'function' && typeof ClipboardItem !== 'undefined' && (!ClipboardItem.supports || ClipboardItem.supports('image/png'))
-        ? button('Copy image to clipboard', 'Copy', () => this.copy()) : undefined;
+        ? button(t("image.viewer.copyImageToClipboard"), 'Copy', () => this.copy()) : undefined;
     private viewport = el('div', 'image-viewport');
     private stage = el('div', 'image-stage');
     private image = el('img', 'file-image');
-    private out = button('Zoom out', 'ZoomOut', () => this.zoomTo(this.scale / 1.25));
-    private actual = button('Actual size (100%)', undefined, () => this.zoomTo(1), 'image-scale');
-    private into = button('Zoom in', 'ZoomIn', () => this.zoomTo(this.scale * 1.25));
-    private fitButton = button('Fit image', 'Scan', () => this.fit());
+    private out = button(t("image.viewer.zoomOut"), 'ZoomOut', () => this.zoomTo(this.scale / 1.25));
+    private actual = button(t("image.viewer.actualSize"), undefined, () => this.zoomTo(1), 'image-scale');
+    private into = button(t("image.viewer.zoomIn"), 'ZoomIn', () => this.zoomTo(this.scale * 1.25));
+    private fitButton = button(t("image.viewer.fitImage"), 'Scan', () => this.fit());
     private events = new AbortController();
     private resize = new ResizeObserver(() => { if (this.fitted) this.fit(); else this.render(); });
     private scale = 1;
@@ -23,13 +24,13 @@ export class ImageViewer {
 
     constructor(host: HTMLElement, url: string, name: string) {
         const signal = this.events.signal;
-        this.controls.setAttribute('role', 'group'); this.controls.setAttribute('aria-label', 'Image zoom');
+        this.controls.setAttribute('role', 'group'); this.controls.setAttribute('aria-label', t("image.viewer.imageZoom"));
         this.controls.append(this.out, this.actual, this.into, this.fitButton);
         for (const control of [this.out, this.actual, this.into, this.fitButton]) control.disabled = true;
         if (this.copyButton) this.copyButton.disabled = true;
         this.actual.textContent = '—';
         this.viewport.tabIndex = 0;
-        this.viewport.setAttribute('role', 'region'); this.viewport.setAttribute('aria-label', 'Image viewer');
+        this.viewport.setAttribute('role', 'region'); this.viewport.setAttribute('aria-label', t("image.viewer.imageViewer"));
         this.viewport.setAttribute('aria-keyshortcuts', '+ - 0 1');
         this.image.alt = name; this.image.draggable = false; this.image.decoding = 'async';
         this.stage.append(this.image); this.viewport.append(this.stage); host.append(this.viewport);
@@ -39,7 +40,7 @@ export class ImageViewer {
             if (this.copyButton) this.copyButton.disabled = false;
         }, { signal });
         this.image.addEventListener('error', () => {
-            this.viewport.replaceChildren(el('div', 'empty', 'Cannot display image'));
+            this.viewport.replaceChildren(el('div', 'empty', t("image.viewer.cannotDisplayImage")));
         }, { signal });
         this.viewport.addEventListener('wheel', event => {
             // Ordinary scrolling stays native, including both axes and trackpad momentum.
@@ -102,12 +103,12 @@ export class ImageViewer {
             const canvas = el('canvas');
             canvas.width = this.image.naturalWidth; canvas.height = this.image.naturalHeight;
             const context = canvas.getContext('2d');
-            if (!context) throw new Error('Cannot copy image');
+            if (!context) throw new Error(t("image.viewer.cannotCopyImage"));
             context.drawImage(this.image, 0, 0);
-            const png = new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Cannot copy image')), 'image/png'));
+            const png = new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error(t("image.viewer.cannotCopyImage"))), 'image/png'));
             // Start the clipboard write during the click, before asynchronous PNG encoding loses user activation.
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-            if (!this.events.signal.aborted) notify('Image copied', this.viewport);
+            if (!this.events.signal.aborted) notify(t("image.viewer.imageCopied"), this.viewport);
         } finally {
             if (!this.events.signal.aborted) this.copyButton.disabled = false;
         }

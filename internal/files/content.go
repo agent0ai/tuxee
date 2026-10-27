@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"tuxee/internal/i18n"
 	"unicode/utf8"
 
 	"golang.org/x/sys/unix"
@@ -29,8 +30,8 @@ type TextPage struct {
 	Hash       string `json:"hash"`
 }
 
-var errTextChanged = errors.New("file changed; reopen it before editing")
-var errBinaryText = errors.New("binary or non-UTF-8 file; download it to view")
+var errTextChanged = i18n.New("backend.files.fileChangedReopenItBeforeEditing")
+var errBinaryText = i18n.New("backend.files.binaryOrNonUTF8FileDownloadItToView")
 
 func textVersion(data []byte) string { hash := sha256.Sum256(data); return hex.EncodeToString(hash[:]) }
 func textFileVersion(info os.FileInfo) string {
@@ -57,7 +58,7 @@ func binaryRune(char rune, width int) bool {
 
 func validateTextPage(content string) (int, error) {
 	if len(content) > MaxTextSize || !utf8.ValidString(content) {
-		return 0, errors.New("editor pages support UTF-8 text up to 1 MiB")
+		return 0, i18n.New("backend.files.editorPageByteLimit", i18n.Vars{"maxMiB": float64(MaxTextSize) / (1 << 20)})
 	}
 	rows, columns, breaks := 1, 0, 0
 	var previous rune
@@ -79,7 +80,7 @@ func validateTextPage(content string) (int, error) {
 			columns++
 		}
 		if rows > MaxTextRows {
-			return 0, errors.New("editor pages support at most 10,000 displayed rows")
+			return 0, i18n.New("backend.files.editorPageRowLimit", i18n.Vars{"max": MaxTextRows})
 		}
 		previous = char
 	}
@@ -98,10 +99,10 @@ func readText(ctx context.Context, path string, offset int64, version string) (R
 		return Response{}, err
 	}
 	if !info.Mode().IsRegular() {
-		return Response{}, errors.New("editor supports regular text files only")
+		return Response{}, i18n.New("backend.files.editorSupportsRegularTextFilesOnly")
 	}
 	if offset < 0 || offset > info.Size() {
-		return Response{}, errors.New("invalid text page offset")
+		return Response{}, i18n.New("backend.files.invalidTextPageOffset")
 	}
 	if version != "" && version != textFileVersion(info) {
 		return Response{}, errTextChanged
@@ -168,7 +169,7 @@ func preserveAttributes(source, destination *os.File) error {
 			continue
 		}
 		if name == "security.ima" || name == "security.evm" {
-			return errors.New("cannot edit an integrity-protected file")
+			return i18n.New("backend.files.cannotEditAnIntegrityProtectedFile")
 		}
 		size, err = unix.Fgetxattr(int(source.Fd()), name, nil)
 		if err != nil {
@@ -191,7 +192,7 @@ func saveText(ctx context.Context, path, content, version string, page *TextPage
 		return Response{}, err
 	}
 	if page == nil || page.Offset < 0 || page.End < page.Offset || page.End-page.Offset > MaxTextSize || page.Hash == "" || version == "" {
-		return Response{}, errors.New("a valid original text page range and hash are required")
+		return Response{}, i18n.New("backend.files.aValidOriginalTextPageRangeAndHashAreRequired")
 	}
 	real, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -203,7 +204,7 @@ func saveText(ctx context.Context, path, content, version string, page *TextPage
 	}
 	defer file.Close()
 	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return Response{}, errors.New("file is being saved; try again")
+		return Response{}, i18n.New("backend.files.fileIsBeingSavedTryAgain")
 	}
 	defer unix.Flock(int(file.Fd()), unix.LOCK_UN)
 	info, err := file.Stat()
@@ -238,7 +239,7 @@ func saveText(ctx context.Context, path, content, version string, page *TextPage
 		return Response{}, err
 	}
 	if written != total {
-		return Response{}, errors.New("incomplete file save")
+		return Response{}, i18n.New("backend.files.incompleteFileSave")
 	}
 	stat := info.Sys().(*syscall.Stat_t)
 	if err = staged.Chown(int(stat.Uid), int(stat.Gid)); err != nil {

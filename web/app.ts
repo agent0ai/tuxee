@@ -21,6 +21,7 @@ import { audio, audioControl } from './audio';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
 import { setFaviconColor } from './favicon';
+import { locale, t, errorText, translations, setTranslations, rememberLanguage, type Translations } from './i18n';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
@@ -32,7 +33,7 @@ if (boot) {
 }
 const hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')!.content;
 let user: User, settings: Settings;
-let loggedIn = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
+let loggedIn = false, loggingOut = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
 let monitoring: Monitoring | undefined;
 let connection: BackendConnection | undefined;
 let updates: Updates | undefined;
@@ -104,7 +105,7 @@ function disposeViews() {
     warmWorkspaces.forEach(destroyWorkspace); mounted = undefined;
 }
 function updateTitle() {
-    document.title = `Tuxee ${loggedIn && settings.serverName || hostname}`;
+    document.title = t("app.title", { name: loggedIn && settings.serverName || hostname });
 }
 function setColorMarker(color?: string) {
     if (loggedIn && color) document.documentElement.style.setProperty('--server-marker-border', `0.25rem solid ${color}`);
@@ -133,10 +134,17 @@ function showLogin() {
     const form = el('form', 'login-form');
     const logo = el('img', 'login-logo');
     logo.src = verticalLogo;
-    logo.alt = 'Tuxee';
+    logo.alt = t("app.tuxee");
     logo.width = logo.height = 512;
     logo.draggable = false;
     form.append(logo);
+    const language = el('select', 'login-language');
+    language.name = 'language';
+    for (const item of translations().languages) {
+        const option = el('option', '', `${item.code.toUpperCase()} ${item.name}`); option.value = item.code; language.append(option);
+    }
+    language.value = translations().language;
+    form.append(language);
     const username = el('input'), password = el('input');
     username.name = 'username';
     username.autocomplete = 'username';
@@ -146,33 +154,55 @@ function showLogin() {
     password.type = 'password';
     password.autocomplete = 'current-password';
     password.required = true;
-    for (const [text, input] of [['Username', username], ['Password', password]] as const) {
-        const label = el('label', 'field', text);
+    const loginLabels: { label: HTMLLabelElement; key: string }[] = [];
+    for (const [key, input] of [['login.username', username], ['login.password', password]] as const) {
+        const label = el('label', 'field', t(key));
+        loginLabels.push({ label, key });
         label.append(input);
         form.append(label);
     }
     const status = el('p', 'login-error');
     status.setAttribute('role', 'alert');
-    const submit = button('Sign in');
+    const submit = button(t("app.signIn"));
     submit.type = 'submit';
     submit.className = 'primary login-submit';
     form.append(status, submit);
     form.onsubmit = async (e) => { e.preventDefault(); submit.disabled = true; status.textContent = ''; const value = password.value; password.value = ''; try {
-        await api('/login', 'POST', { username: username.value, password: value });
+        await api('/login', 'POST', { username: username.value, password: value, language: translations().language });
         if (form.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
         await load();
     }
     catch (error) {
-        status.textContent = error instanceof Error ? error.message : 'Sign in failed';
+        status.textContent = error instanceof Error ? errorText(error) : t("app.signInFailed");
     }
     finally {
         submit.disabled = false;
     } };
     const version = document.querySelector<HTMLMetaElement>('meta[name="tuxee-version"]')!.content;
-    const metadata = el('p', 'login-metadata', `Server ${hostname} • `);
-    const github = el('a', '', `Tuxee v${version}`);
-    github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
+    const metadata = el('p', 'login-metadata', t('login.server', { hostname }));
+    const github = el('a', '', t("app.version", { version }));
+    github.dir = 'ltr'; github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
     metadata.append(github);
+    const translateLogin = () => {
+        document.documentElement.lang = translations().language;
+        language.setAttribute('aria-label', t('login.language'));
+        logo.alt = t('app.tuxee'); github.textContent = t('app.version', { version }); updateTitle();
+        for (const {label, key} of loginLabels) label.firstChild!.textContent = t(key);
+        submit.textContent = submit.title = t('login.signIn'); submit.setAttribute('aria-label', submit.title);
+        metadata.firstChild!.textContent = t('login.server', { hostname });
+    };
+    translateLogin();
+    language.onchange = async () => {
+        const previous = translations().language;
+        language.disabled = submit.disabled = true;
+        try {
+            const value = await api<Translations>(`/language?language=${encodeURIComponent(language.value)}`);
+            if (!form.isConnected || loggedIn) return;
+            setTranslations(value); rememberLanguage(); language.value = value.language;
+            status.textContent = ''; translateLogin();
+        } catch (error) { language.value = previous; status.textContent = error instanceof Error ? errorText(error) : t('login.languageFailed'); }
+        finally { language.disabled = submit.disabled = false; }
+    };
     content.append(form, metadata);
     page.append(content);
     root.append(page);
@@ -184,8 +214,10 @@ async function load(signal?: AbortSignal) {
         csrf: string;
         settings: Settings;
         audio: boolean;
+        i18n: Translations;
     }>('/me', 'GET', undefined, signal);
     if (signal?.aborted) return;
+    if (value.i18n) setTranslations(value.i18n);
     user = value.user;
     settings = value.settings;
     setUploadConcurrency(settings.uploadConcurrency);
@@ -201,7 +233,7 @@ async function load(signal?: AbortSignal) {
         try { await save(); } catch (error) { settings.monitoring = previous; throw error; }
     });
     if (!settings.workspaces.length) {
-        const ws = newWorkspace('Workspace 1', defaultDirectory());
+        const ws = newWorkspace(t('app.workspaceNumber', { count: 1 }), defaultDirectory());
         settings.workspaces = [ws];
         settings.current = ws.id;
         await save();
@@ -223,7 +255,7 @@ function mountWorkspace(ws: Workspace): Mounted {
         const near = { x: (event.clientX - rect.x) / rect.width * ws.columns, y: (event.clientY - rect.y) / rect.height * ws.rows };
         const content = el('div', 'menu-actions');
         let close = () => {};
-        for (const [kind, label, name] of [['terminal', 'Add terminal', 'SquareTerminal'], ['files', 'Add file browser', 'FolderPlus']] as const) {
+        for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const) {
             const control = button(label, name, () => { close(); addPanel(kind, defaultDirectory(ws), undefined, near); });
             control.append(el('span', '', label)); control.setAttribute('role', 'menuitem');
             control.disabled = ws.panels.length >= 8; content.append(control);
@@ -239,7 +271,7 @@ function render(direction = 0) {
     if (!root.querySelector('.workspace-viewport')) {
         root.replaceChildren();
         viewportRoot = el('main', 'workspace-viewport');
-        viewportRoot.setAttribute('aria-label', 'Workspace');
+        viewportRoot.setAttribute('aria-label', t("app.workspace"));
         track = el('div', 'workspace-track');
         viewportRoot.append(track); root.append(viewportRoot);
     }
@@ -280,16 +312,16 @@ function renderChrome() {
     brand.src = settings.theme === 'light'
         ? (compact ? emblemLogoLight : horizontalLogoLight)
         : (compact ? emblemLogo : horizontalLogo);
-    brand.alt = 'Tuxee';
+    brand.alt = t("app.tuxee");
     brand.width = compact ? 128 : 320;
     brand.height = compact ? 117 : 128;
     brand.draggable = false;
-    const about = button('About Tuxee', undefined, openAbout, 'brand-button');
+    const about = button(t("app.aboutTuxee"), undefined, openAbout, 'brand-button');
     about.setAttribute('aria-haspopup', 'dialog');
     about.replaceChildren(brand);
     top.append(about);
     const tabs = el('nav', 'workspace-tabs');
-    tabs.setAttribute('aria-label', 'Workspaces');
+    tabs.setAttribute('aria-label', t("app.workspaces"));
     for (const item of settings.workspaces) {
         const group = el('div', 'workspace-tab-item');
         group.dataset.workspace = item.id;
@@ -301,7 +333,7 @@ function renderChrome() {
         if (!compact) tab.ondblclick = () => renameWorkspace(item).catch(notify);
         chromeDisposers.push(bindContextMenu(group, position => workspaceMenu(item, tab, position), compact));
         group.append(tab);
-        const menu = button('Workspace menu', 'ChevronDown', () => workspaceMenu(item, menu), 'workspace-menu');
+        const menu = button(t("app.workspaceMenu"), 'ChevronDown', () => workspaceMenu(item, menu), 'workspace-menu');
         menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         tabs.append(group);
     }
@@ -309,10 +341,10 @@ function renderChrome() {
     workspaceTabs = tabItems;
     tabs.replaceChildren();
     const workspaces = el('div', 'workspace-controls');
-    workspaces.append(tabs, button('New workspace', 'Plus', createWorkspace));
+    workspaces.append(tabs, button(t("app.newWorkspace"), 'Plus', createWorkspace));
     top.append(workspaces);
     const right = el('div', 'topbar-right'), additions = el('div', 'panel-additions');
-    for (const [kind, label, name] of [['files', 'Add file browser', 'FolderPlus'], ['terminal', 'Add terminal', 'SquareTerminal']] as const) {
+    for (const [kind, label, name] of [['files', t("app.addFileBrowser"), 'FolderPlus'], ['terminal', t("app.addTerminal"), 'SquareTerminal']] as const) {
         const add = button(label, name, () => addPanel(kind), 'add-panel');
         add.onpointerdown = event => { if (!compact) beginDrag(event, kind); };
         additions.append(add);
@@ -323,14 +355,14 @@ function renderChrome() {
             clearTimeout(collapseTimer);
             collapseTimer = setTimeout(() => arrange.classList.remove('expanded'), 2000);
         };
-        const arrange = button('Rearrange workspace', 'LayoutPanelTop', () => {
+        const arrange = button(t("app.rearrangeWorkspace"), 'LayoutPanelTop', () => {
             cycleLayout(ws, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight);
             changed(); syncWorkspace(mounted!); updateLayoutButton(true);
             clearTimeout(collapseTimer);
             arrange.classList.add('expanded');
             if (!arrange.matches(':hover')) collapseLater();
         }, 'layout-cycle');
-        arrange.title = 'Auto layout';
+        arrange.title = t("app.autoLayout");
         const label = el('span', 'layout-label');
         label.setAttribute('aria-hidden', 'true'); arrange.append(label);
         arrange.onpointerenter = () => clearTimeout(collapseTimer);
@@ -343,19 +375,19 @@ function renderChrome() {
         const monitor = el('div', 'monitor-controls');
         monitor.append(monitoring.summary()); right.append(monitor);
     }
-    right.append(button('Toggle light or dark theme', settings.theme === 'dark' ? 'Sun' : 'Moon', () => {
+    right.append(button(t("app.toggleLightOrDarkTheme"), settings.theme === 'dark' ? 'Sun' : 'Moon', () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme; changed(); renderChrome();
     }, 'theme-toggle'));
     const sound = audioControl();
     right.append(sound.control); chromeDisposers.push(sound.dispose);
-    const account = button('User menu', undefined, () => userMenu(account), 'user-menu-button');
+    const account = button(t("app.userMenu"), undefined, () => userMenu(account), 'user-menu-button');
     account.replaceChildren(el('span', 'username', user.name), icon('Menu'));
     account.setAttribute('aria-haspopup', 'menu');
     setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
     right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
-    componentTabs.setAttribute('aria-label', 'Components');
+    componentTabs.setAttribute('aria-label', t("app.components"));
     const componentControls = el('div', 'component-controls');
     componentControls.append(componentTabs);
     if (compact) componentControls.append(additions);
@@ -369,18 +401,18 @@ function renderChrome() {
         tab.classList.toggle('active', panel.id === ws.active); group.append(tab);
         tab.setAttribute('aria-haspopup', 'menu');
         chromeDisposers.push(bindContextMenu(tab, position => componentMenu(panel, tab, position), compact));
-        const menu = button('Component menu', 'ChevronDown', () => componentMenu(panel, menu), 'component-menu');
+        const menu = button(t("app.componentMenu"), 'ChevronDown', () => componentMenu(panel, menu), 'component-menu');
         menu.dataset.componentMenu = panel.id;
         menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         components.push(group);
     }
     root.prepend(top, componentControls);
     updateLayoutButton();
-    chromeDisposers.push(overflowTabs(tabs, tabItems, 'More workspaces', compact ? undefined : items => {
+    chromeDisposers.push(overflowTabs(tabs, tabItems, t("app.moreWorkspaces"), compact ? undefined : items => {
         settings.workspaces = items.map(item => settings.workspaces.find(ws => ws.id === item.dataset.workspace)!);
         changed();
     }));
-    if (compact) chromeDisposers.push(overflowTabs(componentTabs, components, 'More components'));
+    if (compact) chromeDisposers.push(overflowTabs(componentTabs, components, t("app.moreComponents")));
     mounted?.grid?.cellHeight(cellHeight(mounted));
     mounted?.items.forEach(item => item.view.resize?.());
 }
@@ -402,9 +434,9 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
         if (!item) {
             const node = el('section', 'grid-stack-item'); node.dataset.panel = panel.id;
             const content = el('div', 'grid-stack-item-content panel'), head = el('header', 'panel-header');
-            const title = el('span', 'panel-title', panel.kind === 'files' ? 'Files' : 'Terminal');
+            const title = el('span', 'panel-title', panel.kind === 'files' ? t("common.files") : t("common.terminal"));
             const tools = el('div', 'panel-tools');
-            tools.append(button('Close panel', 'X', () => closePanel(panel)));
+            tools.append(button(t("app.closePanel"), 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
             head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const owner = item!.owner, ws = owner.ws, before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(owner); } };
             head.onpointerdown = event => {
@@ -430,7 +462,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
     }
     if (!compact) {
         if (!value.grid) {
-            value.grid = GridStack.init({ column: ws.columns, maxRow: ws.rows, cellHeight: cellHeight(value), margin: 5, float: true, disableDrag: true, disableResize: true, animate: false }, gridEl);
+            value.grid = GridStack.init({ rtl: false, column: ws.columns, maxRow: ws.rows, cellHeight: cellHeight(value), margin: 5, float: true, disableDrag: true, disableResize: true, animate: false }, gridEl);
         } else {
             value.grid.load(ws.panels.map(panel => ({ ...panel, minW: 1, minH: 1, noMove: true })), false);
             for (const panel of ws.panels) {
@@ -496,7 +528,7 @@ function beginPanelResize(value: Mounted, panel: Panel, edge: string, event: Poi
     trigger.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
     window.addEventListener('blur', () => finish(true), { signal: events.signal });
     window.addEventListener('resize', () => finish(true), { signal: events.signal });
-    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { signal: events.signal });
+    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); key.stopPropagation(); finish(true); } }, { capture: true, signal: events.signal });
 }
 function renderDividers(value: Mounted) {
     const { ws, gridEl } = value;
@@ -513,7 +545,7 @@ function renderDividers(value: Mounted) {
         node.classList.toggle('divider-junction', junction);
         node.tabIndex = 0;
         node.setAttribute('role', junction ? 'button' : 'separator');
-        node.setAttribute('aria-label', junction ? 'Resize adjoining panels' : 'Resize panels');
+        node.setAttribute('aria-label', junction ? t("app.resizeAdjoiningPanels") : t("app.resizePanels"));
         if (!junction) {
             const d = movable[0];
             node.setAttribute('aria-orientation', d.axis === 'x' ? 'vertical' : 'horizontal');
@@ -599,7 +631,7 @@ function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerE
     trigger.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
     window.addEventListener('blur', () => finish(true), { signal: events.signal });
     window.addEventListener('resize', () => finish(true), { signal: events.signal });
-    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { signal: events.signal });
+    document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); key.stopPropagation(); finish(true); } }, { capture: true, signal: events.signal });
 }
 function renderVacancies(value: Mounted, moving?: Panel) {
     const { ws, gridEl, compact } = value;
@@ -748,7 +780,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
 function updateLayoutButton(advance = false) {
     const button = root.querySelector<HTMLButtonElement>('.layout-cycle');
     if (!button) return;
-    const mode = current().layout?.mode || 0, names = ['Custom', 'Balanced', 'Terminals', 'Files'];
+    const mode = current().layout?.mode || 0, names = [t("app.custom"), t("app.balanced"), t("app.terminals"), t("common.files")];
     const turn = advance ? Number(button.dataset.turn || 0) + 1 : mode;
     button.dataset.mode = String(mode); button.dataset.turn = String(turn);
     button.setAttribute('aria-description', `${names[mode]} → ${names[(mode + 1) % 4]}`);
@@ -784,7 +816,7 @@ function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: Ter
         const { width, height } = panelSize(panel);
         return { panel, area: width * height };
     }).sort((a, b) => b.area - a.area)[0]?.panel;
-    if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error('Workspace full');
+    if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error(t("app.workspaceFull"));
     ws.active = panel.id; layoutChanged(ws); render();
 }
 function addSplitPanel(kind: Kind, target: Panel) {
@@ -800,7 +832,7 @@ function stopPanel(panel: Panel, value?: Mounted) {
 async function movePanel(panel: Panel, target: Workspace) {
     const source = [...warmWorkspaces.values()].find(value => value.items.has(panel.id)), item = source?.items.get(panel.id);
     if (!source || !item || source.ws === target || item.node.dataset.closing || item.node.dataset.moving) return;
-    if (target.panels.length >= 8) throw new Error('Workspace full');
+    if (target.panels.length >= 8) throw new Error(t("app.workspaceFull"));
     const node = item.node, style = node.getAttribute('style'), from = node.getBoundingClientRect();
     node.dataset.moving = 'true';
     let flight: HTMLElement | undefined;
@@ -825,7 +857,7 @@ async function movePanel(panel: Panel, target: Workspace) {
         if (!loggedIn || warmWorkspaces.get(source.ws.id) !== source || !settings.workspaces.includes(target) || !source.ws.panels.includes(panel)) return;
         const plan = structuredClone(target), incoming = { ...panel }, vacated = { ...panel };
         orientWorkspace(plan);
-        if (!addCompact(plan, incoming)) throw new Error('Workspace full');
+        if (!addCompact(plan, incoming)) throw new Error(t("app.workspaceFull"));
         const destination = warmWorkspaces.get(target.id) || mountWorkspace(target);
         if (target.columns !== plan.columns || target.rows !== plan.rows) { destination.grid?.destroy(false); destination.grid = undefined; }
         target.columns = plan.columns; target.rows = plan.rows;
@@ -871,14 +903,14 @@ async function switchWorkspace(value: string, checked = false) {
     settings.current = value; changed(); render(to > from ? 1 : -1);
 }
 async function createWorkspace() {
-    if (settings.workspaces.length >= 12) { notify('Workspace limit reached'); return; }
+    if (settings.workspaces.length >= 12) { notify(t("app.workspaceLimitReached")); return; }
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
-    const ws = newWorkspace(`Workspace ${settings.workspaces.length + 1}`, defaultDirectory()); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
+    const ws = newWorkspace(t("app.workspaceNumber", { count: settings.workspaces.length + 1 }), defaultDirectory()); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
 }
 async function renameWorkspace(ws: Workspace) {
-    const name = await ask('Rename workspace', 'Name', ws.name);
+    const name = await ask(t("app.renameWorkspace"), t("common.name"), ws.name);
     if (!name) return;
-    if (name.length > 60) throw new Error('Name is too long');
+    if (name.length > 60) throw new Error(t("app.nameIsTooLong"));
     ws.name = name; changed(); renderChrome();
 }
 async function setWorkspaceDirectory(ws: Workspace, path: string) {
@@ -889,17 +921,18 @@ async function setWorkspaceDirectory(ws: Workspace, path: string) {
     catch (error) { ws.defaultDirectory = previous; throw error; }
 }
 function editWorkspaceDirectory(ws: Workspace) {
-    const form = el('form', 'form'), input = el('input'), field = el('label', 'field', 'Directory');
+    const form = el('form', 'form'), input = el('input'), field = el('label', 'field', t("common.directory"));
+    input.dir = 'ltr';
     input.value = ws.defaultDirectory || settings.defaultDirectory || '~';
     input.maxLength = 4096; input.autocomplete = 'off'; input.spellcheck = false;
     field.append(input);
-    const description = el('small', 'muted', 'Used as entry directory for new terminals and file managers.');
+    const description = el('small', 'muted', t("app.usedAsEntryDirectoryForNewTerminalsAndFileManagers"));
     description.id = 'default-directory-description'; input.setAttribute('aria-describedby', description.id);
-    const submit = button('Save', undefined, undefined, 'primary'); submit.type = 'submit';
+    const submit = button(t("common.save"), undefined, undefined, 'primary'); submit.type = 'submit';
     const actions = el('div', 'actions');
-    actions.append(button('Cancel', undefined, () => dialog.close()), submit);
+    actions.append(button(t("common.cancel"), undefined, () => dialog.close()), submit);
     form.append(field, description, actions);
-    const dialog = modal('Default directory', form);
+    const dialog = modal(t("app.defaultDirectory"), form);
     form.onsubmit = async event => {
         event.preventDefault();
         if (submit.disabled) return;
@@ -911,24 +944,24 @@ function editWorkspaceDirectory(ws: Workspace) {
     input.focus(); input.select();
 }
 function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; y: number }) {
-    tabMenu(tab, `${ws.name} workspace`, ws.id === settings.current, [
-        ['Activate', 'ArrowRight', () => switchWorkspace(ws.id)],
-        ['Rename', 'Pencil', () => renameWorkspace(ws)],
-        ['Default directory', 'Folder', () => editWorkspaceDirectory(ws)],
-        ['Close', 'X', () => closeWorkspace(ws)],
+    tabMenu(tab, t("app.workspaceLabel", { name: ws.name }), ws.id === settings.current, [
+        [t("app.activate"), 'ArrowRight', () => switchWorkspace(ws.id), ws.id === current().id],
+        [t("common.rename"), 'Pencil', () => renameWorkspace(ws)],
+        [t("app.defaultDirectory"), 'Folder', () => editWorkspaceDirectory(ws)],
+        [t("common.close"), 'X', () => closeWorkspace(ws)],
     ], position);
 }
 function activatePanel(panel: Panel) { current().active = panel.id; changed(); render(); }
 function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }, header = false) {
     const item = mounted!.items.get(panel.id)!;
-    const actions: (TabAction | TabSubmenu)[] = header ? [] : [['Activate', 'ArrowRight', () => activatePanel(panel)]];
-    for (const [kind, label, name] of [['terminal', 'Add terminal', 'SquareTerminal'], ['files', 'Add file browser', 'FolderPlus']] as const)
+    const actions: (TabAction | TabSubmenu)[] = header ? [] : [[t("app.activate"), 'ArrowRight', () => activatePanel(panel), panel.id === current().active]];
+    for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const)
         actions.push([label, name, () => addSplitPanel(kind, panel), panel.w === 1 && panel.h === 1]);
-    actions.push({ label: 'Move to workspace', items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || ws.panels.length >= 8, description: ws === current() ? 'Current workspace' : ws.panels.length >= 8 ? 'Workspace full' : '', action: () => movePanel(panel, ws) })) });
-    if (item.view.renamePanel) actions.push(['Rename', 'Pencil', () => item.view.renamePanel!()]);
-    actions.push(['Close', 'X', () => closePanel(panel)]);
-    const control = item.tools.querySelector<HTMLButtonElement>('[aria-label="Take control"]');
-    if (!header && control && !control.hidden) actions.splice(1, 0, ['Take control', 'Hand', () => control.click()]);
+    actions.push({ label: t("app.moveToWorkspace"), items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || ws.panels.length >= 8, description: ws === current() ? t("app.currentWorkspace") : ws.panels.length >= 8 ? t("app.workspaceFull") : '', action: () => movePanel(panel, ws) })) });
+    if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
+    actions.push([t("common.close"), 'X', () => closePanel(panel)]);
+    const control = item.tools.querySelector<HTMLButtonElement>('[data-action="take-control"]');
+    if (!header && control && !control.hidden) actions.splice(1, 0, [t("app.takeControl"), 'Hand', () => control.click()]);
     tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
 }
 type TabAction = [string, Parameters<typeof icon>[0], () => unknown, boolean?];
@@ -957,13 +990,13 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
                 choice.append(el('span', '', target.label)); choice.disabled = target.disabled; choice.title = target.description || target.label;
                 choice.setAttribute('role', 'menuitem'); children.append(choice);
             }
-            toggle.addEventListener('keydown', event => { if (event.key === 'ArrowRight') { event.preventDefault(); expand(true); } });
-            children.addEventListener('keydown', event => { if (event.key === 'ArrowLeft') { event.preventDefault(); event.stopPropagation(); expand(false); } });
+            toggle.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight')) { event.preventDefault(); expand(true); } });
+            children.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft')) { event.preventDefault(); event.stopPropagation(); expand(false); } });
             content.append(toggle, children); continue;
         }
         const [label, name, action, disabled = false] = entry;
         const control = button(label, name, () => { close(); return action(); });
-        control.disabled = disabled || label === 'Activate' && active;
+        control.disabled = disabled;
         control.append(el('span', '', label)); control.setAttribute('role', 'menuitem'); content.append(control);
     }
     const rect = tab.getBoundingClientRect();
@@ -973,13 +1006,13 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
 async function closeWorkspace(ws = current()) {
     const value = warmWorkspaces.get(ws.id);
     if (!await canLeave(value)) return;
-    if (!await confirmAction(`Close ${ws.name}?`, 'Stop all terminals in this workspace?', 'Close workspace')) return;
+    if (!await confirmAction(t("app.closeNamedWorkspace", { name: ws.name }), t("app.stopAllTerminalsInThisWorkspace"), t("app.closeWorkspace"))) return;
     const index = settings.workspaces.indexOf(ws), active = settings.current === ws.id;
     ws.panels.forEach(panel => stopPanel(panel, value));
     settings.workspaces = settings.workspaces.filter(value => value.id !== ws.id);
     warmWorkspaces.delete(ws.id);
     if (value !== mounted && value !== outgoing) destroyWorkspace(value);
-    if (!settings.workspaces.length) settings.workspaces.push(newWorkspace('Workspace 1', defaultDirectory()));
+    if (!settings.workspaces.length) settings.workspaces.push(newWorkspace(t('app.workspaceNumber', { count: 1 }), defaultDirectory()));
     if (active) settings.current = settings.workspaces[Math.max(0, index - 1)].id;
     changed(); render(active ? (index ? -1 : 1) : 0);
 }
@@ -1000,21 +1033,21 @@ async function refreshTerminals() {
         terminalSessions = sessions; terminalError = '';
     } catch (error) {
         if (request.signal.aborted) return false;
-        terminalError = error instanceof Error ? error.message : 'Unable to check retained terminals';
+        terminalError = error instanceof Error ? errorText(error) : t("app.retainedUnavailable");
     }
     updateMenuWarnings();
     terminalTimer = setTimeout(() => refreshTerminals(), 10000);
     return !terminalError;
 }
-function accountActions(): [...TabAction, string?][] {
+function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, string?][] {
     const count = unlistedTerminals().filter(info => !info.exited).length;
-    const actions: [...TabAction, string?][] = [
-        ['Settings', 'Settings', openSettings],
-        ['Retained terminals', 'SquareTerminal', retainedTerminals, terminalError || (count ? `${count} running terminal${count === 1 ? '' : 's'} outside your workspaces` : '')],
-        ['About', 'Info', openAbout, updates?.warning],
-        ['Restart Tuxee', 'RefreshCw', restartTuxee], ['Log out', 'LogOut', logout]
+    const actions: ReturnType<typeof accountActions> = [
+        [t("app.settings"), 'Settings', openSettings],
+        [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : '')],
+        [t("app.about"), 'Info', openAbout, updates?.warning],
+        [t("app.restartTuxee"), 'RefreshCw', restartTuxee], [t("app.logOut"), 'LogOut', logout]
     ];
-    if (monitoring) actions.unshift(['Resource monitor', 'Activity', () => monitoring?.open()]);
+    if (monitoring) actions.unshift([t("app.resourceMonitor"), 'Activity', () => monitoring?.open()]);
     return actions;
 }
 function setMenuWarning(control: HTMLElement, warning: string) {
@@ -1031,8 +1064,8 @@ function updateMenuWarnings() {
     if (!loggedIn) return;
     const actions = accountActions(), account = root.querySelector<HTMLElement>('.user-menu-button');
     if (account) setMenuWarning(account, actions.flatMap(action => action[3] ? [action[3]] : []).join('\n'));
-    for (const [label, , , warning] of actions) {
-        const control = document.querySelector<HTMLElement>(`.account-menu [aria-label="${label}"]`);
+    for (const [, name, , warning] of actions) {
+        const control = document.querySelector<HTMLElement>(`.account-menu [data-action="${name}"]`);
         if (control) setMenuWarning(control, warning || '');
     }
 }
@@ -1045,6 +1078,7 @@ function userMenu(anchor: HTMLElement) {
     let close = () => {};
     for (const [label, name, action, warning] of accountActions()) {
         const b = button(label, name, () => { close(); return action(); });
+        b.dataset.action = name!;
         b.append(el('span', '', label)); b.setAttribute('role', 'menuitem'); content.append(b);
         setMenuWarning(b, warning || '');
     }
@@ -1054,21 +1088,21 @@ function userMenu(anchor: HTMLElement) {
 async function openAbout() {
     const content = el('div', 'about-content'), logo = el('img', 'about-logo');
     logo.src = settings.theme === 'light' ? verticalLogoLight : verticalLogo;
-    logo.alt = 'Tuxee';
+    logo.alt = t("app.tuxee");
     logo.width = logo.height = 192; logo.draggable = false;
-    const status = el('p', 'muted', 'Loading…');
+    const status = el('p', 'muted', t("common.loading"));
     status.setAttribute('role', 'status');
     const table = el('table', 'about-details'), body = el('tbody');
-    table.setAttribute('aria-label', 'System information');
-    const versionRow = el('tr'), versionHeading = el('th', '', 'Tuxee version'), version = el('td', '', '—');
+    table.setAttribute('aria-label', t("app.systemInformation"));
+    const versionRow = el('tr'), versionHeading = el('th', '', t("app.tuxeeVersion")), version = el('td', '', '—');
     versionHeading.scope = 'row'; versionRow.append(versionHeading, version); body.append(versionRow);
-    const githubRow = el('tr'), githubHeading = el('th', '', 'GitHub'), githubCell = el('td');
-    const github = el('a', '', 'agent0ai/tuxee');
-    github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
+    const githubRow = el('tr'), githubHeading = el('th', '', t("app.github")), githubCell = el('td');
+    const github = el('a', '', t("app.agent0aiTuxee"));
+    github.dir = 'ltr'; github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
     githubHeading.scope = 'row'; githubCell.append(github); githubRow.append(githubHeading, githubCell);
     table.append(body);
-    content.append(logo, el('p', 'about-tagline muted', 'Tuxee - the most convenient linux for servers and agents.'), table, status);
-    const { dialog } = modal('About Tuxee', content);
+    content.append(logo, el('p', 'about-tagline muted', t("app.tagline")), table, status);
+    const { dialog } = modal(t("app.aboutTuxee"), content);
     dialog.classList.add('about-modal');
     dialog.querySelector('h2')!.remove();
     const controller = new AbortController();
@@ -1077,36 +1111,36 @@ async function openAbout() {
     body.prepend(githubRow);
     try {
         const info = await api<{ version: string; os: string; kernel: string; architecture: string; hostname: string; username: string; uid: number; home: string; shell: string }>('/system', 'GET', undefined, controller.signal);
-        version.textContent = info.version || 'Unavailable';
+        version.textContent = info.version || t("common.unavailable");
         for (const [label, value] of [
-            ['Operating system', info.os], ['Kernel', info.kernel],
-            ['Architecture', info.architecture], ['Server name', info.hostname],
-            ['User', `${info.username} (UID ${info.uid})`], ['Home directory', info.home], ['Shell', info.shell],
+            [t("app.operatingSystem"), info.os], [t("app.kernel"), info.kernel],
+            [t("app.architecture"), info.architecture], [t("app.serverName"), info.hostname],
+            [t("app.user"), t("app.userIdentity", { name: info.username, uid: info.uid })], [t("app.homeDirectory"), info.home], [t("app.shell"), info.shell],
         ]) {
             const row = el('tr'), heading = el('th', '', label);
             heading.scope = 'row';
-            row.append(heading, el('td', '', value || 'Unavailable')); body.append(row);
+            row.append(heading, el('td', '', value || t("common.unavailable"))); body.append(row);
         }
         status.remove();
     } catch (error) {
         if (!controller.signal.aborted) {
             status.setAttribute('role', 'alert');
-            status.textContent = error instanceof Error ? error.message : 'System information is unavailable';
+            status.textContent = error instanceof Error ? errorText(error) : t("app.systemInformationIsUnavailable");
         }
     }
 }
 async function retainedTerminals() {
-    if (!await refreshTerminals()) throw new Error(terminalError || 'Unable to check retained terminals');
+    if (!await refreshTerminals()) throw new Error(terminalError || t("app.retainedUnavailable"));
     const content = el('div', 'retained-list');
-    const { close } = modal('Retained terminals', content);
+    const { close } = modal(t("app.retainedTerminals"), content);
     const paint = () => {
         content.replaceChildren();
         const sessions = unlistedTerminals();
-        if (!sessions.length) content.append(el('p', 'muted', 'No retained terminals.'));
+        if (!sessions.length) content.append(el('p', 'muted', t("app.noRetainedTerminals")));
         for (const info of sessions) {
             const row = el('div', 'retained-row'), text = el('div');
-            text.append(el('strong', '', info.name), el('small', 'muted', `PID ${info.pid} · ${info.exited ? 'Ended' : info.attached ? 'Attached' : 'Detached'} · ${info.directory}`));
-            row.append(text, button('Attach', undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); }), button('Terminate', 'Trash2', async () => { if (await confirmAction('Terminate terminal?', `Stop ${info.name} and its running work?`, 'Terminate')) {
+            text.append(el('strong', '', info.name), el('small', 'muted', t("terminal.summary", { pid: info.pid, state: t(info.exited ? 'terminal.ended' : info.attached ? 'terminal.attached' : 'terminal.detached'), directory: info.directory })));
+            row.append(text, button(t("app.attach"), undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); }), button(t("app.terminate"), 'Trash2', async () => { if (await confirmAction(t("app.terminateTerminal"), t("terminal.stopNamed", { name: info.name }), t("app.terminate"))) {
                 await api(`/terminals/${info.id}`, 'DELETE');
                 terminalSessions = terminalSessions.filter(value => value.id !== info.id);
                 updateMenuWarnings(); paint(); void refreshTerminals();
@@ -1124,28 +1158,28 @@ async function openSettings() {
     serverName.value = settings.serverName || '';
     serverName.placeholder = hostname;
     const label = el('label', 'field');
-    label.append(el('span', 'settings-label', 'Server name'));
+    label.append(el('span', 'settings-label', t("app.serverName")));
     label.append(serverName);
     const directory = el('input');
     directory.name = 'defaultDirectory'; directory.value = settings.defaultDirectory || '~';
     directory.maxLength = 4096; directory.autocomplete = 'off'; directory.spellcheck = false;
     const directoryLabel = el('label', 'field');
-    directoryLabel.append(el('span', 'settings-label', 'Default directory'), directory);
+    directoryLabel.append(el('span', 'settings-label', t("app.defaultDirectory")), directory);
     const shell = el('input');
     shell.name = 'shellCommand'; shell.value = settings.shellCommand || 'bash';
     shell.maxLength = 4096; shell.autocomplete = 'off'; shell.spellcheck = false;
     const shellLabel = el('label', 'field');
-    shellLabel.append(el('span', 'settings-label', 'Shell command'), shell);
+    shellLabel.append(el('span', 'settings-label', t("app.shellCommand")), shell);
     const prompt = el('input'); prompt.type = 'checkbox'; prompt.name = 'useTuxeePrompt';
     prompt.setAttribute('role', 'switch'); prompt.checked = settings.useTuxeePrompt !== false;
     const promptLabel = el('label', 'settings-switch');
-    promptLabel.append(prompt, el('span', '', 'Use Tuxee shell prompt'));
+    promptLabel.append(prompt, el('span', '', t("app.useTuxeeShellPrompt")));
     let markerColor = settings.serverColor || '';
     const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
     const color = el('input');
     color.type = 'color'; color.id = 'server-color'; color.value = markerColor || defaultColor;
-    const colorLabel = el('label', 'settings-label', 'Color marker'); colorLabel.htmlFor = color.id;
-    const reset = button('Reset', undefined, () => {
+    const colorLabel = el('label', 'settings-label', t("app.colorMarker")); colorLabel.htmlFor = color.id;
+    const reset = button(t("common.reset"), undefined, () => {
         markerColor = ''; color.value = defaultColor; reset.disabled = true; setColorMarker();
     });
     reset.disabled = !markerColor;
@@ -1154,20 +1188,20 @@ async function openSettings() {
     const marker = el('div', 'field'); marker.append(colorLabel, colors);
     const terminalColors = { terminalBackground: settings.terminalBackground || '', terminalBackgroundLight: settings.terminalBackgroundLight || '' };
     const backgroundField = el('fieldset', 'field terminal-colors');
-    backgroundField.append(el('legend', 'settings-label', 'Terminal background'));
+    backgroundField.append(el('legend', 'settings-label', t("app.terminalBackground")));
     const backgroundColumns = el('div', 'terminal-color-columns');
     for (const [key, label, fallback] of [
-        ['terminalBackground', 'Dark', terminalTheme.background],
-        ['terminalBackgroundLight', 'Light', '#f8f9fc']
+        ['terminalBackground', t("app.dark"), terminalTheme.background],
+        ['terminalBackgroundLight', t("app.light"), '#f8f9fc']
     ] as const) {
         const background = el('input');
         background.type = 'color'; background.id = key; background.value = terminalColors[key] || fallback;
         const backgroundLabel = el('label', '', label); backgroundLabel.htmlFor = background.id;
-        background.setAttribute('aria-label', `${label} terminal background`);
-        const resetBackground = button(`Reset ${label.toLowerCase()} terminal background`, undefined, () => {
+        background.setAttribute('aria-label', t("settings.backgroundLabel", { theme: label }));
+        const resetBackground = button(t("settings.backgroundReset", { theme: label.toLowerCase() }), undefined, () => {
             terminalColors[key] = ''; background.value = fallback; resetBackground.disabled = true;
         });
-        resetBackground.textContent = 'Reset'; resetBackground.disabled = !terminalColors[key];
+        resetBackground.textContent = t("common.reset"); resetBackground.disabled = !terminalColors[key];
         background.oninput = () => { terminalColors[key] = background.value; resetBackground.disabled = false; };
         const controls = el('div', 'settings-color'); controls.append(backgroundLabel, background, resetBackground);
         backgroundColumns.append(controls);
@@ -1175,29 +1209,29 @@ async function openSettings() {
     backgroundField.append(backgroundColumns);
     const uploads = el('select');
     for (let n = 1; n <= 8; n++) {
-        const option = el('option', '', n === 4 ? '4 (default)' : String(n));
+        const option = el('option', '', n === 4 ? t("settings.defaultUploadConcurrency", { count: n }) : String(n));
         option.value = String(n); uploads.append(option);
     }
     uploads.value = String(settings.uploadConcurrency ?? 4);
-    const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', 'Parallel uploads'), uploads);
+    const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', t("app.parallelUploads")), uploads);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';
     const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
     const details = el('section', 'tls-status');
-    details.append(el('h3', '', 'Connection'), el('p', '', !https ? 'Plain HTTP' : certificate === 'public' ? `Public certificate · expires ${new Date(tls.expires).toLocaleString()}` : certificate === 'local' ? 'Encrypted with a local certificate' : 'Encrypted HTTPS'));
+    details.append(el('h3', '', t("app.connection")), el('p', '', !https ? t("app.plainHTTP") : certificate === 'public' ? t("settings.certificateExpiry", { date: new Date(tls.expires).toLocaleString(locale()) }) : certificate === 'local' ? t("app.encryptedWithALocalCertificate") : t("app.encryptedHTTPS")));
     if (certificate === 'local') {
-        const link = el('a', 'text-link', 'Download local CA certificate');
+        const link = el('a', 'text-link', t("app.downloadLocalCACertificate"));
         link.href = '/api/tls/ca';
         link.download = 'tuxee-local-ca.crt';
         details.append(link);
     }
     if (certificate && tls.error)
-        details.append(el('p', 'muted', tls.error));
-    const submit = button('Save');
+        details.append(el('p', 'muted', errorText(tls)));
+    const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
     content.append(label, marker, el('hr'), shellLabel, promptLabel, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
-    const dialog = modal('Settings', content);
+    const dialog = modal(t("app.settings"), content);
     dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
     content.onsubmit = async event => {
         event.preventDefault();
@@ -1224,15 +1258,15 @@ async function openSettings() {
 }
 async function restartTuxee() {
     for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;
-    if (!await confirmAction('Restart Tuxee?', 'This restarts the Tuxee runtime, ends all running terminals and GUI applications for every user, and signs everyone out. Linux and other services keep running. To restart Linux, use reboot. For containers, restart the container or terminate its PID 1 according to your deployment.', 'Restart Tuxee')) return;
+    if (!await confirmAction(t("app.restartConfirmationTitle"), t("app.restartConsequences"), t("app.restartTuxee"))) return;
     await save();
     try { await api('/restart', 'POST', {}); }
     catch (error) {
-        if (error instanceof APIError && error.status === 403 && error.command && error.message.startsWith('Cannot restart Tuxee:')) {
+        if (error instanceof APIError && error.status === 403 && error.command) {
             const content = el('div');
-            content.append(el('p', '', error.message), el('p', 'muted', 'If you have sudo access, run this command in a terminal:'));
+            content.append(el('p', '', error.message), el('p', 'muted', t("app.restartPermissionHint")));
             content.append(el('code', 'update-command', error.command));
-            modal('Cannot restart Tuxee', content);
+            modal(t("app.cannotRestartTuxee"), content);
             return;
         }
         throw error;
@@ -1241,7 +1275,14 @@ async function restartTuxee() {
 }
 async function logout() {
     for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return;
-    await save(); await api('/logout', 'POST', {}); showLogin();
+    await save();
+    if (loggingOut) return;
+    loggingOut = true;
+    try {
+        await api('/logout', 'POST', {});
+        setTranslations(await api<Translations>('/language'));
+        showLogin();
+    } finally { loggingOut = false; }
 }
 let resizeTimer: ReturnType<typeof setTimeout>;
 window.addEventListener('resize', () => {
@@ -1261,9 +1302,10 @@ window.addEventListener('focus', () => { void refreshTerminals(); });
 window.addEventListener('pagehide', () => { clearFileCut(); audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
-    else if (session.uid === user.uid) setCSRF(session.csrf);
+    else if (session.uid === user.uid && (!session.language || session.language === translations().language)) setCSRF(session.csrf);
     else { showLogin(); location.reload(); }
 }, () => {
+    if (loggingOut) return;
     const ended = loggedIn;
     if (!root.querySelector('.login-page')) showLogin();
     if (ended) location.reload();

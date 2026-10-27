@@ -6,13 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os/exec"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"tuxee/internal/identity"
 )
@@ -58,10 +58,13 @@ func Start(ctx context.Context, user identity.User, request Request, body io.Rea
 		err = json.Unmarshal(line, &p.Response)
 	}
 	if err == nil && p.Response.Error != "" {
-		err = errors.New(p.Response.Error)
+		err = i18n.From(p.Response.Text, p.Response.Error)
 	}
 	if err != nil {
 		p.Cancel()
+		if errors.Is(err, io.EOF) && p.err != nil {
+			return nil, p.err
+		}
 		return nil, err
 	}
 	p.Reader = reader
@@ -71,7 +74,12 @@ func (p *Process) Wait() error {
 	p.once.Do(func() {
 		p.err = p.cmd.Wait()
 		if message := strings.TrimSpace(p.stderr.String()); p.err != nil && message != "" {
-			p.err = fmt.Errorf("%s: %w", message, p.err)
+			var text i18n.Message
+			if json.Unmarshal([]byte(message), &text) == nil && text.Key != "" {
+				p.err = i18n.Wrap(text.Key, p.err, text.Vars)
+			} else {
+				p.err = i18n.Wrap("backend.files.workerFailed", p.err, i18n.Vars{"message": message, "detail": i18n.Describe(p.err)})
+			}
 		}
 		p.cancel()
 	})

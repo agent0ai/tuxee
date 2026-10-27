@@ -1,3 +1,4 @@
+import { MessageError } from '../message';
 // Shared state boundary for the pinned xterm 6.0 engine. Private engine fields
 // are confined here; browser and headless continuation tests qualify this format.
 // Snapshots transfer data and never replay historical VT commands.
@@ -101,8 +102,8 @@ export function installHeadlessColors(terminal: any) {
 
 export function setTerminalBackground(terminal: any, background: string, foreground?: string) {
   background ||= terminalTheme.background;
-  if (!/^#[0-9a-f]{6}$/i.test(background)) throw new Error("invalid terminal background");
-  if (foreground && !/^#[0-9a-f]{6}$/i.test(foreground)) throw new Error("invalid terminal foreground");
+  if (!/^#[0-9a-f]{6}$/i.test(background)) throw new MessageError("engine.invalidTerminalBackground");
+  if (foreground && !/^#[0-9a-f]{6}$/i.test(foreground)) throw new MessageError("engine.invalidTerminalForeground");
   const palette = headlessPalettes.get(terminal);
   for (const [index, name, hex] of [[257, 'background', background], [256, 'foreground', foreground]] as const) {
     if (!hex) continue;
@@ -148,7 +149,7 @@ function restorePalette(terminal: any, saved: Palette | undefined) {
     return;
   }
   const theme = terminal._core._themeService;
-  if (!theme) throw new Error("terminal palette owner is unavailable");
+  if (!theme) throw new MessageError("engine.terminalPaletteOwnerIsUnavailable");
   const color = (rgba: number) => ({
     rgba,
     css: `#${(rgba >>> 8).toString(16).padStart(6, "0")}`,
@@ -274,7 +275,7 @@ function handlers(value: any[]) {
 
 function restoreHandlers(value: any[], saved: any[]) {
   if (value.length !== saved.length) {
-    throw new Error("xterm parser handlers differ");
+    throw new MessageError("engine.xtermParserHandlersDiffer");
   }
   value.forEach((handler, index) => {
     handler._data = saved[index].data;
@@ -295,7 +296,7 @@ export function captureTerminal(terminal: any) {
     p._oscParser._stack.paused || p._dcsParser._stack.paused ||
     h._parseStack.paused
   ) {
-    throw new Error("flush xterm writes before capturing state");
+    throw new MessageError("engine.flushXtermWritesBeforeCapturingState");
   }
   const charset = c._charsetService;
   const snapshot = {
@@ -364,7 +365,7 @@ export function captureTerminal(terminal: any) {
 export function restoreTerminal(terminal: any, snapshot: any) {
   validateSnapshot(snapshot);
   if (snapshot.version !== "the8020.xterm-6.0.0.2") {
-    throw new Error("unknown state version");
+    throw new MessageError("engine.unknownStateVersion");
   }
   terminal.options.scrollback = snapshot.scrollback;
   terminal.resize(snapshot.cols, snapshot.rows);
@@ -449,16 +450,16 @@ export function validateSnapshot(snapshot: any): void {
   const cellArrays = new Set<any[]>();
   const walk = (value: any, depth: number): void => {
     if (++nodes > 3_000_000 || depth > 32) {
-      throw new Error("terminal state exceeds structural bounds");
+      throw new MessageError("engine.terminalStateExceedsStructuralBounds");
     }
     if (typeof value === "string") {
       strings += value.length;
       if (strings > MAX_STRING_UNITS) {
-        throw new Error("terminal state exceeds text bounds");
+        throw new MessageError("engine.terminalStateExceedsTextBounds");
       }
     } else if (typeof value === "number") {
       if (!Number.isSafeInteger(value)) {
-        throw new Error("invalid terminal state number");
+        throw new MessageError("engine.invalidTerminalStateNumber");
       }
     } else if (value !== null && typeof value === "object") {
       if (Array.isArray(value)) {
@@ -466,22 +467,22 @@ export function validateSnapshot(snapshot: any): void {
           // Cells are already validated; retain their structural budget.
           nodes += value.length;
           if (nodes > 3_000_000 || (value.length && depth + 1 > 32)) {
-            throw new Error("terminal state exceeds structural bounds");
+            throw new MessageError("engine.terminalStateExceedsStructuralBounds");
           }
         } else for (const item of value) walk(item, depth + 1);
       } else {
         if (Object.getPrototypeOf(value) !== Object.prototype) {
-          throw new Error("terminal state must be plain JSON");
+          throw new MessageError("engine.terminalStateMustBePlainJson");
         }
         for (const key of Object.keys(value)) {
           if (
             key === "__proto__" || key === "constructor" || key === "prototype"
-          ) throw new Error("invalid terminal state key");
+          ) throw new MessageError("engine.invalidTerminalStateKey");
           walk(value[key], depth + 1);
         }
       }
     } else if (value !== null && typeof value !== "boolean") {
-      throw new Error("terminal state must contain only JSON values");
+      throw new MessageError("engine.terminalStateMustContainOnlyJsonValues");
     }
   };
   const integer = (n: any, min: number, max: number): boolean =>
@@ -495,7 +496,7 @@ export function validateSnapshot(snapshot: any): void {
       retainedScrollback(snapshot.cols, snapshot.rows),
     ) ||
     !["normal", "alternate"].includes(snapshot.active)
-  ) throw new Error("invalid terminal state geometry or version");
+  ) throw new MessageError("engine.invalidTerminalStateGeometryOrVersion");
   for (
     const [name, value] of [["normal", snapshot.normal], [
       "alternate",
@@ -508,10 +509,10 @@ export function validateSnapshot(snapshot: any): void {
       !Array.isArray(value?.lines) || value.lines.length > lineLimit ||
       Object.keys(value.geometry).sort().join() !==
         [...geometryKeys].sort().join()
-    ) throw new Error("invalid terminal buffer");
+    ) throw new MessageError("engine.invalidTerminalBuffer");
     for (const [key, n] of Object.entries(value.geometry)) {
       if (!integer(n, 0, key === "x" || key === "savedX" ? 500 : 5200)) {
-        throw new Error("invalid terminal cursor or margins");
+        throw new MessageError("engine.invalidTerminalCursorOrMargins");
       }
     }
     for (const line of value.lines) {
@@ -519,19 +520,19 @@ export function validateSnapshot(snapshot: any): void {
         !integer(line.length, 0, 500) || !Array.isArray(line.data) ||
         line.data.length !== line.length * 3 ||
         typeof line.wrapped !== "boolean"
-      ) throw new Error("invalid terminal line");
+      ) throw new MessageError("engine.invalidTerminalLine");
       const data = line.data;
       for (let index = 0; index < data.length; index++) {
         const n = data[index];
         // Exact uint32 values only; indexed reads also reject sparse entries.
-        if ((n >>> 0) !== n) throw new Error("invalid terminal line");
+        if ((n >>> 0) !== n) throw new MessageError("engine.invalidTerminalLine");
       }
       cellArrays.add(data);
       for (const [key, text] of Object.entries(line.combined)) {
         if (
           !/^\d+$/.test(key) || !integer(Number(key), 0, 499) ||
           typeof text !== "string"
-        ) throw new Error("invalid terminal combined text");
+        ) throw new MessageError("engine.invalidTerminalCombinedText");
       }
       for (
         const [key, attr] of Object.entries(line.extended) as [string, any][]
@@ -540,7 +541,7 @@ export function validateSnapshot(snapshot: any): void {
           !/^\d+$/.test(key) || !integer(Number(key), 0, 499) ||
           !integer(attr.ext, 0, 0xffff_ffff) ||
           !integer(attr.url, 0, Number.MAX_SAFE_INTEGER)
-        ) throw new Error("invalid terminal attributes");
+        ) throw new MessageError("engine.invalidTerminalAttributes");
       }
     }
   }
@@ -549,7 +550,7 @@ export function validateSnapshot(snapshot: any): void {
     snapshot.utf8Interim?.length !== 3 ||
     snapshot.palette?.colors.length !== 259 ||
     snapshot.palette?.defaults.length !== 259
-  ) throw new Error("invalid terminal parser or palette state");
+  ) throw new MessageError("engine.invalidTerminalParserOrPaletteState");
   walk(snapshot, 0);
 }
 
@@ -558,7 +559,7 @@ export function validateSnapshot(snapshot: any): void {
 export function checkEngineTextBounds(terminal: any): void {
   const c = terminal._core;
   if (c._oscLinkService._dataByLinkId.size > 32_768) {
-    throw new Error("terminal hyperlink limit exceeded");
+    throw new MessageError("engine.terminalHyperlinkLimitExceeded");
   }
   let units = 0;
   for (
@@ -584,7 +585,7 @@ export function checkEngineTextBounds(terminal: any): void {
     ]
   ) units += handler._data?.length ?? 0;
   if (units > MAX_STRING_UNITS) {
-    throw new Error("terminal retained text limit exceeded");
+    throw new MessageError("engine.terminalRetainedTextLimitExceeded");
   }
 }
 

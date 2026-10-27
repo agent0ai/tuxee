@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
-	"errors"
 	"io"
 	"mime"
 	"net/http"
 	"path/filepath"
 	"sync/atomic"
 	"time"
+	"tuxee/internal/i18n"
 
 	"tuxee/internal/files"
 )
@@ -23,6 +23,7 @@ type archiveDownload struct {
 	started bool
 	done    bool
 	err     string
+	text    *i18n.Message
 	timer   *time.Timer
 	stop    func() bool
 }
@@ -71,7 +72,7 @@ func (s *Server) archiveOperation(w http.ResponseWriter, r *http.Request, sessio
 		if len(s.archives) >= 128 {
 			s.mu.Unlock()
 			cancel()
-			failure(w, 429, errors.New("too many pending downloads"))
+			failure(w, 429, i18n.New("backend.server.tooManyPendingDownloads"))
 			return
 		}
 		s.archives[token] = job
@@ -86,14 +87,15 @@ func (s *Server) archiveOperation(w http.ResponseWriter, r *http.Request, sessio
 	job := s.archives[token]
 	if job == nil || job.session != session {
 		s.mu.Unlock()
-		failure(w, 404, errors.New("download expired"))
+		failure(w, 404, i18n.New("backend.server.downloadExpired"))
 		return
 	}
 	status := struct {
-		Size  int64  `json:"size"`
-		Done  bool   `json:"done"`
-		Error string `json:"error,omitempty"`
-	}{job.size.Load(), job.done, job.err}
+		Size  int64         `json:"size"`
+		Done  bool          `json:"done"`
+		Error string        `json:"error,omitempty"`
+		Text  *i18n.Message `json:"text,omitempty"`
+	}{job.size.Load(), job.done, job.err, job.text}
 	s.mu.Unlock()
 	if r.Method == http.MethodDelete {
 		s.removeArchive(token)
@@ -106,7 +108,7 @@ func (s *Server) downloadArchive(w http.ResponseWriter, r *http.Request, session
 	job := s.archives[token]
 	if job == nil || job.session != session || job.started {
 		s.mu.Unlock()
-		failure(w, 404, errors.New("download expired or already started"))
+		failure(w, 404, i18n.New("backend.server.downloadExpiredOrAlreadyStarted"))
 		return
 	}
 	job.started = true
@@ -118,6 +120,7 @@ func (s *Server) downloadArchive(w http.ResponseWriter, r *http.Request, session
 		job.done = true
 		if result != nil {
 			job.err = result.Error()
+			job.text = i18n.Describe(result)
 		}
 		if s.archives[token] == job {
 			job.timer.Reset(time.Minute)
@@ -126,7 +129,7 @@ func (s *Server) downloadArchive(w http.ResponseWriter, r *http.Request, session
 		job.cancel()
 	}()
 	if !s.fileSlot(w) {
-		result = errors.New("file operations are busy; try again shortly")
+		result = i18n.New("backend.server.fileOperationsAreBusyTryAgainShortly")
 		return
 	}
 	defer func() { <-s.fileSlots }()

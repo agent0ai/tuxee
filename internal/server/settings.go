@@ -5,15 +5,23 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
+	"tuxee/internal/i18n"
 	"unicode/utf16"
 
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
 	"tuxee/internal/monitor"
+)
+
+const (
+	maxShellCommandBytes     = 4096
+	maxDefaultDirectoryBytes = 4096
+	minUploadConcurrency     = 1
+	maxUploadConcurrency     = 8
+	maxServerNameUnits       = 64
+	maxWorkspaces            = 24
 )
 
 type Panel struct {
@@ -89,59 +97,59 @@ func validateSettings(value *Settings) error {
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
 	value.ShellCommand = strings.TrimSpace(value.ShellCommand)
-	if len(value.ShellCommand) > 4096 || strings.ContainsAny(value.ShellCommand, "\x00\r\n") {
-		return errors.New("shell command must be at most 4096 bytes with no NUL or line breaks")
+	if len(value.ShellCommand) > maxShellCommandBytes || strings.ContainsAny(value.ShellCommand, "\x00\r\n") {
+		return i18n.New("backend.server.shellCommandLimit", i18n.Vars{"maxBytes": maxShellCommandBytes})
 	}
 	if err := validateDefaultDirectory(value.DefaultDirectory); err != nil {
 		return err
 	}
-	if n := value.UploadConcurrency; n != nil && (*n < 1 || *n > 8) {
-		return errors.New("parallel uploads must be between 1 and 8")
+	if n := value.UploadConcurrency; n != nil && (*n < minUploadConcurrency || *n > maxUploadConcurrency) {
+		return i18n.New("backend.server.uploadConcurrencyRange", i18n.Vars{"min": minUploadConcurrency, "max": maxUploadConcurrency})
 	}
-	for name, color := range map[string]string{"color marker": value.ServerColor, "terminal background": value.TerminalBackground, "light terminal background": value.TerminalBackgroundLight} {
+	for name, color := range map[string]string{"settings.colorMarkerField": value.ServerColor, "settings.backgroundField": value.TerminalBackground, "settings.lightBackgroundField": value.TerminalBackgroundLight} {
 		if color == "" {
 			continue
 		}
 		if len(color) != 7 || color[0] != '#' {
-			return fmt.Errorf("%s must be a six-digit hex color", name)
+			return i18n.New("backend.server.mustBeASixDigitHexColor", i18n.Vars{"name": &i18n.Message{Key: name}})
 		}
 		if _, err := hex.DecodeString(color[1:]); err != nil {
-			return fmt.Errorf("%s must be a six-digit hex color", name)
+			return i18n.New("backend.server.mustBeASixDigitHexColor", i18n.Vars{"name": &i18n.Message{Key: name}})
 		}
 	}
 	value.ServerName = strings.TrimSpace(value.ServerName)
 	// Match the browser input's maxlength, which counts UTF-16 code units.
-	if len(utf16.Encode([]rune(value.ServerName))) > 64 || strings.ContainsRune(value.ServerName, 0) {
-		return errors.New("server name must be at most 64 characters with no NUL")
+	if len(utf16.Encode([]rune(value.ServerName))) > maxServerNameUnits || strings.ContainsRune(value.ServerName, 0) {
+		return i18n.New("backend.server.serverNameLimit", i18n.Vars{"max": maxServerNameUnits})
 	}
 	if m := value.Monitoring; m != nil {
 		if m.Interval != 2 && m.Interval != 5 && m.Interval != 10 || len(m.Disks) > 8 || len(m.Networks) > 8 || m.Disks == nil || m.Networks == nil {
-			return errors.New("invalid monitoring preferences")
+			return i18n.New("backend.server.invalidMonitoringPreferences")
 		}
 		seen := map[string]bool{}
 		for _, path := range m.Disks {
-			if !filepath.IsAbs(path) || filepath.Clean(path) != path || len(path) > 4096 || strings.ContainsRune(path, 0) || seen[path] {
-				return errors.New("invalid monitoring disk")
+			if !filepath.IsAbs(path) || filepath.Clean(path) != path || len(path) > maxDefaultDirectoryBytes || strings.ContainsRune(path, 0) || seen[path] {
+				return i18n.New("backend.server.invalidMonitoringDisk")
 			}
 			seen[path] = true
 		}
 		seen = map[string]bool{}
 		for _, name := range m.Networks {
 			if seen[name] || name != monitor.AllNetworks && (name == "" || len(name) > 15 || strings.ContainsAny(name, "/\x00 \t\n")) {
-				return errors.New("invalid monitoring interface")
+				return i18n.New("backend.server.invalidMonitoringInterface")
 			}
 			seen[name] = true
 		}
 	}
 	if value.Workspaces == nil {
-		return errors.New("workspaces must be an array")
+		return i18n.New("backend.server.workspacesMustBeAnArray")
 	}
 	if value.Theme != "dark" && value.Theme != "light" {
-		return errors.New("theme must be dark or light")
+		return i18n.New("backend.server.themeMustBeDarkOrLight")
 	}
 	// Reserve room for splitting the twelve legacy sixteen-panel workspaces without losing sessions.
-	if len(value.Workspaces) > 24 {
-		return errors.New("at most 24 workspaces are supported")
+	if len(value.Workspaces) > maxWorkspaces {
+		return i18n.New("backend.server.workspaceCountLimit", i18n.Vars{"max": maxWorkspaces})
 	}
 	seen := map[string]bool{}
 	current := value.Current == "" && len(value.Workspaces) == 0
@@ -150,31 +158,31 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 			return err
 		}
 		if ws.Panels == nil {
-			return errors.New("workspace panels must be an array")
+			return i18n.New("backend.server.workspacePanelsMustBeAnArray")
 		}
 		if ws.ID == "" || len(ws.ID) > 80 || seen[ws.ID] || len(ws.Name) == 0 || len(ws.Name) > 60 {
-			return errors.New("invalid or duplicate workspace")
+			return i18n.New("backend.server.invalidOrDuplicateWorkspace")
 		}
 		seen[ws.ID] = true
 		if ws.ID == value.Current {
 			current = true
 		}
 		if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || legacy && len(value.Workspaces) <= 12 && ws.Columns == 8 && ws.Rows == 2) {
-			return errors.New("invalid workspace grid dimensions")
+			return i18n.New("backend.server.invalidWorkspaceGridDimensions")
 		}
 		if len(ws.Panels) > ws.Columns*ws.Rows {
-			return errors.New("workspace is full")
+			return i18n.New("backend.server.workspaceIsFull")
 		}
 		positions := make([]PanelPosition, 0, len(ws.Panels))
 		panelIDs := map[string]bool{}
 		for _, panel := range ws.Panels {
 			if panel.ID == "" || len(panel.ID) > 80 || seen[panel.ID] || panel.Kind != "files" && panel.Kind != "terminal" {
-				return errors.New("invalid or duplicate panel")
+				return i18n.New("backend.server.invalidOrDuplicatePanel")
 			}
 			seen[panel.ID] = true
 			panelIDs[panel.ID] = true
 			if panel.Path != "" && !(panel.Kind == "files" && panel.Path == files.TrashPath) && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
-				return errors.New("invalid panel location")
+				return i18n.New("backend.server.invalidPanelLocation")
 			}
 			positions = append(positions, PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H})
 		}
@@ -183,11 +191,11 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 		}
 		if layout := ws.Layout; layout != nil {
 			if layout.Mode < 1 || layout.Mode > 3 || layout.Custom == nil || len(layout.Custom) != len(ws.Panels) {
-				return errors.New("invalid layout cycle")
+				return i18n.New("backend.server.invalidLayoutCycle")
 			}
 			for _, position := range layout.Custom {
 				if !panelIDs[position.ID] {
-					return errors.New("custom layout panels do not match workspace")
+					return i18n.New("backend.server.customLayoutPanelsDoNotMatchWorkspace")
 				}
 				delete(panelIDs, position.ID)
 			}
@@ -197,14 +205,14 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 		}
 	}
 	if !current {
-		return errors.New("current workspace does not exist")
+		return i18n.New("backend.server.currentWorkspaceDoesNotExist")
 	}
 	return nil
 }
 
 func validateDefaultDirectory(path string) error {
-	if len(path) > 4096 || strings.ContainsRune(path, 0) || path != "" && path != "~" && !strings.HasPrefix(path, "~/") && !filepath.IsAbs(path) {
-		return errors.New("default directory must be an absolute path or start with ~/ (at most 4096 bytes, no NUL)")
+	if len(path) > maxDefaultDirectoryBytes || strings.ContainsRune(path, 0) || path != "" && path != "~" && !strings.HasPrefix(path, "~/") && !filepath.IsAbs(path) {
+		return i18n.New("backend.server.defaultDirectoryFormat", i18n.Vars{"maxBytes": maxDefaultDirectoryBytes})
 	}
 	return nil
 }
@@ -288,13 +296,13 @@ func validatePanelPositions(positions []PanelPosition, columns, rows int) error 
 	cells := make([]bool, columns*rows)
 	for _, panel := range positions {
 		if panel.X < 0 || panel.Y < 0 || panel.W < 1 || panel.H < 1 || panel.X > columns || panel.Y > rows || panel.W > columns-panel.X || panel.H > rows-panel.Y {
-			return errors.New("panel exceeds workspace grid")
+			return i18n.New("backend.server.panelExceedsWorkspaceGrid")
 		}
 		for y := panel.Y; y < panel.Y+panel.H; y++ {
 			for x := panel.X; x < panel.X+panel.W; x++ {
 				i := y*columns + x
 				if cells[i] {
-					return errors.New("workspace panels overlap")
+					return i18n.New("backend.server.workspacePanelsOverlap")
 				}
 				cells[i] = true
 			}

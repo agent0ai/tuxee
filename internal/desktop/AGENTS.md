@@ -10,6 +10,8 @@ Prepare private display endpoints and credentials, start/stop the runtime, proxy
 
 # Local Contracts
 
+Display state retains structured i18n `text` alongside diagnostic `error`; lifecycle callbacks preserve typed errors. Window/application titles and native clipboard data remain unchanged.
+
 - Prepare allocates credentials and filesystem/abstract Unix listeners only. Start one `tuxee-Xvnc`, Matchbox and session D-Bus on the first connection; concurrent clients share startup. Use separate `ready` and `bus-ready` FIFOs for Xvnc and D-Bus readiness so one writer's close cannot end the other readiness read. Native installations without `tuxee-Xvnc` retain ordinary terminals.
 - Give each terminal a stable DISPLAY, XAUTHORITY, XDG_RUNTIME_DIR and D-Bus address before its shell starts. Check SO_PEERCRED before allocating the runtime. Keep files owner-only, drop UID/GID/groups and use independent random X cookies and VNC passwords. No TCP listeners.
 - Stop the runtime two seconds after the last managed window disappears; cancel that grace period when a window appears. A new X connection with no windows gets 30 seconds to create its first window. Windowless/background X clients are disconnected at reclamation. Keep the public endpoint/cookie and shell environment for lazy relaunch; remove transient runtime sockets/FIFOs/password file, and clear XGB/process/window references. Serialize start/connect/stop and invalidate stale idle callbacks and window watchers. Terminal exit/closure and server shutdown close sockets, kill the runtime group and delete credentials. Serialize group signals with reaping; never signal a reused PID. Logout/detach preserves displays that still have windows.

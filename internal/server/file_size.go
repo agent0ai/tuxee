@@ -3,9 +3,9 @@ package server
 import (
 	"bufio"
 	"context"
-	"errors"
 	"net/http"
 	"time"
+	"tuxee/internal/i18n"
 
 	"tuxee/internal/files"
 )
@@ -22,7 +22,7 @@ func (s *Server) fileSize(w http.ResponseWriter, r *http.Request, session *login
 	case s.sizeSlots <- struct{}{}:
 		defer func() { <-s.sizeSlots }()
 	default:
-		failure(w, 429, errors.New("size calculations are busy; reopen Properties shortly"))
+		failure(w, 429, i18n.New("backend.server.sizeCalculationsAreBusyReopenPropertiesShortly"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)

@@ -1,3 +1,4 @@
+import { errorText, t } from './i18n';
 import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages } from './vendor/code-editor/library.js';
 import { xml } from './vendor/code-editor/xml.js';
 import { api, button, confirmAction, el, notify, popover, scopeNotifications } from './ui';
@@ -44,23 +45,23 @@ export class FileInspector {
     private root = el('section', 'file-inspector');
     private toolbar = el('div', 'inspector-toolbar');
     private body = el('div', 'inspector-body');
-    private back = button('Back to files', 'ArrowLeft', () => this.close());
+    private back = button(t("editor.backToFiles"), 'ArrowLeft', () => this.close());
     private separator = el('span', 'file-navigation-separator', '|');
-    private more = button('File tools', 'Ellipsis', () => this.menu());
+    private more = button(t("editor.fileTools"), 'Ellipsis', () => this.menu());
     private toolbarItems: HTMLElement[] = [];
     private overflow: HTMLElement[] = [];
     private closeMenu = () => {};
     private resize = new ResizeObserver(() => this.fitToolbar());
     private pagination = el('div', 'inspector-pagination');
     private syntax = el('select', 'syntax-select');
-    private saveButton = button('Save file', 'Save', () => this.save());
-    private previous = button('Previous file', 'ChevronLeft', () => this.step(-1));
-    private next = button('Next file', 'ChevronRight', () => this.step(1));
+    private saveButton = button(t("editor.saveFile"), 'Save', () => this.save());
+    private previous = button(t("editor.previousFile"), 'ChevronLeft', () => this.step(-1));
+    private next = button(t("editor.nextFile"), 'ChevronRight', () => this.step(1));
     private filePosition = el('span', 'inspector-position');
-    private undo = button('Undo', 'Undo2', () => this.history('Mod-z'));
-    private redo = button('Redo', 'Redo2', () => this.history('Mod-y'));
-    private pageUp = button('Page up', 'ArrowUp', () => this.turnPage(-1));
-    private pageDown = button('Page down', 'ArrowDown', () => this.turnPage(1));
+    private undo = button(t("editor.undo"), 'Undo2', () => this.history('Mod-z'));
+    private redo = button(t("editor.redo"), 'Redo2', () => this.history('Mod-y'));
+    private pageUp = button(t("editor.pageUp"), 'ArrowUp', () => this.turnPage(-1));
+    private pageDown = button(t("editor.pageDown"), 'ArrowDown', () => this.turnPage(1));
     private pageLabel = el('span', 'inspector-page');
     private editor?: InstanceType<typeof EditorView>;
     private imageViewer?: ImageViewer;
@@ -84,8 +85,8 @@ export class FileInspector {
         this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
         this.root.tabIndex = -1;
-        this.syntax.setAttribute('aria-label', 'Syntax');
-        for (const name of modes) { const option = el('option', '', name); option.value = name; this.syntax.append(option); }
+        this.syntax.setAttribute('aria-label', t("editor.syntax"));
+        for (const name of modes) { const option = el('option', '', name === 'text' ? t('editor.plainText') : name === 'shell' ? t('app.shell') : name); option.value = name; this.syntax.append(option); }
         this.syntax.onchange = () => this.setLanguage().catch(error => notify(error, host));
         this.pageLabel.setAttribute('aria-live', 'polite');
         this.filePosition.setAttribute('aria-live', 'polite');
@@ -97,13 +98,13 @@ export class FileInspector {
         this.root.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); this.save().catch(error => notify(error, host)); }
             else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); this.close().catch(error => notify(error, host)); }
-            else if (this.media && !['INPUT','SELECT','BUTTON'].includes((event.target as Element).tagName) && ['ArrowLeft','ArrowRight'].includes(event.key)) { event.preventDefault(); this.step(event.key === 'ArrowLeft' ? -1 : 1).catch(error => notify(error, host)); }
+            else if (this.media && !["INPUT","SELECT","BUTTON"].includes((event.target as Element).tagName) && ["ArrowLeft",'ArrowRight'].includes(event.key)) { event.preventDefault(); this.step((event.key === 'ArrowLeft' ? -1 : 1) * (document.documentElement.dir === 'rtl' ? -1 : 1)).catch(error => notify(error, host)); }
         };
         window.addEventListener('beforeunload', event => { if (this.dirty) event.preventDefault(); }, { signal: this.events.signal });
         this.load().catch(error => notify(error, host));
     }
     private get file() { return this.files[this.index]; }
-    canClose = async () => !this.root.inert && !this.saving && (!this.dirty || await confirmAction('Discard changes?', this.file.name, 'Discard'));
+    canClose = async () => !this.root.inert && !this.saving && (!this.dirty || await confirmAction(t("editor.discardChanges"), this.file.name, t("editor.discard")));
     private controls() {
         this.changed(this.file.path, this.dirty);
         this.filePosition.textContent = `${this.index + 1}/${this.files.length}`;
@@ -119,7 +120,7 @@ export class FileInspector {
         this.saveButton.disabled = !this.dirty || busy;
         this.pageUp.disabled = busy || this.pageIndex === 0;
         this.pageDown.disabled = busy || !this.page || this.page.end >= this.page.total;
-        this.pageLabel.textContent = `Page ${this.pageIndex + 1}`;
+        this.pageLabel.textContent = t("editor.pageNumber", { page: this.pageIndex + 1 });
         this.body.setAttribute('aria-busy', String(busy));
         this.fitToolbar();
     }
@@ -146,7 +147,7 @@ export class FileInspector {
     }
     private menu() {
         const content = el('div', 'menu-actions inspector-menu');
-        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'File tools');
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t("editor.fileTools"));
         scopeNotifications(content, this.host);
         for (const item of this.overflow) {
             const controls = item.matches('button,select') ? [item] : [...item.children];
@@ -158,7 +159,7 @@ export class FileInspector {
                 } else if (source instanceof HTMLSelectElement) {
                     const select = source.cloneNode(true) as HTMLSelectElement; select.value = source.value;
                     select.onchange = () => { source.value = select.value; this.closeMenu(); source.dispatchEvent(new Event('change')); };
-                    const label = el('label', 'field', 'Syntax'); label.append(select); content.append(label);
+                    const label = el('label', 'field', t("editor.syntax")); label.append(select); content.append(label);
                 } else content.append(source.cloneNode(true));
             }
         }
@@ -191,12 +192,12 @@ export class FileInspector {
             const frame = el('iframe', 'file-pdf'); frame.title = this.file.name; frame.src = url; this.body.append(frame);
         } else if (kind === 'video' || kind === 'audio') {
             const media = el(kind, 'file-media');
-            media.controls = true; media.preload = 'metadata'; media.src = url; media.onerror = () => notify('This browser cannot play the file', this.host); this.body.append(media);
+            media.controls = true; media.preload = 'metadata'; media.src = url; media.onerror = () => notify(t("editor.thisBrowserCannotPlayTheFile"), this.host); this.body.append(media);
         } else {
-            this.body.append(el('div', 'empty', 'Loading…'));
+            this.body.append(el('div', 'empty', t("common.loading")));
             this.syntax.value = languageFor(this.file.path);
         }
-        const downloadButton = button('Download file', 'Download', () => download(this.file.path, this.file.name, this.host));
+        const downloadButton = button(t("editor.downloadFile"), 'Download', () => download(this.file.path, this.file.name, this.host));
         this.toolbar.classList.toggle('media-toolbar', this.media);
         if (this.media) {
             const navigation = el('div', 'inspector-navigation'), actions = el('div', 'inspector-actions');
@@ -222,11 +223,12 @@ export class FileInspector {
             const value = await api('/files', 'POST', { operation: 'read', path: this.file.path, offset: position.offset, version: this.version }, request.signal);
             if (generation !== this.sequence) return;
             const state = EditorState.create({ doc: value.content || '', extensions: [
+                EditorState.phrases.of({ 'Diagnostics': t('editor.diagnostics'), 'No diagnostics': t('editor.noDiagnostics'), 'Selection deleted': t('editor.selectionDeleted'), 'close': t('common.close') }),
                 lineNumbers({ formatNumber: number => String(position.line + number - 1) }),
                 history(), bracketMatching(), indentOnInput(), highlighting, pageWrapping,
                 this.language.of([]), this.readOnly.of(EditorState.readOnly.of(false)),
                 keymap.of([...defaultKeymap, ...historyKeymap]),
-                EditorView.contentAttributes.of({ 'aria-label': 'File content' }),
+                EditorView.contentAttributes.of({ 'aria-label': t("editor.content") }),
                 EditorState.transactionFilter.of(transaction => {
                     if (!transaction.docChanged) return transaction;
                     if (this.saving || this.loading) return [];
@@ -251,7 +253,7 @@ export class FileInspector {
         } catch (error) {
             if (request.signal.aborted || generation !== this.sequence) return;
             if (this.editor) notify(error, this.host);
-            else this.body.replaceChildren(el('div', 'empty', error instanceof Error ? error.message : 'Cannot open file'));
+            else this.body.replaceChildren(el('div', 'empty', error instanceof Error ? errorText(error) : t("editor.cannotOpenFile")));
         } finally {
             if (generation === this.sequence) {
                 this.loading = false;
@@ -271,7 +273,7 @@ export class FileInspector {
             this.draft = new PageDraft(content, editor.state);
             this.version = result.version; this.page = result.page; this.dirty = false;
             this.positions.length = this.pageIndex + 1;
-            notify('Saved', this.host);
+            notify(t("editor.saved"), this.host);
         } finally {
             this.saving = false;
             if (!this.events.signal.aborted) {
@@ -283,7 +285,7 @@ export class FileInspector {
     private async turnPage(direction: number) {
         if (!this.page || this.loading || this.saving || (direction < 0 && !this.pageIndex) || (direction > 0 && this.page.end >= this.page.total)) return;
         if (this.dirty) {
-            if (!await confirmAction('Save changes?', this.file.name, 'Save and continue')) return;
+            if (!await confirmAction(t("editor.saveChanges"), this.file.name, t("editor.saveAndContinue"))) return;
             if (this.events.signal.aborted) return;
             await this.save();
             if (this.dirty || this.events.signal.aborted) return;

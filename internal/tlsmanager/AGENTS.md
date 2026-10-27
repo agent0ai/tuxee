@@ -10,6 +10,8 @@ Own certificate selection, CA/account keys, TLS-ALPN challenge presentation, bou
 
 # Local Contracts
 
+Cached TLS status carries structured i18n `text` alongside diagnostic `error`; preserve nested causes and clear both on successful renewal. Status is shared across users and remains language-independent.
+
 Use TLS-ALPN-01 on the existing listener, never a mandatory port 80 listener. Public port 443 may forward to any local TLS port. ACME auto/on enrolls eligible public domains on demand from TLS SNI; configured hosts are optional startup targets and select the no-SNI identity. Without configured hosts, use discovered interface addresses for startup targets. Resolve names to exclusively public addresses before ordering; ACME validation proves reachability. Periodically renew all tracked names without browser traffic; retries are serialized and limited to once per hour per host. ACME off disables enrollment and renewal, not use of a valid cached certificate. Preserve a valid public certificate across renewal failures. When none is valid, serve a leaf from the persistent local CA and keep attempting public issuance. Never silently rotate an expired local CA or downgrade to HTTP. Store private material only in the protected server state directory. Do not enable HSTS by default. Public IP orders use the shortlived profile.
 
 Invalid public certificate caches remain visible in status and fall back locally. The 64-host memory cache evicts inactive dynamic records while preserving startup hosts and pending orders. When no slot is available, serve an uncached local leaf without enrollment.

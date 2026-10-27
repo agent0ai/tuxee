@@ -58,7 +58,7 @@ func TestShellPrompt(t *testing.T) {
 					selected = `'/bin/bash' --login`
 				}
 				mask := syscall.Umask(0077)
-				s, err := m.Create(user, home, "prompt", 80, 24, "", "", "", selected, enabled)
+				s, err := m.Create(user, home, "prompt", 80, 24, "", "", "", selected, enabled, "en")
 				syscall.Umask(mask)
 				if err != nil {
 					t.Fatal(err)

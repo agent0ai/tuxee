@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
 import { dirname } from 'node:path';
+import { check } from '../internal/i18n/check.mjs';
+await check();
 await build({ entryPoints: ['web/terminal/runtime.ts'], bundle: true, format: 'iife', globalName: 'tuxeeEngine', platform: 'browser', target: 'es2015', minify: true, outfile: 'internal/terminal/engine.js', banner: { js: 'globalThis.TextEncoder = class { encode(s) { return new Uint8Array(__encodeUTF8(s)); } };' } });
 await rm('web/dist', { recursive: true, force: true });
 await mkdir('web/dist', { recursive: true });

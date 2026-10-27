@@ -37,9 +37,13 @@ const base = await new Promise((resolve, reject) => {
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 950 } });
 const page = await context.newPage(), errors = [], external = [], sockets = [];
+let displayResizes = 0;
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:')) external.push(request.url()); });
-page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/display\/ws$/.test(socket.url())) { const value = { closed: false }; sockets.push(value); socket.on('close', () => value.closed = true); } });
+page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/display\/ws$/.test(socket.url())) {
+    const value = { closed: false }; sockets.push(value); socket.on('close', () => value.closed = true);
+    socket.on('framesent', ({ payload }) => { if (typeof payload !== 'string' && payload[0] === 251) displayResizes++; });
+} });
 let csrf, original;
 const appPIDs = [], runtimes = [];
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf || '', 'X-Tuxee-Client': 'web' } });
@@ -333,6 +337,49 @@ try {
     console.log('PASS real GTK keyboard input, owner credentials, modal parent, native file chooser and secondary-window switching');
 
     const canvasDOM = await first.locator('canvas').elementHandle();
+    const canvasGeometry = () => first.locator('canvas').evaluate(canvas => {
+        const rect = canvas.getBoundingClientRect(), frame = canvas.closest('.terminal-display').getBoundingClientRect();
+        return [canvas.width, canvas.height, rect.width, rect.height, rect.x - frame.x, rect.y - frame.y];
+    });
+    const displayFits = () => first.locator('.terminal-display').evaluate(frame => {
+        const canvas = frame.querySelector('canvas');
+        return canvas.width === frame.clientWidth && canvas.height === frame.clientHeight;
+    });
+    const grid = await page.locator('.grid-stack').boundingBox();
+    for (const [kind, direction, cancel] of [
+        ['divider', 1, false], ['divider', -1, false], ['divider', 1, 'Escape'],
+        ['corner', -1, false], ['corner', 1, false], ['corner', -1, 'Escape'], ['corner', -1, 'pointercancel'],
+    ]) {
+        await poll(displayFits, 'GUI size did not settle before dragging');
+        await page.waitForTimeout(250);
+        const before = await canvasGeometry(), requests = displayResizes;
+        const remote = runX(env, 'xdpyinfo', []).match(/dimensions:\s+(\d+x\d+)/)[1];
+        const handle = kind === 'divider' ? page.locator('.workspace-divider[data-axis=x]').first() : firstPanel.locator('.panel-resize-se');
+        const start = await handle.evaluate(node => {
+            const r = node.getBoundingClientRect(), panel = node.classList.contains('panel-resize') ? node.parentElement.querySelector('.panel').getBoundingClientRect() : undefined;
+            return panel ? { x: panel.right - 6, y: panel.bottom - 6 } : { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        });
+        await page.mouse.move(start.x, start.y); await page.mouse.down();
+        await page.mouse.move(start.x + direction * grid.width / 4 * .8, start.y + (kind === 'corner' ? direction * grid.height / 2 * .8 : 0), { steps: 12 });
+        await page.locator(kind === 'divider' ? '.resizing-dividers' : '.resizing-panel').waitFor();
+        await page.waitForTimeout(250);
+        assert.deepEqual(await canvasGeometry(), before, `${kind}: canvas must not resize, scale or recenter during a paused drag`);
+        assert.equal(displayResizes, requests, `${kind}: no remote resize while dragging`);
+        assert.equal(runX(env, 'xdpyinfo', []).match(/dimensions:\s+(\d+x\d+)/)[1], remote);
+        assert.equal(await displayFits(), false, 'outer panel must resize independently of its canvas');
+        if (!cancel) await page.screenshot({ path: `test-results/gui-resize-${kind}-${direction < 0 ? 'left' : 'right'}.png` });
+        if (cancel === 'Escape') await page.keyboard.press('Escape');
+        if (cancel === 'pointercancel') await handle.dispatchEvent('pointercancel');
+        await page.mouse.up();
+        await poll(displayFits, 'GUI did not fit after drag release/cancellation');
+        await page.waitForTimeout(250);
+        assert.equal(displayResizes - requests, cancel ? 0 : 1, `${kind} ${cancel || 'release'}: resize once after settling, never for a cancelled drag`);
+        if (cancel) assert.deepEqual(await canvasGeometry(), before, 'cancel restores the original GUI geometry');
+        assert.ok(await canvasDOM.evaluate(node => node === document.querySelector('[data-panel="shell"] canvas')), 'resizing must preserve the canvas');
+    }
+    await clickControl(first, 'entry'); await page.keyboard.type('RESIZE_INPUT_OK'); await page.keyboard.press('Enter');
+    await poll(async () => (await readFile(`${fixture}/input.json`, 'utf8')).includes('RESIZE_INPUT_OK'), 'GUI input failed after resizing');
+    console.log('PASS GUI crop/background preview, paused divider/corner drags, single final resize and cancellation');
     const sizeBefore = runX(env, 'xdpyinfo', []).match(/dimensions:\s+(\d+x\d+)/)[1];
     await page.setViewportSize({ width: 1700, height: 1000 });
     await poll(() => runX(env, 'xdpyinfo', []).match(/dimensions:\s+(\d+x\d+)/)[1] !== sizeBefore, 'component resize did not resize the X display');

@@ -3,13 +3,12 @@ package update
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/mod/semver"
 )
@@ -40,7 +39,7 @@ func NewClient() *Client {
 	return &Client{
 		http: &http.Client{Timeout: 2 * time.Minute, CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			if r.URL.Scheme != "https" || len(via) >= 5 {
-				return errors.New("unsafe or excessive download redirects")
+				return i18n.New("backend.update.unsafeOrExcessiveDownloadRedirects")
 			}
 			return nil
 		}},
@@ -61,17 +60,17 @@ func (c *Client) download(ctx context.Context, url string, out io.Writer, limit 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GitHub download returned HTTP %d", resp.StatusCode)
+		return i18n.New("backend.update.githubDownloadReturnedHTTP", i18n.Vars{"statusCode": resp.StatusCode})
 	}
 	if resp.ContentLength > limit {
-		return errors.New("release download exceeds size limit")
+		return i18n.New("backend.update.releaseDownloadExceedsSizeLimit")
 	}
 	n, err := io.Copy(out, io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return err
 	}
 	if n > limit {
-		return errors.New("release download exceeds size limit")
+		return i18n.New("backend.update.releaseDownloadExceedsSizeLimit")
 	}
 	return nil
 }
@@ -85,10 +84,10 @@ func (c *Client) Latest(ctx context.Context) (Release, error) {
 		return release, err
 	}
 	if err := json.Unmarshal([]byte(data.String()), &release); err != nil {
-		return release, errors.New("invalid GitHub release response")
+		return release, i18n.New("backend.update.invalidGitHubReleaseResponse")
 	}
 	if !ValidTag(release.Tag) || release.Draft || release.Prerelease {
-		return Release{}, errors.New("GitHub did not return a stable Tuxee release")
+		return Release{}, i18n.New("backend.update.githubDidNotReturnAStableTuxeeRelease")
 	}
 	return release, nil
 }

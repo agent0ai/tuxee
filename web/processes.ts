@@ -1,10 +1,11 @@
+import { locale, t, errorText } from './i18n';
 import { api, button, el, icon, modal, size } from './ui';
 import { selectProcess, selectionRoots, type ProcessSnapshot } from './process-tree';
 import { compactNumber } from './monitor-values';
 
 const percent = (value: number | null) => value == null ? '—' : `${compactNumber(value)}%`;
 const memory = (value: number | null, approximate = false) => value == null ? '—' : `${approximate ? '~' : ''}${size(value).replace(' ', '')}`;
-const memoryDetail = (estimated: boolean | undefined) => 'RAM: anonymous + shared memory, with shared pages apportioned (PSS) where readable.' + (estimated ? '\nIncludes RSS estimates: proportional counters unavailable; shared memory may be counted more than once.' : '') + '\nWidget totals also include memory not assigned to processes, such as kernel memory.';
+const memoryDetail = (estimated: boolean | undefined) => t("processes.memoryDescription") + (estimated ? t("processes.memoryEstimate") : '') + t("processes.memoryWidget");
 
 export class Processes {
     readonly element = el('section', 'processes');
@@ -16,8 +17,8 @@ export class Processes {
     private refreshTimer?: ReturnType<typeof setTimeout>;
     private disposed = false;
     private killDialog?: HTMLDialogElement;
-    private refresh = button('Refresh processes', 'RefreshCw', () => this.load());
-    private kill = button('Kill', 'X', () => this.confirmKill(), 'danger');
+    private refresh = button(t("processes.refreshProcesses"), 'RefreshCw', () => this.load());
+    private kill = button(t("processes.kill"), 'X', () => this.confirmKill(), 'danger');
     private allowCore = el('input');
     private error = el('p', 'monitor-error');
     private table = el('table', 'process-table');
@@ -28,9 +29,9 @@ export class Processes {
     constructor() {
         const toolbar = el('div', 'process-toolbar');
         const core = el('label', 'process-core'); this.allowCore.type = 'checkbox';
-        core.append(this.allowCore, el('span', '', 'Allow killing core'));
+        core.append(this.allowCore, el('span', '', t("processes.allowKillingCore")));
         this.allowCore.onchange = () => { this.selected.clear(); void this.load(); };
-        this.kill.append(el('span', '', 'Kill'));
+        this.kill.append(el('span', '', t("processes.kill")));
         toolbar.append(this.refresh, core, this.kill); this.kill.disabled = true;
         this.error.setAttribute('role', 'alert');
         this.footer.setAttribute('role', 'status');
@@ -44,7 +45,7 @@ export class Processes {
         this.allowCore.disabled = this.refresh.disabled = this.kill.disabled = true;
         if (!preserveError) this.error.textContent = '';
         this.element.setAttribute('aria-busy', 'true');
-        if (!this.data) this.footer.textContent = 'Loading…';
+        if (!this.data) this.footer.textContent = t("common.loading");
         try {
             const data = await api<ProcessSnapshot>(`/processes?sort=${this.sort}&allowCore=${this.allowCore.checked}`, 'GET', undefined, request.signal);
             if (request.signal.aborted || this.disposed) return;
@@ -52,7 +53,7 @@ export class Processes {
         } catch (error) {
             if (!request.signal.aborted) {
                 this.allowCore.checked = this.data?.allowCore ?? false;
-                this.error.textContent = error instanceof Error ? error.message : 'Processes unavailable'; if (!this.data) this.footer.textContent = '';
+                this.error.textContent = error instanceof Error ? errorText(error) : t("processes.processesUnavailable"); if (!this.data) this.footer.textContent = '';
             }
         } finally {
             if (!request.signal.aborted && !this.disposed) { this.request = undefined; this.allowCore.disabled = this.refresh.disabled = false; this.element.setAttribute('aria-busy', 'false'); this.updateSelection(); }
@@ -60,9 +61,9 @@ export class Processes {
     }
     private paint() {
         const data = this.data!; this.checks.clear(); this.rowElements.clear();
-        const head = el('thead'), heading = el('tr'); heading.append(el('th', '', 'Process'));
-        for (const [key, label] of [['cpu', 'CPU (own)'], ['ram', 'RAM (own)']] as const) {
-            const cell = el('th'), control = button(`Sort by ${key.toUpperCase()}`, undefined, () => {
+        const head = el('thead'), heading = el('tr'); heading.append(el('th', '', t("processes.process")));
+        for (const [key, label] of [['cpu', t("processes.cpuOwn")], ['ram', t("processes.ramOwn")]] as const) {
+            const cell = el('th'), control = button(t("files.sortBy", { column: key.toUpperCase() }), undefined, () => {
                 if (this.sort === key) return;
                 this.sort = key; void this.load();
             });
@@ -79,20 +80,20 @@ export class Processes {
             tr.dataset.parent = row.parentID; tr.dataset.state = row.state || ''; tr.classList.toggle('process-group', !!row.group); tr.classList.toggle('process-zombies', !!row.zombies);
             const name = el('td'), line = el('div', 'process-name'); line.style.setProperty('--depth', String(depth));
             if (row.zombies) {
-                line.append(el('span', 'process-zombie-label', `Zombies (${row.zombies.toLocaleString()})`));
+                line.append(el('span', 'process-zombie-label', t("processes.zombies", { count: row.zombies.toLocaleString(locale()) })));
                 name.append(line); name.colSpan = 3; tr.append(name); body.append(tr); this.rowElements.set(row.id, tr); continue;
             }
             const check = el('input'); check.type = 'checkbox'; check.disabled = !row.canSignal;
-            const label = row.group ? `${row.count.toLocaleString()} processes` : `${row.name} (${row.pid})`;
-            check.setAttribute('aria-label', `Select ${label}`);
+            const label = row.group ? t("processes.count", { count: row.count.toLocaleString(locale()) }) : `${row.name} (${row.pid})`;
+            check.setAttribute('aria-label', t("processes.selectProcess", { name: label }));
             check.onchange = () => { selectProcess(data.rows, this.selected, row.id, check.checked); this.updateSelection(); };
             this.checks.set(row.id, check);
             const hit = el('label', 'process-check'); hit.append(check); line.append(hit);
             if (parents.has(row.id)) {
-                const fold = button(`Collapse ${label}`, 'ChevronDown', () => {
+                const fold = button(t("processes.collapse", { name: label }), 'ChevronDown', () => {
                     if (this.collapsed.has(row.id)) this.collapsed.delete(row.id); else this.collapsed.add(row.id);
                     const expanded = !this.collapsed.has(row.id); fold.setAttribute('aria-expanded', String(expanded));
-                    fold.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${label}`); this.updateVisibility();
+                    fold.setAttribute('aria-label', t(expanded ? "processes.collapse" : "processes.expand", { name: label })); this.updateVisibility();
                 }, 'process-fold');
                 fold.setAttribute('aria-expanded', 'true'); line.append(fold);
             } else line.append(el('span', 'process-fold-space'));
@@ -108,13 +109,13 @@ export class Processes {
             const cpu = el('td', 'process-number'), ram = el('td', 'process-number');
             cpu.append(el('span', '', percent(row.totalCPU))); ram.append(el('span', '', memory(row.totalRAM, true)));
             if (!row.group) { cpu.append(el('small', '', ` (${percent(row.cpu)})`)); ram.append(el('small', '', ` (${memory(row.ram, row.estimatedRAM)})`)); }
-            cpu.title = '100% = one CPU core';
-            ram.title = memoryDetail(row.totalEstimatedRAM) + `\nFile-backed PSS, separate: ${memory(row.totalFileRAM, true)}` + (row.group ? '' : ` (own ${memory(row.fileRAM)})`) + '\n— = unavailable';
+            cpu.title = t("processes.cpuCorePercentHint");
+            ram.title = memoryDetail(row.totalEstimatedRAM) + t("processes.fileMemory", { size: memory(row.totalFileRAM, true) }) + (row.group ? '' : t("processes.ownMemory", { size: memory(row.fileRAM) })) + t('processes.unavailableLegend');
             tr.append(name, cpu, ram); body.append(tr); this.rowElements.set(row.id, tr);
         }
         this.table.replaceChildren(head, body);
-        this.footer.textContent = `Showing top ${data.rows.length.toLocaleString()} of ${data.total.toLocaleString()} total processes · ${new Date(data.time).toLocaleTimeString()}`;
-        if (!data.rows.length) this.footer.textContent = 'No processes';
+        this.footer.textContent = t("processes.footer", { shown: data.rows.length.toLocaleString(locale()), total: data.total.toLocaleString(locale()), time: new Date(data.time).toLocaleTimeString(locale()) });
+        if (!data.rows.length) this.footer.textContent = t("processes.noProcesses");
         this.updateSelection();
     }
     private updateVisibility() {
@@ -137,18 +138,18 @@ export class Processes {
         const selectedCount = roots.reduce((n, row) => n + row.ownTargets, 0);
         const content = el('form', 'process-kill'), summary = el('div', 'process-kill-summary');
         const ramSummary = el('span', '', `RAM ${memory(ram, true)}`); ramSummary.title = memoryDetail(roots.some(row => row.targetEstimatedRAM));
-        summary.append(el('strong', '', `${count.toLocaleString()} processes`), el('span', '', `CPU ${percent(roots.some(row => row.unknownCPU) ? null : cpu)}`), ramSummary);
-        summary.append(el('small', 'process-kill-counts', `${selectedCount.toLocaleString()} selected · ${(count - selectedCount).toLocaleString()} children`));
-        const options = el('fieldset', 'process-signal'); options.append(el('legend', 'sr-only', 'Signal'));
-        for (const [value, label] of [[15, 'SIGTERM'], [9, 'Force kill']] as const) {
+        summary.append(el('strong', '', t("processes.count", { count: count.toLocaleString(locale()) })), el('span', '', `CPU ${percent(roots.some(row => row.unknownCPU) ? null : cpu)}`), ramSummary);
+        summary.append(el('small', 'process-kill-counts', t("processes.selection", { selected: selectedCount.toLocaleString(locale()), children: (count - selectedCount).toLocaleString(locale()) })));
+        const options = el('fieldset', 'process-signal'); options.append(el('legend', 'sr-only', t("processes.signal")));
+        for (const [value, label] of [[15, 'SIGTERM'], [9, t("processes.forceKill")]] as const) {
             const choice = el('label', 'monitor-choice'), input = el('input'); input.type = 'radio'; input.name = 'signal'; input.value = String(value); input.checked = value === 15;
             choice.append(input, el('span', '', label)); options.append(choice);
         }
         const error = el('p', 'monitor-error'); error.setAttribute('role', 'alert');
-        const actions = el('div', 'actions'), confirm = button('Kill processes', 'X', undefined, 'danger'); confirm.append(el('span', '', 'Kill')); confirm.type = 'submit';
+        const actions = el('div', 'actions'), confirm = button(t("processes.killProcesses"), 'X', undefined, 'danger'); confirm.append(el('span', '', t("processes.kill"))); confirm.type = 'submit';
         content.append(summary, options, error, actions);
-        const { dialog, close } = modal('Kill processes', content); this.killDialog = dialog;
-        const cancel = button('Cancel', undefined, close); actions.append(cancel, confirm);
+        const { dialog, close } = modal(t("processes.killProcesses"), content); this.killDialog = dialog;
+        const cancel = button(t("common.cancel"), undefined, close); actions.append(cancel, confirm);
         const request = new AbortController(); dialog.addEventListener('close', () => { request.abort(); this.killDialog = undefined; }, { once: true });
         content.onsubmit = async event => {
             event.preventDefault(); if (confirm.disabled) return;
@@ -158,14 +159,14 @@ export class Processes {
                 const response = await api<{ results: { pid: number; error?: string }[] }>('/processes', 'POST', { snapshot: data.snapshot, selected: roots.map(row => row.id), signal, allowCore: data.allowCore }, request.signal);
                 if (request.signal.aborted || this.disposed) return;
                 const failed = response.results.filter(item => item.error), sent = response.results.length - failed.length;
-                this.error.textContent = failed.length ? `${sent} signals sent; ${failed.length} failed. ${failed.slice(0, 3).map(item => `${item.pid}: ${item.error}`).join(' · ')}` : '';
-                this.footer.textContent = `${sent} signals sent`;
+                this.error.textContent = failed.length ? t("processes.signalResults", { sent, failed: failed.length, details: failed.slice(0, 3).map(item => `${item.pid}: ${errorText(item)}`).join(' · ') }) : '';
+                this.footer.textContent = t("processes.signalsSent", { count: sent });
                 close();
             } catch (value) {
                 if (request.signal.aborted || this.disposed) return;
-                error.textContent = value instanceof Error ? value.message : 'Signal failed';
+                error.textContent = value instanceof Error ? errorText(value) : t("processes.signalFailed");
                 // A failed response may follow a delivered signal; require a fresh explicit action.
-                cancel.textContent = 'Close';
+                cancel.textContent = t("common.close");
             }
             this.selected.clear(); this.updateSelection();
             this.refreshTimer = setTimeout(() => { void this.load(true); }, 500);

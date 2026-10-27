@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type RFB from './vendor/novnc/core/rfb';
 import { isMac, isIOS } from './vendor/novnc/core/util/browser';
 import { api, button, el, modal, notificationHost, notify } from './ui';
@@ -6,7 +7,7 @@ import { type DraggedFile } from './file-drag';
 import { downloadArchive } from './transfers';
 
 // Retain the terminal clipboard's text bound; binary data travels through X11.
-const maxBytes = 256 * 1024;
+const maxBytes = 256 * 1024, maxImageBytes = 16 * 1024 * 1024;
 type Copy = { resolve: (text: Blob) => void; reject: (error: Error) => void; timer: number; cancelled: boolean; blocked: boolean; text?: string; version: number };
 
 type NativeClipboard = { text?: string; png?: string; files?: string[] };
@@ -30,7 +31,7 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
         return { 'text/plain': new Blob([data.text || ''], { type: 'text/plain' }) };
     };
     const writeNative = (data: NativeClipboard) => {
-        if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return Promise.reject(new Error('Clipboard unavailable'));
+        if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return Promise.reject(new Error(t("display.clipboard.clipboardUnavailable")));
         return navigator.clipboard.write([new ClipboardItem(blobs(data))]);
     };
     const focused = () => !signal.aborted && screen.isConnected && screen.getClientRects().length > 0 &&
@@ -38,21 +39,21 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
     const valid = (text: string) => {
         // Keep the existing text limit, including Windows line endings.
         if (text.length <= maxBytes && new Blob([text.replace(/\r\n|\r|\n/g, '\r\n')]).size + 1 <= maxBytes) return true;
-        notify('GUI clipboard text is too large (maximum 256 KB).', owner); return false;
+        notify(t("display.clipboard.textSizeLimit", { maxKiB: maxBytes / 1024 }), owner); return false;
     };
     const cancel = () => {
         if (!pending) return;
         const copy = pending; pending = undefined; copy.cancelled = true;
-        clearTimeout(copy.timer); copy.reject(new Error('Copy cancelled'));
+        clearTimeout(copy.timer); copy.reject(new Error(t("display.clipboard.copyCancelled")));
     };
     const offer = (data: NativeClipboard, current: number) => {
         const text = data.text || '';
         if (signal.aborted || current !== version) return;
         fallback?.remove();
-        const copy = button('Copy to device', 'Copy', async () => {
+        const copy = button(t("display.clipboard.copyToDevice"), 'Copy', async () => {
             if (data.png) {
                 try { await writeNative(data); clearFileCut(); fallback?.remove(); rfb.focus(); }
-                catch { notify('Image copying needs clipboard permission and HTTPS or localhost. You can download the image instead.', owner); }
+                catch { notify(t("display.clipboard.imageCopyPermissionRequired"), owner); }
                 return;
             }
             if (data.files) {
@@ -70,15 +71,15 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
             finally { document.removeEventListener('copy', write, true); }
             if (written) { clearFileCut(); fallback?.remove(); rfb.focus(); return; }
             const input = el('textarea'); input.value = text; input.readOnly = true;
-            input.setAttribute('aria-label', 'Text to copy');
+            input.setAttribute('aria-label', t("display.clipboard.textToCopy"));
             closeDialog?.();
-            ({ close: closeDialog } = modal('Copy to device', input)); input.focus(); input.select();
+            ({ close: closeDialog } = modal(t("display.clipboard.copyToDevice"), input)); input.focus(); input.select();
         });
-        copy.append(el('span', '', 'Copy to device'));
+        copy.append(el('span', '', t("display.clipboard.copyToDevice")));
         fallback = el('div', 'toast'); fallback.setAttribute('role', 'status');
         fallback.append(copy);
         if (data.png || data.files) {
-            const save = button(data.png ? 'Download image' : 'Download files', 'Download', async () => {
+            const save = button(data.png ? t("display.clipboard.downloadImage") : t("display.clipboard.downloadFiles"), 'Download', async () => {
                 if (data.png) {
                     const url = URL.createObjectURL(blobs(data)['image/png']), link = el('a');
                     link.href = url; link.download = 'clipboard-image.png'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -88,9 +89,9 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
                     for (const [parent, paths] of groups) await downloadArchive(parent, paths, owner);
                 }
             });
-            save.append(el('span', '', data.png ? 'Download image' : 'Download files')); fallback.append(save);
+            save.append(el('span', '', data.png ? t("display.clipboard.downloadImage") : t("display.clipboard.downloadFiles"))); fallback.append(save);
         }
-        fallback.append(button('Dismiss', 'X', () => fallback?.remove()));
+        fallback.append(button(t("display.clipboard.dismiss"), 'X', () => fallback?.remove()));
         notificationHost('notifications', owner).append(fallback);
     };
     const shortcut = (letter: string, shift: boolean) => {
@@ -135,7 +136,7 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
             MetaLeft: mac ? 0xffe9 : 0xffeb, MetaRight: mac ? 0xffeb : 0xffec };
         if (keys[event.code]) modifiers.set(event.code, keys[event.code]);
         interacted = true;
-        if (event.altKey || !(mac ? event.metaKey || event.ctrlKey : event.ctrlKey) || !['KeyC', 'KeyX', 'KeyV'].includes(event.code)) return;
+        if (event.altKey || !(mac ? event.metaKey || event.ctrlKey : event.ctrlKey) || !["KeyC", "KeyX", "KeyV"].includes(event.code)) return;
         event.stopImmediatePropagation();
         if (event.code === 'KeyV') { pasteShift = event.shiftKey; return; } // Preserve the browser's native paste event.
         event.preventDefault();
@@ -163,7 +164,7 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
         pasting = true;
         void (async () => {
             if (files.length === 1 && files[0].type === 'image/png' && /^(image|clipboard-image)\.png$/i.test(files[0].name)) {
-                if (files[0].size > 16 * 1024 * 1024) throw new Error('Clipboard image exceeds 16 MB.');
+                if (files[0].size > maxImageBytes) throw new Error(t("display.clipboard.imageSizeLimit", { maxMiB: maxImageBytes / (1 << 20) }));
                 const png = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(reader.error); reader.readAsDataURL(files[0]); });
                 await paste({ png }, shift, current);
             } else if (files.length) {
@@ -172,9 +173,9 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
             } else if (record) {
                 // Cross-application cuts have no trustworthy completion acknowledgement.
                 clearFileCut(); await paste({ files: record.paths }, shift, current);
-                if (record.action === 'cut') notify('Files pasted as copies; originals were kept.', owner);
+                if (record.action === 'cut') notify(t("display.clipboard.filesPastedAsCopiesOriginalsWereKept"), owner);
             } else if (hasText && valid(text)) await paste({ text }, shift, current);
-            else if (!hasText) notify('The browser did not provide a supported image, file or text clipboard.', owner);
+            else if (!hasText) notify(t("display.clipboard.unsupportedBrowserContent"), owner);
         })().catch(error => { if (!signal.aborted) notify(error, owner); }).finally(() => { pasting = false; });
     }, { capture: true, signal });
     // Browser Edit menus can issue copy/cut without a keydown.

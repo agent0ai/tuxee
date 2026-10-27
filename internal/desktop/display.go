@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +13,7 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/jezek/xgb"
 	"golang.org/x/sys/unix"
@@ -21,9 +21,10 @@ import (
 )
 
 type State struct {
-	Ready   bool     `json:"ready"`
-	Error   string   `json:"error,omitempty"`
-	Windows []Window `json:"windows"`
+	Text    *i18n.Message `json:"text,omitempty"`
+	Ready   bool          `json:"ready"`
+	Error   string        `json:"error,omitempty"`
+	Windows []Window      `json:"windows"`
 }
 
 // Display owns a terminal's stable X endpoint; preparing one starts no processes.
@@ -232,7 +233,7 @@ func (d *Display) launch() error {
 	d.process, d.x, d.windows = p, x, windows
 	if err != nil {
 		d.mu.Unlock()
-		d.stop(err.Error(), nil)
+		d.stop(err, nil)
 		return err
 	}
 	d.backend = p.address
@@ -246,7 +247,7 @@ func (d *Display) launch() error {
 		d.runtime.Lock()
 		defer d.runtime.Unlock()
 		if d.windows == windows {
-			d.stop("Display ended", nil)
+			d.stop(i18n.New("desktop.ended"), nil)
 		}
 	}()
 	return nil
@@ -264,13 +265,13 @@ func (d *Display) releaseAfterLocked(delay time.Duration) {
 		d.mu.Lock()
 		expected := timer
 		d.mu.Unlock()
-		d.stop("", expected)
+		d.stop(nil, expected)
 	})
 	d.idle = timer
 }
 
 // Called with runtime held; preserve the terminal's public endpoint and X cookie.
-func (d *Display) stop(message string, idle *time.Timer) {
+func (d *Display) stop(err error, idle *time.Timer) {
 	d.mu.Lock()
 	if idle != nil && (d.idle != idle || len(d.state.Windows) != 0) {
 		d.mu.Unlock()
@@ -282,7 +283,11 @@ func (d *Display) stop(message string, idle *time.Timer) {
 	}
 	x, p := d.x, d.process
 	d.x, d.process, d.windows, d.backend = nil, nil, nil, ""
-	d.state = State{Error: message}
+	d.state = State{}
+	if err != nil {
+		d.state.Error = err.Error()
+		d.state.Text = i18n.Describe(err)
+	}
 	d.mu.Unlock()
 	d.changed()
 	if x != nil {
@@ -314,7 +319,7 @@ func (d *Display) CloseWindow(id uint32) error {
 
 func (d *Display) window(id uint32) (*windowManager, error) {
 	if d == nil {
-		return nil, errors.New("display unavailable")
+		return nil, i18n.New("backend.desktop.displayUnavailable")
 	}
 	d.mu.Lock()
 	valid := false
@@ -329,7 +334,7 @@ func (d *Display) window(id uint32) (*windowManager, error) {
 	windows := d.windows
 	d.mu.Unlock()
 	if !valid {
-		return nil, errors.New("window not found")
+		return nil, i18n.New("backend.desktop.windowNotFound")
 	}
 	return windows, nil
 }
@@ -347,7 +352,7 @@ func (d *Display) Close() {
 			d.abstract.Close()
 		}
 		d.runtime.Lock()
-		d.stop("", nil)
+		d.stop(nil, nil)
 		d.runtime.Unlock()
 		d.workers.Wait()
 		os.RemoveAll(d.dir)

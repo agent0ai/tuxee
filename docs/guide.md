@@ -185,6 +185,38 @@ sudo openssl x509 -in /var/lib/tuxee/tls/local-ca.pem -noout -fingerprint -sha25
 
 Browsers do not automatically trust this CA. An inherited/cached HSTS rule can prevent bypassing a certificate warning. Single-file service-worker download progress requires a trusted secure context; when unavailable, the browser's download manager provides progress and cancellation. ZIP downloads use server progress and cancellation over either HTTP or HTTPS.
 
+## Languages and translations
+
+Choose a language on the login screen. A fresh browser defaults to English; choices are sorted by code (`CS Čeština`, `EN English`). Changing language updates the form immediately and preserves entered credentials. A browser-managed `tuxee_language_<instance-id>` cookie remembers the choice for reloads, new tabs and later logins. The server uses it to include the initial dictionary in the page, without another language request. The cookie is a preference, not authentication.
+
+The language and translation snapshot are fixed when you sign in. Changing the cookie or another tab's login preference does not change that session; sign out and select a language for the next login. Settings has no language control. Tuxee never rewrites application output or user-supplied names.
+
+New terminals pass the selected language to terminal/GUI applications through `LANGUAGE` (for example `cs:en`) and an installed UTF-8 `LC_MESSAGES`. `LANG` stays `C.UTF-8`; numeric/date formatting stays unchanged and `LC_ALL` is not set. Retained terminals keep their original environment across logout and later logins in another language. Your shell startup files may override these defaults.
+
+This is best-effort application localization: apps need their own translations and may ignore these variables. If no matching system locale is installed, Tuxee keeps `LC_MESSAGES=C.UTF-8`; GNU apps may remain in English. The slim image includes only the C locale by default. Install the needed UTF-8 locale and application language packages through your normal Linux administration process, then restart Tuxee to refresh locale discovery. Tuxee does not install language packages or change host-wide settings.
+
+The 43 built-in languages are Arabic (`ar`), Bulgarian (`bg`), Catalan (`ca`), Czech (`cs`), Danish (`da`), German (`de`), Greek (`el`), English (`en`), Spanish (`es`), Estonian (`et`), Persian (`fa`), Finnish (`fi`), Filipino (`fil`), French (`fr`), Hebrew (`he`), Hindi (`hi`), Croatian (`hr`), Hungarian (`hu`), Indonesian (`id`), Icelandic (`is`), Italian (`it`), Japanese (`ja`), Korean (`ko`), Lithuanian (`lt`), Latvian (`lv`), Malay (`ms`), Norwegian Bokmål (`nb`), Dutch (`nl`), Polish (`pl`), Brazilian Portuguese (`pt-BR`), European Portuguese (`pt-PT`), Romanian (`ro`), Russian (`ru`), Slovak (`sk`), Slovenian (`sl`), Serbian in Latin script (`sr-Latn`), Swedish (`sv`), Thai (`th`), Turkish (`tr`), Ukrainian (`uk`), Vietnamese (`vi`), Simplified Chinese (`zh-CN`), Traditional Chinese for Taiwan (`zh-TW`). All share `internal/i18n/locales/<code>.json`.
+
+Arabic, Hebrew and Persian use a right-to-left interface. Terminals, code editors, commands and filesystem paths retain their original text order; changing language does not move saved workspace panels.
+
+Administrators can create `/etc/tuxee/i18n/cs.json` to override individual texts:
+
+```json
+{
+  "name": "Čeština",
+  "texts": {
+    "login.signIn": "Přihlásit se",
+    "files.selectName": "Vybrat {name}"
+  }
+}
+```
+
+Use the same format and a valid language-code filename (for example `eo.json`) to add a language, with its native `name`. Files merge by key: system entries override built-ins; missing selected-language entries fall back to English. A new language can start with a partial catalog. There is no per-user translation folder. Keep all named variables from the English text; values are inserted as plain text. Missing keys or required variables show a compact diagnostic, for example `[!files.renameFailed name="report.txt"]`, without interrupting the UI.
+
+Restart Tuxee to expose new files immediately on login. Catalogs also refresh on login or an explicit language selection, while existing sessions keep their original snapshot. Invalid files are logged and skipped. Use regular files, not symlinks; limits are 2 MiB per file, 16 MiB total and 256 directory entries. In Docker, persist custom files with a mount at `/etc/tuxee/i18n` if needed.
+
+Developers must read [the i18n contract](../internal/i18n/AGENTS.md), translate each text in its UI context and update every built-in language. Use descriptive keys and named variables for changing limits/counts. Prefer Czech count-neutral forms such as `Soubory: {count}`; ordinary English singular/plural keys are supported. Run `npm run check:i18n` after changes (also enforced by `npm run build`), and `npm run test:i18n` after changes to localization behavior.
+
 ## Workspaces, files and terminals
 
 GUI apps share text, PNG images and supported file references through the focused display. Use ⌘C/⌘X/⌘V on macOS or Ctrl+C/Ctrl+X/Ctrl+V; Shift variants retain the application's bindings. Apps with custom shortcuts still need their normal bindings. Copy waits for the application's new clipboard; selecting text alone and background displays leave the device clipboard unchanged. Native paste works through the browser's paste event, including ordinary HTTP when the browser exposes the data. Automatic copying requires browser clipboard access (normally HTTPS or localhost); if blocked, use **Copy to device**. Images also offer a download fallback. Text is limited to 256 KiB; PNG images to 16 MiB and 16 megapixels. Native formats other than text/PNG/local file lists are not bridged.

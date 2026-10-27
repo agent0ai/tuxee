@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"tuxee/internal/i18n"
 
 	"github.com/dop251/goja"
 )
@@ -243,5 +244,18 @@ func TestSnapshotSerializedByteLimit(t *testing.T) {
 	}
 	if data, err := e.Capture(); err == nil || data != nil {
 		t.Fatal("oversized serialized snapshot was admitted")
+	}
+}
+
+func TestEngineErrorTranslation(t *testing.T) {
+	e, err := NewEngine(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	err = e.SetBackground("invalid", "")
+	message := i18n.Describe(err)
+	if message == nil || message.Key != "engine.invalidTerminalBackground" {
+		t.Fatalf("engine lost translation metadata: %#v, %v", message, err)
 	}
 }

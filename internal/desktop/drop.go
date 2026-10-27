@@ -2,8 +2,8 @@ package desktop
 
 import (
 	"context"
-	"errors"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/jezek/xgb"
 	"github.com/jezek/xgb/xproto"
@@ -31,7 +31,7 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 	case c.dropGate <- struct{}{}:
 		defer func() { <-c.dropGate }()
 	default:
-		return errors.New("a file drop is already in progress")
+		return i18n.New("backend.desktop.aFileDropIsAlreadyInProgress")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -40,7 +40,7 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 		return err
 	}
 	if drop.X < 0 || drop.Y < 0 || uint16(drop.X) >= geometry.Width || uint16(drop.Y) >= geometry.Height {
-		return errors.New("drop is outside the display")
+		return i18n.New("backend.desktop.dropIsOutsideTheDisplay")
 	}
 	target := xproto.Window(drop.Window)
 	// Descend through the point's children, retaining the innermost XDND target.
@@ -59,7 +59,7 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 		target = pos.Child
 	}
 	if aware == 0 || version < 3 {
-		return errors.New("this application does not accept file drops")
+		return i18n.New("backend.desktop.thisApplicationDoesNotAcceptFileDrops")
 	}
 	destination := aware
 	// Proxies must point back to themselves, as required by XDND.
@@ -107,9 +107,9 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return errors.New("application did not finish the file drop")
+			return i18n.New("backend.desktop.applicationDidNotFinishTheFileDrop")
 		case <-c.done:
-			return errors.New("display ended")
+			return i18n.New("backend.desktop.displayEnded")
 		case event := <-events:
 			values := event.Data.Data32
 			if event.Format != 32 || xproto.Window(values[0]) != aware {
@@ -117,7 +117,7 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 			}
 			if event.Type == c.atoms["XdndStatus"] && !dropped {
 				if values[1]&1 == 0 || values[4] != uint32(c.atoms["XdndActionCopy"]) {
-					return errors.New("this application does not accept these files here")
+					return i18n.New("backend.desktop.thisApplicationDoesNotAcceptTheseFilesHere")
 				}
 				if err = send("XdndDrop", 0, xproto.TimeCurrentTime); err != nil {
 					return err
@@ -126,7 +126,7 @@ func (d *Display) DropFiles(ctx context.Context, drop FileDrop) error {
 			} else if event.Type == c.atoms["XdndFinished"] && dropped {
 				finished = true
 				if version >= 5 && values[1]&1 == 0 {
-					return errors.New("application rejected the file drop")
+					return i18n.New("backend.desktop.applicationRejectedTheFileDrop")
 				}
 				return nil
 			}

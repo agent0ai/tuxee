@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 )
@@ -21,14 +22,16 @@ type SizeProgress struct {
 	Done    bool  `json:"done"`
 }
 
+const maxSizePaths = 10000
+
 func streamSize(ctx context.Context, paths []string, output io.Writer) error {
 	encoder := json.NewEncoder(output)
-	if len(paths) == 0 || len(paths) > 10000 {
-		return encoder.Encode(Response{Error: "select between 1 and 10,000 paths"})
+	if len(paths) == 0 || len(paths) > maxSizePaths {
+		return encoder.Encode(Response{Error: i18n.New("backend.files.sizeSelectionCount", i18n.Vars{"min": 1, "max": maxSizePaths}).Error(), Text: i18n.Describe(i18n.New("backend.files.sizeSelectionCount", i18n.Vars{"min": 1, "max": maxSizePaths}))})
 	}
 	for i, path := range paths {
 		if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
-			return encoder.Encode(Response{Error: "paths must be absolute and contain no NUL"})
+			return encoder.Encode(Response{Error: i18n.New("backend.files.sizeSelectionPaths").Error(), Text: i18n.Describe(i18n.New("backend.files.sizeSelectionPaths"))})
 		}
 		paths[i] = filepath.Clean(path)
 	}

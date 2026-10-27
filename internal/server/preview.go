@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"tuxee/internal/i18n"
 
 	"tuxee/internal/files"
 )
@@ -19,7 +19,7 @@ var previewTypes = map[string]string{
 }
 
 func byteRange(header string, size int64) (int64, int64, error) {
-	invalid := errors.New("invalid byte range")
+	invalid := i18n.New("backend.server.invalidByteRange")
 	if !strings.HasPrefix(header, "bytes=") || strings.Contains(header, ",") || size <= 0 {
 		return 0, 0, invalid
 	}
@@ -54,7 +54,7 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request, session *login)
 	path := r.URL.Query().Get("path")
 	contentType := previewTypes[strings.ToLower(filepath.Ext(path))]
 	if contentType == "" {
-		failure(w, 400, errors.New("unsupported preview type"))
+		failure(w, 400, i18n.New("backend.server.unsupportedPreviewType"))
 		return
 	}
 	if !s.fileSlot(w) {

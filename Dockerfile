@@ -3,6 +3,7 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY web ./web
+COPY internal ./internal
 COPY third_party ./third_party
 COPY THIRD_PARTY_NOTICES.md ./
 RUN npm run build

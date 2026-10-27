@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 )
@@ -56,6 +57,7 @@ type Entry struct {
 }
 
 type Response struct {
+	Text      *i18n.Message   `json:"text,omitempty"`
 	Content   string          `json:"content"`
 	Version   string          `json:"version,omitempty"`
 	Page      *TextPage       `json:"page,omitempty"`
@@ -90,14 +92,14 @@ func Worker() error {
 		part, err = reader.ReadSlice('\n')
 		header = append(header, part...)
 		if len(header) > 8<<20 {
-			return errors.New("worker request too large")
+			return i18n.New("backend.files.workerRequestTooLarge")
 		}
 		if !errors.Is(err, bufio.ErrBufferFull) {
 			break
 		}
 	}
 	if err != nil {
-		return errors.New("invalid worker request")
+		return i18n.New("backend.files.invalidWorkerRequest")
 	}
 	var request Request
 	if err = json.Unmarshal(header, &request); err != nil {
@@ -111,7 +113,7 @@ func Worker() error {
 	}
 	response, download, err := execute(ctx, request, reader)
 	if err != nil {
-		response = Response{Error: err.Error()}
+		response = Response{Error: err.Error(), Text: i18n.Describe(err)}
 	}
 	if err = json.NewEncoder(os.Stdout).Encode(response); err != nil {
 		if download != nil {
@@ -151,13 +153,13 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 				return response, nil, err
 			}
 			if len(data) > 512<<10 || !json.Valid(data) {
-				return response, nil, errors.New("invalid saved user configuration")
+				return response, nil, i18n.New("backend.files.invalidSavedUserConfiguration")
 			}
 			response.Settings = data
 			return response, nil, nil
 		}
 		if len(r.Settings) > 512<<10 || !json.Valid(r.Settings) {
-			return response, nil, errors.New("invalid user configuration")
+			return response, nil, i18n.New("backend.files.invalidUserConfiguration")
 		}
 		if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			return response, nil, err
@@ -165,7 +167,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		return response, nil, replaceFile(path, r.Settings)
 	}
 	if !filepath.IsAbs(r.Path) || strings.ContainsRune(r.Path, 0) {
-		return response, nil, errors.New("path must be absolute")
+		return response, nil, i18n.New("backend.files.pathMustBeAbsolute")
 	}
 	r.Path = filepath.Clean(r.Path)
 	response.Path = r.Path
@@ -221,7 +223,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 	case "mkdir":
 		if r.Parents {
 			if r.Unique {
-				return response, nil, errors.New("cannot combine parents and unique")
+				return response, nil, i18n.New("backend.files.cannotCombineParentsAndUnique")
 			}
 			return response, nil, os.MkdirAll(r.Path, 0755)
 		}
@@ -230,18 +232,18 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		return response, nil, err
 	case "delete":
 		if r.Path == "/" {
-			return response, nil, errors.New("cannot delete the filesystem root")
+			return response, nil, i18n.New("backend.files.cannotDeleteTheFilesystemRoot")
 		}
 		return response, nil, os.RemoveAll(r.Path)
 	case "chmod":
 		mode, err := strconv.ParseUint(r.Mode, 8, 12)
 		if err != nil {
-			return response, nil, errors.New("permissions must be octal, for example 0644")
+			return response, nil, i18n.New("backend.files.octalPermissionsRequired")
 		}
 		return response, nil, unix.Chmod(r.Path, uint32(mode))
 	case "rename", "move", "copy":
 		if !filepath.IsAbs(r.Destination) || strings.ContainsRune(r.Destination, 0) {
-			return response, nil, errors.New("destination must be absolute")
+			return response, nil, i18n.New("backend.files.destinationMustBeAbsolute")
 		}
 		r.Destination = filepath.Clean(r.Destination)
 		if r.Path == r.Destination {
@@ -267,7 +269,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		}
 		if r.Operation == "move" {
 			if err := os.RemoveAll(r.Path); err != nil {
-				return response, nil, fmt.Errorf("destination copied, but source removal failed: %w", err)
+				return response, nil, i18n.Wrap("backend.files.destinationCopiedButSourceRemovalFailed", err, i18n.Vars{"detail": i18n.Describe(err)})
 			}
 		}
 	case "download", "inspect":
@@ -278,7 +280,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		info, err := file.Stat()
 		if err != nil || !info.Mode().IsRegular() {
 			file.Close()
-			return response, nil, errors.New("download requires a regular file")
+			return response, nil, i18n.New("backend.files.downloadRequiresARegularFile")
 		}
 		value := metadata(r.Path, info)
 		response.Entry = &value
@@ -288,7 +290,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		}
 		if r.Offset < 0 || r.Offset > info.Size() || r.Limit < 0 {
 			file.Close()
-			return response, nil, errors.New("invalid byte range")
+			return response, nil, i18n.New("backend.files.invalidByteRange")
 		}
 		if _, err = file.Seek(r.Offset, io.SeekStart); err != nil {
 			file.Close()
@@ -300,7 +302,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		response.Path = path
 		return response, nil, err
 	default:
-		return response, nil, errors.New("unknown file operation")
+		return response, nil, i18n.New("backend.files.unknownFileOperation")
 	}
 	return response, nil, nil
 }
@@ -344,12 +346,12 @@ func createDestination(ctx context.Context, path string, directory, unique bool,
 			return "", err
 		}
 	}
-	return "", errors.New("too many files with this name")
+	return "", i18n.New("backend.files.tooManyFilesWithThisName")
 }
 
 func upload(ctx context.Context, path string, body io.Reader, size int64, unique bool) (string, error) {
 	if size < 0 {
-		return "", errors.New("upload requires its expected byte size")
+		return "", i18n.New("backend.files.uploadRequiresItsExpectedByteSize")
 	}
 	file, err := os.CreateTemp(filepath.Dir(path), ".tuxee-upload-*")
 	if err != nil {
@@ -362,7 +364,7 @@ func upload(ctx context.Context, path string, body io.Reader, size int64, unique
 		return "", err
 	}
 	if n != size {
-		return "", errors.New("incomplete upload: received size differs from declared size")
+		return "", i18n.New("backend.files.incompleteUploadReceivedSizeDiffersFromDeclaredSize")
 	}
 	if err = file.Sync(); err != nil {
 		return "", err
@@ -425,7 +427,7 @@ func duplicate(ctx context.Context, source string) (string, error) {
 		}
 		return destination, err
 	}
-	return "", errors.New("too many copies with this name")
+	return "", i18n.New("backend.files.tooManyCopiesWithThisName")
 }
 
 func copyTree(ctx context.Context, source, destination string) error {
@@ -447,7 +449,7 @@ func copyTree(ctx context.Context, source, destination string) error {
 			return err
 		}
 		if relative == "." || relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
-			return errors.New("cannot copy a directory into itself")
+			return i18n.New("backend.files.cannotCopyADirectoryIntoItself")
 		}
 	}
 	staging, err := os.MkdirTemp(parent, ".tuxee-copy-*")
@@ -514,7 +516,7 @@ func copyEntry(ctx context.Context, source, destination string) error {
 		return os.Chmod(destination, info.Mode().Perm())
 	}
 	if !info.Mode().IsRegular() {
-		return errors.New("copy supports regular files, directories, and symlinks")
+		return i18n.New("backend.files.copySupportsRegularFilesDirectoriesAndSymlinks")
 	}
 	in, err := os.Open(source)
 	if err != nil {

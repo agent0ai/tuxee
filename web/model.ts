@@ -1,3 +1,4 @@
+import { t } from './i18n';
 export type Kind = 'files' | 'terminal';
 export type Panel = {
     id: string;
@@ -69,7 +70,7 @@ export function directoryPath(path: string | undefined, home: string): string {
     path = path || '~';
     if (path === '~') path = home;
     else if (path.startsWith('~/')) path = join(home, path.slice(2));
-    if (!path.startsWith('/') || path.includes('\0')) throw new Error('Directory must be an absolute path or start with ~/');
+    if (!path.startsWith('/') || path.includes('\0')) throw new Error(t("model.directoryMustBeAnAbsolutePathOrStartWith"));
     return path.replace(/\/+$/, '') || '/';
 }
 export function dimensions(width = innerWidth, height = innerHeight): [number, number] {

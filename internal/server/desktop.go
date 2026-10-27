@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
@@ -19,7 +19,7 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 	gui := value.Display
 	state := gui.State()
 	if state == nil || !state.Ready {
-		failure(w, 409, errors.New("display is not running"))
+		failure(w, 409, i18n.New("backend.server.displayIsNotRunning"))
 		return
 	}
 	if action == "display/clipboard" || action == "display/drop" {
@@ -27,7 +27,7 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 		case s.clipSlots <- struct{}{}:
 			defer func() { <-s.clipSlots }()
 		default:
-			failure(w, 429, errors.New("clipboard is busy; try again"))
+			failure(w, 429, i18n.New("backend.server.clipboardIsBusyTryAgain"))
 			return
 		}
 		// Bound slow uploads and responses as well as X11 selection negotiation.
@@ -40,7 +40,7 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 	switch {
 	case action == "display/clipboard/events" && r.Method == "GET":
 		if r.Header.Get("Origin") == "" {
-			failure(w, 403, errors.New("WebSocket origin is required"))
+			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))
 			return
 		}
 		changes, release, err := gui.ClipboardChanges()
@@ -83,7 +83,7 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 	case action == "display/clipboard" && r.Method == "GET":
 		version, err := strconv.ParseUint(r.URL.Query().Get("version"), 10, 64)
 		if err != nil {
-			failure(w, 400, errors.New("clipboard version required"))
+			failure(w, 400, i18n.New("backend.server.clipboardVersionRequired"))
 			return
 		}
 		data, err := gui.ReadClipboard(r.Context(), version)
@@ -140,16 +140,16 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 		return
 	case action == "display/ws" && r.Method == "GET":
 		if r.Header.Get("Origin") == "" {
-			failure(w, 403, errors.New("WebSocket origin is required"))
+			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))
 			return
 		}
 	default:
-		failure(w, 404, errors.New("terminal endpoint not found"))
+		failure(w, 404, i18n.New("backend.server.terminalEndpointNotFound"))
 		return
 	}
 	upstream, err := (&net.Dialer{Timeout: 3 * time.Second}).DialContext(r.Context(), "unix", gui.Address)
 	if err != nil {
-		failure(w, 503, errors.New("GUI session is unavailable"))
+		failure(w, 503, i18n.New("backend.server.guiSessionIsUnavailable"))
 		return
 	}
 	defer upstream.Close()
@@ -174,7 +174,7 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 
 func (s *Server) userAudio(w http.ResponseWriter, r *http.Request, session *login) {
 	if r.Header.Get("Origin") == "" {
-		failure(w, 403, errors.New("WebSocket origin is required"))
+		failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))
 		return
 	}
 	ctx, cancel := context.WithCancel(r.Context())

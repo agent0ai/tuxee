@@ -10,7 +10,7 @@ Own the authentication helper and the sole process-credential constructor used b
 
 # Local Contracts
 
-Passwords travel only through transient stdin to a short-lived PAM helper. Perform both PAM authentication and account checks. Never change the shared server's identity. Child environments contain a fixed safe PATH and the account's HOME/USER/LOGNAME/SHELL, not server environment secrets. Include supplementary groups. PAM policy defaults to the host's login service.
+Passwords travel only through transient stdin to a short-lived PAM helper. Perform both PAM authentication and account checks. Never change the shared server's identity. Child environments contain a fixed safe PATH and the account's HOME/USER/LOGNAME/SHELL, not server environment secrets. Keep `LANG=C.UTF-8` for authentication/file/process workers; the terminal package adds creation-specific message preferences only to shell launches. Include supplementary groups. PAM policy defaults to the host's login service.
 
 `identity.Self` is `/proc/self/exe`. Authentication, file and process-worker launches use this running inode, never the mutable installation pathname, so binary updates cannot mix helper versions before restart.
 

@@ -1,12 +1,13 @@
+import { t } from './i18n';
 import { el, icon } from './ui';
 import type { UploadSource } from './transfers';
 export type DraggedFile = { path: string; name: string; directory?: boolean };
 export type FileDrop = { source: string; files: DraggedFile[]; copy: boolean; target: Element; clientX: number; clientY: number };
 type DropTarget = { over: (drop: FileDrop) => boolean; leave: () => void; drop: (drop: FileDrop) => void };
 const targets = new WeakMap<Element, DropTarget>();
-export function setDropFeedback(node: HTMLElement, label?: string) {
+export function setDropFeedback(node: HTMLElement, label?: string, hint = '') {
     // Retain the text while the component-bound overlay fades out.
-    if (label) node.dataset.dropLabel = node.dataset.drop = label;
+    if (label) { node.dataset.dropLabel = node.dataset.drop = label; node.dataset.dropHint = hint; }
     else delete node.dataset.drop;
 }
 export function preventFileNavigation() {
@@ -84,7 +85,7 @@ export function registerFileDrop(node: HTMLElement, handlers: DropTarget, signal
 export function fileGroupLabel(files: DraggedFile[]): string {
     if (files.length === 1) return files[0].name;
     const folders = files.filter(file => file.directory).length, count = files.length - folders;
-    return [folders ? `${folders} folder${folders === 1 ? '' : 's'}` : '', count ? `${count} file${count === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+    return [folders ? t(folders === 1 ? 'count.folder' : 'count.folders', { count: folders }) : '', count ? t(count === 1 ? 'count.file' : 'count.files', { count: count }) : ''].filter(Boolean).join(', ');
 }
 export function startFileDrag(event: PointerEvent, source: string, selection: () => DraggedFile[], lifetime: AbortSignal) {
     if (event.button !== 0 || event.pointerType === 'touch') return;

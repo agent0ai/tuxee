@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { Decoration, EditorView, StateField } from './vendor/code-editor/library.js';
 // WidgetType is exposed by this matched vendor chunk, not its library entrypoint.
 import { u as WidgetType } from './vendor/code-editor/chunk-36OFQ4TD.js';
@@ -12,7 +13,7 @@ export function languageFor(path: string): string {
 }
 
 export function pageLimitError(content: string): string | undefined {
-    if (new TextEncoder().encode(content).length > MAX_PAGE_BYTES) return 'This page is limited to 1 MiB';
+    if (new TextEncoder().encode(content).length > MAX_PAGE_BYTES) return t("editor.pageByteLimit", { maxMiB: MAX_PAGE_BYTES / (1 << 20) });
     let rows = 1, columns = 0, previous = '';
     for (const char of content) {
         if (char === '\r' || char === '\n') {
@@ -22,7 +23,7 @@ export function pageLimitError(content: string): string | undefined {
             if (columns === WRAP_COLUMNS) { rows++; columns = 0; }
             columns++;
         }
-        if (rows > MAX_PAGE_ROWS) return 'This page is limited to 10,000 displayed rows';
+        if (rows > MAX_PAGE_ROWS) return t("editor.pageRowLimit", { max: MAX_PAGE_ROWS });
         previous = char;
     }
 }

@@ -2,10 +2,12 @@ package identity
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 )
+
+const loginAttemptWindow = time.Minute
 
 type attempts struct {
 	count int
@@ -24,7 +26,7 @@ func NewGate(service string) *Gate {
 func (g *Gate) Authenticate(ctx context.Context, peer, name string, password []byte) (User, error) {
 	defer clear(password)
 	if len(name) == 0 || len(name) > 256 || len(password) == 0 || len(password) > 4096 {
-		return User{}, errors.New("invalid credentials")
+		return User{}, i18n.New("backend.identity.invalidCredentials")
 	}
 	now := time.Now()
 	g.mu.Lock()
@@ -36,10 +38,10 @@ func (g *Gate) Authenticate(ctx context.Context, peer, name string, password []b
 	a := g.peers[peer]
 	if a.count >= 30 || len(g.peers) >= 1024 && a.count == 0 {
 		g.mu.Unlock()
-		return User{}, errors.New("too many login attempts; try again in a minute")
+		return User{}, i18n.New("backend.identity.loginAttemptLimit", i18n.Vars{"seconds": int(loginAttemptWindow.Seconds())})
 	}
 	if a.count == 0 {
-		a.until = now.Add(time.Minute)
+		a.until = now.Add(loginAttemptWindow)
 	}
 	a.count++
 	g.peers[peer] = a
@@ -48,7 +50,7 @@ func (g *Gate) Authenticate(ctx context.Context, peer, name string, password []b
 	case g.slots <- struct{}{}:
 		defer func() { <-g.slots }()
 	default:
-		return User{}, errors.New("authentication is busy; try again shortly")
+		return User{}, i18n.New("backend.identity.authenticationIsBusyTryAgainShortly")
 	}
 	return Authenticate(ctx, g.Service, name, password)
 }

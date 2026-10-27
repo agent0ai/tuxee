@@ -1,3 +1,4 @@
+import { t, errorText } from './i18n';
 import { api, button, el, notificationHost, requestHeaders, size } from './ui';
 import { id as newID, join } from './model';
 import type { DraggedFile } from './file-drag';
@@ -16,7 +17,7 @@ function create(id: string, name: string, abort: () => void, owner?: HTMLElement
     label.id = `transfer-${id}`;
     progress.max = 100;
     progress.setAttribute('aria-labelledby', label.id);
-    const cancel = button('Cancel transfer', 'X', abort);
+    const cancel = button(t("transfers.cancelTransfer"), 'X', abort);
     track.append(progress);
     node.append(label, track, cancel);
     notificationHost('transfers', owner).append(node);
@@ -25,7 +26,7 @@ function create(id: string, name: string, abort: () => void, owner?: HTMLElement
     return value;
 }
 function finish(id: string, error?: string) { const value = transfers.get(id); if (!value)
-    return; value.cancel.disabled = true; if (!error) value.progress.value = 100; value.label.textContent += error ? ` · ${error}` : ' · Done'; value.node.classList.toggle('failed', !!error); transfers.delete(id); setTimeout(() => value.node.remove(), error ? 12000 : 3000); }
+    return; value.cancel.disabled = true; if (!error) value.progress.value = 100; value.label.textContent += error ? ` · ${error}` : t("transfers.done"); value.node.classList.toggle('failed', !!error); transfers.delete(id); setTimeout(() => value.node.remove(), error ? 12000 : 3000); }
 export function cancelTransfers() { for (const value of transfers.values())
     value.abort(); }
 export async function operation(name: string, total: number, work: (signal: AbortSignal, progress: (done: number) => void) => Promise<void>, owner?: HTMLElement) {
@@ -34,7 +35,7 @@ export async function operation(name: string, total: number, work: (signal: Abor
     try {
         await work(controller.signal, done => { view.progress.value = done / total * 100; view.label.textContent = `${name} · ${done}/${total}`; });
         finish(id);
-    } catch (error) { finish(id, controller.signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Failed'); throw error; }
+    } catch (error) { finish(id, controller.signal.aborted ? t("common.cancelled") : error instanceof Error ? errorText(error) : t("common.failed")); throw error; }
 }
 export async function upload(path: string, file: File, signal: AbortSignal, unique = false, progress?: (loaded: number) => void): Promise<string> {
     signal.throwIfAborted();
@@ -47,12 +48,12 @@ export async function upload(path: string, file: File, signal: AbortSignal, uniq
         xhr.onload = () => {
             try {
                 const result = JSON.parse(xhr.responseText);
-                if (xhr.status < 200 || xhr.status >= 300) throw new Error(result.error || 'Upload failed');
+                if (xhr.status < 200 || xhr.status >= 300) throw new Error(errorText(result));
                 resolve(result.path);
             } catch (error) { reject(error); }
         };
-        xhr.onerror = () => reject(new Error('Upload connection failed'));
-        xhr.onabort = () => reject(new Error('Upload cancelled'));
+        xhr.onerror = () => reject(new Error(t("transfers.uploadConnectionFailed")));
+        xhr.onabort = () => reject(new Error(t("transfers.uploadCancelled")));
         xhr.onloadend = () => signal.removeEventListener('abort', abort);
         signal.addEventListener('abort', abort, { once: true });
         xhr.send(file);
@@ -68,18 +69,18 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
     lifetime.throwIfAborted();
     const concurrency = uploadConcurrency;
     const id = newID(), controller = new AbortController(), abort = () => controller.abort();
-    const signal = controller.signal, view = create(id, 'Reading files…', abort, owner);
+    const signal = controller.signal, view = create(id, t("transfers.reading"), abort, owner);
     const directories = new Set<string>();
     const queue: UploadJob[] = [], active = new Map<UploadJob, Promise<UploadJob>>();
     lifetime.addEventListener('abort', abort, { once: true });
     let total = 0, bytes = 0, completed = 0, sent = 0;
     const update = () => {
-        view.label.textContent = `Uploading · ${completed}/${total} files · ${size(sent)} / ${size(bytes)}`;
+        view.label.textContent = t("transfers.uploadProgress", { completed, total, sent: size(sent), size: size(bytes) });
         view.progress.value = bytes ? sent / bytes * 100 : total ? completed / total * 100 : 0;
     };
     async function collect(source: UploadSource): Promise<UploadItem> {
         signal.throwIfAborted();
-        if (!source.name || source.name === '.' || source.name === '..' || /[/\0]/.test(source.name)) throw new Error('Invalid upload name');
+        if (!source.name || source.name === '.' || source.name === '..' || /[/\0]/.test(source.name)) throw new Error(t("transfers.invalidUploadName"));
         if (!(source instanceof File) && source.isDirectory) {
             const children: UploadItem[] = [], reader = (source as FileSystemDirectoryEntry).createReader();
             while (true) {
@@ -131,7 +132,7 @@ export async function uploadBatch(destination: string, sources: UploadSource[], 
         finish(id);
         return uploaded;
     } catch (error) {
-        const message = signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Upload failed';
+        const message = signal.aborted ? t("common.cancelled") : error instanceof Error ? errorText(error) : t("transfers.uploadFailed");
         abort();
         await Promise.allSettled(active.values());
         finish(id, message);
@@ -152,7 +153,7 @@ export function prepareDownloads() {
             if (!navigator.serviceWorker.controller)
                 await new Promise<void>(resolve => { const timeout = setTimeout(resolve, 3000); navigator.serviceWorker.addEventListener('controllerchange', () => { clearTimeout(timeout); resolve(); }, { once: true }); });
             navigator.serviceWorker.addEventListener('message', event => {
-                const { id, loaded, total, done, error } = event.data || {};
+                const { id, loaded, total, done, text, error } = event.data || {};
                 const value = transfers.get(id);
                 if (!value)
                     return;
@@ -160,8 +161,8 @@ export function prepareDownloads() {
                     value.progress.value = loaded / total * 100;
                     value.label.textContent = `${value.name} · ${size(loaded)} / ${size(total)}`;
                 }
-                if (done || error)
-                    finish(id, error);
+                if (done || text || error)
+                    finish(id, text || error ? errorText(event.data) : undefined);
             });
             return !!navigator.serviceWorker.controller;
         }
@@ -174,11 +175,11 @@ export async function download(path: string, name: string, owner?: HTMLElement) 
     const supported = await prepareDownloads(), id = newID();
     if (supported) {
         await new Promise<void>((resolve, reject) => {
-            const channel = new MessageChannel(), timer = setTimeout(() => { channel.port1.close(); reject(new Error('Download worker did not respond')); }, 3000);
-            channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); event.data.error ? reject(new Error(event.data.error)) : resolve(); };
+            const channel = new MessageChannel(), timer = setTimeout(() => { channel.port1.close(); reject(new Error(t("transfers.downloadWorkerDidNotRespond"))); }, 3000);
+            channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); (event.data.text || event.data.error) ? reject(new Error(errorText(event.data))) : resolve(); };
             navigator.serviceWorker.controller!.postMessage({ start: id }, [channel.port2]);
         });
-        create(id, `Downloading ${name}`, () => navigator.serviceWorker.controller?.postMessage({ cancel: id }), owner);
+        create(id, t("transfers.downloading", { name }), () => navigator.serviceWorker.controller?.postMessage({ cancel: id }), owner);
     }
     const link = el('a');
     link.href = `/api/download?path=${encodeURIComponent(path)}&transfer=${id}`;
@@ -189,7 +190,7 @@ export async function download(path: string, name: string, owner?: HTMLElement) 
 }
 export async function downloadArchive(path: string, paths: string[], owner?: HTMLElement) {
     const id = newID(), controller = new AbortController();
-    const view = create(id, 'Zipping & downloading · 0 B ZIP', () => controller.abort(), owner);
+    const view = create(id, t("transfers.zipStarting"), () => controller.abort(), owner);
     view.node.classList.add('archive-transfer');
     let token = '', frame: HTMLIFrameElement | undefined;
     try {
@@ -201,14 +202,14 @@ export async function downloadArchive(path: string, paths: string[], owner?: HTM
         document.body.append(frame);
         while (!controller.signal.aborted) {
             const status = await api<{ size: number; done: boolean; error?: string }>(`/download-archive?token=${encodeURIComponent(token)}`, 'GET', undefined, controller.signal);
-            view.label.textContent = `Zipping & downloading ${prepared.name} · ${size(status.size)} ZIP`;
-            if (status.error) throw new Error(status.error);
+            view.label.textContent = t("transfers.zipping", { name: prepared.name, size: size(status.size) });
+            if (status.error) throw new Error(errorText(status));
             if (status.done) { finish(id); return; }
             await new Promise<void>(resolve => setTimeout(resolve, 400));
         }
         controller.signal.throwIfAborted();
     } catch (error) {
-        finish(id, controller.signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Download failed');
+        finish(id, controller.signal.aborted ? t("common.cancelled") : error instanceof Error ? errorText(error) : t("transfers.downloadFailed"));
     } finally {
         frame?.remove();
         if (token) await api(`/download-archive?token=${encodeURIComponent(token)}`, 'DELETE').catch(() => {});

@@ -10,6 +10,8 @@ Own proc discovery, CPU/proportional-memory accounting, hierarchy, bounded ranki
 
 # Local Contracts
 
+Worker failures and per-target signal results retain structured i18n `text` beside diagnostic `error`; the client must preserve translation metadata. Process names/commands are application data; the browser translates group/count labels.
+
 - Run discovery, command-line reads and signals through identity.User.Command and identity.Self, never under the shared server identity. Respect proc visibility and kernel signal permissions. Never expose environment contents.
 - After sampling, read command lines only for displayed individual processes in the requested RAM/CPU sort. Validate PID/start identity through an open proc directory before reading its cmdline. Read at most 4 KiB plus a truncation byte; normalize argument separators, whitespace and control characters into spaces, and return at most 250 Unicode characters including any ellipsis. Missing, unreadable, exited and zombie commands have no preview. Keep grouped identities private and do not read arguments for hidden members.
 - Use two CPU-counter samples 250 ms apart. CPU uses 100% per core; aggregate each process once. Resolve inconsistent parent cycles in the shared hierarchy so displayed branches and signal targets agree. New/reused processes have unavailable CPU, not fabricated zero. Zombies have summary counts, no executable work or signal actions.

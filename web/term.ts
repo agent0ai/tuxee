@@ -1,3 +1,4 @@
+import { t, errorText } from './i18n';
 import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
@@ -39,25 +40,28 @@ export class TerminalView implements View {
     private starting: Promise<void>;
     private closing = false;
     private resetting = false;
-    private resetButton = button('Reset terminal', 'Power', () => this.reset());
+    private resetButton = button(t("term.resetTerminal"), 'Power', () => this.reset());
     private events = new AbortController();
-    private control = button('Take control', 'Hand', () => this.sendControl({ type: 'take-control' }));
-    private name = 'Terminal';
+    private control = button(t("app.takeControl"), 'Hand', () => this.sendControl({ type: 'take-control' }));
+    private name = t("common.terminal");
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
     private drawer = el('textarea', 'terminal-input');
     private cancelDrawerResize?: () => void;
     private closeText = () => {};
-    private rendering = el('div', 'terminal-rendering', 'Loading...');
+    private rendering = el('div', 'terminal-rendering', t("term.loading"));
     private renderingStarted = performance.now();
     private renderingTimer?: ReturnType<typeof setTimeout>;
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
         root.classList.add('terminal-view');
+        Terminal.strings.promptLabel = t('terminal.inputLabel');
+        Terminal.strings.tooMuchOutput = t('terminal.tooMuchOutput');
         this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
             theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' },
             linkHandler: { activate: (_event, uri) => { window.open(uri, '_blank', 'noopener,noreferrer'); } } });
         installTerminalUnicode(this.term);
-        this.control.append(el('span', '', 'Control'));
+        this.control.dataset.action = 'take-control';
+        this.control.append(el('span', '', t("term.control")));
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);
@@ -65,7 +69,7 @@ export class TerminalView implements View {
         this.surface.append(this.host);
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         registerFileDrop(dropTarget, {
-            over: () => { const accepted = this.canDrop(); setDropFeedback(root, accepted ? this.display?.visible ? 'Drop files' : 'Paste' : undefined); return accepted; },
+            over: () => { const accepted = this.canDrop(); setDropFeedback(root, accepted ? this.display?.visible ? t("term.dropFiles") : t("common.paste") : undefined); return accepted; },
             leave: () => setDropFeedback(root),
             drop: drop => {
                 if (this.display.visible) {
@@ -78,7 +82,7 @@ export class TerminalView implements View {
         }, this.events.signal);
         const paste = registerUploadInput(dropTarget, {
             accept: () => this.canDrop(),
-            over: () => setDropFeedback(root, this.display?.visible ? 'Upload and drop' : 'Upload and paste'),
+            over: () => setDropFeedback(root, this.display?.visible ? t("term.uploadAndDrop") : t("term.uploadAndPaste")),
             leave: () => setDropFeedback(root),
             upload: (sources, point) => { void this.uploadFiles(sources, point); },
             paste: data => {
@@ -106,8 +110,8 @@ export class TerminalView implements View {
             if (top) this.term.scrollToTop(); else this.term.scrollToBottom();
             this.term.focus();
         };
-        const top = button('Jump to top', 'ArrowUp', () => scroll(true));
-        const bottom = button('Jump to bottom', 'ArrowDown', () => scroll(false));
+        const top = button(t("term.jumpToTop"), 'ArrowUp', () => scroll(true));
+        const bottom = button(t("term.jumpToBottom"), 'ArrowDown', () => scroll(false));
         const updateScroll = () => {
             const buffer = this.term.buffer.active;
             top.disabled = buffer.type !== 'normal' || buffer.viewportY === 0;
@@ -116,12 +120,12 @@ export class TerminalView implements View {
         const drawer = this.drawer;
         drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
-        drawer.setAttribute('aria-label', 'Terminal input drawer');
-        drawer.placeholder = 'Enter: send · Ctrl+Enter: insert · Shift+Enter: new line';
+        drawer.setAttribute('aria-label', t("term.terminalInputDrawer"));
+        drawer.placeholder = t("term.enterSendCtrlEnterInsertShiftEnterNewLine");
         const drawerGrip = el('div', 'terminal-input-resize');
         drawerGrip.hidden = true; drawerGrip.tabIndex = 0;
         drawerGrip.setAttribute('role', 'separator');
-        drawerGrip.setAttribute('aria-label', 'Resize terminal input');
+        drawerGrip.setAttribute('aria-label', t("term.resizeTerminalInput"));
         drawerGrip.setAttribute('aria-orientation', 'horizontal');
         const updateDrawerGrip = () => {
             if (drawer.hidden) return;
@@ -129,7 +133,7 @@ export class TerminalView implements View {
             drawerGrip.setAttribute('aria-valuemin', String(Math.round(minimum)));
             drawerGrip.setAttribute('aria-valuemax', String(Math.round(Math.max(minimum, this.surface.clientHeight - 72))));
             drawerGrip.setAttribute('aria-valuenow', String(drawer.offsetHeight));
-            drawerGrip.setAttribute('aria-valuetext', `${drawer.offsetHeight} pixels`);
+            drawerGrip.setAttribute('aria-valuetext', t("terminal.drawerHeight", { height: drawer.offsetHeight }));
         };
         const setDrawerHeight = (height: number) => {
             drawer.style.height = `${Math.max(0, height)}px`;
@@ -164,12 +168,12 @@ export class TerminalView implements View {
             }, { capture: true, signal });
         };
         drawerGrip.onkeydown = event => {
-            if (this.cancelDrawerResize || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+            if (this.cancelDrawerResize || !["ArrowUp", 'ArrowDown', "Home", "End"].includes(event.key)) return;
             event.preventDefault(); event.stopPropagation();
             const step = parseFloat(getComputedStyle(drawer).lineHeight);
             setDrawerHeight(event.key === 'Home' ? 0 : event.key === 'End' ? this.surface.clientHeight - 72 : drawer.offsetHeight + (event.key === 'ArrowUp' ? step : -step));
         };
-        const toggle = button('Toggle terminal input', 'TextCursorInput', () => {
+        const toggle = button(t("term.toggleTerminalInput"), 'TextCursorInput', () => {
             this.cancelDrawerResize?.();
             drawerGrip.hidden = drawer.hidden = !drawer.hidden;
             toggle.setAttribute('aria-expanded', String(!drawer.hidden));
@@ -180,20 +184,20 @@ export class TerminalView implements View {
         drawer.onkeydown = event => {
             if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
             event.preventDefault(); event.stopPropagation();
-            if (!this.canUpload()) { this.notice('Terminal is not ready for input'); return; }
+            if (!this.canUpload()) { this.notice(t("term.terminalIsNotReadyForInput")); return; }
             // Queue paste and Enter atomically so a rejected paste can never execute a partial command.
             let data = drawer.value.replace(/\r?\n/g, '\r');
             if (this.term.modes.bracketedPasteMode && data) data = '\x1b[200~' + data + '\x1b[201~';
             if (!event.ctrlKey) data += '\r';
             if (this.input(data)) { drawer.value = ''; this.term.scrollToBottom(); }
         };
-        const text = button('Terminal contents as text', undefined, () => this.showText(text));
-        text.textContent = 'T'; text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
+        const text = button(t("term.terminalContentsAsText"), undefined, () => this.showText(text));
+        text.textContent = t("term.t"); text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
         left.append(toggle, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button('Rename terminal', 'Pencil', () => this.renamePanel()), button('Reconnect terminal', 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.renamePanel()), button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -234,7 +238,7 @@ export class TerminalView implements View {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
         this.closeText();
         const content = el('div', 'terminal-text'), text = el('pre');
-        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'Terminal contents');
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t("term.terminalContents"));
         const rect = this.host.getBoundingClientRect();
         content.style.width = `${rect.width}px`; content.style.height = `${rect.height}px`;
         const style = getComputedStyle(this.term.element!);
@@ -244,7 +248,7 @@ export class TerminalView implements View {
         text.style.padding = style.padding;
         text.tabIndex = 0;
         text.setAttribute('role', 'textbox'); text.setAttribute('aria-readonly', 'true'); text.setAttribute('aria-multiline', 'true');
-        text.setAttribute('aria-label', 'Terminal contents as text');
+        text.setAttribute('aria-label', t("term.terminalContentsAsText"));
         text.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a') {
                 event.preventDefault(); event.stopPropagation();
@@ -288,10 +292,10 @@ export class TerminalView implements View {
         if (!uploaded.length) return;
         if (target) { try { await this.display.dropFiles(uploaded, target); } catch (error) { this.notice(error); } return; }
         if (!this.canUpload()) {
-            if (!this.disposed) this.notice('Uploaded to ~/uploads; terminal no longer accepts input');
+            if (!this.disposed) this.notice(t("term.uploadedToUploadsTerminalNoLongerAcceptsInput"));
             return;
         }
-        if (this.display.visible) { this.notice('Uploaded to ~/uploads; terminal is no longer visible'); return; }
+        if (this.display.visible) { this.notice(t("term.uploadedToUploadsTerminalIsNoLongerVisible")); return; }
         this.pasteFiles(uploaded, point, toDrawer);
     }
     private state(value: string) {
@@ -315,9 +319,9 @@ export class TerminalView implements View {
         this.root.querySelector('.terminal-recovery')?.remove();
         this.surface.hidden = true;
         this.root.classList.add('session-lost');
-        const recovery = el('div', 'terminal-recovery'), message = el('p', '', 'Terminal session lost');
+        const recovery = el('div', 'terminal-recovery'), message = el('p', '', t("term.terminalSessionLost"));
         message.setAttribute('role', 'status');
-        const restart = button('Restart terminal', undefined, () => {
+        const restart = button(t("term.restartTerminal"), undefined, () => {
             restart.disabled = true;
             if (this.panel.terminal === lost) delete this.panel.terminal;
             if (!this.panel.terminal) this.panel.path = this.hooks.defaultDirectory();
@@ -390,64 +394,64 @@ export class TerminalView implements View {
                 let value, bytes: number;
                 if (event.data instanceof ArrayBuffer) {
                     bytes = event.data.byteLength;
-                    if (bytes < 9 || bytes > 32776) throw Error('Invalid terminal output frame');
+                    if (bytes < 9 || bytes > 32776) throw Error(t("term.invalidTerminalOutputFrame"));
                     value = { type: 'data', sequence: Number(new DataView(event.data).getBigUint64(0)), data: new Uint8Array(event.data, 8) };
                 } else {
                     bytes = event.data.length;
-                    if (bytes > (received ? 1 << 20 : MAX_SNAPSHOT_BYTES + (1 << 20))) throw Error('Terminal message is too large');
+                    if (bytes > (received ? 1 << 20 : MAX_SNAPSHOT_BYTES + (1 << 20))) throw Error(t("term.terminalMessageIsTooLarge"));
                     value = JSON.parse(event.data);
-                    if (!value || typeof value !== 'object') throw Error('Invalid terminal message');
-                    if (value.type !== 'snapshot' && bytes > 1 << 20) throw Error('Terminal message is too large');
+                    if (!value || typeof value !== 'object') throw Error(t("term.invalidTerminalMessage"));
+                    if (value.type !== 'snapshot' && bytes > 1 << 20) throw Error(t("term.terminalMessageIsTooLarge"));
                 }
                 const unsequenced = value.type === 'ack' || value.type === 'resize-ack' || (value.type === 'error' && value.sequence === undefined);
                 if (!unsequenced) {
                     if (!Number.isSafeInteger(value.sequence) || value.sequence !== received + 1 || (!received && value.type !== 'snapshot'))
-                        throw Error('Terminal output is out of order');
+                        throw Error(t("term.terminalOutputIsOutOfOrder"));
                     received = value.sequence;
                 }
                 switch (value.type) {
                     case 'ack':
-                        if (!this.inFlight.length || value.sequence !== undefined) throw Error('Unexpected terminal input acknowledgement');
+                        if (!this.inFlight.length || value.sequence !== undefined) throw Error(t("term.unexpectedTerminalInputAcknowledgement"));
                         this.pendingBytes -= this.inFlight.shift()!; this.flushInput(); return;
                     case 'resize-ack':
-                        if (!this.resizing || value.sequence !== undefined) throw Error('Unexpected terminal resize acknowledgement');
+                        if (!this.resizing || value.sequence !== undefined) throw Error(t("term.unexpectedTerminalResizeAcknowledgement"));
                         this.resizing = false; this.resize(); return;
                     case 'error':
                         this.resizeDisplay.release();
-                        if (typeof value.message !== 'string') throw Error('Invalid terminal error');
-                        this.discardInput(); this.notice(value.message);
+                        if (typeof value.message !== 'string') throw Error(t("term.invalidTerminalError"));
+                        this.discardInput(); this.notice(errorText(value));
                         if (value.sequence === undefined) return;
                         break;
                     case 'snapshot':
-                        if (received !== 1 || typeof value.control !== 'boolean') throw Error('Unexpected terminal snapshot');
+                        if (received !== 1 || typeof value.control !== 'boolean') throw Error(t("term.unexpectedTerminalSnapshot"));
                         break;
                     case 'control':
-                        if (typeof value.control !== 'boolean') throw Error('Invalid terminal control state');
+                        if (typeof value.control !== 'boolean') throw Error(t("term.invalidTerminalControlState"));
                         this.controller = value.control;
                         if (!this.controller) {
-                            if (this.pendingBytes) this.notice('Control moved; check your last input before continuing');
+                            if (this.pendingBytes) this.notice(t("term.controlMovedCheckYourLastInputBeforeContinuing"));
                             this.uncertainInput ||= this.pendingBytes > 0;
                             this.queue = []; this.pendingBytes = this.inFlight.reduce((sum, bytes) => sum + bytes, 0);
                         } else { this.lastSize = ''; this.resize(); }
                         break;
                     case 'resize':
                         if (!Number.isInteger(value.columns) || value.columns < 2 || value.columns > 500 ||
-                            !Number.isInteger(value.rows) || value.rows < 1 || value.rows > 200) throw Error('Invalid terminal size');
+                            !Number.isInteger(value.rows) || value.rows < 1 || value.rows > 200) throw Error(t("term.invalidTerminalSize"));
                         break;
                     case 'exit': this.ended = true; this.display.update(); break;
                     case 'closed': this.sessionLost(terminal); return;
                     case 'display': break;
                     case 'background':
-                        for (const color of [value.background, value.foreground]) if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw Error('Invalid terminal color');
+                        for (const color of [value.background, value.foreground]) if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw Error(t("term.invalidTerminalColor"));
                         break;
                     case 'data':
-                        if (!(value.data instanceof Uint8Array)) throw Error('Invalid terminal output frame');
+                        if (!(value.data instanceof Uint8Array)) throw Error(t("term.invalidTerminalOutputFrame"));
                         break;
-                    default: throw Error('Unknown terminal message');
+                    default: throw Error(t("term.unknownTerminalMessage"));
                 }
                 if (value.type === 'snapshot') bytes = 0; // Recovery has its own size/admission limit.
                 queuedBytes += bytes;
-                if (++queuedFrames > 512 || queuedBytes > 1 << 20) throw Error('Terminal renderer is falling behind');
+                if (++queuedFrames > 512 || queuedBytes > 1 << 20) throw Error(t("term.terminalRendererIsFallingBehind"));
                 this.state(this.ended ? 'ended' : this.ready ? this.controller ? 'connected' : 'viewing' : 'connecting');
                 this.displayQueue = this.displayQueue.then(async () => {
                     if (!current()) return;
@@ -467,7 +471,7 @@ export class TerminalView implements View {
                             this.display.update(value.display);
                             this.ready = true; this.controller = value.control; this.attempt = 0;
                             if (this.uncertainInput) {
-                                this.notice('Connection restored');
+                                this.notice(t("term.connectionRestored"));
                                 this.uncertainInput = false;
                             }
                             break;
@@ -532,7 +536,7 @@ export class TerminalView implements View {
         if (!this.canUpload() || !data.length) return false;
         this.resizeDisplay.release();
         const available = 256 * 1024 - this.pendingBytes;
-        const busy = () => this.notice('Input is busy; wait before pasting more');
+        const busy = () => this.notice(t("term.inputIsBusyWaitBeforePastingMore"));
         if (data.length > available) { busy(); return false; }
         const bytes = new Uint8Array(Math.min(available, data.length * (binary ? 1 : 3)));
         let length = data.length;
@@ -578,7 +582,7 @@ export class TerminalView implements View {
         }
     }
     async renamePanel() {
-        const name = await ask('Rename terminal', 'Name', this.name, 'Terminal');
+        const name = await ask(t("term.renameTerminal"), t("common.name"), this.name, 'Terminal');
         if (!name) return;
         await this.starting;
         const info = await api<TerminalInfo>(`/terminals/${this.panel.terminal}`, 'PATCH', { name });
@@ -595,7 +599,7 @@ export class TerminalView implements View {
         this.resetting = this.resetButton.disabled = true;
         this.starting = this.starting.then(async () => {
             if (this.disposed || this.closing) return;
-            if (!await confirmAction('Reset terminal?', 'This will kill all commands and GUI apps in this terminal and start a new shell in the default directory. Terminal output and unsaved work will be lost. This cannot be undone.', 'Kill and reset')) return;
+            if (!await confirmAction(t("term.resetConfirmationTitle"), t("term.resetConsequences"), t("term.killAndReset"))) return;
             if (this.disposed || this.closing) return;
             const lost = this.panel.terminal;
             clearTimeout(this.reconnect);

@@ -10,6 +10,8 @@ Canonical headless engine, browser snapshot restore, touch interaction.
 
 # Local Contracts
 
+Shared engine/state validation throws `MessageError` from `../message.ts`, preserving `{key, vars}` for both browser formatting and Goja transport. Do not import a browser catalog or DOM-dependent formatter into the headless engine.
+
 Pin browser and headless xterm to 6.0.0 with the same Unicode 11 width provider installed before parsing/restoring. Emoji such as 👋 and 👍 occupy two columns. Snapshot version `the8020.xterm-6.0.0.2` identifies this shared width contract. Preserve parser continuation, both buffers, modes, colors, links, and cursor. Only the canonical engine answers application queries; browser viewers do not replay historical effects. Keep private xterm access in state.ts.
 
 Capture cell arrays once and JSON-detach the remaining engine metadata; snapshots must stay independent of later output. Preserve the snapshot format and history limits. Validate every cell as an exact uint32, including sparse entries, and count validated arrays toward the same structural/depth bounds without walking their cells again. Retain generic metadata and text validation.

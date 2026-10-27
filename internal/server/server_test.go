@@ -260,7 +260,7 @@ func TestShutdownReportsUnavailableBeforeRevokingSessions(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 			s.ServeHTTP(w, r)
-			var body map[string]string
+			var body map[string]any
 			if w.Code != 503 || json.Unmarshal(w.Body.Bytes(), &body) != nil || body["error"] != "server restarting" || w.Header().Get("Cache-Control") != "no-store" {
 				t.Fatalf("shutdown %s (cookie=%v): %d %q", path, cookie, w.Code, w.Body.String())
 			}

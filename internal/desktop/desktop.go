@@ -5,8 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	_ "embed"
-	"errors"
-	"fmt"
 	"math/big"
 	"os"
 	"os/exec"
@@ -15,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
@@ -34,7 +33,7 @@ type process struct {
 func start(ctx context.Context, user identity.User, dir, password string) (*process, error) {
 	for _, tool := range []string{"tuxee-Xvnc", "tuxee-vncpasswd", "matchbox-window-manager", "dbus-daemon"} {
 		if _, err := exec.LookPath(tool); err != nil {
-			return nil, fmt.Errorf("GUI runtime requires %s; use the Docker image or follow docs/guide.md", tool)
+			return nil, i18n.New("backend.desktop.missingRuntimeTool", i18n.Vars{"tool": tool})
 		}
 	}
 	// Let X own its display lock; a collision fails without touching another session.
@@ -86,7 +85,7 @@ func start(ctx context.Context, user identity.User, dir, password string) (*proc
 	case <-timer.C:
 	}
 	s.close()
-	return nil, errors.New("GUI session failed to start; check the server log")
+	return nil, i18n.New("backend.desktop.guiSessionFailedToStartCheckTheServerLog")
 }
 
 func (s *process) signal(signal syscall.Signal) {

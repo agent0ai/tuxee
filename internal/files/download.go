@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 )
@@ -16,12 +17,12 @@ import (
 // ValidateDownload checks the selection only; filesystem access belongs to the worker.
 func ValidateDownload(r Request) error {
 	if !filepath.IsAbs(r.Path) || strings.ContainsRune(r.Path, 0) || len(r.Paths) == 0 || len(r.Paths) > 10000 {
-		return errors.New("select files or folders to download")
+		return i18n.New("backend.files.selectFilesOrFoldersToDownload")
 	}
 	seen := make(map[string]bool, len(r.Paths))
 	for _, path := range r.Paths {
 		if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) || filepath.Dir(filepath.Clean(path)) != filepath.Clean(r.Path) || filepath.Clean(path) == filepath.Clean(r.Path) || seen[filepath.Clean(path)] {
-			return errors.New("download sources must be distinct items in the selected directory")
+			return i18n.New("backend.files.downloadSourcesMustBeDistinctItemsInTheSelectedDirectory")
 		}
 		seen[filepath.Clean(path)] = true
 	}
@@ -61,7 +62,7 @@ func zipEntry(ctx context.Context, archive *zip.Writer, root *os.Root, name stri
 	var file *os.File
 	if info.Mode()&os.ModeSymlink == 0 {
 		if !info.IsDir() && !info.Mode().IsRegular() {
-			return errors.New("ZIP downloads support regular files, folders and symlinks")
+			return i18n.New("backend.files.zipDownloadsSupportRegularFilesFoldersAndSymlinks")
 		}
 		// Verify the opened inode and avoid blocking on a replaced FIFO.
 		file, err = root.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
@@ -74,7 +75,7 @@ func zipEntry(ctx context.Context, archive *zip.Writer, root *os.Root, name stri
 			return err
 		}
 		if !os.SameFile(info, opened) {
-			return errors.New("file changed during ZIP download")
+			return i18n.New("backend.files.fileChangedDuringZIPDownload")
 		}
 		info = opened
 	}
@@ -123,7 +124,7 @@ func zipEntry(ctx context.Context, archive *zip.Writer, root *os.Root, name stri
 
 func streamZIP(ctx context.Context, r Request, output io.Writer) error {
 	if err := ValidateDownload(r); err != nil {
-		return json.NewEncoder(output).Encode(Response{Error: err.Error()})
+		return json.NewEncoder(output).Encode(Response{Error: err.Error(), Text: i18n.Describe(err)})
 	}
 	if err := json.NewEncoder(output).Encode(Response{}); err != nil {
 		return err

@@ -1,3 +1,4 @@
+import { t, errorText } from './i18n';
 import RFB from './vendor/novnc/core/rfb';
 import { api, bindContextMenu, button, el, icon, notificationHost, notify, popover, scopeNotifications } from './ui';
 import { overflowTabs } from './overflow';
@@ -11,7 +12,7 @@ export type DisplayState = { ready: boolean; error?: string; windows: Window[] |
 
 export class TerminalDisplay {
     private controls = el('div', 'display-controls');
-    private terminalButton = button('Terminal', undefined, () => this.show(false, true), 'display-tab terminal-tab');
+    private terminalButton = button(t("common.terminal"), undefined, () => this.show(false, true), 'display-tab terminal-tab');
     private separator = el('span', 'display-separator', '|');
     private windows = el('div', 'display-windows');
     private frame = el('div', 'terminal-display');
@@ -28,6 +29,8 @@ export class TerminalDisplay {
     private clipboard?: ReturnType<typeof displayClipboard>;
     private events = new AbortController();
     private dropNotice?: HTMLElement;
+    private resizeTimer?: ReturnType<typeof setTimeout>;
+    private observer = new ResizeObserver(() => this.resize());
     visible = false;
     get connected() { return this.visible && !!this.clipboard && this.frame.getClientRects().length > 0 && this.frame.dataset.state === 'connected'; }
 
@@ -39,7 +42,8 @@ export class TerminalDisplay {
         this.frame.append(this.screen, this.status); this.frame.hidden = true;
         root.append(this.frame);
         this.update();
-        this.disposeOverflow = overflowTabs(this.windows, this.items, 'More windows', () => {});
+        this.observer.observe(this.frame);
+        this.disposeOverflow = overflowTabs(this.windows, this.items, t("display.moreWindows"), () => {});
     }
 
     rename(name: string) {
@@ -66,13 +70,13 @@ export class TerminalDisplay {
                 }, 'display-tab display-window');
                 b.dataset.window = String(window.id);
                 const group = el('div', 'display-window-item');
-                const menu = button('Window menu', 'ChevronDown', () => this.windowMenu(window.id, menu), 'display-window-menu');
+                const menu = button(t("display.windowMenu"), 'ChevronDown', () => this.windowMenu(window.id, menu), 'display-window-menu');
                 menu.setAttribute('aria-haspopup', 'menu');
                 group.append(b, menu); scopeNotifications(group, this.root);
                 item = { tab: b, group, dispose: bindContextMenu(group, position => this.windowMenu(window.id, b, position), true) };
                 this.buttons.set(window.id, item); this.items.push(group);
             }
-            const b = item.tab, title = window.title || `Window ${window.id}`;
+            const b = item.tab, title = window.title || t("display.windowNumber", { id: window.id });
             b.title = title; b.setAttribute('aria-label', title);
             if (b.dataset.icon !== (window.icon || '') || !b.firstChild) {
                 b.dataset.icon = window.icon || '';
@@ -84,7 +88,7 @@ export class TerminalDisplay {
         }
         const opened = windows.some(w => !previous.has(w.id));
         this.show(!!state?.ready && windows.length > 0 && (this.visible || opened), opened);
-        if (state?.error) notify(state.error, this.root);
+        if (state?.error) notify(errorText(state), this.root);
     }
 
     private show(visible: boolean, focus = false) {
@@ -113,11 +117,11 @@ export class TerminalDisplay {
     private windowMenu(id: number, anchor: HTMLElement, position?: { x: number; y: number }) {
         this.closeMenu();
         const content = el('div', 'menu-actions'); scopeNotifications(content, this.root);
-        const close = button('Close', 'X', () => {
+        const close = button(t("common.close"), 'X', () => {
             this.closeMenu();
             return api(`/terminals/${this.id()}/display/window`, 'DELETE', { id });
         });
-        close.append(el('span', '', 'Close')); close.setAttribute('role', 'menuitem'); content.append(close);
+        close.append(el('span', '', t("common.close"))); close.setAttribute('role', 'menuitem'); content.append(close);
         const rect = anchor.getBoundingClientRect();
         ({ close: this.closeMenu } = popover(position || { x: rect.left, y: rect.bottom }, content, anchor));
     }
@@ -125,7 +129,7 @@ export class TerminalDisplay {
     private async connect() {
         this.disconnect();
         const request = this.request = new AbortController();
-        this.status.hidden = false; this.status.replaceChildren(el('span', '', 'Loading...'));
+        this.status.hidden = false; this.status.replaceChildren(el('span', '', t("term.loading")));
         try {
             const session = await api<{ password: string }>(`/terminals/${this.id()}/display`, 'GET', undefined, request.signal);
             if (this.disposed || request.signal.aborted) return;
@@ -136,7 +140,7 @@ export class TerminalDisplay {
             rfb.addEventListener('connect', () => {
                 if (this.rfb !== rfb) return;
                 this.status.hidden = true; this.frame.dataset.state = 'connected';
-                this.screen.querySelector('canvas')?.setAttribute('aria-label', 'Terminal display');
+                this.screen.querySelector('canvas')?.setAttribute('aria-label', t("display.terminalDisplay"));
                 this.clipboard = displayClipboard(this.screen, rfb, this.root, {
                     path: `/terminals/${this.id()}/display`, uid: this.user.uid,
                     upload: files => uploadBatch(join(this.user.home, 'uploads'), files, this.root, this.events.signal, true),
@@ -146,17 +150,17 @@ export class TerminalDisplay {
             });
             rfb.addEventListener('disconnect', () => {
                 if (this.rfb !== rfb || this.disposed) return;
-                this.disconnected('Display disconnected');
+                this.disconnected(t("display.displayDisconnected"));
             });
         } catch (error) {
-            if (!request.signal.aborted && !this.disposed) this.disconnected(error instanceof Error ? error.message : 'Connection failed');
+            if (!request.signal.aborted && !this.disposed) this.disconnected(error instanceof Error ? errorText(error) : t("display.connectionFailed"));
         } finally { if (this.request === request) this.request = undefined; }
     }
 
     private disconnected(message: string) {
         this.clipboard?.dispose(); this.clipboard = undefined;
         this.frame.dataset.state = 'disconnected'; this.status.hidden = false;
-        this.status.replaceChildren(el('span', '', message), button('Reconnect display', undefined, () => this.connect(), 'primary'));
+        this.status.replaceChildren(el('span', '', message), button(t("display.reconnectDisplay"), undefined, () => this.connect(), 'primary'));
     }
 
     resize() {
@@ -167,11 +171,18 @@ export class TerminalDisplay {
             else parent.insertBefore(this.controls, parent.querySelector('.panel-tools'));
         }
         this.controls.hidden = compact && !this.state?.windows?.length;
+        clearTimeout(this.resizeTimer);
+        this.resizeTimer = setTimeout(() => {
+            if (this.disposed || !this.frame.checkVisibility() || this.root.closest('.resizing-panel, .resizing-dividers')) return;
+            // Keep noVNC's viewport fixed until the outer panel has settled.
+            this.screen.style.width = `${this.frame.clientWidth}px`;
+            this.screen.style.height = `${this.frame.clientHeight}px`;
+        }, 80);
     }
 
     dropTarget(point?: { clientX: number; clientY: number }) {
         const canvas = this.screen.querySelector('canvas'), window = this.state?.windows?.find(window => window.active);
-        if (!this.connected || !canvas || !window) throw new Error('GUI display is unavailable');
+        if (!this.connected || !canvas || !window) throw new Error(t("display.guiDisplayIsUnavailable"));
         const rect = canvas.getBoundingClientRect();
         const x = point ? (point.clientX - rect.left) / rect.width : .5, y = point ? (point.clientY - rect.top) / rect.height : .5;
         this.rfb?.focus();
@@ -180,19 +191,19 @@ export class TerminalDisplay {
 
     async dropFiles(files: DraggedFile[], target: ReturnType<TerminalDisplay['dropTarget']>) {
         if (this.disposed || !this.connected || !this.state?.windows?.some(window => window.id === target.window && window.active)) {
-            throw new Error('Files are available on the server; the original GUI window is no longer active.');
+            throw new Error(t("display.filesAreAvailableOnTheServerTheOriginalGUIWindow"));
         }
         this.dropNotice?.remove();
         try { await api(`/terminals/${this.id()}/display/drop`, 'POST', { ...target, files: files.map(file => file.path) }, this.events.signal); }
         catch (error) {
             if (this.disposed) return;
             notify(error, this.root);
-            const paste = button('Paste paths', 'ClipboardPaste', async () => {
-                if (!this.visible || !this.state?.windows?.some(window => window.id === target.window && window.active)) throw new Error('Select the original GUI window first.');
+            const paste = button(t("display.pastePaths"), 'ClipboardPaste', async () => {
+                if (!this.visible || !this.state?.windows?.some(window => window.id === target.window && window.active)) throw new Error(t("display.selectTheOriginalGUIWindowFirst"));
                 await this.clipboard?.pastePaths(files); this.dropNotice?.remove();
             });
-            paste.append(el('span', '', 'Paste paths'));
-            this.dropNotice = el('div', 'toast'); this.dropNotice.append(paste, button('Dismiss', 'X', () => this.dropNotice?.remove()));
+            paste.append(el('span', '', t("display.pastePaths")));
+            this.dropNotice = el('div', 'toast'); this.dropNotice.append(paste, button(t("display.clipboard.dismiss"), 'X', () => this.dropNotice?.remove()));
             notificationHost('notifications', this.root).append(this.dropNotice);
         }
     }
@@ -205,5 +216,5 @@ export class TerminalDisplay {
         this.screen.replaceChildren(); delete this.frame.dataset.state;
     }
 
-    dispose() { this.disposed = true; this.events.abort(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
+    dispose() { this.disposed = true; clearTimeout(this.resizeTimer); this.observer.disconnect(); this.events.abort(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
 }

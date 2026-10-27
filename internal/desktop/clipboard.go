@@ -3,14 +3,13 @@ package desktop
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"image/png"
 	"net/url"
 	"path"
 	"strings"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 	"unicode/utf8"
 
 	"github.com/jezek/xgb"
@@ -19,6 +18,7 @@ import (
 )
 
 const MaxClipboardBytes = 16 << 20
+const maxClipboardPixels = 16 << 20
 const maxClipboardText = 256 << 10
 const selectionChunk = 64 << 10
 
@@ -115,12 +115,12 @@ func (c *clipboard) close() {
 
 func (d *Display) clipboard() (*clipboard, error) {
 	if d == nil {
-		return nil, errors.New("display unavailable")
+		return nil, i18n.New("backend.desktop.displayUnavailable")
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if !d.state.Ready || d.windows == nil {
-		return nil, errors.New("display unavailable")
+		return nil, i18n.New("backend.desktop.displayUnavailable")
 	}
 	return d.windows.clipboard, nil
 }
@@ -134,11 +134,11 @@ func (d *Display) ClipboardChanges() (<-chan ClipboardChange, func(), error) {
 	defer c.mu.Unlock()
 	select {
 	case <-c.done:
-		return nil, nil, errors.New("display unavailable")
+		return nil, nil, i18n.New("backend.desktop.displayUnavailable")
 	default:
 	}
 	if len(c.subscribers) >= 16 {
-		return nil, nil, errors.New("too many clipboard viewers")
+		return nil, nil, i18n.New("backend.desktop.tooManyClipboardViewers")
 	}
 	ch := make(chan ClipboardChange, 1)
 	ch <- c.change
@@ -305,31 +305,31 @@ func validateClipboard(data ClipboardData) error {
 	if data.PNG != nil {
 		count++
 		cfg, err := png.DecodeConfig(bytes.NewReader(data.PNG))
-		if err != nil || len(data.PNG) > MaxClipboardBytes || cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > 16<<20 {
-			return errors.New("invalid or oversized clipboard PNG (maximum 16 MB / 16 megapixels)")
+		if err != nil || len(data.PNG) > MaxClipboardBytes || cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > maxClipboardPixels {
+			return i18n.New("backend.desktop.clipboardPNGSizeLimit", i18n.Vars{"maxMiB": float64(MaxClipboardBytes) / (1 << 20), "maxPixels": maxClipboardPixels})
 		}
 	}
 	if data.Files != nil {
 		count++
 		if len(data.Files) == 0 || len(data.Files) > 1000 {
-			return errors.New("invalid clipboard file count")
+			return i18n.New("backend.desktop.invalidClipboardFileCount")
 		}
 		n := 0
 		for _, p := range data.Files {
 			n += len(p)
 			if !utf8.ValidString(p) || !strings.HasPrefix(p, "/") || path.Clean(p) != p || strings.ContainsRune(p, 0) || n > maxClipboardText {
-				return errors.New("invalid clipboard file paths")
+				return i18n.New("backend.desktop.invalidClipboardFilePaths")
 			}
 		}
 	}
 	if data.Text != "" {
 		count++
 		if len(data.Text) > maxClipboardText || !utf8.ValidString(data.Text) || strings.ContainsRune(data.Text, 0) {
-			return errors.New("invalid or oversized clipboard text")
+			return i18n.New("backend.desktop.invalidOrOversizedClipboardText")
 		}
 	}
 	if count > 1 {
-		return errors.New("choose one clipboard representation")
+		return i18n.New("backend.desktop.chooseOneClipboardRepresentation")
 	}
 	return nil
 }
@@ -366,7 +366,7 @@ func (d *Display) SetClipboard(data ClipboardData) error {
 	defer c.mu.Unlock()
 	select {
 	case <-c.done:
-		return errors.New("display unavailable")
+		return i18n.New("backend.desktop.displayUnavailable")
 	default:
 	}
 	c.data = c.formats(data)
@@ -384,13 +384,13 @@ func (d *Display) ReadClipboard(ctx context.Context, version uint64) (ClipboardD
 	case c.readGate <- struct{}{}:
 		defer func() { <-c.readGate }()
 	default:
-		return ClipboardData{}, errors.New("clipboard read already in progress")
+		return ClipboardData{}, i18n.New("backend.desktop.clipboardReadAlreadyInProgress")
 	}
 	c.mu.Lock()
 	change, stamp := c.change, c.stamp
 	c.mu.Unlock()
 	if change.Version != version {
-		return ClipboardData{}, errors.New("clipboard changed")
+		return ClipboardData{}, i18n.New("backend.desktop.clipboardChanged")
 	}
 	read := func(name string) ([]byte, error) { return c.read(ctx, c.atoms[name], stamp) }
 	targets, err := read("TARGETS")
@@ -413,7 +413,7 @@ func (d *Display) ReadClipboard(ctx context.Context, version uint64) (ClipboardD
 		switch name {
 		case "x-special/gnome-copied-files", "text/uri-list":
 			if len(value) > maxClipboardText {
-				return result, errors.New("clipboard file list is too large")
+				return result, i18n.New("backend.desktop.clipboardFileListIsTooLarge")
 			}
 			result.Files, e = clipboardPaths(string(value))
 			if e != nil {
@@ -444,11 +444,11 @@ func (d *Display) ReadClipboard(ctx context.Context, version uint64) (ClipboardD
 		same := c.change.Version == version
 		c.mu.Unlock()
 		if !same {
-			return ClipboardData{}, errors.New("clipboard changed")
+			return ClipboardData{}, i18n.New("backend.desktop.clipboardChanged")
 		}
 		return result, nil
 	}
-	return result, errors.New("the application copied an unsupported clipboard format")
+	return result, i18n.New("backend.desktop.theApplicationCopiedAnUnsupportedClipboardFormat")
 }
 func clipboardPaths(value string) ([]string, error) {
 	var paths []string
@@ -458,12 +458,12 @@ func clipboardPaths(value string) ([]string, error) {
 		}
 		u, err := url.Parse(line)
 		if err != nil || u.Scheme != "file" || (u.Host != "" && u.Host != "localhost") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-			return nil, errors.New("clipboard contains a non-local file reference")
+			return nil, i18n.New("backend.desktop.clipboardContainsANonLocalFileReference")
 		}
 		paths = append(paths, u.Path)
 	}
 	if len(paths) == 0 {
-		return nil, errors.New("clipboard contains no files")
+		return nil, i18n.New("backend.desktop.clipboardContainsNoFiles")
 	}
 	return paths, validateClipboard(ClipboardData{Files: paths})
 }
@@ -489,12 +489,12 @@ func (c *clipboard) read(ctx context.Context, target xproto.Atom, stamp xproto.T
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-c.done:
-			return nil, errors.New("display ended")
+			return nil, i18n.New("backend.desktop.displayEnded")
 		case event := <-ch:
 			switch e := event.(type) {
 			case xproto.SelectionNotifyEvent:
 				if e.Property == 0 {
-					return nil, errors.New("application refused clipboard data")
+					return nil, i18n.New("backend.desktop.applicationRefusedClipboardData")
 				}
 			case xproto.PropertyNotifyEvent:
 				if !incr || e.State != xproto.PropertyNewValue || e.Atom != property {
@@ -508,11 +508,11 @@ func (c *clipboard) read(ctx context.Context, target xproto.Atom, stamp xproto.T
 				return nil, e
 			}
 			if p.BytesAfter != 0 || len(value)+len(p.Value) > MaxClipboardBytes {
-				return nil, errors.New("clipboard exceeds 16 MB")
+				return nil, i18n.New("backend.desktop.clipboardByteLimit", i18n.Vars{"maxMiB": float64(MaxClipboardBytes) / (1 << 20)})
 			}
 			if p.Type == c.atoms["INCR"] {
 				if incr || p.Format != 32 || len(p.Value) != 4 || xgb.Get32(p.Value) > MaxClipboardBytes {
-					return nil, errors.New("invalid incremental clipboard")
+					return nil, i18n.New("backend.desktop.invalidIncrementalClipboard")
 				}
 				incr = true
 				continue
@@ -522,10 +522,10 @@ func (c *clipboard) read(ctx context.Context, target xproto.Atom, stamp xproto.T
 			}
 			if target == c.atoms["TARGETS"] {
 				if p.Format != 32 || len(p.Value) > 4096 {
-					return nil, errors.New("invalid clipboard targets")
+					return nil, i18n.New("backend.desktop.invalidClipboardTargets")
 				}
 			} else if p.Format != 8 {
-				return nil, fmt.Errorf("invalid clipboard data format %d", p.Format)
+				return nil, i18n.New("backend.desktop.invalidClipboardDataFormat", i18n.Vars{"format": p.Format})
 			}
 			value = append(value, p.Value...)
 			if !incr || len(p.Value) == 0 {

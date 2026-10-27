@@ -7,7 +7,6 @@ import "C"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"tuxee/internal/i18n"
 	"unicode"
 
 	"golang.org/x/sys/unix"
@@ -82,7 +82,7 @@ func readAt(dir *os.File, name string) ([]byte, error) {
 	defer f.Close()
 	data, err := io.ReadAll(io.LimitReader(f, 16385))
 	if len(data) > 16384 {
-		return nil, errors.New("process record too large")
+		return nil, i18n.New("backend.processes.processRecordTooLarge")
 	}
 	return data, err
 }
@@ -146,22 +146,22 @@ func parseStat(data []byte) (Process, error) {
 	text := string(data)
 	left, right := strings.IndexByte(text, '('), strings.LastIndexByte(text, ')')
 	if left < 1 || right < left {
-		return p, errors.New("invalid process stat")
+		return p, i18n.New("backend.processes.invalidProcessStat")
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(text[:left]))
 	if err != nil || pid <= 0 {
-		return p, errors.New("invalid process ID")
+		return p, i18n.New("backend.processes.invalidProcessID")
 	}
 	fields := strings.Fields(text[right+1:])
 	if len(fields) < 20 || len(fields[0]) != 1 {
-		return p, errors.New("incomplete process stat")
+		return p, i18n.New("backend.processes.incompleteProcessStat")
 	}
 	parent, e1 := strconv.Atoi(fields[1])
 	user, e2 := strconv.ParseUint(fields[11], 10, 64)
 	system, e3 := strconv.ParseUint(fields[12], 10, 64)
 	start, e4 := strconv.ParseUint(fields[19], 10, 64)
 	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || parent < 0 || parent == pid {
-		return p, errors.New("invalid process counters")
+		return p, i18n.New("backend.processes.invalidProcessCounters")
 	}
 	p = Process{Ref: Ref{pid, strconv.FormatUint(start, 10)}, Parent: parent, Name: text[left+1 : right], State: fields[0], ticks: user + system, sampled: time.Now()}
 	if p.State == "Z" {
@@ -192,7 +192,7 @@ func scan(ctx context.Context, root string, allowCore, withMemory bool) ([]Proce
 				continue
 			}
 			if len(result) >= MaxProcesses {
-				return nil, errors.New("too many processes to sample")
+				return nil, i18n.New("backend.processes.tooManyProcessesToSample")
 			}
 			folder, err := os.Open(filepath.Join(root, entry.Name()))
 			if err != nil {
@@ -282,7 +282,7 @@ func Sample(ctx context.Context, allowCore bool) (*Snapshot, error) {
 	}
 	ticks := float64(C.sysconf(C._SC_CLK_TCK))
 	if ticks <= 0 {
-		return nil, errors.New("CPU clock rate unavailable")
+		return nil, i18n.New("backend.processes.cpuClockRateUnavailable")
 	}
 	rates(before, after, ticks)
 	return &Snapshot{Time: time.Now(), Processes: after}, nil
@@ -463,7 +463,7 @@ func (s *Snapshot) View(sortBy string) View {
 				break
 			}
 			if n >= individual || remaining == 1 && n < len(live)-1 {
-				group := Row{ID: "g:" + parent, ParentID: parent, Process: Process{Name: "More processes"}, Group: true, TotalCPU: new(float64), TotalRAM: new(uint64), TotalFileRAM: new(uint64), TargetRAM: new(uint64)}
+				group := Row{ID: "g:" + parent, ParentID: parent, Process: Process{Name: i18n.New("processes.more").Error()}, Group: true, TotalCPU: new(float64), TotalRAM: new(uint64), TotalFileRAM: new(uint64), TargetRAM: new(uint64)}
 				for _, j := range live[n:] {
 					r := rows[j]
 					group.Members = append(group.Members, r.PID)
@@ -506,14 +506,14 @@ func (s *Snapshot) View(sortBy string) View {
 
 func (s *Snapshot) Targets(selected []int) ([]Ref, error) {
 	if len(selected) == 0 || len(selected) > MaxProcesses {
-		return nil, errors.New("invalid process selection")
+		return nil, i18n.New("backend.processes.invalidProcessSelection")
 	}
 	index, children, _, _ := s.forest()
 	stack := []int{}
 	for _, pid := range selected {
 		i, ok := index[pid]
 		if !ok {
-			return nil, errors.New("process snapshot changed; refresh")
+			return nil, i18n.New("backend.processes.processSnapshotChangedRefresh")
 		}
 		stack = append(stack, i)
 	}
@@ -536,25 +536,26 @@ func (s *Snapshot) Targets(selected []int) ([]Ref, error) {
 }
 func ValidateSignal(refs []Ref, signal int, allowCore bool) error {
 	if signal != int(unix.SIGTERM) && signal != int(unix.SIGKILL) {
-		return errors.New("invalid process signal")
+		return i18n.New("backend.processes.invalidProcessSignal")
 	}
 	if len(refs) == 0 || len(refs) > MaxProcesses {
-		return errors.New("invalid process selection")
+		return i18n.New("backend.processes.invalidProcessSelection")
 	}
 	for _, ref := range refs {
 		if ref.PID < 1 || (ref.PID == 1 && !allowCore) {
-			return errors.New("protected process")
+			return i18n.New("backend.processes.protectedProcess")
 		}
 		if _, err := strconv.ParseUint(ref.Start, 10, 64); err != nil {
-			return errors.New("invalid process identity")
+			return i18n.New("backend.processes.invalidProcessIdentity")
 		}
 	}
 	return nil
 }
 
 type Result struct {
-	PID   int    `json:"pid"`
-	Error string `json:"error,omitempty"`
+	Text  *i18n.Message `json:"text,omitempty"`
+	PID   int           `json:"pid"`
+	Error string        `json:"error,omitempty"`
 }
 
 func Signal(ctx context.Context, refs []Ref, signal int, allowCore bool) ([]Result, error) {
@@ -579,7 +580,7 @@ func Signal(ctx context.Context, refs []Ref, signal int, allowCore bool) ([]Resu
 		}
 		for _, ref := range refs {
 			if protected[ref.PID] {
-				return nil, errors.New("selection includes Tuxee or a protected ancestor")
+				return nil, i18n.New("backend.processes.selectionIncludesTuxeeOrAProtectedAncestor")
 			}
 		}
 	}
@@ -597,6 +598,7 @@ func Signal(ctx context.Context, refs []Ref, signal int, allowCore bool) ([]Resu
 		r := Result{PID: ref.PID}
 		if err != nil {
 			r.Error = err.Error()
+			r.Text = i18n.Describe(err)
 		}
 		results = append(results, r)
 	}
@@ -605,26 +607,26 @@ func Signal(ctx context.Context, refs []Ref, signal int, allowCore bool) ([]Resu
 func signalOne(ref Ref, signal unix.Signal) error {
 	dir, err := os.Open(fmt.Sprintf("/proc/%d", ref.PID))
 	if err != nil {
-		return errors.New("process exited or is unavailable")
+		return i18n.New("backend.processes.processExitedOrIsUnavailable")
 	}
 	defer dir.Close()
 	data, err := readAt(dir, "stat")
 	if err != nil {
-		return errors.New("process exited or is unavailable")
+		return i18n.New("backend.processes.processExitedOrIsUnavailable")
 	}
 	p, err := parseStat(data)
 	if err != nil {
 		return err
 	}
 	if p.Ref != ref {
-		return errors.New("process identity changed; refresh")
+		return i18n.New("backend.processes.processIdentityChangedRefresh")
 	}
 	if p.State == "Z" {
-		return errors.New("process already exited (zombie)")
+		return i18n.New("backend.processes.processAlreadyExitedZombie")
 	}
 	// The proc descriptor pins identity across exit/PID reuse; never signal a raw PID.
 	if err := unix.PidfdSendSignal(int(dir.Fd()), signal, nil, 0); err != nil {
-		return fmt.Errorf("signal not sent: %w", err)
+		return i18n.Wrap("backend.processes.signalNotSent", err, i18n.Vars{"detail": i18n.Describe(err)})
 	}
 	return nil
 }

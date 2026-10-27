@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"os/exec"
 	"os/user"
 	"strconv"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 )
 
 type User struct {
@@ -28,7 +28,7 @@ func Lookup(name string) (User, error) {
 	var result User
 	account, err := user.Lookup(name)
 	if err != nil {
-		return result, errors.New("account not found")
+		return result, i18n.New("backend.identity.accountNotFound")
 	}
 	uid, err := strconv.ParseUint(account.Uid, 10, 32)
 	if err != nil {
@@ -67,7 +67,7 @@ func Authenticate(ctx context.Context, service, name string, password []byte) (U
 	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C.UTF-8"}
 	cmd.Stdin = bytes.NewReader(request)
 	if err = cmd.Run(); err != nil {
-		return User{}, errors.New("invalid username, password, or account policy")
+		return User{}, i18n.New("backend.identity.invalidUsernamePasswordOrAccountPolicy")
 	}
 	return Lookup(name)
 }

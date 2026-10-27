@@ -1,6 +1,7 @@
+import { t } from './i18n';
 import { api, el, requestHeaders } from './ui';
 
-type ConnectionState = { authenticated: false } | { authenticated: true; uid: number; csrf: string };
+type ConnectionState = { authenticated: false } | { authenticated: true; uid: number; csrf: string; language?: string };
 
 export class BackendConnection {
     private events = new AbortController();
@@ -8,7 +9,7 @@ export class BackendConnection {
     private timer?: ReturnType<typeof setTimeout>;
     private dialog?: HTMLDialogElement;
 
-    constructor(private restore: (session: { uid: number; csrf: string }, signal: AbortSignal) => Promise<void>, private expired: () => void) {
+    constructor(private restore: (session: { uid: number; csrf: string; language?: string }, signal: AbortSignal) => Promise<void>, private expired: () => void) {
         const signal = this.events.signal;
         window.addEventListener('tuxee-connection-check', this.check, { signal });
         window.addEventListener('tuxee-connection-lost', this.lost, { signal });
@@ -36,7 +37,7 @@ export class BackendConnection {
         try {
             const state = await api<ConnectionState>('/connection', 'GET', undefined, request.signal);
             if (typeof state?.authenticated !== 'boolean' || state.authenticated &&
-                (!Number.isInteger(state.uid) || state.uid < 0 || typeof state.csrf !== 'string' || !state.csrf)) throw new Error('Invalid connection state');
+                (!Number.isInteger(state.uid) || state.uid < 0 || typeof state.csrf !== 'string' || !state.csrf)) throw new Error(t("connection.invalidConnectionState"));
             if (token !== requestHeaders()['X-Tuxee-CSRF']) return;
             request.signal.throwIfAborted();
             if (state.authenticated) await this.restore(state, request.signal);
@@ -56,7 +57,7 @@ export class BackendConnection {
     private show() {
         if (this.dialog || this.events.signal.aborted) return;
         window.dispatchEvent(new Event('tuxee-disconnected'));
-        const message = 'Connection lost, reconnecting...';
+        const message = t("connection.connectionLostReconnecting");
         const dialog = this.dialog = el('dialog', 'modal connection-overlay');
         dialog.setAttribute('aria-label', message);
         dialog.oncancel = event => event.preventDefault();

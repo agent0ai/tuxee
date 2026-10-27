@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"html"
 	"io"
 	"io/fs"
@@ -28,6 +27,7 @@ import (
 
 	"tuxee/internal/audio"
 	"tuxee/internal/files"
+	"tuxee/internal/i18n"
 	"tuxee/internal/identity"
 	"tuxee/internal/monitor"
 	"tuxee/internal/processes"
@@ -37,6 +37,7 @@ import (
 )
 
 type login struct {
+	translations    *i18n.Bundle
 	user            identity.User
 	csrf            string
 	expires         time.Time
@@ -46,32 +47,36 @@ type login struct {
 	processSnapshot *processSnapshot
 }
 type Server struct {
-	Gate         *identity.Gate
-	Terminals    *terminal.Manager
-	TLS          *tlsmanager.Manager
-	Origin       string
-	Version      string
-	Updates      *update.Checker
-	Restart      func()
-	Assets       fs.FS
-	cookieName   string
-	mu           sync.Mutex
-	settingsMu   sync.Mutex
-	closed       atomic.Bool
-	logins       map[[32]byte]*login
-	archives     map[string]*archiveDownload
-	fileSlots    chan struct{}
-	clipSlots    chan struct{}
-	sizeSlots    chan struct{}
-	scriptHash   string
-	monitor      *monitor.Collector
-	processReads chan struct{}
-	processKills chan struct{}
+	Gate           *identity.Gate
+	Terminals      *terminal.Manager
+	TLS            *tlsmanager.Manager
+	Origin         string
+	Version        string
+	Updates        *update.Checker
+	Restart        func()
+	Assets         fs.FS
+	cookieName     string
+	languageCookie string
+	Translations   *i18n.Store
+	mu             sync.Mutex
+	settingsMu     sync.Mutex
+	closed         atomic.Bool
+	logins         map[[32]byte]*login
+	archives       map[string]*archiveDownload
+	fileSlots      chan struct{}
+	clipSlots      chan struct{}
+	sizeSlots      chan struct{}
+	scriptHash     string
+	monitor        *monitor.Collector
+	processReads   chan struct{}
+	processKills   chan struct{}
 }
 
 func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 32), clipSlots: make(chan struct{}, 2)}
 	s.cookieName = "tuxee_session_" + instanceID
+	s.languageCookie = "tuxee_language_" + instanceID
+	s.Translations = i18n.NewStore(i18n.SystemDirectory)
 	s.monitor = monitor.New()
 	s.processReads = make(chan struct{}, 2)
 	s.sizeSlots = make(chan struct{}, 2)
@@ -96,7 +101,7 @@ func jsonResponse(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func failure(w http.ResponseWriter, status int, err error) {
-	jsonResponse(w, status, map[string]string{"error": err.Error()})
+	jsonResponse(w, status, map[string]any{"error": err.Error(), "text": i18n.Describe(err)})
 }
 func decode(w http.ResponseWriter, r *http.Request, value any, limits ...int64) error {
 	limit := int64(512 << 10)
@@ -107,11 +112,11 @@ func decode(w http.ResponseWriter, r *http.Request, value any, limits ...int64) 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(value); err != nil {
-		return errors.New("invalid request body")
+		return i18n.New("backend.server.invalidRequestBody")
 	}
 	var extra any
 	if decoder.Decode(&extra) != io.EOF {
-		return errors.New("request must contain one JSON value")
+		return i18n.New("backend.server.requestMustContainOneJSONValue")
 	}
 	return nil
 }
@@ -175,7 +180,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+s.scriptHash+"; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'none'; frame-src 'self'; object-src 'self'; media-src 'self'; base-uri 'self'")
 	if s.closed.Load() {
 		w.Header().Set("Cache-Control", "no-store")
-		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		return
 	}
 	if r.URL.Path == "/health" {
@@ -185,6 +190,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			bundle := s.requestTranslations(r)
+			translations, _ := json.Marshal(bundle)
 			compressed := false
 			for _, encoding := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
 				fields := strings.Split(strings.TrimSpace(encoding), ";")
@@ -195,15 +202,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			data, err := fs.ReadFile(s.Assets, "index.html")
 			if err != nil {
-				http.Error(w, "frontend build is unavailable", 500)
+				http.Error(w, (&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "server.frontendUnavailable"}), 500)
 				return
 			}
 			hostname, err := os.Hostname()
 			if err != nil {
-				http.Error(w, "server hostname is unavailable", 500)
+				http.Error(w, (&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "server.hostnameUnavailable"}), 500)
 				return
 			}
 			data = []byte(strings.NewReplacer(
+				"{{i18n}}", string(translations),
+				"{{language}}", html.EscapeString(bundle.Language),
+				"{{direction}}", bundle.Direction,
+				"{{tagline}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.tagline"})),
+				"{{previewAlt}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.previewAlt"})),
+				"{{loading}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.loading"})),
 				"{{origin}}", html.EscapeString(s.origin(r)),
 				"{{hostname}}", html.EscapeString(hostname),
 				"{{version}}", html.EscapeString(s.Version),
@@ -216,8 +229,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				data = buffer.Bytes()
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Vary", "Accept-Encoding")
+			w.Header().Set("Cache-Control", "private, no-store")
+			w.Header().Set("Vary", "Accept-Encoding, Cookie")
 			if compressed {
 				w.Header().Set("Content-Encoding", "gzip")
 			}
@@ -235,7 +248,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	if !s.allowedOrigin(r) {
-		failure(w, 403, errors.New("request origin is not allowed"))
+		failure(w, 403, i18n.New("backend.server.requestOriginIsNotAllowed"))
+		return
+	}
+	if r.URL.Path == "/api/language" && r.Method == http.MethodGet {
+		if session := s.requestSession(r); session != nil && session.translations != nil {
+			jsonResponse(w, 200, session.translations)
+		} else {
+			s.Translations.Refresh()
+			code := r.URL.Query().Get("language")
+			if code == "" {
+				if cookie, err := r.Cookie(s.languageCookie); err == nil {
+					code = cookie.Value
+				}
+			}
+			jsonResponse(w, 200, s.Translations.Bundle(code, s.languageCookie))
+		}
 		return
 	}
 	if r.URL.Path == "/api/login" && r.Method == http.MethodPost {
@@ -256,7 +284,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	if s.closed.Load() {
-		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		return
 	}
 	if r.URL.Path == "/api/connection" && r.Method == "GET" {
@@ -264,20 +292,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if session != nil {
 			state["uid"] = session.user.UID
 			state["csrf"] = session.csrf
+			if session.translations != nil {
+				state["language"] = session.translations.Language
+			}
 		}
 		jsonResponse(w, 200, state)
 		return
 	}
 	if session == nil {
 		if err != nil {
-			failure(w, 401, errors.New("sign in to continue"))
+			failure(w, 401, i18n.New("backend.server.signInToContinue"))
 		} else {
-			failure(w, 401, errors.New("session expired; sign in again"))
+			failure(w, 401, i18n.New("backend.server.sessionExpiredSignInAgain"))
 		}
 		return
 	}
 	if r.Method != "GET" && r.Method != "HEAD" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Tuxee-CSRF")), []byte(session.csrf)) != 1 {
-		failure(w, 403, errors.New("invalid session request token"))
+		failure(w, 403, i18n.New("backend.server.invalidSessionRequestToken"))
 		return
 	}
 	ctx, cancel := context.WithCancel(r.Context())
@@ -290,14 +321,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.userAudio(w, r, session)
 	case r.URL.Path == "/api/restart" && r.Method == "POST":
 		if s.Restart == nil {
-			failure(w, 503, errors.New("runtime restart is unavailable"))
+			failure(w, 503, i18n.New("backend.server.runtimeRestartIsUnavailable"))
 			return
 		}
 		select {
 		case s.processKills <- struct{}{}:
 			defer func() { <-s.processKills }()
 		default:
-			failure(w, 429, errors.New("process signalling is busy"))
+			failure(w, 429, i18n.New("backend.server.processSignallingIsBusy"))
 			return
 		}
 		if _, err := processes.Run(ctx, session.user, processes.Request{Operation: "check-parent-signal"}); err != nil {
@@ -311,13 +342,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				command = "sudo " + command
 			}
 			jsonResponse(w, 403, struct {
-				Error   string `json:"error"`
-				Command string `json:"command"`
-			}{"Cannot restart Tuxee: " + err.Error(), command})
+				Error   string        `json:"error"`
+				Text    *i18n.Message `json:"text"`
+				Command string        `json:"command"`
+			}{i18n.New("server.restartDenied", i18n.Vars{"detail": i18n.Describe(err)}).Error(), &i18n.Message{Key: "server.restartDenied", Vars: i18n.Vars{"detail": i18n.Describe(err)}}, command})
 			return
 		}
 		if !s.closed.CompareAndSwap(false, true) {
-			failure(w, 503, errors.New("server restarting"))
+			failure(w, 503, i18n.New("backend.server.serverRestarting"))
 			return
 		}
 		jsonResponse(w, http.StatusAccepted, map[string]bool{"ok": true})
@@ -326,7 +358,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.processOperation(w, r, session)
 	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"):
 		if s.Updates == nil {
-			failure(w, 503, errors.New("update checks unavailable"))
+			failure(w, 503, i18n.New("backend.server.updateChecksUnavailable"))
 			return
 		}
 		status := s.Updates.Status()
@@ -351,7 +383,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/system" && r.Method == "GET":
 		info, err := readSystemInfo(s.Version, session.user)
 		if err != nil {
-			failure(w, 500, errors.New("system information is unavailable"))
+			failure(w, 500, i18n.New("backend.server.systemInformationIsUnavailable"))
 			return
 		}
 		jsonResponse(w, 200, info)
@@ -361,7 +393,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 500, err)
 			return
 		}
-		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available()})
+		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available(), "i18n": session.translations})
 	case r.URL.Path == "/api/logout" && r.Method == "POST":
 		s.mu.Lock()
 		delete(s.logins, key)
@@ -432,7 +464,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if input.Directory == "" {
 			input.Directory = settings.defaultDirectory(session.user.Home)
 		}
-		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground, settings.ShellCommand, settings.UseTuxeePrompt == nil || *settings.UseTuxeePrompt)
+		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground, settings.ShellCommand, settings.UseTuxeePrompt == nil || *settings.UseTuxeePrompt, session.translations.Language)
 		if err != nil {
 			failure(w, 400, err)
 			return
@@ -464,18 +496,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", `attachment; filename="tuxee-local-ca.crt"`)
 		w.Write(s.TLS.RootCertificate())
 	default:
-		failure(w, 404, errors.New("endpoint not found"))
+		failure(w, 404, i18n.New("backend.server.endpointNotFound"))
 	}
 }
 
 func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("X-Tuxee-Client") != "web" {
-		failure(w, 403, errors.New("missing application request header"))
+		failure(w, 403, i18n.New("backend.server.missingApplicationRequestHeader"))
 		return
 	}
 	var input struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Language string `json:"language"`
 	}
 	if err := decode(w, r, &input); err != nil {
 		failure(w, 400, err)
@@ -487,7 +520,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	user, err := s.Gate.Authenticate(r.Context(), peer, input.Username, password)
 	if err != nil {
 		if s.closed.Load() {
-			failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+			failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		} else {
 			failure(w, 401, err)
 		}
@@ -496,17 +529,19 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	token := randomToken()
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &login{user: user, csrf: randomToken(), expires: time.Now().Add(24 * time.Hour), ctx: ctx, cancel: cancel}
+	s.Translations.Refresh()
+	session.translations = s.Translations.Bundle(input.Language, s.languageCookie)
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()
 		cancel()
-		failure(w, http.StatusServiceUnavailable, errors.New("server restarting"))
+		failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		return
 	}
 	if len(s.logins) >= 1024 {
 		s.mu.Unlock()
 		cancel()
-		failure(w, 503, errors.New("too many active login sessions"))
+		failure(w, 503, i18n.New("backend.server.tooManyActiveLoginSessions"))
 		return
 	}
 	if old, err := r.Cookie(s.cookieName); err == nil {
@@ -527,7 +562,7 @@ func (s *Server) fileSlot(w http.ResponseWriter) bool {
 	case s.fileSlots <- struct{}{}:
 		return true
 	default:
-		failure(w, 429, errors.New("file operations are busy; try again shortly"))
+		failure(w, 429, i18n.New("backend.server.fileOperationsAreBusyTryAgainShortly"))
 		return false
 	}
 }
@@ -540,7 +575,7 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 	switch input.Operation {
 	case "list", "stat", "mkdir", "delete", "trash", "trash-list", "trash-restore", "trash-delete", "trash-empty", "chmod", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
 	default:
-		failure(w, 400, errors.New("invalid file operation"))
+		failure(w, 400, i18n.New("backend.server.invalidFileOperation"))
 		return
 	}
 	if !s.fileSlot(w) {
@@ -554,10 +589,13 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 	}
 	jsonResponse(w, 200, response)
 }
+
+const maxUploadBytes = 1 << 40
+
 func (s *Server) upload(w http.ResponseWriter, r *http.Request, session *login) {
 	size, err := strconv.ParseInt(r.Header.Get("X-Tuxee-Size"), 10, 64)
-	if err != nil || size < 0 || size > 1<<40 {
-		failure(w, 400, errors.New("invalid upload byte size (maximum 1 TiB)"))
+	if err != nil || size < 0 || size > maxUploadBytes {
+		failure(w, 400, i18n.New("backend.server.uploadSizeLimit", i18n.Vars{"maxTiB": float64(maxUploadBytes) / (1 << 40)}))
 		return
 	}
 	if !s.fileSlot(w) {
@@ -605,7 +643,7 @@ func ValidateOrigin(value string) error {
 	}
 	u, err := url.Parse(value)
 	if err != nil || u.Host == "" || u.Scheme != "http" && u.Scheme != "https" || u.User != nil || u.Path != "" && u.Path != "/" || u.RawQuery != "" || u.Fragment != "" {
-		return errors.New("origin must be an HTTP(S) origin without a path")
+		return i18n.New("backend.server.originMustBeAnHTTPSOriginWithoutAPath")
 	}
 	return nil
 }

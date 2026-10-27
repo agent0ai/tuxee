@@ -95,7 +95,11 @@ func TestPublicAssetCaching(t *testing.T) {
 	for _, path := range []string{"/", "/index.html", "/favicon.png", "/social-preview.jpg", "/sw.js"} {
 		response := httptest.NewRecorder()
 		s.ServeHTTP(response, httptest.NewRequest("GET", "http://tuxee.test"+path, nil))
-		if response.Code != 200 || response.Header().Get("Cache-Control") != "no-cache" {
+		cache := "no-cache"
+		if path == "/" || path == "/index.html" {
+			cache = "private, no-store"
+		}
+		if response.Code != 200 || response.Header().Get("Cache-Control") != cache {
 			t.Fatalf("unversioned resource must revalidate: %s %d %v", path, response.Code, response.Header())
 		}
 	}

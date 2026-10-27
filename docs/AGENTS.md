@@ -6,6 +6,8 @@ Detailed product, deployment and development documentation.
 
 # Ownership
 
+`guide.md#languages-and-translations` owns login/session language behavior, system-wide translation overrides, JSON format, fallback and developer checks.
+
 `install.md` owns the installer,
 manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits.

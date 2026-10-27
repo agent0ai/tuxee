@@ -57,7 +57,7 @@ async function dragFiles(source,target,modifierTiming='during',modifier='Control
  await page.mouse.move(b.x+b.width/2,b.y+Math.min(b.height-4,24),{steps:15});await page.mouse.move(b.x+b.width/2+1,b.y+Math.min(b.height-4,24));
  if(modifierTiming==='released')await page.keyboard.up(modifier);
  assert.equal(await target.evaluate(node=>node.closest('.panel')?.querySelector('.file-view')?.getAttribute('data-drop')),['before','during'].includes(modifierTiming)&&modifier==='Control'?'Copy here':'Move here');
- assert.equal(await target.evaluate(node=>getComputedStyle(node.closest('.panel').querySelector('.file-view'),'::before').content),'"(Ctrl to copy)"');
+ assert.equal(await target.evaluate(node=>getComputedStyle(node.closest('.panel').querySelector('.file-view'),'::before').content),['before','during'].includes(modifierTiming)&&modifier==='Control'?'""':'"(Ctrl to copy)"');
  const feedback=await page.locator('.file-drag-label').textContent();assert.equal(await page.locator('.file-drag-group').textContent(),feedback,'operation hints belong only to the drop target');await page.mouse.up();if(['before','during'].includes(modifierTiming))await page.keyboard.up(modifier);return feedback;
 }
 try{

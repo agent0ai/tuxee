@@ -10,6 +10,10 @@ Own session identity, process groups, bounded output, browser controller leases,
 
 # Local Contracts
 
+Terminal error events carry structured i18n `text` plus diagnostic `message`; include metadata in queue byte accounting. Goja error objects preserve their key/vars through synchronous throws, rejected promises and engine faults. Each browser renders Tuxee notices in its own login language; shell/GUI output is application data and is never translated by the browser.
+
+`language.go` discovers installed locales once per server process through bounded `/usr/bin/locale -a`. Creation receives the authenticated language, sets GNU `LANGUAGE` preferences (for example `cs:en` or `pt_BR:pt:en`) and selects an installed UTF-8 `LC_MESSAGES`, preferring the exact region then the same language. Missing locales use `C.UTF-8`; never set an unavailable locale. Keep the base `LANG=C.UTF-8`, leave `LC_ALL` unset and preserve numeric/date formats. Child terminal and GUI programs inherit these defaults; user startup files may override them. Existing terminals keep their environment across reconnect/logout/new browser languages. Never install locales, write profiles or change file/process helper environments. Applications need their own translations; GNU gettext may stay English without a non-C system locale. Restart after installing new system locales to refresh discovery.
+
 Start shells with `umask 022` in the credential-dropped child before login startup files run, for both interactive and command terminals. System/user shell profiles may override it; commands and GUI apps inherit the resulting mask. Keep the server's `077` mask and private helper/runtime files unchanged. Exec the selected shell in place to preserve the tracked PID and process-group cleanup.
 
 `shell.go` embeds the small shell startup/prompt scripts. Shell command defaults to `bash`; interpret its executable/arguments only in the credential-dropped child, never in the server. Set SHELL to the selected executable. Ordinary interactive shells use login startup; command terminals use `-lc` without prompt injection. Missing shells fail visibly; never install a shell or silently substitute one.
@@ -43,6 +47,8 @@ do not edit or commit it.
 Run `go test ./internal/terminal -v`. Engine checks cover split Unicode, two-column emoji/cursor replies using the shared Unicode 11 provider, parser continuation, alternate screen, query replies, synchronized-output deadlines and snapshot recovery. Root-only real PTY checks cover PID retention, takeover, indefinite detachment, explicit termination and manager shutdown waiting for an already-closing HUP-resistant shell to be reaped. Snapshot tests cover serialized byte limits, global admission/waiter bounds, cancellation and release on acknowledgement/closure. Use `-race` for lifecycle changes.
 
 `TestShellPrompt` uses real credential-dropped PTYs for Bash/Zsh/Fish, enabled/disabled prompts, startup files, selected SHELL and retained PID. `TestPromptLengthsAndLiteralNames` checks 24/25/26 characters, Unicode and literal unsafe names across installed shells; optional Zsh/Fish checks skip when unavailable. `bash tests/shell-prompt.bash` checks detailed Bash colors, metadata and hook behavior. `node tests/shell-settings.mjs` verifies settings through the real browser/API.
+
+`TestLanguageEnvironment` covers exact-region/base-language UTF-8 selection, GNU fallback lists and unavailable locales. `TestTerminalChildLanguage` checks a real PTY child inherits message preferences without altering numeric/date categories. The i18n browser suite checks authenticated selection and retained/new terminal environments across Czech/English logins.
 
 `TestShellUmask` covers interactive/command root shells, an unprivileged shell, child commands, login-profile overrides, file/directory modes, unchanged shell PID and the server's private mask.
 

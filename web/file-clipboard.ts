@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { APIError } from './ui';
 import { id } from './model';
 import { shellPaths, type DraggedFile } from './file-drag';
@@ -12,13 +13,13 @@ export function isFileCut(path: string, uid: number) { return pendingCut?.data.u
 for (const type of ['copy', 'cut']) document.addEventListener(type, clearFileCut);
 
 export function fileClipboardContent(files: DraggedFile[], uid: number, cut = false) {
-    if (!files.length) throw new Error('Select files first');
+    if (!files.length) throw new Error(t("file.clipboard.selectFilesFirst"));
     const data: FileClipboard = { version: 1, id: id(), origin: location.origin, uid, action: cut ? 'cut' : 'copy', paths: files.map(file => file.path) };
     const text = shellPaths(files), node = document.createElement('span');
     node.dataset.tuxeeFiles = JSON.stringify(data); node.textContent = text;
     // HTML carries metadata through both clipboard events and the async menu API.
     const html = node.outerHTML;
-    if (html.length > 8 * 1024 * 1024) throw new Error('Too many paths to copy');
+    if (html.length > 8 * 1024 * 1024) throw new Error(t("file.clipboard.tooManyPathsToCopy"));
     return { data, text, html };
 }
 
@@ -28,7 +29,7 @@ export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event
     const write = (event: ClipboardEvent) => {
         event.preventDefault(); event.stopImmediatePropagation();
         try {
-            if (!event.clipboardData) throw new Error('Clipboard unavailable');
+            if (!event.clipboardData) throw new Error(t("display.clipboard.clipboardUnavailable"));
             event.clipboardData.setData('text/plain', text);
             event.clipboardData.setData('text/html', html);
             written = true;
@@ -41,7 +42,7 @@ export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event
         try { document.execCommand('copy'); }
         finally { document.removeEventListener('copy', write, true); }
     }
-    if (!written) throw error || new Error('Could not copy files. Use Ctrl+C or ⌘C.');
+    if (!written) throw error || new Error(t("file.clipboard.couldNotCopyFilesUseCtrlCOrC"));
     pendingCut = cut ? { data, remaining: new Set(data.paths), busy: false } : undefined;
     changed();
 }
@@ -49,7 +50,7 @@ export function copyFiles(files: DraggedFile[], uid: number, cut: boolean, event
 export function readFileClipboard(clipboard: DataTransfer, uid: number): FileClipboard | undefined {
     const html = clipboard.getData('text/html');
     if (!html.includes('data-tuxee-files')) { clearFileCut(); return; }
-    if (html.length > 8 * 1024 * 1024) throw new Error('Clipboard file list is too large');
+    if (html.length > 8 * 1024 * 1024) throw new Error(t("file.clipboard.clipboardFileListIsTooLarge"));
     const template = document.createElement('template');
     template.innerHTML = html;
     const nodes = template.content.querySelectorAll<HTMLElement>('[data-tuxee-files]');
@@ -64,8 +65,8 @@ export function readFileClipboard(clipboard: DataTransfer, uid: number): FileCli
                 path.slice(1).split('/').some(part => !part || part === '.' || part === '..')) ||
             new Set(data.paths).size !== data.paths.length ||
             clipboard.getData('text/plain') !== shellPaths(data.paths.map(path => ({ path, name: '' })))) throw new Error();
-    } catch { throw new Error('Invalid Tuxee file clipboard'); }
-    if (data.origin !== location.origin || data.uid !== uid) throw new Error('These files belong to another server or account');
+    } catch { throw new Error(t("file.clipboard.invalidTuxeeFileClipboard")); }
+    if (data.origin !== location.origin || data.uid !== uid) throw new Error(t("file.clipboard.theseFilesBelongToAnotherServerOrAccount"));
     if (pendingCut && (pendingCut.data.id !== data.id || data.action === 'copy')) clearFileCut();
     return data;
 }
@@ -78,8 +79,8 @@ export async function pasteFiles(data: FileClipboard, transfer: (files: DraggedF
     const cut = pendingCut;
     if (!cut || cut.data.id !== data.id || cut.data.paths.length !== data.paths.length ||
         cut.data.paths.some((path, index) => path !== data.paths[index]) || !cut.remaining.size)
-        throw new Error('This cut has ended. Cut the files again.');
-    if (cut.busy) throw new Error('These files are already being moved');
+        throw new Error(t("file.clipboard.thisCutHasEndedCutTheFilesAgain"));
+    if (cut.busy) throw new Error(t("file.clipboard.theseFilesAreAlreadyBeingMoved"));
     cut.busy = true;
     try {
         const files = data.paths.filter(path => cut.remaining.has(path)).map(path => ({ path, name: path.split('/').pop()! }));
@@ -93,16 +94,16 @@ export async function pasteFiles(data: FileClipboard, transfer: (files: DraggedF
 }
 
 export async function readDeviceClipboard(): Promise<DataTransfer> {
-    if (!navigator.clipboard?.read) throw new Error('Use Ctrl+V or ⌘V to paste');
+    if (!navigator.clipboard?.read) throw new Error(t("file.clipboard.useCtrlVOrVToPaste"));
     let items: ClipboardItem[];
     try { items = await navigator.clipboard.read(); }
-    catch { throw new Error('Clipboard access denied. Use Ctrl+V or ⌘V to paste.'); }
+    catch { throw new Error(t("file.clipboard.clipboardAccessDeniedUseCtrlVOrVToPaste")); }
     const data = new DataTransfer();
     for (const item of items) {
         for (const type of ['text/plain', 'text/html']) {
             if (!item.types.includes(type)) continue;
             const blob = await item.getType(type);
-            if (blob.size > 8 * 1024 * 1024) throw new Error('Clipboard file list is too large');
+            if (blob.size > 8 * 1024 * 1024) throw new Error(t("file.clipboard.clipboardFileListIsTooLarge"));
             data.setData(type, await blob.text());
         }
         if (item.types.includes('image/png')) data.items.add(new File([await item.getType('image/png')], 'clipboard-image.png', { type: 'image/png' }));

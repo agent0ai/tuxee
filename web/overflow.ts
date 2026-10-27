@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { button, el, popover } from './ui';
 // Width fitting reused from the8020/uui responsive_header.ts.
 export function fittingHeaderItemCount(
@@ -82,12 +83,13 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
         item.classList.add('reorderable-tab');
         const handle = item.firstElementChild as HTMLElement;
         handle.setAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
-        handle.setAttribute('aria-description', 'Drag to reorder, or press Alt+Left or Alt+Right.');
+        handle.setAttribute('aria-description', t("overflow.dragToReorderOrPressAltLeftOrAltRight"));
         handle.addEventListener('dragstart', event => event.preventDefault(), { signal });
         handle.addEventListener('keydown', event => {
-            if (!event.altKey || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+            if (!event.altKey || !["ArrowLeft", 'ArrowRight'].includes(event.key)) return;
             event.preventDefault(); cancel();
-            const index = items.indexOf(item) + (event.key === 'ArrowLeft' ? -1 : 1);
+            const rtl = !!item.closest('.visible-tabs') && getComputedStyle(item).direction === 'rtl';
+            const index = items.indexOf(item) + (event.key === 'ArrowLeft' ? -1 : 1) * (rtl ? -1 : 1);
             if (index < 0 || index >= items.length) return;
             move(item, index);
             (item.closest('.visible-tabs') ? handle : more).focus();
@@ -99,6 +101,8 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
             if (siblings.length < 2) return;
             siblings.forEach(tab => tab.getAnimations().forEach(animation => animation.cancel()));
             const vertical = parent.classList.contains('overflow-tabs');
+            const rtl = !vertical && getComputedStyle(parent).direction === 'rtl';
+            if (rtl) siblings.reverse(); // Pointer geometry is measured from the physical left edge.
             const axis = vertical ? 'y' : 'x', size = vertical ? 'height' : 'width';
             const rects = new Map(siblings.map(tab => [tab, tab.getBoundingClientRect()]));
             const original = rects.get(item)!, first = rects.get(siblings[0])!, last = rects.get(siblings.at(-1)!)!;
@@ -114,7 +118,8 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
                     tab.classList.remove('tab-shifting', 'tab-dragging'); tab.style.removeProperty('transform');
                 }
                 if (commit && order.indexOf(item) !== siblings.indexOf(item)) {
-                    const next = order[order.indexOf(item) + 1], previous = order[order.indexOf(item) - 1];
+                    const logical = rtl ? [...order].reverse() : order;
+                    const next = logical[logical.indexOf(item) + 1], previous = logical[logical.indexOf(item) - 1];
                     const remaining = items.filter(tab => tab !== item);
                     move(item, next ? remaining.indexOf(next) : remaining.indexOf(previous) + 1);
                 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"tuxee/internal/i18n"
 )
 
 func serial() *big.Int {
@@ -92,7 +93,7 @@ func loadCA(dir string) (*tls.Certificate, []byte, error) {
 		return nil, nil, err
 	}
 	if !ca.Leaf.IsCA || time.Now().Before(ca.Leaf.NotBefore) || !time.Now().Before(ca.Leaf.NotAfter) {
-		return nil, nil, errors.New("local CA is not valid; deliberate replacement and client trust setup are required")
+		return nil, nil, i18n.New("backend.tlsmanager.localCAInvalid")
 	}
 	return ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Certificate[0]}), nil
 }

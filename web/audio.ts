@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { button, el, icon, notify, popover } from './ui';
 
 let volume = 100, lastVolume = 100;
@@ -6,7 +7,7 @@ export function audioControl() {
     let close = () => {};
     const slider = el('input');
     slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1';
-    slider.setAttribute('aria-label', 'Audio volume');
+    slider.setAttribute('aria-label', t("audio.audioVolume"));
     slider.setAttribute('aria-orientation', 'vertical');
     const setVolume = (value: number) => {
         volume = value;
@@ -14,11 +15,11 @@ export function audioControl() {
         audio.updateVolume();
         update();
     };
-    const mute = button('Mute audio', 'VolumeX', () => setVolume(volume > 0 ? 0 : lastVolume));
-    const control = button('Audio', 'Volume2', () => {
+    const mute = button(t("audio.muteAudio"), 'VolumeX', () => setVolume(volume > 0 ? 0 : lastVolume));
+    const control = button(t("audio.audio"), 'Volume2', () => {
         if (control.getAttribute('aria-expanded') === 'true') { close(); return; }
         const content = el('div', 'volume-popover');
-        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', 'Audio');
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t("audio.audio"));
         content.style.height = `${control.closest('header')!.getBoundingClientRect().height * 4}px`;
         content.append(slider, mute);
         ({ close } = popover(control, content));
@@ -27,12 +28,12 @@ export function audioControl() {
     const update = () => {
         const name = volume === 0 ? 'VolumeX' : volume <= 50 ? 'Volume1' : 'Volume2';
         control.replaceChildren(icon(name));
-        control.title = volume === 0 ? 'Audio: muted' : `Audio: ${volume}%`;
+        control.title = volume === 0 ? t("audio.audioMuted") : t("audio.percent", { volume });
         control.setAttribute('aria-label', control.title);
         slider.value = String(volume); slider.setAttribute('aria-valuetext', `${volume}%`);
         mute.classList.toggle('active', volume === 0);
         mute.setAttribute('aria-pressed', String(volume === 0));
-        mute.title = volume > 0 ? 'Mute audio' : 'Unmute audio';
+        mute.title = volume > 0 ? t("audio.muteAudio") : t("audio.unmuteAudio");
         mute.setAttribute('aria-label', mute.title);
     };
     slider.oninput = () => setVolume(slider.valueAsNumber);
@@ -90,9 +91,9 @@ class UserAudio {
             socket.binaryType = 'arraybuffer';
             socket.onmessage = event => {
                 if (this.socket !== socket || context.state !== 'running') return;
-                if (!(event.data instanceof ArrayBuffer) || event.data.byteLength !== 3848) { fail('Invalid audio data'); return; }
+                if (!(event.data instanceof ArrayBuffer) || event.data.byteLength !== 3848) { fail(t("audio.invalidData")); return; }
                 const data = new DataView(event.data), position = Number(data.getBigUint64(0, true));
-                if (!Number.isSafeInteger(position) || position % 960) { fail('Invalid audio position'); return; }
+                if (!Number.isSafeInteger(position) || position % 960) { fail(t("audio.invalidPosition")); return; }
                 // Sample positions retain silent gaps; a new capture resets its clock.
                 const now = context.currentTime;
                 const gap = this.position === undefined || position <= this.position ? undefined : (position - this.position - 960) / 48000;

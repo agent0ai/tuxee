@@ -1,3 +1,4 @@
+import { locale, t, errorText } from './i18n';
 import { APIError, button, el, requestHeaders } from './ui';
 import { compactSize } from './monitor-values';
 
@@ -6,7 +7,7 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
     let total = 0, request: AbortController | undefined;
     const render = (partial: boolean) => {
         value.textContent = `${partial ? '~' : ''}${compactSize(total, 1024, true)}`;
-        value.title = `${total.toLocaleString()} B`;
+        value.title = `${total.toLocaleString(locale())} B`;
     };
     const label = (text: string) => {
         control.textContent = control.title = text;
@@ -14,12 +15,12 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
     };
     const stop = (manual: boolean) => {
         request?.abort(); request = undefined;
-        render(true); status.textContent = manual ? 'Stopped' : 'Interrupted';
-        label('Calculate'); control.hidden = !manual;
+        render(true); status.textContent = manual ? t("file.size.stopped") : t("file.size.interrupted");
+        label(t("files.calculate")); control.hidden = !manual;
     };
     const calculate = async () => {
         const current = request = new AbortController();
-        total = 0; render(true); label('Stop'); control.hidden = false; status.textContent = 'Calculating…';
+        total = 0; render(true); label(t('file.size.stop')); control.hidden = false; status.textContent = t("file.size.calculating");
         let timer: ReturnType<typeof setTimeout>;
         const heartbeat = () => {
             clearTimeout(timer);
@@ -36,10 +37,10 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
                 if (response.status === 401 || response.status === 403) window.dispatchEvent(new Event('tuxee-unauthorized'));
                 if (response.status >= 500) window.dispatchEvent(new Event('tuxee-connection-check'));
                 const data = await response.json();
-                throw new APIError(data.error || 'Cannot calculate size', response.status);
+                throw new APIError(errorText(data), response.status);
             }
             if (!response.headers.get('Content-Type')?.startsWith('application/x-ndjson') || !response.body)
-                throw new Error('Unexpected size response');
+                throw new Error(t("file.size.unexpectedSizeResponse"));
             const reader = response.body.getReader(), decoder = new TextDecoder();
             let pending = '', complete = false;
             while (true) {
@@ -47,24 +48,24 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
                 if (chunk.done) break;
                 current.signal.throwIfAborted();
                 pending += decoder.decode(chunk.value, { stream: true });
-                if (pending.length > 65536) throw new Error('Unexpected size response');
+                if (pending.length > 65536) throw new Error(t("file.size.unexpectedSizeResponse"));
                 let newline: number;
                 while ((newline = pending.indexOf('\n')) >= 0) {
                     const progress = JSON.parse(pending.slice(0, newline)); pending = pending.slice(newline + 1);
                     if (!Number.isFinite(progress.size) || progress.size < 0 || !Number.isSafeInteger(progress.skipped) ||
-                        progress.skipped < 0 || typeof progress.done !== 'boolean' || complete) throw new Error('Unexpected size response');
+                        progress.skipped < 0 || typeof progress.done !== 'boolean' || complete) throw new Error(t("file.size.unexpectedSizeResponse"));
                     heartbeat(); total = progress.size; complete = progress.done;
                     render(!complete || progress.skipped > 0);
-                    status.textContent = progress.skipped ? `${progress.skipped} skipped` : complete ? '' : 'Calculating…';
-                    status.title = progress.skipped ? 'Unreadable entries, directory cycles or depth limit; size is partial.' : '';
+                    status.textContent = progress.skipped ? t("files.skipped", { count: progress.skipped }) : complete ? '' : t("file.size.calculating");
+                    status.title = progress.skipped ? t("file.size.partialTotalReason") : '';
                     control.hidden = complete;
                 }
             }
-            if (!complete) throw new Error('Size calculation interrupted');
+            if (!complete) throw new Error(t("file.size.sizeCalculationInterrupted"));
         } catch (error) {
             if (!current.signal.aborted) {
                 render(true); control.hidden = true;
-                status.textContent = error instanceof APIError ? error.message : 'Interrupted';
+                status.textContent = error instanceof APIError ? error.message : t("file.size.interrupted");
                 if (!(error instanceof APIError)) window.dispatchEvent(new Event('tuxee-connection-check'));
             }
         } finally {
@@ -72,7 +73,7 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
             if (request === current) request = undefined;
         }
     };
-    const control = button('Stop', undefined, () => request ? stop(true) : calculate());
+    const control = button(t("file.size.stop"), undefined, () => request ? stop(true) : calculate());
     row.append(value, status, control);
     signal.addEventListener('abort', () => request?.abort(), { once: true });
     for (const event of ['offline', 'tuxee-disconnected'])

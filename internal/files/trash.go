@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 )
@@ -48,7 +48,7 @@ func privateTrashDirectory(path string, create bool) (*os.File, error) {
 	info, err := f.Stat()
 	if err != nil || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Getuid()) || info.Mode().Perm()&0077 != 0 {
 		f.Close()
-		return nil, fmt.Errorf("unsafe trash directory: %s (must be private and owned by this user)", path)
+		return nil, i18n.New("backend.files.unsafePrivateTrashDirectory", i18n.Vars{"path": path})
 	}
 	return f, nil
 }
@@ -65,7 +65,7 @@ func (location trashLocation) open(create, write bool) (*trashBin, error) {
 		defer shared.Close()
 		info, err := shared.Stat()
 		if err != nil || info.Mode()&os.ModeSticky == 0 {
-			return nil, errors.New("unsafe shared trash directory")
+			return nil, i18n.New("backend.files.unsafeSharedTrashDirectory")
 		}
 		path = fdPath(shared, filepath.Base(path))
 	}
@@ -242,10 +242,10 @@ func trashOperation(ctx context.Context, r Request) (Response, error) {
 		return response, nil
 	}
 	if r.Operation != "trash-restore" && r.Operation != "trash-delete" {
-		return response, errors.New("invalid trash operation")
+		return response, i18n.New("backend.files.invalidTrashOperation")
 	}
 	if !filepath.IsAbs(r.Path) || filepath.Clean(r.Path) != r.Path || strings.ContainsRune(r.Path, 0) {
-		return response, errors.New("invalid trash item")
+		return response, i18n.New("backend.files.invalidTrashItem")
 	}
 	for _, location := range locations {
 		if filepath.Dir(r.Path) != filepath.Join(location.path, "files") {
@@ -262,12 +262,12 @@ func trashOperation(ctx context.Context, r Request) (Response, error) {
 		response.Path, err = bin.restore(ctx, filepath.Base(r.Path))
 		return response, err
 	}
-	return response, errors.New("item is not in this user's trash bin")
+	return response, i18n.New("backend.files.itemIsNotInThisUserSTrashBin")
 }
 
 func moveToTrash(ctx context.Context, path string) (Response, error) {
 	if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
-		return Response{}, errors.New("path must be absolute")
+		return Response{}, i18n.New("backend.files.pathMustBeAbsolute")
 	}
 	path = filepath.Clean(path)
 	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
@@ -283,7 +283,7 @@ func moveToTrash(ctx context.Context, path string) (Response, error) {
 		return Response{}, err
 	}
 	if path == trashMount(path, mounts) {
-		return Response{}, errors.New("cannot trash a filesystem root")
+		return Response{}, i18n.New("backend.files.cannotTrashAFilesystemRoot")
 	}
 	home, err := homeTrash()
 	if err != nil {
@@ -295,7 +295,7 @@ func moveToTrash(ctx context.Context, path string) (Response, error) {
 	}
 	for _, location := range append([]trashLocation{{path: homePath}}, volumeTrash(trashMount(parent, mounts))...) {
 		if beneath(path, location.path) || beneath(location.path, path) {
-			return Response{}, errors.New("cannot move a trash directory or its contents to trash")
+			return Response{}, i18n.New("backend.files.cannotMoveATrashDirectoryOrItsContentsToTrash")
 		}
 	}
 	var bin *trashBin
@@ -307,7 +307,7 @@ func moveToTrash(ctx context.Context, path string) (Response, error) {
 		bin, err = openVolumeTrash(trashMount(parent, mounts))
 	}
 	if err != nil {
-		return Response{}, fmt.Errorf("cannot move to trash: %w", err)
+		return Response{}, i18n.Wrap("backend.files.cannotMoveToTrash", err, i18n.Vars{"detail": i18n.Describe(err)})
 	}
 	defer bin.close()
 	name, err := bin.put(ctx, path)
@@ -369,7 +369,7 @@ func (b *trashBin) put(ctx context.Context, path string) (string, error) {
 		}
 		return name, nil
 	}
-	return "", errors.New("too many trash name collisions")
+	return "", i18n.New("backend.files.tooManyTrashNameCollisions")
 }
 
 func (b *trashBin) original(name string) (string, string, error) {
@@ -381,7 +381,7 @@ func (b *trashBin) original(name string) (string, string, error) {
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 64<<10 {
-		return "", "", errors.New("invalid trash metadata")
+		return "", "", i18n.New("backend.files.invalidTrashMetadata")
 	}
 	scanner := bufio.NewScanner(io.LimitReader(f, 64<<10))
 	var path, deleted string
@@ -396,7 +396,7 @@ func (b *trashBin) original(name string) (string, string, error) {
 		}
 		if value, ok := strings.CutPrefix(line, "Path="); ok {
 			if path != "" {
-				return "", "", errors.New("duplicate trash path")
+				return "", "", i18n.New("backend.files.duplicateTrashPath")
 			}
 			path, err = url.PathUnescape(value)
 			if err != nil {
@@ -411,16 +411,16 @@ func (b *trashBin) original(name string) (string, string, error) {
 		return "", "", err
 	}
 	if path == "" || strings.ContainsRune(path, 0) || filepath.Clean(path) != path {
-		return "", "", errors.New("invalid original trash path")
+		return "", "", i18n.New("backend.files.invalidOriginalTrashPath")
 	}
 	if !filepath.IsAbs(path) {
 		if b.top == "" || path == "." || path == ".." || strings.HasPrefix(path, "../") {
-			return "", "", errors.New("invalid relative trash path")
+			return "", "", i18n.New("backend.files.invalidRelativeTrashPath")
 		}
 		path = filepath.Join(b.top, path)
 	}
 	if path == "/" || beneath(path, b.path) || beneath(b.path, path) {
-		return "", "", errors.New("invalid original trash location")
+		return "", "", i18n.New("backend.files.invalidOriginalTrashLocation")
 	}
 	return path, deleted, nil
 }
@@ -456,16 +456,16 @@ func (b *trashBin) list(ctx context.Context, response *Response) error {
 func (b *trashBin) restore(ctx context.Context, name string) (string, error) {
 	path, _, err := b.original(name)
 	if err != nil {
-		return "", fmt.Errorf("cannot restore: %w", err)
+		return "", i18n.Wrap("backend.files.restoreFailed", err, i18n.Vars{"detail": i18n.Describe(err)})
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 	if err := unix.Renameat2(int(b.files.Fd()), name, unix.AT_FDCWD, path, unix.RENAME_NOREPLACE); err != nil {
-		return "", fmt.Errorf("cannot restore %s: %w", path, err)
+		return "", i18n.Wrap("backend.files.restorePathFailed", err, i18n.Vars{"path": path, "detail": i18n.Describe(err)})
 	}
 	if err := os.Remove(fdPath(b.info, name+".trashinfo")); err != nil {
-		return path, fmt.Errorf("restored %s, but metadata cleanup failed: %w", path, err)
+		return path, i18n.Wrap("backend.files.restoredButMetadataCleanupFailed", err, i18n.Vars{"path": path, "detail": i18n.Describe(err)})
 	}
 	return path, nil
 }

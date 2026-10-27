@@ -1,3 +1,4 @@
+import { MessageError } from '../message';
 // Package runtime imports retain explicit versions under the generic import map.
 // deno-lint-ignore no-import-prefix
 import headless from "@xterm/headless";
@@ -42,7 +43,7 @@ export class TerminalEngine {
 
   #ordered<T>(action: () => Promise<T> | T): Promise<T> {
     const result = this.#pending.then(() => {
-      if (this.#closed) throw new Error("terminal display owner is closed");
+      if (this.#closed) throw new MessageError("engine.terminalDisplayOwnerIsClosed");
       return action();
     });
     this.#pending = result.then(() => {}, () => {});
@@ -108,13 +109,13 @@ export class TerminalEngine {
       this.#checkedBytes = 0;
     }
     if (this.#replyBytes > 65_536) {
-      throw new Error("terminal query response limit exceeded");
+      throw new MessageError("engine.terminalQueryResponseLimitExceeded");
     }
     const reply = this.#reply.length
       ? encoder.encode(this.#reply.join(""))
       : undefined;
     if (reply && reply.byteLength > 65_536) {
-      throw new Error("terminal query response limit exceeded");
+      throw new MessageError("engine.terminalQueryResponseLimitExceeded");
     }
     this.#reply = [];
     this.#replyBytes = 0;

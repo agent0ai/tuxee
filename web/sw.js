@@ -4,11 +4,11 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('message', event => {
     if (event.data?.start) {
         if (downloads.size >= 32) {
-            event.ports[0]?.postMessage({ error: 'Too many downloads' });
+            event.ports[0]?.postMessage({ text: { key: 'transfers.tooMany' } });
             return;
         }
         const id = event.data.start, abort = new AbortController(), client = event.source.id;
-        const timer = setTimeout(() => { downloads.delete(id); event.source.postMessage({ id, error: 'Download did not start' }); }, 15000);
+        const timer = setTimeout(() => { downloads.delete(id); event.source.postMessage({ id, text: { key: 'transfers.notStarted' } }); }, 15000);
         downloads.set(id, { abort, client, timer });
         event.ports[0]?.postMessage({ ok: true });
     }
@@ -31,7 +31,7 @@ self.addEventListener('fetch', event => {
             const response = await fetch(event.request, { signal: abort.signal });
             if (!response.ok) {
                 downloads.delete(id);
-                message({ error: 'Download failed' });
+                message({ text: { key: 'transfers.downloadFailed' } });
                 return response;
             }
             const reader = response.body.getReader(), total = Number(response.headers.get('content-length'));
@@ -55,15 +55,15 @@ self.addEventListener('fetch', event => {
                 catch (error) {
                     controller.error(error);
                     downloads.delete(id);
-                    message({ error: abort.signal.aborted ? 'Cancelled' : 'Download interrupted' });
+                    message({ text: abort.signal.aborted ? { key: 'common.cancelled' } : { key: 'transfers.interrupted' } });
                 } },
-                cancel() { abort.abort(); reader.cancel(); downloads.delete(id); message({ error: 'Cancelled' }); }
+                cancel() { abort.abort(); reader.cancel(); downloads.delete(id); message({ text: { key: 'common.cancelled' } }); }
             });
             return new Response(body, { status: response.status, headers: response.headers });
         }
         catch (error) {
             downloads.delete(id);
-            message({ error: abort.signal.aborted ? 'Cancelled' : 'Download failed' });
+            message({ text: abort.signal.aborted ? { key: 'common.cancelled' } : { key: 'transfers.downloadFailed' } });
             throw error;
         }
     })());

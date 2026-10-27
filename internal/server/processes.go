@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"time"
+	"tuxee/internal/i18n"
 
 	"tuxee/internal/processes"
 )
@@ -34,7 +34,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 	if r.Method == "GET" {
 		core := r.URL.Query().Get("allowCore")
 		if core != "" && core != "false" && core != "true" {
-			failure(w, 400, errors.New("invalid core process option"))
+			failure(w, 400, i18n.New("backend.server.invalidCoreProcessOption"))
 			return
 		}
 		allowCore := core == "true"
@@ -43,14 +43,14 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 			sortBy = "ram"
 		}
 		if sortBy != "ram" && sortBy != "cpu" {
-			failure(w, 400, errors.New("invalid process sort"))
+			failure(w, 400, i18n.New("backend.server.invalidProcessSort"))
 			return
 		}
 		select {
 		case s.processReads <- struct{}{}:
 			defer func() { <-s.processReads }()
 		default:
-			failure(w, 429, errors.New("process sampling is busy"))
+			failure(w, 429, i18n.New("backend.server.processSamplingIsBusy"))
 			return
 		}
 		output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "list", AllowCore: allowCore, Sort: sortBy})
@@ -59,7 +59,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 			return
 		}
 		if output.Snapshot == nil {
-			failure(w, 500, errors.New("process snapshot unavailable"))
+			failure(w, 500, i18n.New("backend.server.processSnapshotUnavailable"))
 			return
 		}
 		current := &processSnapshot{id: randomToken(), allowCore: allowCore, data: output.Snapshot, view: output.Snapshot.View(sortBy)}
@@ -93,18 +93,18 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 		return
 	}
 	if input.Signal != 15 && input.Signal != 9 {
-		failure(w, 400, errors.New("invalid process signal"))
+		failure(w, 400, i18n.New("backend.server.invalidProcessSignal"))
 		return
 	}
 	session.processMu.Lock()
 	current := session.processSnapshot
 	session.processMu.Unlock()
 	if current == nil || current.id != input.Snapshot || time.Since(current.data.Time) > 30*time.Minute {
-		failure(w, 409, errors.New("process snapshot expired; refresh"))
+		failure(w, 409, i18n.New("backend.server.processSnapshotExpiredRefresh"))
 		return
 	}
 	if input.AllowCore != current.allowCore {
-		failure(w, 409, errors.New("core process option changed; refresh"))
+		failure(w, 409, i18n.New("backend.server.coreProcessOptionChangedRefresh"))
 		return
 	}
 	refs, err := current.targets(input.Selected)
@@ -116,7 +116,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 	case s.processKills <- struct{}{}:
 		defer func() { <-s.processKills }()
 	default:
-		failure(w, 429, errors.New("process signalling is busy"))
+		failure(w, 429, i18n.New("backend.server.processSignallingIsBusy"))
 		return
 	}
 	output, err := processes.Run(r.Context(), session.user, processes.Request{Operation: "signal", Targets: refs, Signal: input.Signal, AllowCore: input.AllowCore})
@@ -128,7 +128,7 @@ func (s *Server) processOperation(w http.ResponseWriter, r *http.Request, sessio
 }
 func (s *processSnapshot) targets(ids []string) ([]processes.Ref, error) {
 	if len(ids) == 0 || len(ids) > processes.Limit {
-		return nil, errors.New("invalid process selection")
+		return nil, i18n.New("backend.server.invalidProcessSelection")
 	}
 	allowed := make(map[string]processes.Row, len(s.view.Rows))
 	for _, row := range s.view.Rows {
@@ -139,7 +139,7 @@ func (s *processSnapshot) targets(ids []string) ([]processes.Ref, error) {
 	for _, id := range ids {
 		row, ok := allowed[id]
 		if !ok || row.Zombies > 0 || !row.CanSignal {
-			return nil, errors.New("invalid or protected process selection")
+			return nil, i18n.New("backend.server.invalidOrProtectedProcessSelection")
 		}
 		for _, pid := range row.Members {
 			if !seen[pid] {

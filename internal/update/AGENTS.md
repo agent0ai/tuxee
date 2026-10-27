@@ -13,6 +13,8 @@ commands/restart guidance; server and browser expose checks, never installation.
 
 # Local Contracts
 
+Shared update status carries structured i18n `text` alongside diagnostic `error`; keep cached status language-independent and clear both on success. Release-check messages are translatable; standalone CLI install/update output remains outside UI localization.
+
 - Stable releases use `vMAJOR.MINOR.PATCH`; compare semantic versions.
 - Fetch only the official repository over HTTPS, with bounded responses/timeouts.
   Resolve a release once and verify its SHA-256 before executing staged code.

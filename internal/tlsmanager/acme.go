@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
@@ -92,7 +93,7 @@ func (m *Manager) issue(ctx context.Context, name string) error {
 	} else {
 		block, _ := pem.Decode(data)
 		if block == nil {
-			return errors.New("invalid ACME account key")
+			return i18n.New("backend.tlsmanager.invalidACMEAccountKey")
 		}
 		a.Key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {

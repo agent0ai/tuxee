@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/coder/websocket"
 	"tuxee/internal/terminal"
@@ -82,8 +82,8 @@ func terminalOutput(ctx context.Context, connection *websocket.Conn, attachment 
 			next = &event
 		case ack := <-rendered:
 			if ack.sequence <= acknowledged || ack.sequence > sequence {
-				ack.done <- errors.New("invalid terminal render acknowledgement")
-				return errors.New("invalid terminal render acknowledgement")
+				ack.done <- i18n.New("backend.server.invalidTerminalRenderAcknowledgement")
+				return i18n.New("backend.server.invalidTerminalRenderAcknowledgement")
 			}
 			acknowledged = ack.sequence
 			for len(sent) > 0 && sent[0].sequence <= acknowledged {
@@ -95,7 +95,7 @@ func terminalOutput(ctx context.Context, connection *websocket.Conn, attachment 
 			ack.done <- nil
 		case now := <-ticker.C:
 			if len(sent) > 0 && now.After(sent[0].deadline) {
-				return errors.New("terminal renderer timed out")
+				return i18n.New("backend.server.terminalRendererTimedOut")
 			}
 		}
 	}
@@ -115,7 +115,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 	}
 	if action == "ws" && r.Method == "GET" {
 		if r.Header.Get("Origin") == "" {
-			failure(w, 403, errors.New("WebSocket origin is required"))
+			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))
 			return
 		}
 		connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{
@@ -160,7 +160,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		var inputFrames, inputBytes atomic.Int64
 		ready := false
 		notice := func(err error) {
-			data, _ := json.Marshal(terminal.Event{Type: "error", Message: err.Error()})
+			data, _ := json.Marshal(terminal.Event{Type: "error", Message: err.Error(), Text: i18n.Describe(err)})
 			writeCtx, stop := context.WithTimeout(ctx, time.Second)
 			defer stop()
 			_ = connection.Write(writeCtx, websocket.MessageText, data)
@@ -198,7 +198,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			}
 			if kind == websocket.MessageBinary {
 				if !ready || len(data) == 0 || inputFrames.Add(1) > 64 || inputBytes.Add(int64(len(data))) > 65536 {
-					notice(errors.New("terminal input window is unavailable"))
+					notice(i18n.New("backend.server.terminalInputWindowIsUnavailable"))
 					return
 				}
 				select {
@@ -215,7 +215,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 				Sequence uint64 `json:"sequence"`
 			}
 			if len(data) > 4096 || json.Unmarshal(data, &input) != nil {
-				notice(errors.New("invalid terminal control message"))
+				notice(i18n.New("backend.server.invalidTerminalControlMessage"))
 				return
 			}
 			switch input.Type {
@@ -236,7 +236,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 				}
 			case "resize":
 				if !ready {
-					err = errors.New("terminal is recovering")
+					err = i18n.New("backend.server.terminalIsRecovering")
 				} else {
 					err = attachment.Resize(input.Columns, input.Rows)
 				}
@@ -248,7 +248,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			case "take-control":
 				err = attachment.TakeControl()
 			default:
-				err = errors.New("unknown terminal control message")
+				err = i18n.New("backend.server.unknownTerminalControlMessage")
 			}
 			if err != nil {
 				notice(err)
@@ -257,7 +257,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		}
 	}
 	if action != "" {
-		failure(w, 404, errors.New("terminal endpoint not found"))
+		failure(w, 404, i18n.New("backend.server.terminalEndpointNotFound"))
 		return
 	}
 	switch r.Method {
@@ -279,6 +279,6 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		}
 		jsonResponse(w, 200, value.Info())
 	default:
-		failure(w, 405, errors.New("method not allowed"))
+		failure(w, 405, i18n.New("backend.server.methodNotAllowed"))
 	}
 }

@@ -4,9 +4,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -47,13 +47,13 @@ func NewEngine(cols, rows int) (*Engine, error) {
 		_ = vm.Set("process", map[string]any{"title": "tuxee"})
 		started := time.Now()
 		_ = vm.Set("performance", map[string]any{"now": func() float64 { return float64(time.Since(started).Microseconds()) / 1000 }})
-		_ = vm.Set("__engineFault", func(message string) {
+		_ = vm.Set("__engineFault", func(value goja.Value) {
 			select {
-			case e.fault <- errors.New(message):
+			case e.fault <- engineError(value):
 			default:
 			}
 		})
-		_, _ = vm.RunString(`globalThis.queueMicrotask = f => Promise.resolve().then(f).catch(e => __engineFault(String(e))); const timer = setTimeout; globalThis.setTimeout = (f, delay, ...args) => timer(() => {try { f(...args); } catch(e) { __engineFault(String(e)); }}, delay); globalThis.console = { log(){}, warn(){}, error(){}, debug(){} };`)
+		_, _ = vm.RunString(`globalThis.queueMicrotask = f => Promise.resolve().then(f).catch(e => __engineFault(e)); const timer = setTimeout; globalThis.setTimeout = (f, delay, ...args) => timer(() => {try { f(...args); } catch(e) { __engineFault(e); }}, delay); globalThis.console = { log(){}, warn(){}, error(){}, debug(){} };`)
 		_, err := vm.RunProgram(program)
 		ready <- err
 	})
@@ -80,7 +80,7 @@ func (e *Engine) call(name string, args ...any) (string, error) {
 		api := vm.Get("tuxeeEngine").ToObject(vm)
 		fn, ok := goja.AssertFunction(api.Get(name))
 		if !ok {
-			answer <- result{err: fmt.Errorf("missing display operation %s", name)}
+			answer <- result{err: i18n.New("backend.terminal.missingDisplayOperation", i18n.Vars{"name": name})}
 			return
 		}
 		values := make([]goja.Value, len(args))
@@ -89,6 +89,9 @@ func (e *Engine) call(name string, args ...any) (string, error) {
 		}
 		value, err := fn(api, values...)
 		if err != nil {
+			if exception, ok := err.(*goja.Exception); ok {
+				err = engineError(exception.Value())
+			}
 			answer <- result{err: err}
 			return
 		}
@@ -99,7 +102,7 @@ func (e *Engine) call(name string, args ...any) (string, error) {
 				answer <- result{text: c.Argument(0).String()}
 				return goja.Undefined()
 			}), vm.ToValue(func(c goja.FunctionCall) goja.Value {
-				answer <- result{err: errors.New(c.Argument(0).String())}
+				answer <- result{err: engineError(c.Argument(0))}
 				return goja.Undefined()
 			}))
 			if err != nil {
@@ -109,7 +112,7 @@ func (e *Engine) call(name string, args ...any) (string, error) {
 			answer <- result{text: value.String()}
 		}
 	}) {
-		return "", errors.New("terminal display is closed")
+		return "", i18n.New("backend.terminal.terminalDisplayIsClosed")
 	}
 	select {
 	case r := <-answer:
@@ -118,7 +121,7 @@ func (e *Engine) call(name string, args ...any) (string, error) {
 		e.failed = err
 		return "", err
 	case <-time.After(10 * time.Second):
-		e.failed = errors.New("terminal display operation timed out")
+		e.failed = i18n.New("backend.terminal.terminalDisplayOperationTimedOut")
 		e.vm.Interrupt("terminal display operation timed out")
 		return "", e.failed
 	}
@@ -150,9 +153,23 @@ func decodeUpdate(text string, err error) (DisplayUpdate, error) {
 func (e *Engine) Capture() (json.RawMessage, error) {
 	s, err := e.call("capture")
 	if len(s) > MaxSnapshotBytes {
-		return nil, errors.New("terminal snapshot exceeds its byte limit")
+		return nil, i18n.New("backend.terminal.terminalSnapshotExceedsItsByteLimit")
 	}
 	return json.RawMessage(s), err
 }
 
 func (e *Engine) Close() { _, _ = e.call("close"); e.loop.Terminate() }
+
+func engineError(value goja.Value) error {
+	if object, ok := value.(*goja.Object); ok {
+		text := object.Get("text")
+		if text != nil && !goja.IsUndefined(text) && !goja.IsNull(text) {
+			var message i18n.Message
+			data, err := json.Marshal(text.Export())
+			if err == nil && json.Unmarshal(data, &message) == nil && message.Key != "" {
+				return i18n.New(message.Key, message.Vars)
+			}
+		}
+	}
+	return errors.New(value.String())
+}

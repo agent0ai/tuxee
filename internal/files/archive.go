@@ -3,14 +3,13 @@ package files
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 )
@@ -71,7 +70,7 @@ func archiveCommand(ctx context.Context, directory, password, tool string, args 
 		if password != "" {
 			message = strings.ReplaceAll(message, password, "[redacted]")
 		}
-		return fmt.Errorf("archive operation failed: %s", strings.TrimSpace(message))
+		return i18n.New("backend.files.archiveOperationFailed", i18n.Vars{"value": strings.TrimSpace(message)})
 	}
 	return nil
 }
@@ -88,13 +87,13 @@ func (b *boundedOutput) Write(p []byte) (int, error) {
 }
 func archive(ctx context.Context, r Request) error {
 	if !filepath.IsAbs(r.Destination) || strings.ContainsRune(r.Destination, 0) {
-		return errors.New("destination must be absolute")
+		return i18n.New("backend.files.destinationMustBeAbsolute")
 	}
 	if len(r.Password) > 1024 || strings.ContainsAny(r.Password, "\r\n\x00") {
-		return errors.New("invalid archive password")
+		return i18n.New("backend.files.invalidArchivePassword")
 	}
 	if _, err := os.Lstat(r.Destination); err == nil {
-		return errors.New("destination already exists")
+		return i18n.New("backend.files.destinationAlreadyExists")
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -111,12 +110,12 @@ func archive(ctx context.Context, r Request) error {
 	if r.Operation == "compress" {
 		output += "." + r.Format
 		if len(r.Paths) == 0 || len(r.Paths) > 10000 {
-			return errors.New("select files to compress")
+			return i18n.New("backend.files.selectFilesToCompress")
 		}
 		names := []string{}
 		for _, path := range r.Paths {
 			if !filepath.IsAbs(path) || strings.ContainsRune(path, 0) || filepath.Dir(filepath.Clean(path)) != r.Path {
-				return errors.New("archive sources must be in the selected directory")
+				return i18n.New("backend.files.archiveSourcesMustBeInTheSelectedDirectory")
 			}
 			info, err := os.Lstat(path)
 			if err != nil {
@@ -129,7 +128,7 @@ func archive(ctx context.Context, r Request) error {
 				}
 				relative, _ := filepath.Rel(real, parent)
 				if relative == "." || relative != ".." && !strings.HasPrefix(relative, "../") {
-					return errors.New("archive destination cannot be inside a source directory")
+					return i18n.New("backend.files.archiveDestinationCannotBeInsideASourceDirectory")
 				}
 			}
 			names = append(names, "./"+filepath.Base(path))
@@ -137,7 +136,7 @@ func archive(ctx context.Context, r Request) error {
 		if r.Format == "zip" || r.Format == "7z" {
 			tool := sevenZip()
 			if tool == "" {
-				return errors.New("install 7zip for ZIP/7z archives and passwords")
+				return i18n.New("backend.files.install7zipForZIP7zArchivesAndPasswords")
 			}
 			args := []string{"a", "-t" + r.Format, "-y", "-bd", "-sse", "-snl", "-spd"}
 			if r.Password != "" {
@@ -155,11 +154,11 @@ func archive(ctx context.Context, r Request) error {
 			}
 		} else {
 			if r.Password != "" {
-				return errors.New("passwords require ZIP or 7z")
+				return i18n.New("backend.files.passwordsRequireZIPOr7z")
 			}
 			flag, ok := map[string]string{"tar": "", "tar.gz": "--gzip", "tar.bz2": "--bzip2", "tar.xz": "--xz"}[r.Format]
 			if !ok {
-				return errors.New("unsupported archive format")
+				return i18n.New("backend.files.unsupportedArchiveFormat")
 			}
 			args := []string{"--create", "--file", output}
 			if flag != "" {
@@ -182,13 +181,13 @@ func archive(ctx context.Context, r Request) error {
 		}
 		if tar {
 			if r.Password != "" {
-				return errors.New("tar archives do not support passwords")
+				return i18n.New("backend.files.tarArchivesDoNotSupportPasswords")
 			}
 			err = archiveCommand(ctx, output, "", "tar", "--extract", "--file", r.Path, "--no-same-owner", "--no-same-permissions", "--keep-old-files")
 		} else if tool := sevenZip(); tool != "" {
 			err = archiveCommand(ctx, output, r.Password, tool, "x", "-y", "-bd", "-spd", "-o"+output, "--", r.Path)
 		} else {
-			return errors.New("install 7zip to extract this archive")
+			return i18n.New("backend.files.install7zipToExtractThisArchive")
 		}
 		if err != nil {
 			return err
@@ -209,12 +208,12 @@ func archive(ctx context.Context, r Request) error {
 				}
 				resolved := filepath.Clean(filepath.Join(filepath.Dir(path), target))
 				if filepath.IsAbs(target) || !strings.HasPrefix(resolved, output+string(os.PathSeparator)) && resolved != output {
-					return errors.New("archive has a link outside its destination")
+					return i18n.New("backend.files.archiveHasALinkOutsideItsDestination")
 				}
 				return nil
 			}
 			if !info.Mode().IsRegular() && !info.IsDir() {
-				return errors.New("archive contains a special file")
+				return i18n.New("backend.files.archiveContainsASpecialFile")
 			}
 			return os.Chmod(path, info.Mode().Perm())
 		})

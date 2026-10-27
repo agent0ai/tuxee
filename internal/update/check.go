@@ -4,14 +4,16 @@ import (
 	"context"
 	"sync"
 	"time"
+	"tuxee/internal/i18n"
 )
 
 type Status struct {
-	Current   string    `json:"current"`
-	Latest    string    `json:"latest,omitempty"`
-	Available bool      `json:"available"`
-	CheckedAt time.Time `json:"checkedAt"`
-	Error     string    `json:"error,omitempty"`
+	Text      *i18n.Message `json:"text,omitempty"`
+	Current   string        `json:"current"`
+	Latest    string        `json:"latest,omitempty"`
+	Available bool          `json:"available"`
+	CheckedAt time.Time     `json:"checkedAt"`
+	Error     string        `json:"error,omitempty"`
 }
 
 type Checker struct {
@@ -52,8 +54,10 @@ func (c *Checker) Check(ctx context.Context) Status {
 	c.mu.Lock()
 	c.status.CheckedAt = time.Now()
 	c.status.Error = ""
+	c.status.Text = nil
 	if err != nil {
 		c.status.Error = err.Error()
+		c.status.Text = i18n.Describe(err)
 	} else {
 		c.status.Latest = release.Tag
 		c.status.Available = Newer(release.Tag, c.status.Current)

@@ -3,10 +3,10 @@ package processes
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"time"
+	"tuxee/internal/i18n"
 
 	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
@@ -20,9 +20,10 @@ type Request struct {
 	Signal    int    `json:"signal,omitempty"`
 }
 type Response struct {
-	Snapshot *Snapshot `json:"snapshot,omitempty"`
-	Results  []Result  `json:"results,omitempty"`
-	Error    string    `json:"error,omitempty"`
+	Text     *i18n.Message `json:"text,omitempty"`
+	Snapshot *Snapshot     `json:"snapshot,omitempty"`
+	Results  []Result      `json:"results,omitempty"`
+	Error    string        `json:"error,omitempty"`
 }
 
 func Worker() error {
@@ -48,10 +49,11 @@ func Worker() error {
 		// Signal zero checks the user's permission without interrupting the server.
 		err = unix.Kill(os.Getppid(), 0)
 	default:
-		err = errors.New("invalid process operation")
+		err = i18n.New("backend.processes.invalidProcessOperation")
 	}
 	if err != nil {
 		output.Error = err.Error()
+		output.Text = i18n.Describe(err)
 	}
 	return json.NewEncoder(os.Stdout).Encode(output)
 }
@@ -96,7 +98,7 @@ func Run(ctx context.Context, user identity.User, input Request) (Response, erro
 		return Response{}, waitErr
 	}
 	if output.Error != "" {
-		return Response{}, errors.New(output.Error)
+		return Response{}, i18n.From(output.Text, output.Error)
 	}
 	return output, nil
 }

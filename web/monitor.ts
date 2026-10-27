@@ -1,3 +1,4 @@
+import { errorText, t } from './i18n';
 import { api, button, el, icon, modal, size } from './ui';
 import { id, type MonitoringPreferences } from './model';
 import { compactNumber, compactSize } from './monitor-values';
@@ -8,8 +9,8 @@ type Disk = Partial<Capacity> & { path: string; device: string; type: string };
 type Network = { name: string; state: string; received: number; sent: number; receiveRate: number | null; sendRate: number | null };
 type Snapshot = { time: string; scope: 'host' | 'container'; cpu: { percent: number | null; cores: number }; memory: Capacity | null; swap: Capacity | null; disks: Disk[]; networks: Network[] };
 type Metric = { label: string; kind: 'cpu' | 'memory' | 'disk' | 'network'; percent?: number | null; value: string; detail: string; extra?: string; cache?: { percent: number; text: string }; network?: { uploadText: string; downloadText: string } };
-const allNetworks = '/all';
-const networkLabel = (name: string) => name === allNetworks ? 'NET' : name;
+const allNetworks = '/all', maxDevices = 8;
+const networkLabel = (name: string) => name === allNetworks ? t('network.net') : name;
 const defaults: MonitoringPreferences = { cpu: true, memory: true, swap: false, disks: ['/'], networks: [allNetworks], interval: 2 };
 const percentage = (value?: number | null) => value == null ? '—' : `${compactNumber(value)}%`;
 const rate = (value: number | null | undefined) => value == null ? '—' : `${size(value, 1000)}/s`;
@@ -43,13 +44,13 @@ export class Monitoring {
             if (request.signal.aborted) return;
             this.data = data; this.error = '';
         }
-        catch (error) { if (request.signal.aborted) return; this.error = error instanceof Error ? error.message : 'Resource monitor unavailable'; }
+        catch (error) { if (request.signal.aborted) return; this.error = error instanceof Error ? errorText(error) : t("monitor.unavailable"); }
         if (request.signal.aborted || this.events.signal.aborted) return;
         this.paint();
         this.timer = setTimeout(() => this.poll(), this.preferences.interval * 1000);
     }
     summary(): HTMLButtonElement {
-        const control = button('Resource monitor', undefined, () => this.open(), 'monitor-summary');
+        const control = button(t("app.resourceMonitor"), undefined, () => this.open(), 'monitor-summary');
         control.setAttribute('aria-haspopup', 'dialog');
         this.header = control;
         this.paintSummary(control);
@@ -57,23 +58,23 @@ export class Monitoring {
     }
     private metrics(): Metric[] {
         const data = this.error ? undefined : this.data, prefs = this.preferences, items: Metric[] = [];
-        if (prefs.cpu) items.push({ label: 'CPU', kind: 'cpu', percent: data?.cpu.percent, value: percentage(data?.cpu.percent), detail: data ? `${Number(data.cpu.cores.toFixed(2))} cores` : 'Unavailable' });
+        if (prefs.cpu) items.push({ label: t("monitor.cpu"), kind: 'cpu', percent: data?.cpu.percent, value: percentage(data?.cpu.percent), detail: data ? t("monitor.cores", { count: Number(data.cpu.cores.toFixed(2)) }) : t("common.unavailable") });
         const memory = (label: string, value: Capacity | null | undefined): Metric => ({
-            label, kind: 'memory', percent: value?.percent, value: value?.total === 0 ? 'Off' : compactSize(value?.used, 1024),
-            detail: value ? `Used ${size(value.used)} / ${size(value.total)}` : 'Unavailable',
-            extra: value ? `${size(value.available)} available` : undefined,
-            cache: value?.cache != null ? { percent: value.total > 0 ? value.cache / value.total * 100 : 0, text: `Cache ${size(value.cache)}` } : undefined,
+            label, kind: 'memory', percent: value?.percent, value: value?.total === 0 ? t("monitor.off") : compactSize(value?.used, 1024),
+            detail: value ? t("monitor.used", { used: size(value.used), total: size(value.total) }) : t("common.unavailable"),
+            extra: value ? t("monitor.available", { size: size(value.available) }) : undefined,
+            cache: value?.cache != null ? { percent: value.total > 0 ? value.cache / value.total * 100 : 0, text: t("monitor.cache", { size: size(value.cache) }) } : undefined,
         });
-        if (prefs.memory) items.push(memory('RAM', data?.memory));
-        if (prefs.swap) items.push(memory('SWAP', data?.swap));
+        if (prefs.memory) items.push(memory(t('monitor.ram'), data?.memory));
+        if (prefs.swap) items.push(memory(t('monitor.swapLabel'), data?.swap));
         for (const path of prefs.disks) {
             const disk = data?.disks.find(disk => disk.path === path);
-            items.push({ label: path === '/' ? 'DISK' : path, kind: 'disk', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used, 1000)} / ${size(disk.total, 1000)}` : 'Unavailable', extra: disk?.total ? `${size(disk.available, 1000)} available · ${disk.type}` : undefined });
+            items.push({ label: path === '/' ? t("monitor.disk") : path, kind: 'disk', percent: disk?.percent, value: compactSize(disk?.used), detail: disk?.total ? `${size(disk.used, 1000)} / ${size(disk.total, 1000)}` : t("common.unavailable"), extra: disk?.total ? t("monitor.diskAvailable", { size: size(disk.available, 1000), type: disk.type }) : undefined });
         }
         for (const name of prefs.networks) {
             const network = data?.networks.find(network => network.name === name);
             const downloadText = compactSize(network?.receiveRate), uploadText = compactSize(network?.sendRate);
-            items.push({ label: networkLabel(name), kind: 'network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? `Download ${rate(network.receiveRate)} · Upload ${rate(network.sendRate)}` : 'Unavailable', extra: network ? `↓ ${size(network.received, 1000)} · ↑ ${size(network.sent, 1000)} total · ${network.state || 'unknown'}` : undefined, network: { uploadText, downloadText } });
+            items.push({ label: networkLabel(name), kind: 'network', value: `↓${downloadText} ↑${uploadText}`, detail: network ? t("monitor.networkRates", { download: rate(network.receiveRate), upload: rate(network.sendRate) }) : t("common.unavailable"), extra: network ? t("monitor.networkTotal", { received: size(network.received, 1000), sent: size(network.sent, 1000), state: networkState(network.state) }) : undefined, network: { uploadText, downloadText } });
         }
         return items;
     }
@@ -102,7 +103,7 @@ export class Monitoring {
             gauge.style.setProperty('--cache', String(metric.cache?.percent ?? 0));
             gauge.setAttribute('aria-hidden', 'true'); chip.append(gauge);
             const reading = this.reading(metric.value);
-            if (detailed && metric.cache) reading.title = 'Estimated non-reclaimable memory';
+            if (detailed && metric.cache) reading.title = t("monitor.estimatedNonReclaimableMemory");
             text.append(reading);
         }
         chip.append(text);
@@ -113,7 +114,7 @@ export class Monitoring {
         control.hidden = !this.displayed;
         control.replaceChildren();
         control.dataset.state = this.error ? 'error' : this.data ? 'ready' : 'loading';
-        control.title = this.error || metrics.map(item => `${item.label}: ${item.kind === 'cpu' ? item.value : item.detail}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || 'Resource monitor';
+        control.title = this.error || metrics.map(item => `${item.label}: ${item.kind === 'cpu' ? item.value : item.detail}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || t("app.resourceMonitor");
         control.setAttribute('aria-description', control.title);
         const strip = el('span', 'monitor-strip');
         const visible = innerWidth <= 1100 ? 3 : 4;
@@ -135,12 +136,12 @@ export class Monitoring {
             const card = el('section', 'monitor-card');
             card.append(this.widget(item, true), el('p', '', item.detail));
             if (item.cache) {
-                const cache = el('p', 'monitor-cache', item.cache.text); cache.title = 'Estimated reclaimable memory'; card.append(cache);
+                const cache = el('p', 'monitor-cache', item.cache.text); cache.title = t("monitor.estimatedReclaimableMemory"); card.append(cache);
             }
             if (item.extra) card.append(el('small', 'muted', item.extra));
             grid.append(card);
         }
-        if (!grid.childElementCount) grid.append(el('p', 'muted', 'No metrics selected'));
+        if (!grid.childElementCount) grid.append(el('p', 'muted', t("monitor.noMetricsSelected")));
         content.append(grid);
     }
     open() {
@@ -149,16 +150,16 @@ export class Monitoring {
         const content = el('div', 'monitor-content'), controls = el('div');
         const display = el('label', 'monitor-display'), toggle = el('input'), error = el('p', 'monitor-error');
         toggle.type = 'checkbox'; toggle.setAttribute('role', 'switch'); toggle.checked = this.displayed;
-        display.append(el('span', '', 'Display resource monitor widget'), toggle);
+        display.append(el('span', '', t("monitor.displayResourceMonitorWidget")), toggle);
         error.setAttribute('role', 'alert'); controls.append(display, error);
         const resourcePanel = el('section'), processPanel = el('section');
         this.details = el('div', 'monitor-content'); resourcePanel.append(controls, this.details);
         processPanel.hidden = true; content.append(resourcePanel, processPanel);
-        const { dialog } = modal('Resource monitor', content);
+        const { dialog } = modal(t("app.resourceMonitor"), content);
         this.dialog = dialog; dialog.classList.add('monitor-modal');
-        const tabs = el('div', 'monitor-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Resource monitor');
-        const resources = button('Resources', undefined, () => selectTab(false));
-        const processes = button('Processes', undefined, () => selectTab(true));
+        const tabs = el('div', 'monitor-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t("app.resourceMonitor"));
+        const resources = button(t("monitor.resources"), undefined, () => selectTab(false));
+        const processes = button(t("monitor.processes"), undefined, () => selectTab(true));
         for (const [tab, panel] of [[resources, resourcePanel], [processes, processPanel]]) {
             tab.id = id(); panel.id = id(); tab.setAttribute('role', 'tab'); panel.setAttribute('role', 'tabpanel');
             tab.setAttribute('aria-controls', panel.id); panel.setAttribute('aria-labelledby', tab.id); tabs.append(tab);
@@ -178,13 +179,13 @@ export class Monitoring {
             } else this.paintDetails();
         };
         processes.tabIndex = -1;
-        const cog = button('Configure resource monitor', 'Settings', () => {
+        const cog = button(t("monitor.configureResourceMonitor"), 'Settings', () => {
             this.configuring = !this.configuring;
             controls.hidden = this.configuring; tabs.hidden = this.configuring;
             cog.replaceChildren(icon(this.configuring ? 'ArrowLeft' : 'Settings'));
-            cog.setAttribute('aria-label', this.configuring ? 'Back to resource monitor' : 'Configure resource monitor');
+            cog.setAttribute('aria-label', this.configuring ? t("monitor.backToResourceMonitor") : t("monitor.configureResourceMonitor"));
             cog.title = cog.getAttribute('aria-label')!;
-            if (this.configuring) this.configure(() => { this.configuring = false; controls.hidden = false; tabs.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', 'Configure resource monitor'); cog.title = 'Configure resource monitor'; this.paint(); cog.focus(); });
+            if (this.configuring) this.configure(() => { this.configuring = false; controls.hidden = false; tabs.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', t("monitor.configureResourceMonitor")); cog.title = t("monitor.configureResourceMonitor"); this.paint(); cog.focus(); });
             else this.paintDetails();
         });
         toggle.onchange = async () => {
@@ -194,7 +195,7 @@ export class Monitoring {
                 await this.save(preferences); this.preferences = preferences; this.paint(); this.poll();
             } catch (value) {
                 toggle.checked = this.displayed;
-                error.textContent = value instanceof Error ? value.message : 'Cannot save resource monitor';
+                error.textContent = value instanceof Error ? errorText(value) : t("monitor.cannotSaveResourceMonitor");
             } finally { toggle.disabled = cog.disabled = false; }
         };
         dialog.querySelector('.modal-head')!.insertBefore(cog, dialog.querySelector('.modal-head button'));
@@ -210,34 +211,39 @@ export class Monitoring {
             text.append(el('span', '', label)); if (detail) text.append(el('small', 'muted', detail));
             row.append(input, text); group.append(row);
         };
-        const system = section('System');
-        for (const [key, label] of [['cpu', 'CPU'], ['memory', 'RAM'], ['swap', 'Swap']] as const) choice(system, label, draft[key], checked => { draft[key] = checked; });
-        const disks = section('Disks');
+        const system = section(t("monitor.system"));
+        for (const [key, label] of [['cpu', t("monitor.cpu")], ['memory', t("monitor.ram")], ['swap', t("monitor.swap")]] as const) choice(system, label, draft[key], checked => { draft[key] = checked; });
+        const disks = section(t("monitor.disks"));
         const select = (key: 'disks' | 'networks', value: string, checked: boolean) => { draft[key] = checked ? [...draft[key], value] : draft[key].filter(item => item !== value); };
         for (const path of new Set([...(this.data?.disks.map(disk => disk.path) || []), ...draft.disks])) {
             const disk = this.data?.disks.find(disk => disk.path === path);
-            choice(disks, path, draft.disks.includes(path), checked => select('disks', path, checked), disk ? `${disk.type} · ${disk.total ? size(disk.total, 1000) : 'Unavailable'}` : 'Unavailable');
+            choice(disks, path, draft.disks.includes(path), checked => select('disks', path, checked), disk ? `${disk.type} · ${disk.total ? size(disk.total, 1000) : t("common.unavailable")}` : t("common.unavailable"));
         }
-        const networks = section('Networks');
+        const networks = section(t("monitor.networks"));
         for (const name of new Set([allNetworks, ...(this.data?.networks.map(network => network.name) || []), ...draft.networks])) {
             const network = this.data?.networks.find(network => network.name === name);
-            choice(networks, networkLabel(name), draft.networks.includes(name), checked => select('networks', name, checked), name === allNetworks ? 'Sum of all active interfaces' : network?.state || 'Unavailable');
+            choice(networks, networkLabel(name), draft.networks.includes(name), checked => select('networks', name, checked), name === allNetworks ? t("monitor.allInterfaces") : network ? networkState(network.state) : t('common.unavailable'));
         }
-        const field = el('label', 'field', 'Refresh'), interval = el('select'); interval.setAttribute('aria-label', 'Resource monitor refresh');
-        for (const seconds of [2, 5, 10]) { const option = el('option', '', `${seconds} seconds`); option.value = String(seconds); interval.append(option); }
+        const field = el('label', 'field', t("common.refresh")), interval = el('select'); interval.setAttribute('aria-label', t("monitor.resourceMonitorRefresh"));
+        for (const seconds of [2, 5, 10]) { const option = el('option', '', t("monitor.seconds", { count: seconds })); option.value = String(seconds); interval.append(option); }
         interval.value = String(draft.interval); field.append(interval); form.append(field);
-        const error = el('p', 'monitor-error'), actions = el('div', 'actions'), submit = button('Save resource monitor', undefined, undefined, 'primary');
+        const error = el('p', 'monitor-error'), actions = el('div', 'actions'), submit = button(t("monitor.saveResourceMonitor"), undefined, undefined, 'primary');
         error.setAttribute('role', 'alert'); submit.type = 'submit';
-        actions.append(button('Cancel', undefined, done), submit); form.append(error, actions);
+        actions.append(button(t("common.cancel"), undefined, done), submit); form.append(error, actions);
         form.onsubmit = async event => {
             event.preventDefault(); error.textContent = ''; submit.disabled = true;
             try {
-                if (draft.disks.length > 8 || draft.networks.length > 8) throw new Error('Select up to 8 disks and 8 interfaces');
+                if (draft.disks.length > maxDevices || draft.networks.length > maxDevices) throw new Error(t("monitor.deviceSelectionLimit", { maxDisks: maxDevices, maxNetworks: maxDevices }));
                 draft.interval = Number(interval.value); await this.save(draft); this.preferences = draft; done(); this.poll();
-            } catch (value) { error.textContent = value instanceof Error ? value.message : 'Cannot save resource monitor'; }
+            } catch (value) { error.textContent = value instanceof Error ? errorText(value) : t("monitor.cannotSaveResourceMonitor"); }
             finally { submit.disabled = false; }
         };
         content.replaceChildren(form);
     }
     dispose() { this.processes?.dispose(); this.processes = undefined; this.events.abort(); clearTimeout(this.timer); this.request?.abort(); this.dialog?.close(); }
+}
+
+function networkState(state?: string) {
+    const keys: Record<string, string> = { up: 'network.up', down: 'network.down', unknown: 'network.unknown', dormant: 'network.dormant', lowerlayerdown: 'network.lowerlayerdown', testing: 'network.testing', notpresent: 'network.notpresent' };
+    return t(keys[state || 'unknown'] || 'network.unknown');
 }

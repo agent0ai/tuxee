@@ -115,7 +115,7 @@ func TestRepeatedDisplayStartup(t *testing.T) {
 		}
 		conn.Close()
 		d.runtime.Lock()
-		d.stop("", nil)
+		d.stop(nil, nil)
 		d.runtime.Unlock()
 	}
 }

@@ -49,10 +49,10 @@ import "C"
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"strings"
+	"tuxee/internal/i18n"
 	"unsafe"
 )
 
@@ -65,21 +65,21 @@ type authRequest struct {
 func RunAuthHelper() error {
 	var input authRequest
 	if err := json.NewDecoder(io.LimitReader(os.Stdin, 32768)).Decode(&input); err != nil {
-		return errors.New("invalid authentication request")
+		return i18n.New("backend.identity.invalidAuthenticationRequest")
 	}
 	defer clear(input.Password)
 	if len(input.Password) == 0 || len(input.Password) > 4096 || len(input.Username) > 256 || strings.ContainsRune(input.Username, 0) || strings.ContainsRune(string(input.Password), 0) {
-		return errors.New("invalid credentials")
+		return i18n.New("backend.identity.invalidCredentials")
 	}
 	if input.Service == "" || strings.ContainsAny(input.Service, "/\x00") {
-		return errors.New("invalid PAM service")
+		return i18n.New("backend.identity.invalidPAMService")
 	}
 	s, u, p := C.CString(input.Service), C.CString(input.Username), C.CString(string(input.Password))
 	defer C.free(unsafe.Pointer(s))
 	defer C.free(unsafe.Pointer(u))
 	defer C.clear_free(p)
 	if C.authenticate(s, u, p) != C.PAM_SUCCESS {
-		return errors.New("authentication failed")
+		return i18n.New("backend.identity.authenticationFailed")
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func shell(name string) (string, error) {
 	defer C.free(unsafe.Pointer(n))
 	s := C.account_shell(n)
 	if s == nil {
-		return "", errors.New("account not found")
+		return "", i18n.New("backend.identity.accountNotFound")
 	}
 	defer C.free(unsafe.Pointer(s))
 	result := C.GoString(s)
@@ -97,7 +97,7 @@ func shell(name string) (string, error) {
 		result = "/bin/sh"
 	}
 	if !strings.HasPrefix(result, "/") || strings.HasSuffix(result, "/nologin") || strings.HasSuffix(result, "/false") {
-		return "", errors.New("account has no login shell")
+		return "", i18n.New("backend.identity.accountHasNoLoginShell")
 	}
 	return result, nil
 }
