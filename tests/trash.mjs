@@ -53,11 +53,14 @@ try {
     const file = page.locator('.file-view'), list = file.locator('.file-list');
     const row = name => file.locator('.file-entry').filter({ has: page.locator('.file-name span').filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }) });
     const button = name => file.getByRole('button', { name, exact: true });
+    const hidden = file.getByRole('checkbox', { name: 'Hidden', exact: true });
     const confirmation = page.getByRole('dialog', { name: 'Delete selected items?', exact: true });
     const absent = async path => assert.equal(await lstat(path).then(() => false, error => error.code === 'ENOENT'), true, path);
     await row('alpha.txt').waitFor();
+    assert.equal(await hidden.isChecked(), false);
     for (const name of ['Download selected', 'Cut', 'Copy']) assert.ok(await button(name).isDisabled());
     await button('Trash bin').click(); await row('.desktop-hidden').waitFor();
+    assert.ok(await hidden.isChecked()); assert.ok(await hidden.isDisabled());
     assert.ok(await button('Restore').isDisabled());
     assert.ok(await file.locator('.file-actions').evaluate(node => {
         const names = [...node.children].map(item => item.title || item.textContent);
@@ -68,6 +71,14 @@ try {
     assert.equal(await readFile(home + '/.desktop-hidden', 'utf8'), 'desktop file');
     await absent(trash + '/info/desktop.trashinfo');
     await button('Home directory').click(); await row('alpha.txt').waitFor();
+    assert.equal(await hidden.isChecked(), false); assert.ok(await hidden.isEnabled());
+    assert.equal(await row('.desktop-hidden').count(), 0);
+    await hidden.check(); await row('.desktop-hidden').waitFor();
+    await button('Trash bin').click(); await file.getByText('Empty folder', { exact: true }).waitFor();
+    assert.ok(await hidden.isChecked()); assert.ok(await hidden.isDisabled());
+    await button('Home directory').click(); await row('.desktop-hidden').waitFor();
+    assert.ok(await hidden.isChecked()); assert.ok(await hidden.isEnabled());
+    await hidden.uncheck(); await row('.desktop-hidden').waitFor({ state: 'detached' });
     await row('alpha.txt').click();
     for (const name of ['Download selected', 'Cut', 'Copy']) assert.ok(await button(name).isEnabled());
     await row('folder').click({ modifiers: ['Control'] });
@@ -127,6 +138,7 @@ try {
     await confirmation.getByRole('button', { name: 'Delete permanently', exact: true }).click(); await row('discard').waitFor({ state: 'detached' });
     await absent(discarded.path); await absent(trash + '/info/discard.trashinfo');
     await page.waitForTimeout(600); await page.reload(); await row('mounted.txt').waitFor();
+    assert.ok(await hidden.isChecked()); assert.ok(await hidden.isDisabled());
     await mkdir('test-results', { recursive: true });
     await page.screenshot({ path: 'test-results/trash-desktop.png' });
     for (const width of [390, 320]) {

@@ -43,6 +43,7 @@ export class FileView implements View {
     private filterInput = el('input', 'file-filter');
     private filterButton = button('Filter files', 'Search', () => this.showFilter(this.filterInput.hidden));
     private showHidden = el('input');
+    private hiddenFiles = false;
     private sort?: { column: 'name' | 'size' | 'modified'; descending: boolean };
     private cancelSelection?: () => void;
     private rowMenus: (() => void)[] = [];
@@ -202,7 +203,7 @@ export class FileView implements View {
         const hiddenSeparator = el('span', 'file-footer-separator', '|'); hiddenSeparator.setAttribute('aria-hidden', 'true');
         const hiddenLabel = el('label', 'file-hidden');
         this.showHidden.type = 'checkbox';
-        this.showHidden.onchange = () => this.render();
+        this.showHidden.onchange = () => { this.hiddenFiles = this.showHidden.checked; this.render(); };
         hiddenLabel.append(this.showHidden, 'Hidden');
         footer.append(this.filterButton, this.filterInput, hiddenSeparator, hiddenLabel, this.status, button('Properties', 'Info', () => this.properties()));
         const table = el('div', 'file-table');
@@ -327,7 +328,7 @@ export class FileView implements View {
     private parent() { return this.navigate(this.inTrash ? this.hooks.defaultDirectory() : this.panel.path.split('/').slice(0, -1).join('/') || '/', this.panel.path); }
     private visibleEntries() {
         const query = this.filter.toLocaleLowerCase(), entries = this.entries.filter(entry =>
-            (this.inTrash || this.showHidden.checked || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
+            (this.inTrash || this.hiddenFiles || !entry.name.startsWith('.')) && entry.name.toLocaleLowerCase().includes(query));
         if (this.sort) {
             const { column, descending } = this.sort;
             entries.sort((a, b) => ((column === 'size' ? a.size - b.size : column === 'modified' ? Date.parse(a.modified) - Date.parse(b.modified) : nameOrder.compare(a.name, b.name)) || a.name.localeCompare(b.name)) * (descending ? -1 : 1));
@@ -586,6 +587,7 @@ export class FileView implements View {
         this.selectAll.indeterminate = selected > 0 && selected < rows.length;
         this.selectAll.disabled = !rows.length;
         this.showHidden.disabled = this.inTrash;
+        this.showHidden.checked = this.inTrash || this.hiddenFiles;
         const properties = this.root.querySelector<HTMLButtonElement>('.file-footer button[title="Properties"]');
         if (properties) properties.disabled = this.inTrash && !this.selected.size;
         for (const action of this.actionButtons) {
