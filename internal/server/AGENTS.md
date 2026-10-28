@@ -76,6 +76,8 @@ Authenticated `GET /api/update` reads the shared cached update status and a comm
 
 `POST /api/file-size` uses normal session/origin/CSRF admission and streams no-store NDJSON from the credential-dropped file worker. Limit scans to two globally, each with a five-minute deadline and five-second write deadlines. Disconnect, aborted requests and logout cancel/reap the worker; the file client escalates unresponsive helpers after three seconds. Accept only a bounded list of paths, with validation owned by the worker.
 
+Owned `GET /api/terminals/{id}/input-history` returns the terminal’s drawer string array; CSRF-protected POST appends one `text` field and returns the updated list. Never accept a client path, UID or installation ID. Delegate bounds, serialization and files to the terminal manager. Successful login triggers that user’s best-effort live-folder reconciliation; logout only detaches and preserves live history.
+
 # Work Guidance
 
 Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.

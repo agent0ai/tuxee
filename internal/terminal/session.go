@@ -62,6 +62,7 @@ type Info struct {
 }
 
 type Manager struct {
+	HistoryInstance string
 	Audio           audio.Manager
 	mu              sync.Mutex
 	closing         sync.WaitGroup
@@ -117,6 +118,7 @@ func newID() string {
 }
 
 func (m *Manager) Create(user identity.User, directory, name string, columns, rows int, command, background, foreground, shell string, prompt bool, language string) (*Session, error) {
+	defer m.PruneHistory(user)
 	if !validSize(columns, rows) {
 		return nil, i18n.New("backend.terminal.invalidTerminalDimensions")
 	}
@@ -616,6 +618,7 @@ func (s *Session) Close() {
 }
 func (s *Session) destroy() {
 	defer s.manager.closing.Done()
+	defer s.manager.PruneHistory(s.user)
 	s.manager.mu.Lock()
 	delete(s.manager.sessions, s.info.ID)
 	s.manager.mu.Unlock()

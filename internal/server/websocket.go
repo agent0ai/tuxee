@@ -122,6 +122,29 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		jsonResponse(w, 200, map[string]string{"path": directory})
 		return
 	}
+	if action == "input-history" {
+		var input struct {
+			Text string `json:"text"`
+		}
+		switch r.Method {
+		case "GET":
+		case "POST":
+			if err := decode(w, r, &input); err != nil {
+				failure(w, 400, err)
+				return
+			}
+		default:
+			failure(w, 405, i18n.New("backend.server.methodNotAllowed"))
+			return
+		}
+		history, err := value.InputHistory(r.Context(), input.Text)
+		if err != nil {
+			failure(w, 400, err)
+			return
+		}
+		jsonResponse(w, 200, history)
+		return
+	}
 	if action == "ws" && r.Method == "GET" {
 		if r.Header.Get("Origin") == "" {
 			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))

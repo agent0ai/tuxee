@@ -21,6 +21,7 @@ import (
 )
 
 type Request struct {
+	Instance    string          `json:"instance,omitempty"`
 	Content     string          `json:"content,omitempty"`
 	Version     string          `json:"version,omitempty"`
 	Page        *TextPage       `json:"page,omitempty"`
@@ -57,6 +58,7 @@ type Entry struct {
 }
 
 type Response struct {
+	History   []string        `json:"history,omitempty"`
 	Text      *i18n.Message   `json:"text,omitempty"`
 	Content   string          `json:"content"`
 	Version   string          `json:"version,omitempty"`
@@ -134,6 +136,10 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
+	if r.Operation == "terminal-history" || r.Operation == "terminal-prune" {
+		response, err := terminalFiles(ctx, r)
+		return response, nil, err
+	}
 	if strings.HasPrefix(r.Operation, "trash-") || r.Operation == "trash" {
 		response, err := trashOperation(ctx, r)
 		return response, nil, err

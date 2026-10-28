@@ -531,6 +531,7 @@ func serve(value *config) error {
 		return err
 	}
 	terminals := terminal.NewManager()
+	terminals.HistoryInstance = instanceID
 	defer terminals.Close()
 	gate := identity.NewGate(value.PAM)
 	var tls *tlsmanager.Manager

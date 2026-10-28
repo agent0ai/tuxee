@@ -55,6 +55,8 @@ export class TerminalView implements View {
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
     private drawer = el('textarea', 'terminal-input');
+    private historySaved = Promise.resolve();
+    private loadHistory: (terminal: string) => Promise<void>;
     private cancelDrawerResize?: () => void;
     private closeText = () => {};
     private rendering = el('div', 'terminal-rendering', t("term.loading"));
@@ -179,6 +181,16 @@ export class TerminalView implements View {
             previousInput.disabled = historyIndex === 0;
             nextInput.disabled = historyIndex === history.length;
         };
+        this.loadHistory = async terminal => {
+            await this.historySaved;
+            let saved: string[] = [];
+            try { saved = await api<string[]>(`/terminals/${terminal}/input-history`, 'GET', undefined, this.events.signal); }
+            catch (error) { if (!this.disposed) this.notice(error); }
+            if (this.disposed || this.panel.terminal !== terminal) return;
+            history.splice(0, history.length, ...saved);
+            historyIndex = history.length; liveDraft = snapshot(); editGroup = '';
+            updateHistory();
+        };
         drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
         updateHistory();
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
@@ -279,6 +291,15 @@ export class TerminalView implements View {
                 if (text && text !== history.at(-1)) {
                     history.push(text);
                     if (history.length > 50) history.shift();
+                }
+                if (text) {
+                    const terminal = this.panel.terminal;
+                    this.historySaved = this.historySaved.then(async () => {
+                        if (!this.disposed && !this.closing && this.panel.terminal === terminal)
+                            await api(`/terminals/${terminal}/input-history`, 'POST', { text }, this.events.signal);
+                    }).catch(error => {
+                        if (!this.disposed && !this.closing && this.panel.terminal === terminal) this.notice(error);
+                    });
                 }
                 historyIndex = history.length; restore(liveDraft); editGroup = '';
                 updateHistory(); this.term.scrollToBottom();
@@ -495,6 +516,7 @@ export class TerminalView implements View {
         this.name = info.name;
         this.hooks.title?.(info.name); this.display.rename(info.name);
         this.root.dataset.terminal = info.id;
+        await this.loadHistory(info.id);
         if (!this.disposed && !this.closing) {
             this.root.querySelector('.terminal-recovery')?.remove(); this.root.classList.remove('session-lost');
             this.surface.hidden = false;
@@ -729,6 +751,7 @@ export class TerminalView implements View {
         const info = await api<TerminalInfo>(`/terminals/${this.panel.terminal}`, 'PATCH', { name });
         this.name = info.name; this.hooks.title?.(info.name); this.display.rename(info.name);
     }
+    async canClose() { await this.historySaved; return true; }
     async close() {
         this.closing = true; this.socket?.close();
         await this.starting;

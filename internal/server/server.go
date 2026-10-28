@@ -526,6 +526,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.Terminals.PruneHistory(user)
 	token := randomToken()
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &login{user: user, csrf: randomToken(), expires: time.Now().Add(24 * time.Hour), ctx: ctx, cancel: cancel}
