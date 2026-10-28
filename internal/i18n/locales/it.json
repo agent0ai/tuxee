@@ -769,8 +769,6 @@
     "validation.required": "Si prega di compilare questo campo.",
     "term.restartArchive": "Riavvia",
     "term.closedArchives": "Chiusi",
-    "term.lastApplication": "Ultima applicazione",
-    "term.archiveBuffer": "Output",
     "term.openArchive": "Apri",
     "settings.closedTerminalHistory": "Conserva cronologia dei terminali chiusi (ore)",
     "backend.server.closedHistoryHoursRange": "La conservazione deve essere tra {min} e {max} ore.",

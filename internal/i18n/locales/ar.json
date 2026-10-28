@@ -769,8 +769,6 @@
     "validation.required": "يرجى ملء هذا الحقل.",
     "term.restartArchive": "إعادة التشغيل",
     "term.closedArchives": "المغلقة",
-    "term.lastApplication": "آخر تطبيق",
-    "term.archiveBuffer": "المخرجات",
     "term.openArchive": "فتح",
     "settings.closedTerminalHistory": "الاحتفاظ بسجل الطرفيات المغلقة (ساعات)",
     "backend.server.closedHistoryHoursRange": "يجب أن تكون مدة الاحتفاظ بين {min} و{max} ساعة.",

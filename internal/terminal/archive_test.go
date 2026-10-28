@@ -12,86 +12,115 @@ import (
 	"tuxee/internal/identity"
 )
 
-type visualArchive struct {
-	Version   int
-	Active    string
-	Normal    visualFrame
-	Alternate *visualFrame
-}
-type visualFrame struct {
-	Columns, Rows    int
-	CapturedAt, Text string
-}
-
-func TestVisualArchiveBuffers(t *testing.T) {
-	e, err := NewEngine(10, 3)
+func archiveFixture(t *testing.T, columns, rows int) (*Engine, func(string), func() string) {
+	t.Helper()
+	e, err := NewEngine(columns, rows)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer e.Close()
+	t.Cleanup(e.Close)
 	apply := func(text string) {
 		t.Helper()
 		if _, err := e.Apply([]byte(text), 0, 0); err != nil {
 			t.Fatal(err)
 		}
 	}
-	capture := func() visualArchive {
+	capture := func() string {
 		t.Helper()
 		data, err := e.call("archive")
 		if err != nil {
 			t.Fatal(err)
 		}
-		var a visualArchive
-		if err := json.Unmarshal([]byte(data), &a); err != nil {
+		var value files.TerminalArchive
+		if err := json.Unmarshal([]byte(data), &value); err != nil {
 			t.Fatal(err)
 		}
-		return a
+		if value.Version != 2 || value.CapturedAt.IsZero() {
+			t.Fatalf("invalid archive: %s", data)
+		}
+		return value.Text
 	}
-	apply("ab界🐧e\u0301  \r\n12345678界x\r\n")
-	a := capture()
-	if a.Version != 1 || a.Active != "normal" || a.Normal.Columns != 10 || a.Normal.Rows != 3 || !strings.Contains(a.Normal.Text, "ab界🐧é   \n12345678界\nx") {
-		t.Fatalf("Unicode/spacing/wrap lost: %q", a.Normal.Text)
+	return e, apply, capture
+}
+
+func TestVisualArchiveTimeline(t *testing.T) {
+	_, apply, capture := archiveFixture(t, 20, 5)
+	apply("BEFORE 界 🦊 é\r\n\x1b[?1049h\x1b[HAPP ONE")
+	first := capture()
+	if !strings.Contains(first, "BEFORE 界 🦊 é") || !strings.Contains(first, "APP ONE") {
+		t.Fatalf("lost active screen: %q", first)
 	}
-	apply("\x1b[?1049h\x1b[Huseful")
-	a = capture()
-	if a.Alternate == nil || !strings.HasPrefix(a.Alternate.Text, "useful") || a.Active != "alternate" {
-		t.Fatalf("alternate missing: %+v", a)
+	// A clear before exit must preserve the last sampled useful screen.
+	apply("\x1b[2J\x1b[?1049lBETWEEN\r\n\x1b[?1049h\x1b[HAPP TWO\x1b[?1049lAFTER\r\n")
+	output := capture()
+	last := -1
+	for _, part := range []string{"BEFORE 界 🦊 é", "APP ONE", "BETWEEN", "APP TWO", "AFTER"} {
+		at := strings.Index(output, part)
+		if at <= last || strings.Count(output, part) != 1 {
+			t.Fatalf("lost/repeated/reordered %q: %q", part, output)
+		}
+		last = at
 	}
-	previous := *a.Alternate
-	apply("\x1b[2J\x1b[?1049l\r\nreturned")
-	a = capture()
-	if a.Active != "normal" || a.Alternate == nil || *a.Alternate != previous || !strings.Contains(a.Normal.Text, "returned") {
-		t.Fatalf("cleared alternate replaced useful frame: %+v", a)
+	if capture() != output {
+		t.Fatal("capture duplicated the transcript")
 	}
-	apply("\x1b[?1049h\x1b[Hone\x1b[?1049l\x1b[?1049h\x1b[Htwo\x1b[?1049l")
-	a = capture()
-	if a.Alternate == nil || !strings.HasPrefix(a.Alternate.Text, "two") || a.Active != "normal" {
-		t.Fatalf("same-batch transitions lost: %+v", a)
+	if strings.TrimSpace(strings.Split(output, "\n")[strings.Count(output, "\n")]) != "AFTER" {
+		t.Fatal("unused shell rows were retained")
+	}
+}
+
+func TestVisualArchiveShellRows(t *testing.T) {
+	_, apply, capture := archiveFixture(t, 10, 24)
+	if capture() != "" {
+		t.Fatal("empty terminal acquired blank screen rows")
+	}
+	apply("ab界🐧e\u0301  \r\n12345678界x\r\n\r\n")
+	output := capture()
+	if output != "ab界🐧é   \n12345678界\nx         \n          " {
+		t.Fatalf("Unicode, padding, wraps or intentional blank line lost: %q", output)
+	}
+	apply("partial\x1b[?1049hAPP\x1b[?1049lcontinued")
+	output = capture()
+	if strings.Count(output, "partial") != 1 || !strings.Contains(strings.ReplaceAll(output, "\n", ""), "continued") {
+		t.Fatalf("partial shell boundary duplicated: %q", output)
+	}
+}
+
+func TestVisualArchivePartialLineReflow(t *testing.T) {
+	e, apply, capture := archiveFixture(t, 20, 5)
+	apply("PREFIX_12345678\x1b[?1049h\x1b[HAPP\x1b[?1049l")
+	if _, err := e.Apply(nil, 10, 5); err != nil {
+		t.Fatal(err)
+	}
+	apply("SUFFIX\r\n")
+	output := capture()
+	if strings.Count(output, "PREFIX_12345678") != 1 || !strings.Contains(strings.ReplaceAll(output, "\n", ""), "SUFFIX") {
+		t.Fatalf("reflow broke the continuation: %q", output)
 	}
 }
 
 func TestVisualArchiveBounds(t *testing.T) {
-	e, err := NewEngine(240, 30)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer e.Close()
+	e, apply, capture := archiveFixture(t, 240, 30)
 	line := strings.Repeat("x", 239) + "\r\n"
 	for range 30 {
-		if _, err := e.Apply([]byte(strings.Repeat(line, 100)), 0, 0); err != nil {
-			t.Fatal(err)
-		}
+		apply(strings.Repeat(line, 100))
 	}
-	data, err := e.call("archive")
-	if err != nil {
+	for range 100 {
+		apply("shell\r\n\x1b[?1049happlication\x1b[?1049l")
+	}
+	output := capture()
+	if rows := strings.Count(output, "\n") + 1; rows > 5000 || rows*240 > 512000 {
+		t.Fatalf("combined transcript exceeded bounds: %d", rows)
+	}
+	// Committed history must survive clearing live scrollback and resizing.
+	apply("UNIQUE_AFTER_APP\r\n\x1b[3J")
+	if _, err := e.Apply(nil, 80, 30); err != nil {
 		t.Fatal(err)
 	}
-	var a visualArchive
-	if err := json.Unmarshal([]byte(data), &a); err != nil {
-		t.Fatal(err)
-	}
-	if rows := strings.Count(a.Normal.Text, "\n") + 1; rows > 5030 || rows*240 > 512000 {
-		t.Fatalf("archive exceeded canonical history: %d", rows)
+	apply("AFTER_RESIZE\r\n")
+	output = capture()
+	if strings.Count(output, "UNIQUE_AFTER_APP") != 1 || strings.Count(output, "AFTER_RESIZE") != 1 {
+		t.Fatalf("resize lost/duplicated shell continuation: %q", output)
 	}
 }
 

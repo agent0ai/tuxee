@@ -769,8 +769,6 @@
     "validation.required": "Vinsamlegast fylltu út þennan reit.",
     "term.restartArchive": "Endurræsa",
     "term.closedArchives": "Lokaðir",
-    "term.lastApplication": "Síðasta forrit",
-    "term.archiveBuffer": "Úttak",
     "term.openArchive": "Opna",
     "settings.closedTerminalHistory": "Geyma feril lokaðra skjáherma (klst.)",
     "backend.server.closedHistoryHoursRange": "Varðveislutími verður að vera á milli {min} og {max} klukkustunda.",

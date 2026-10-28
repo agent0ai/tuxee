@@ -769,8 +769,6 @@
     "validation.required": "このフィールドに記入してください。",
     "term.restartArchive": "再起動",
     "term.closedArchives": "閉じた履歴",
-    "term.lastApplication": "最後のアプリ",
-    "term.archiveBuffer": "出力",
     "term.openArchive": "開く",
     "settings.closedTerminalHistory": "閉じたターミナルの履歴を保持（時間）",
     "backend.server.closedHistoryHoursRange": "保持時間は{min}～{max}時間で指定してください。",

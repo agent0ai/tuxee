@@ -769,8 +769,6 @@
     "validation.required": "Mangyaring punan ang field na ito.",
     "term.restartArchive": "Simulan muli",
     "term.closedArchives": "Nakasara",
-    "term.lastApplication": "Huling app",
-    "term.archiveBuffer": "Output",
     "term.openArchive": "Buksan",
     "settings.closedTerminalHistory": "Itago ang history ng mga saradong terminal (oras)",
     "backend.server.closedHistoryHoursRange": "Dapat nasa pagitan ng {min} at {max} oras ang pag-iimbak.",

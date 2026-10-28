@@ -769,8 +769,6 @@
     "validation.required": "Kérjük, töltse ki ezt a mezőt.",
     "term.restartArchive": "Újraindítás",
     "term.closedArchives": "Bezártak",
-    "term.lastApplication": "Utolsó alkalmazás",
-    "term.archiveBuffer": "Kimenet",
     "term.openArchive": "Megnyitás",
     "settings.closedTerminalHistory": "Bezárt terminálok előzményeinek megőrzése (óra)",
     "backend.server.closedHistoryHoursRange": "A megőrzési idő {min} és {max} óra között lehet.",

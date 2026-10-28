@@ -769,8 +769,6 @@
     "validation.required": "Proszę wypełnić to pole.",
     "term.restartArchive": "Uruchom ponownie",
     "term.closedArchives": "Zamknięte",
-    "term.lastApplication": "Ostatnia aplikacja",
-    "term.archiveBuffer": "Wyjście",
     "term.openArchive": "Otwórz",
     "settings.closedTerminalHistory": "Zachowuj historię zamkniętych terminali (godziny)",
     "backend.server.closedHistoryHoursRange": "Czas przechowywania musi wynosić od {min} do {max} godzin.",

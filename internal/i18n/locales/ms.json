@@ -769,8 +769,6 @@
     "validation.required": "Sila isi medan ini.",
     "term.restartArchive": "Mula semula",
     "term.closedArchives": "Ditutup",
-    "term.lastApplication": "Aplikasi terakhir",
-    "term.archiveBuffer": "Output",
     "term.openArchive": "Buka",
     "settings.closedTerminalHistory": "Simpan sejarah terminal yang ditutup (jam)",
     "backend.server.closedHistoryHoursRange": "Tempoh penyimpanan mestilah antara {min} dan {max} jam.",

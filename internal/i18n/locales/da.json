@@ -769,8 +769,6 @@
     "validation.required": "Udfyld venligst dette felt.",
     "term.restartArchive": "Genstart",
     "term.closedArchives": "Lukkede",
-    "term.lastApplication": "Seneste program",
-    "term.archiveBuffer": "Output",
     "term.openArchive": "Åbn",
     "settings.closedTerminalHistory": "Behold lukkede terminalers historik (timer)",
     "backend.server.closedHistoryHoursRange": "Opbevaringstiden skal være mellem {min} og {max} timer.",

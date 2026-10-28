@@ -816,35 +816,88 @@ export function installTerminalView(terminal: any): void {
   };
 }
 
-/** Durable visual text only; private cell decoding stays behind this adapter. */
+/** One bounded transcript: shell ranges separated by each application's final screen. */
 export function terminalArchiveRecorder(terminal: any, text: (lines: any[]) => string) {
-  let alternate: any;
-  const frame = (buffer: any) => ({
-    columns: terminal.cols, rows: terminal.rows, capturedAt: new Date().toISOString(),
-    text: text(Array.from({length: buffer.lines.length}, (_, i) => {
-      const line = buffer.lines.get(i);
-      return {Data: line._data, Length: line.length, Combined: line._combined};
-    }))
-  });
-  const sample = () => {
-    const buffers = terminal._core._bufferService.buffers;
-    if (buffers.active !== buffers.alt) return;
-    const value = frame(buffers.alt);
-    // Applications can clear the screen before leaving alternate mode.
-    if (value.text.trim()) alternate = value;
+  type Line = {text: string; cells: number};
+  const buffers = terminal._core._bufferService.buffers;
+  let history: Line[] = [], alternate: Line[] = [];
+  let boundary: any, column = 0;
+  const bounded = (lines: Line[]) => {
+    let cells = lines.reduce((sum, line) => sum + line.cells, 0), start = 0;
+    while (lines.length - start > 5000 || cells > MAX_NORMAL_CELLS) cells -= lines[start++].cells;
+    return lines.slice(start);
   };
-  const handler = terminal.parser.registerCsiHandler({prefix: '?', final: 'l'}, (params: number[]) => {
-    if (params.some(p => p === 47 || p === 1047 || p === 1049)) sample();
+  const lines = (buffer: any, start: number, end: number, firstColumn = 0): Line[] => {
+    if (end <= start) return [];
+    const source = Array.from({length: end - start}, (_, i) => {
+      const line = buffer.lines.get(start + i);
+      return {Data: line._data, Length: line.length, Combined: line._combined, Start: i ? 0 : firstColumn};
+    });
+    return text(source).split('\n').map((value, i) => ({text: value, cells: source[i].Length - source[i].Start}));
+  };
+  const position = () => {
+    const buffer = buffers.normal;
+    let row = boundary && !boundary.isDisposed ? boundary.line : 0;
+    let x = boundary && !boundary.isDisposed ? column : 0;
+    while (row + 1 < buffer.lines.length && buffer.lines.get(row + 1).isWrapped && x >= buffer.lines.get(row).getTrimmedLength()) {
+      x -= buffer.lines.get(row++).getTrimmedLength();
+    }
+    return {row, x};
+  };
+  const mark = (x = buffers.normal.x) => {
+    boundary?.dispose();
+    let row = buffers.normal.ybase + buffers.normal.y;
+    column = x;
+    while (row > 0 && buffers.normal.lines.get(row).isWrapped) column += buffers.normal.lines.get(--row).getTrimmedLength();
+    boundary = buffers.normal.addMarker(row);
+  };
+  const resize = terminal.resize;
+  terminal.resize = (cols: number, rows: number) => {
+    const start = position(), buffer = buffers.normal;
+    const onCursorLine = boundary && !boundary.isDisposed && start.row === buffer.ybase + buffer.y;
+    resize.call(terminal, cols, rows);
+    // xterm truncates the cursor line instead of reflowing it on a shrink.
+    if (onCursorLine) mark(Math.min(start.x, cols - 1));
+  };
+  const normal = () => {
+    const buffer = buffers.normal, cursor = buffer.ybase + buffer.y;
+    let end = cursor + (buffer.x > 0 ? 1 : 0);
+    for (let i = buffer.lines.length - 1; i >= end; i--) {
+      if (buffer.lines.get(i).getTrimmedLength()) { end = i + 1; break; }
+    }
+    const {row: start, x} = position();
+    // A saved partial shell line is not new output after the application returns.
+    if (end === start + 1 && cursor === start && buffer.x <= x && buffer.lines.get(start).getTrimmedLength() <= x) return [];
+    return lines(buffer, start, end, x);
+  };
+  const sample = () => {
+    if (buffers.active !== buffers.alt) return;
+    const value = lines(buffers.alt, 0, buffers.alt.lines.length);
+    // Applications can clear the screen before leaving alternate mode.
+    if (value.some(line => line.text.trim())) alternate = value;
+  };
+  const mode = (params: number[]) => params.some(p => p === 47 || p === 1047 || p === 1049);
+  const enter = terminal.parser.registerCsiHandler({prefix: '?', final: 'h'}, (params: number[]) => {
+    if (mode(params) && buffers.active === buffers.normal) {
+      history = bounded([...history, ...normal()]);
+      mark();
+      alternate = [];
+    }
+    return false;
+  });
+  const leave = terminal.parser.registerCsiHandler({prefix: '?', final: 'l'}, (params: number[]) => {
+    if (mode(params) && buffers.active === buffers.alt) {
+      sample(); history = bounded([...history, ...alternate]); alternate = [];
+    }
     return false;
   });
   return {
     sample,
     capture: () => {
       sample();
-      const buffers = terminal._core._bufferService.buffers;
-      return {version: 1, active: buffers.active === buffers.alt ? 'alternate' : 'normal',
-        normal: frame(buffers.normal), alternate};
+      const tail = buffers.active === buffers.alt ? alternate : normal();
+      return {version: 2, capturedAt: new Date().toISOString(), text: bounded([...history, ...tail]).map(line => line.text).join('\n')};
     },
-    dispose: () => handler.dispose()
+    dispose: () => { enter.dispose(); leave.dispose(); boundary?.dispose(); terminal.resize = resize; }
   };
 }

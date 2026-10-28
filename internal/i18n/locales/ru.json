@@ -769,8 +769,6 @@
     "validation.required": "Пожалуйста, заполните это поле.",
     "term.restartArchive": "Перезапустить",
     "term.closedArchives": "Закрытые",
-    "term.lastApplication": "Последнее приложение",
-    "term.archiveBuffer": "Вывод",
     "term.openArchive": "Открыть",
     "settings.closedTerminalHistory": "Хранить историю закрытых терминалов (часы)",
     "backend.server.closedHistoryHoursRange": "Срок хранения должен быть от {min} до {max} часов.",

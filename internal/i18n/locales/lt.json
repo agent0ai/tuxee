@@ -769,8 +769,6 @@
     "validation.required": "Užpildykite šį lauką.",
     "term.restartArchive": "Paleisti iš naujo",
     "term.closedArchives": "Uždaryti",
-    "term.lastApplication": "Paskutinė programa",
-    "term.archiveBuffer": "Išvestis",
     "term.openArchive": "Atverti",
     "settings.closedTerminalHistory": "Saugoti uždarytų terminalų istoriją (valandos)",
     "backend.server.closedHistoryHoursRange": "Saugojimo laikas turi būti nuo {min} iki {max} valandų.",

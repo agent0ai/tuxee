@@ -769,8 +769,6 @@
     "validation.required": "Συμπληρώστε αυτό το πεδίο.",
     "term.restartArchive": "Επανεκκίνηση",
     "term.closedArchives": "Κλειστά",
-    "term.lastApplication": "Τελευταία εφαρμογή",
-    "term.archiveBuffer": "Έξοδος",
     "term.openArchive": "Άνοιγμα",
     "settings.closedTerminalHistory": "Διατήρηση ιστορικού κλειστών τερματικών (ώρες)",
     "backend.server.closedHistoryHoursRange": "Η διατήρηση πρέπει να είναι μεταξύ {min} και {max} ωρών.",

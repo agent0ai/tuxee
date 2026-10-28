@@ -53,6 +53,7 @@ export class TerminalView implements View {
     private control = button(t("app.takeControl"), 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = t("common.terminal");
     private archiveView?: HTMLElement;
+    private terminalPane = el('div', 'terminal-pane');
     private updateArchiveScroll = () => {};
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
@@ -78,7 +79,7 @@ export class TerminalView implements View {
         this.control.hidden = true;
         const controls = root.closest('.panel')!.querySelector('.panel-tools')!;
         controls.prepend(this.control);
-        root.append(this.surface);
+        root.append(this.terminalPane); this.terminalPane.append(this.surface);
         this.surface.append(this.host);
         const dropTarget = root.closest<HTMLElement>('.panel')!;
         registerFileDrop(dropTarget, {
@@ -333,7 +334,7 @@ export class TerminalView implements View {
             }
         });
         installTerminalTouch(this.term, this.events.signal);
-        this.display = new TerminalDisplay(root, this.surface, () => this.panel.terminal, () => { this.resize(); this.focusInput(); }, this.hooks.user);
+        this.display = new TerminalDisplay(root, this.terminalPane, () => this.panel.terminal, () => { this.resize(); this.focusInput(); }, this.hooks.user);
         focusPanelChrome(root, () => { if (this.display.visible) this.display.focusContent(); else this.focusInput(); }, this.events.signal);
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.input(data, true));
@@ -474,8 +475,7 @@ export class TerminalView implements View {
             throw error;
         }
         if (this.disposed || this.closing || this.panel.terminal !== terminal) return;
-        if (archive && (archive.version !== 1 || !archive.normal || typeof archive.normal.text !== 'string' ||
-            !['normal', 'alternate'].includes(archive.active) || archive.alternate && typeof archive.alternate.text !== 'string')) throw Error(t("term.invalidTerminalOutputFrame"));
+        if (archive && (archive.version !== 2 || typeof archive.text !== 'string')) throw Error(t("term.invalidTerminalOutputFrame"));
         this.ended = true; this.ready = false; this.state('ended'); this.discardInput(); this.closeText();
         clearTimeout(this.reconnect);
         const socket = this.socket; this.socket = undefined; socket?.close();
@@ -494,22 +494,12 @@ export class TerminalView implements View {
             }
         });
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
-        const buffers = el('select'); buffers.setAttribute('aria-label', t("term.archiveBuffer"));
-        for (const [value, label] of [['normal', t("app.shell")], ['alternate', t("term.lastApplication")]]) {
-            if (value === 'alternate' && !archive?.alternate) continue;
-            const option = el('option', '', label); option.value = value; buffers.append(option);
-        }
-        buffers.value = archive?.active === 'alternate' && archive.alternate ? 'alternate' : 'normal';
-        buffers.hidden = !archive?.alternate;
         const top = button(t("term.jumpToTop"), 'ArrowUp', () => { pre.scrollTop = 0; pre.focus({preventScroll:true}); });
         const bottom = button(t("term.jumpToBottom"), 'ArrowDown', () => { pre.scrollTop = pre.scrollHeight; pre.focus({preventScroll:true}); });
         const updateScroll = this.updateArchiveScroll = () => { top.disabled = pre.scrollTop <= 0; bottom.disabled = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 1; };
-        const paint = () => {
-            const frame = archive?.[buffers.value]; pre.textContent = frame?.text || '';
-            pre.title = frame?.capturedAt ? new Date(frame.capturedAt).toLocaleString(locale()) : '';
-            pre.scrollTop = buffers.value === 'normal' ? pre.scrollHeight : 0; updateScroll();
-        };
-        buffers.onchange = paint; pre.onscroll = updateScroll;
+        pre.textContent = archive?.text || '';
+        pre.title = archive?.capturedAt ? new Date(archive.capturedAt).toLocaleString(locale()) : '';
+        pre.onscroll = updateScroll;
         const restart = button(t("term.restartArchive"), undefined, () => {
             if (this.resetting) return;
             this.resetting = restart.disabled = true;
@@ -521,10 +511,9 @@ export class TerminalView implements View {
             })().catch(this.notice).finally(() => { this.resetting = restart.disabled = false; });
         }, 'primary restart-terminal');
         const separator = el('span', 'terminal-footer-separator', '|'); separator.setAttribute('aria-hidden', 'true');
-        left.append(buffers);
         const dead = el('span', 'terminal-dead-label', t("term.postMortem")); dead.title = t("term.postMortem");
         right.append(dead, restart, separator, top, bottom);
-        footer.append(left, right); view.append(pre, footer); this.root.append(view); paint();
+        footer.append(left, right); view.append(pre, footer); this.terminalPane.append(view); pre.scrollTop = pre.scrollHeight; updateScroll();
     }
     private sessionLost(lost: string | undefined) {
         if (this.disposed || this.closing) return;
@@ -551,7 +540,7 @@ export class TerminalView implements View {
             })().catch(error => { this.ended = true; this.notice(error); }).finally(() => { restart.disabled = false; });
         }, 'primary restart-terminal');
         recovery.append(message, restart);
-        this.root.append(recovery);
+        this.terminalPane.append(recovery);
     }
     private async start() {
         let info: TerminalInfo;

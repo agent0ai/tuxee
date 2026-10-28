@@ -8,6 +8,7 @@ import (
 type archiveLine struct {
 	Data     []uint32
 	Length   int
+	Start    int
 	Combined map[string]string
 }
 
@@ -18,7 +19,7 @@ func archiveText(lines []archiveLine) string {
 		if i > 0 {
 			text.WriteByte('\n')
 		}
-		for x := 0; x < line.Length; {
+		for x := line.Start; x < line.Length; {
 			content := line.Data[x*3]
 			if content&0x200000 != 0 {
 				text.WriteString(line.Combined[strconv.Itoa(x)])

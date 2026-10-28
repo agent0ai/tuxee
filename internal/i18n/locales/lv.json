@@ -769,8 +769,6 @@
     "validation.required": "Lūdzu, aizpildiet šo lauku.",
     "term.restartArchive": "Pārstartēt",
     "term.closedArchives": "Aizvērtie",
-    "term.lastApplication": "Pēdējā lietotne",
-    "term.archiveBuffer": "Izvade",
     "term.openArchive": "Atvērt",
     "settings.closedTerminalHistory": "Saglabāt aizvērto termināļu vēsturi (stundas)",
     "backend.server.closedHistoryHoursRange": "Glabāšanas laikam jābūt no {min} līdz {max} stundām.",

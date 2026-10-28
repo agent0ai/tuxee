@@ -769,8 +769,6 @@
     "validation.required": "Vul dit veld in.",
     "term.restartArchive": "Herstarten",
     "term.closedArchives": "Gesloten",
-    "term.lastApplication": "Laatste toepassing",
-    "term.archiveBuffer": "Uitvoer",
     "term.openArchive": "Openen",
     "settings.closedTerminalHistory": "Geschiedenis van gesloten terminals bewaren (uren)",
     "backend.server.closedHistoryHoursRange": "De bewaartijd moet tussen {min} en {max} uur liggen.",

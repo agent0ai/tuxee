@@ -769,8 +769,6 @@
     "validation.required": "Empleneu aquest camp.",
     "term.restartArchive": "Reinicia",
     "term.closedArchives": "Tancats",
-    "term.lastApplication": "Última aplicació",
-    "term.archiveBuffer": "Sortida",
     "term.openArchive": "Obre",
     "settings.closedTerminalHistory": "Conserva l’historial de terminals tancats (hores)",
     "backend.server.closedHistoryHoursRange": "La conservació ha de ser entre {min} i {max} hores.",

@@ -769,8 +769,6 @@
     "validation.required": "Por favor preencha este campo.",
     "term.restartArchive": "Reiniciar",
     "term.closedArchives": "Fechados",
-    "term.lastApplication": "Último aplicativo",
-    "term.archiveBuffer": "Saída",
     "term.openArchive": "Abrir",
     "settings.closedTerminalHistory": "Manter histórico de terminais fechados (horas)",
     "backend.server.closedHistoryHoursRange": "A retenção deve estar entre {min} e {max} horas.",

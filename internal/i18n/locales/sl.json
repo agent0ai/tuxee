@@ -769,8 +769,6 @@
     "validation.required": "Prosimo izpolnite to polje.",
     "term.restartArchive": "Znova zaženi",
     "term.closedArchives": "Zaprti",
-    "term.lastApplication": "Zadnja aplikacija",
-    "term.archiveBuffer": "Izhod",
     "term.openArchive": "Odpri",
     "settings.closedTerminalHistory": "Hrani zgodovino zaprtih terminalov (ure)",
     "backend.server.closedHistoryHoursRange": "Čas hrambe mora biti od {min} do {max} ur.",

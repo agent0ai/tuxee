@@ -769,8 +769,6 @@
     "validation.required": "กรุณากรอกข้อมูลในช่องนี้",
     "term.restartArchive": "เริ่มใหม่",
     "term.closedArchives": "ปิดแล้ว",
-    "term.lastApplication": "แอปล่าสุด",
-    "term.archiveBuffer": "เอาต์พุต",
     "term.openArchive": "เปิด",
     "settings.closedTerminalHistory": "เก็บประวัติเทอร์มินัลที่ปิดแล้ว (ชั่วโมง)",
     "backend.server.closedHistoryHoursRange": "ระยะเวลาเก็บต้องอยู่ระหว่าง {min} ถึง {max} ชั่วโมง",

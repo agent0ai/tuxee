@@ -769,8 +769,6 @@
     "validation.required": "कृपया इस क्षेत्र को भरें।",
     "term.restartArchive": "फिर शुरू करें",
     "term.closedArchives": "बंद",
-    "term.lastApplication": "पिछला ऐप",
-    "term.archiveBuffer": "आउटपुट",
     "term.openArchive": "खोलें",
     "settings.closedTerminalHistory": "बंद टर्मिनलों का इतिहास रखें (घंटे)",
     "backend.server.closedHistoryHoursRange": "इतिहास रखने का समय {min} से {max} घंटे के बीच होना चाहिए।",

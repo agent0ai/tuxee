@@ -26,11 +26,11 @@ func TestTerminalArchiveRetentionAndIsolation(t *testing.T) {
 		}
 		return out
 	}
-	archive := json.RawMessage(`{"version":1,"active":"normal","normal":{"columns":80,"rows":24,"capturedAt":"2026-10-28T00:00:00Z","text":"界 🦊\nsecond line  "}}`)
+	archive := json.RawMessage(`{"version":2,"capturedAt":"2026-10-28T00:00:00Z","text":"界 🦊\nsecond line  "}`)
 	record := TerminalRecord{Name: "saved", Directory: home, State: "live"}
 	r := Request{Operation: "terminal-record", Instance: "one", Path: id, Terminal: &record, Archive: archive}
 	run(r)
-	plain, err := os.ReadFile(filepath.Join(base, id, "normal.txt"))
+	plain, err := os.ReadFile(filepath.Join(base, id, "output.txt"))
 	if err != nil || string(plain) != "界 🦊\nsecond line  " {
 		t.Fatalf("not searchable plain text: %q %v", plain, err)
 	}
@@ -91,7 +91,7 @@ func TestTerminalArchiveRetentionAndIsolation(t *testing.T) {
 		t.Fatal("zero-hour expiry failed")
 	}
 	run(r)
-	path := filepath.Join(base, id, "normal.txt")
+	path := filepath.Join(base, id, "output.txt")
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
@@ -100,5 +100,29 @@ func TestTerminalArchiveRetentionAndIsolation(t *testing.T) {
 	}
 	if _, err := terminalFiles(ctx, Request{Operation: "terminal-archive", Instance: "one", Path: id}); err == nil {
 		t.Fatal("followed archive symlink")
+	}
+}
+
+func TestTerminalArchiveEarlyPreview(t *testing.T) {
+	path := t.TempDir()
+	for name, data := range map[string]string{
+		"output.json":   `{"version":1,"normal":{"capturedAt":"2026-10-28T00:00:00Z"},"alternate":{"capturedAt":"2026-10-28T00:00:01Z"}}`,
+		"normal.txt":    "shell before app\n     \n     ",
+		"alternate.txt": "actual app screen\n     ",
+	} {
+		if err := os.WriteFile(filepath.Join(path, name), []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := readTerminalArchive(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value TerminalArchive
+	if err := json.Unmarshal(data, &value); err != nil {
+		t.Fatal(err)
+	}
+	if value.Version != 2 || value.Text != "shell before app\nactual app screen" {
+		t.Fatalf("discarded early preview output: %s", data)
 	}
 }

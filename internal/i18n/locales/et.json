@@ -769,8 +769,6 @@
     "validation.required": "Palun täitke see väli.",
     "term.restartArchive": "Taaskäivita",
     "term.closedArchives": "Suletud",
-    "term.lastApplication": "Viimane rakendus",
-    "term.archiveBuffer": "Väljund",
     "term.openArchive": "Ava",
     "settings.closedTerminalHistory": "Säilita suletud terminalide ajalugu (tundi)",
     "backend.server.closedHistoryHoursRange": "Säilitusaeg peab olema {min} kuni {max} tundi.",

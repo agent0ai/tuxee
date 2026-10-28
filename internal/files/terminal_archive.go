@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 	"tuxee/internal/i18n"
 )
@@ -173,27 +174,15 @@ func terminalArchive(base string, r Request) (Response, error) {
 	}
 }
 
-type TerminalFrame struct {
-	Columns    int       `json:"columns"`
-	Rows       int       `json:"rows"`
-	CapturedAt time.Time `json:"capturedAt"`
-	Text       string    `json:"text,omitempty"`
-}
 type TerminalArchive struct {
-	Version   int            `json:"version"`
-	Active    string         `json:"active"`
-	Normal    TerminalFrame  `json:"normal"`
-	Alternate *TerminalFrame `json:"alternate,omitempty"`
+	Version    int       `json:"version"`
+	CapturedAt time.Time `json:"capturedAt"`
+	Text       string    `json:"text"`
 }
 
 func validateTerminalArchive(value TerminalArchive) error {
-	if value.Version != 1 || (value.Active != "normal" && value.Active != "alternate") {
+	if value.Version != 2 || value.CapturedAt.IsZero() || len(value.Text) > MaxTerminalArchiveBytes {
 		return i18n.New("backend.files.invalidWorkerRequest")
-	}
-	for _, frame := range []*TerminalFrame{&value.Normal, value.Alternate} {
-		if frame != nil && (frame.Columns < 2 || frame.Columns > 500 || frame.Rows < 1 || frame.Rows > 200 || frame.CapturedAt.IsZero() || len(frame.Text) > MaxTerminalArchiveBytes) {
-			return i18n.New("backend.files.invalidWorkerRequest")
-		}
 	}
 	return nil
 }
@@ -206,15 +195,10 @@ func writeTerminalArchive(path string, data []byte) error {
 	if err := validateTerminalArchive(value); err != nil {
 		return err
 	}
-	for name, frame := range map[string]*TerminalFrame{"normal": &value.Normal, "alternate": value.Alternate} {
-		if frame == nil {
-			continue
-		}
-		if err := replaceFile(filepath.Join(path, name+".txt"), []byte(frame.Text)); err != nil {
-			return err
-		}
-		frame.Text = ""
+	if err := replaceFile(filepath.Join(path, "output.txt"), []byte(value.Text)); err != nil {
+		return err
 	}
+	value.Text = ""
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -234,18 +218,43 @@ func readTerminalArchive(path string) (json.RawMessage, error) {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return nil, err
 	}
-	if err := validateTerminalArchive(value); err != nil {
-		return nil, err
-	}
-	for name, frame := range map[string]*TerminalFrame{"normal": &value.Normal, "alternate": value.Alternate} {
-		if frame == nil {
-			continue
+	if value.Version == 1 {
+		// Early previews saved separate buffers without transition positions.
+		var old struct {
+			Normal struct {
+				CapturedAt time.Time `json:"capturedAt"`
+			} `json:"normal"`
+			Alternate *struct {
+				CapturedAt time.Time `json:"capturedAt"`
+			} `json:"alternate"`
 		}
-		data, err := readTerminalFile(filepath.Join(path, name+".txt"), MaxTerminalArchiveBytes)
+		if err := json.Unmarshal(data, &old); err != nil {
+			return nil, err
+		}
+		normal, err := readTerminalFile(filepath.Join(path, "normal.txt"), MaxTerminalArchiveBytes)
 		if err != nil {
 			return nil, err
 		}
-		frame.Text = string(data)
+		value = TerminalArchive{Version: 2, CapturedAt: old.Normal.CapturedAt, Text: strings.TrimRight(string(normal), " \r\n")}
+		if old.Alternate != nil {
+			alternate, err := readTerminalFile(filepath.Join(path, "alternate.txt"), MaxTerminalArchiveBytes)
+			if err != nil {
+				return nil, err
+			}
+			if value.Text != "" {
+				value.Text += "\n"
+			}
+			value.Text += strings.TrimRight(string(alternate), " \r\n")
+		}
+	} else {
+		data, err = readTerminalFile(filepath.Join(path, "output.txt"), MaxTerminalArchiveBytes)
+		if err != nil {
+			return nil, err
+		}
+		value.Text = string(data)
+	}
+	if err := validateTerminalArchive(value); err != nil {
+		return nil, err
 	}
 	return json.Marshal(value)
 }

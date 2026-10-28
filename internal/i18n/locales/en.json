@@ -769,8 +769,6 @@
     "validation.required": "Please fill out this field.",
     "term.restartArchive": "Restart",
     "term.closedArchives": "Closed",
-    "term.lastApplication": "Last application",
-    "term.archiveBuffer": "Output",
     "term.openArchive": "Open",
     "settings.closedTerminalHistory": "Keep closed terminals history (hours)",
     "backend.server.closedHistoryHoursRange": "History retention must be between {min} and {max} hours.",

@@ -769,8 +769,6 @@
     "validation.required": "لطفا این فیلد را پر کنید",
     "term.restartArchive": "راه‌اندازی مجدد",
     "term.closedArchives": "بسته‌شده",
-    "term.lastApplication": "آخرین برنامه",
-    "term.archiveBuffer": "خروجی",
     "term.openArchive": "باز کردن",
     "settings.closedTerminalHistory": "نگهداری تاریخچهٔ پایانه‌های بسته‌شده (ساعت)",
     "backend.server.closedHistoryHoursRange": "مدت نگهداری باید بین {min} و {max} ساعت باشد.",

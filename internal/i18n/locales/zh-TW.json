@@ -769,8 +769,6 @@
     "validation.required": "請填寫此欄位。",
     "term.restartArchive": "重新啟動",
     "term.closedArchives": "已關閉",
-    "term.lastApplication": "最後的應用程式",
-    "term.archiveBuffer": "輸出",
     "term.openArchive": "開啟",
     "settings.closedTerminalHistory": "保留已關閉終端機的歷史（小時）",
     "backend.server.closedHistoryHoursRange": "保留時間必須介於 {min} 到 {max} 小時之間。",

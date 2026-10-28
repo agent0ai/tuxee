@@ -769,8 +769,6 @@
     "validation.required": "אנא מלא שדה זה.",
     "term.restartArchive": "הפעלה מחדש",
     "term.closedArchives": "סגורים",
-    "term.lastApplication": "היישום האחרון",
-    "term.archiveBuffer": "פלט",
     "term.openArchive": "פתיחה",
     "settings.closedTerminalHistory": "שמירת היסטוריית מסופים סגורים (שעות)",
     "backend.server.closedHistoryHoursRange": "משך השמירה חייב להיות בין {min} ל־{max} שעות.",

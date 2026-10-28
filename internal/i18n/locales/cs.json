@@ -769,8 +769,6 @@
     "validation.required": "Vyplňte toto pole.",
     "term.restartArchive": "Restartovat",
     "term.closedArchives": "Zavřené",
-    "term.lastApplication": "Poslední aplikace",
-    "term.archiveBuffer": "Výstup",
     "term.openArchive": "Otevřít",
     "settings.closedTerminalHistory": "Uchovat historii zavřených terminálů (hodiny)",
     "backend.server.closedHistoryHoursRange": "Doba uchování musí být od {min} do {max} hodin.",

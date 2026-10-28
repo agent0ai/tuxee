@@ -769,8 +769,6 @@
     "validation.required": "Будь ласка, заповніть це поле.",
     "term.restartArchive": "Перезапустити",
     "term.closedArchives": "Закриті",
-    "term.lastApplication": "Остання програма",
-    "term.archiveBuffer": "Вивід",
     "term.openArchive": "Відкрити",
     "settings.closedTerminalHistory": "Зберігати історію закритих терміналів (години)",
     "backend.server.closedHistoryHoursRange": "Термін зберігання має бути від {min} до {max} годин.",

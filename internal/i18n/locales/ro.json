@@ -769,8 +769,6 @@
     "validation.required": "Vă rugăm să completați acest câmp.",
     "term.restartArchive": "Repornește",
     "term.closedArchives": "Închise",
-    "term.lastApplication": "Ultima aplicație",
-    "term.archiveBuffer": "Ieșire",
     "term.openArchive": "Deschide",
     "settings.closedTerminalHistory": "Păstrează istoricul terminalelor închise (ore)",
     "backend.server.closedHistoryHoursRange": "Perioada de păstrare trebuie să fie între {min} și {max} ore.",

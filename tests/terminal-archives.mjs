@@ -53,7 +53,7 @@ try {
     const create = (command, name='Archive fixture') => json('/terminals','POST',{directory:user.home,columns:80,rows:24,command,name},201);
     const output = id => json(`/terminals/${id}/archive`);
     const folder = id => `${user.home}/.local/state/tuxee/terminals/${id}`;
-    const disk = async id => ({ normal: { text: await readFile(folder(id)+'/normal.txt', 'utf8') } });
+    const disk = async id => ({ text: await readFile(folder(id)+'/output.txt', 'utf8') });
     const ended = id => wait(async()=>{const info=await json(`/terminals/${id}`);return info.exited && info;},'terminal did not end');
     let settings={theme:'dark',current:'archive',workspaces:[{id:'archive',name:'Archives',columns:4,rows:2,active:'primary',panels:[]}]};
     const mount = async id => {
@@ -63,9 +63,9 @@ try {
     const natural=await create("printf 'UNICODE 界 🦊 é\\n'; for i in $(seq 1 200); do printf '%080d\\n' $i; done; sleep 1");
     await json(`/terminals/${natural.id}/input-history`,'POST',{text:'original\n日本語 🦊'});
     await ended(natural.id);
-    const saved=await output(natural.id); assert.ok(saved.normal.text.includes('UNICODE 界 🦊 é')); assert.equal(saved.active,'normal');
+    const saved=await output(natural.id); assert.ok(saved.text.includes('UNICODE 界 🦊 é')); assert.equal(saved.version,2);
     assert.deepEqual(JSON.parse(await readFile(folder(natural.id)+'/input-history.json')),['original\n日本語 🦊']);
-    for (const file of ['meta.json','input-history.json','normal.txt','output.json']) {
+    for (const file of ['meta.json','input-history.json','output.txt','output.json']) {
         const info=await stat(folder(natural.id)+'/'+file); assert.equal(info.uid,user.uid); assert.equal(info.mode & 0o777,0o600);
     }
     const second=await browser.newContext(); const otherCSRF=await login(other,second);
@@ -81,12 +81,12 @@ try {
     await mount(natural.id);
     const page=await context.newPage(); page.on('pageerror',error=>errors.push(error.message)); page.setDefaultTimeout(10000);
     await page.goto(base); await page.locator('.terminal-archive pre').waitFor();
-    assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.normal.text);
+    assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
     assert.equal(await page.locator('.terminal-footer:visible [data-action=browse-shell-folder]').count(),0);
     assert.equal(await page.locator('.terminal-footer:visible button').count(),3);
     assert.equal(await page.locator('.terminal-dead-label').textContent(),'Post mortem');
     await page.locator('.terminal-archive pre').focus(); await page.keyboard.press('Control+a'); await page.keyboard.press('Control+c');
-    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),saved.normal.text);
+    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),saved.text);
     await mkdir('test-results',{recursive:true});
     for (const theme of ['dark','light']) for (const width of [1280,390,320]) {
         settings.theme=theme; await json('/settings','PUT',settings); await page.setViewportSize({width,height:850}); await page.reload(); await page.locator('.terminal-archive pre').waitFor();
@@ -97,6 +97,10 @@ try {
         await page.getByRole('button',{name:'Jump to bottom',exact:true}).click();
         assert.ok(await page.locator('.terminal-archive pre').evaluate(p=>p.scrollTop>0));
         assert.equal(await page.locator('.terminal-archive pre').evaluate(p=>getComputedStyle(p).color), await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--text').trim()).then(c=>page.evaluate(c=>{const e=document.createElement('span');e.style.color=c;document.body.append(e);const color=getComputedStyle(e).color;e.remove();return color;},c)));
+        await page.locator(width<760?'[data-component-name=primary]':'.terminal-tab:visible').click();
+        assert.equal(await page.locator('.terminal-surface:visible').count(),0,'archive header stays read-only');
+        assert.equal(await page.locator('.terminal-rendering:visible').count(),0);
+        assert.equal(await page.locator('.terminal-dead-label').evaluate(p=>getComputedStyle(p).color),theme==='dark'?'rgb(255, 208, 120)':'rgb(166, 101, 0)');
         const bounds=await page.locator('.terminal-archive .terminal-footer').evaluate(f=>({width:f.clientWidth,scroll:f.scrollWidth})); assert.ok(bounds.scroll<=bounds.width+1,JSON.stringify(bounds));
         await page.screenshot({path:`test-results/terminal-archive-${theme}-${width}.png`});
     }
@@ -106,7 +110,7 @@ try {
     await page.route(base+'/api/terminals', route=>route.request().method()==='POST' ? route.fulfill({status:409,json:{error:'Test archive create failure'}}) : route.continue());
     await page.getByRole('button',{name:'Restart',exact:true}).click();
     await page.getByText('Test archive create failure',{exact:true}).waitFor();
-    assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.normal.text);
+    assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
     await page.unroute(base+'/api/terminals');
     await page.route(base+'/api/settings', route=>route.request().method()==='PUT' ? route.fulfill({status:409,json:{error:'Test archive save failure'}}) : route.continue());
     await page.getByRole('button',{name:'Restart',exact:true}).click();
@@ -122,6 +126,8 @@ try {
     const openRetained=async()=>{ await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
     await openRetained();
     const dialog=page.getByRole('dialog',{name:'Retained terminals',exact:true});
+    const spacing=await dialog.locator('.retained-row').first().evaluate(row=>({top:parseFloat(getComputedStyle(row).paddingTop),bottom:parseFloat(getComputedStyle(row).paddingBottom)}));
+    assert.ok(spacing.top>=14 && spacing.top===spacing.bottom,'uniform first-row padding');
     const row=dialog.locator('.retained-row').filter({hasText:'Archive fixture'}); await row.getByRole('button',{name:'Close',exact:true}).click();
     await dialog.getByRole('tab',{name:'Closed',exact:true}).click(); await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'Open',exact:true}).waitFor();
     assert.ok((await json(`/terminals/${natural.id}`)).closedAt); assert.deepEqual(await output(natural.id),saved);
@@ -134,30 +140,41 @@ try {
     assert.equal((await api('/settings','PUT',{...settings,closedTerminalHistoryHours:1.5})).status(),400);
     await page.close();
     const killed=await create("printf 'KILLED_OUTPUT\\n'; sleep 300",'Killed');
-    await wait(async()=> (await output(killed.id))?.normal.text.includes('KILLED_OUTPUT'),'kill output'); process.kill(killed.pid,'SIGKILL'); await ended(killed.id);
-    assert.ok((await output(killed.id)).normal.text.includes('KILLED_OUTPUT')); assert.equal((await json(`/terminals/${killed.id}`)).closedAt,undefined);
-    const mc=await create("printf 'BEFORE_MC\\n'; mc; printf 'AFTER_MC\\n'",'Midnight Commander');
+    await wait(async()=> (await output(killed.id))?.text.includes('KILLED_OUTPUT'),'kill output'); process.kill(killed.pid,'SIGKILL'); await ended(killed.id);
+    assert.ok((await output(killed.id)).text.includes('KILLED_OUTPUT')); assert.equal((await json(`/terminals/${killed.id}`)).closedAt,undefined);
+    const mc=await create("printf 'BEFORE_MC\\n'; mc -u; printf 'BETWEEN_MC\\n'; mc -u; printf 'AFTER_MC\\n'",'Midnight Commander');
     await mount(mc.id);
     const mcPage=await context.newPage(); mcPage.on('pageerror',error=>errors.push(error.message)); await mcPage.goto(base); await mcPage.locator('.terminal-view[data-state=connected]').waitFor();
-    await wait(async()=>{ const a=await output(mc.id); return a?.active==='alternate' && a.alternate?.text.includes('Help'); },'real MC did not render');
-    await mcPage.locator('.xterm-helper-textarea').focus(); await mcPage.keyboard.press('F10');
+    for (const visit of [1,2]) {
+        await wait(async()=>{ const a=await output(mc.id); return (a?.text.match(/Help/g)||[]).length>=visit; },'real MC did not render');
+        await mcPage.locator('.xterm-helper-textarea').focus(); await mcPage.keyboard.press('F10');
+    }
     await ended(mc.id); await mcPage.locator('.terminal-archive').waitFor();
-    const mcArchive=await output(mc.id); assert.equal(mcArchive.active,'normal'); assert.ok(mcArchive.normal.text.includes('BEFORE_MC')); assert.ok(mcArchive.normal.text.includes('AFTER_MC')); assert.ok(mcArchive.alternate.text.includes('Help'));
-    await mcPage.locator('.terminal-archive select').selectOption('alternate'); assert.equal(await mcPage.locator('.terminal-archive pre').textContent(),mcArchive.alternate.text);
+    const mcArchive=await output(mc.id), text=mcArchive.text;
+    assert.ok(text.indexOf('BEFORE_MC')<text.indexOf('Help'));
+    assert.ok(text.indexOf('Help')<text.indexOf('BETWEEN_MC'));
+    assert.ok(text.indexOf('BETWEEN_MC')<text.lastIndexOf('Help'));
+    assert.ok(text.lastIndexOf('Help')<text.indexOf('AFTER_MC'));
+    for (const token of ['BEFORE_MC','BETWEEN_MC','AFTER_MC']) assert.equal(text.split(token).length-1,1);
+    assert.equal(text.trimEnd().split('\n').at(-1),'AFTER_MC');
+    assert.equal(await mcPage.locator('.terminal-archive select').count(),0);
+    assert.equal(await mcPage.locator('.terminal-archive pre').textContent(),text);
+    await mcPage.locator('.terminal-tab:visible').click();
+    assert.equal(await mcPage.locator('.terminal-surface:visible').count(),0,'header must not expose the live loader');
     await mcPage.screenshot({path:'test-results/terminal-archive-mc.png'}); await mcPage.close();
     const shutdown=await create("printf 'SHUTDOWN_OUTPUT\\n'; trap 'printf \"\\033[2J\"; exit' HUP TERM; while :; do sleep 1; done",'Shutdown');
-    await wait(async()=> (await output(shutdown.id))?.normal.text.includes('SHUTDOWN_OUTPUT'),'shutdown output');
+    await wait(async()=> (await output(shutdown.id))?.text.includes('SHUTDOWN_OUTPUT'),'shutdown output');
     await mount(shutdown.id); await stop(); await start(); csrf=await login();
     assert.equal((await json('/me')).settings.workspaces[0].panels[0].terminal,shutdown.id);
-    assert.ok((await output(shutdown.id)).normal.text.includes('SHUTDOWN_OUTPUT')); assert.equal((await json(`/terminals/${shutdown.id}`)).closedAt,undefined);
+    assert.ok((await output(shutdown.id)).text.includes('SHUTDOWN_OUTPUT')); assert.equal((await json(`/terminals/${shutdown.id}`)).closedAt,undefined);
     const crash=await create("printf 'CRASH_CHECKPOINT\\n'; sleep 300",'Crash');
-    await wait(async()=>{try{return (await disk(crash.id)).normal.text.includes('CRASH_CHECKPOINT');}catch{return false;}},'periodic checkpoint missing');
+    await wait(async()=>{try{return (await disk(crash.id)).text.includes('CRASH_CHECKPOINT');}catch{return false;}},'periodic checkpoint missing');
     await stop('SIGKILL'); await start(); csrf=await login();
-    assert.ok((await output(crash.id)).normal.text.includes('CRASH_CHECKPOINT')); assert.equal((await json(`/terminals/${crash.id}`)).closedAt,undefined);
+    assert.ok((await output(crash.id)).text.includes('CRASH_CHECKPOINT')); assert.equal((await json(`/terminals/${crash.id}`)).closedAt,undefined);
     const metadata=JSON.parse(await readFile(folder(natural.id)+'/meta.json')); metadata.closedAt=new Date(Date.now()-169*3600000).toISOString();
     await writeFile(folder(natural.id)+'/meta.json',JSON.stringify(metadata));
     csrf=await login(); assert.equal((await api(`/terminals/${natural.id}`)).status(),404);
-    assert.ok((await output(crash.id)).normal.text.includes('CRASH_CHECKPOINT'),'unclosed archives must never expire');
+    assert.ok((await output(crash.id)).text.includes('CRASH_CHECKPOINT'),'unclosed archives must never expire');
     const registry=JSON.parse(await readFile(state+'/state/terminal-accounts.json')); assert.equal(registry[user.name],user.uid); assert.equal(registry[other.name],other.uid);
     await mount(mc.id);
     const mobile=await context.newPage(); mobile.on('pageerror',error=>errors.push(error.message));
@@ -166,10 +183,10 @@ try {
         if (index===20) { console.log('Waiting for the real login rate-limit window before remaining languages.'); await new Promise(resolve=>setTimeout(resolve,60000)); }
         const language=file.replace('.json',''); csrf=await login(user,context,language);
         await mobile.goto(base); await mobile.locator('.terminal-archive pre').waitFor();
-        await mobile.locator('.terminal-archive select').selectOption('alternate');
+        assert.equal(await mobile.locator('.terminal-archive select').count(),0);
         const bounds=await mobile.locator('.terminal-archive .terminal-footer').evaluate(f=>({width:f.clientWidth,scroll:f.scrollWidth}));
         assert.ok(bounds.scroll<=bounds.width+1,language+': '+JSON.stringify(bounds));
-        assert.equal(await mobile.locator('.terminal-archive pre').textContent(),mcArchive.alternate.text);
+        assert.equal(await mobile.locator('.terminal-archive pre').textContent(),mcArchive.text);
         if (['ar','cs'].includes(language)) await mobile.screenshot({path:`test-results/terminal-archive-${language}-320.png`});
     }
     await mobile.close();

@@ -769,8 +769,6 @@
     "validation.required": "Vennligst fyll ut dette feltet.",
     "term.restartArchive": "Start på nytt",
     "term.closedArchives": "Lukkede",
-    "term.lastApplication": "Siste program",
-    "term.archiveBuffer": "Utdata",
     "term.openArchive": "Åpne",
     "settings.closedTerminalHistory": "Behold historikk for lukkede terminaler (timer)",
     "backend.server.closedHistoryHoursRange": "Lagringstiden må være mellom {min} og {max} timer.",

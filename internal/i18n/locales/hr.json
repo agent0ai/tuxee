@@ -769,8 +769,6 @@
     "validation.required": "Molimo ispunite ovo polje.",
     "term.restartArchive": "Ponovno pokreni",
     "term.closedArchives": "Zatvoreni",
-    "term.lastApplication": "Zadnja aplikacija",
-    "term.archiveBuffer": "Izlaz",
     "term.openArchive": "Otvori",
     "settings.closedTerminalHistory": "Čuvaj povijest zatvorenih terminala (sati)",
     "backend.server.closedHistoryHoursRange": "Vrijeme čuvanja mora biti od {min} do {max} sati.",

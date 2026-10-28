@@ -769,8 +769,6 @@
     "validation.required": "Vui lòng điền vào trường này.",
     "term.restartArchive": "Khởi động lại",
     "term.closedArchives": "Đã đóng",
-    "term.lastApplication": "Ứng dụng cuối",
-    "term.archiveBuffer": "Đầu ra",
     "term.openArchive": "Mở",
     "settings.closedTerminalHistory": "Giữ lịch sử terminal đã đóng (giờ)",
     "backend.server.closedHistoryHoursRange": "Thời gian lưu phải từ {min} đến {max} giờ.",
