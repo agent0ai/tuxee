@@ -24,6 +24,7 @@ export function parseCatalog(source) {
     if (Object.keys(catalog).some(key => !['name', 'texts'].includes(key))) throw Error('unexpected catalog field');
     for (const [key, value] of Object.entries(catalog.texts)) {
         if (!/^[a-zA-Z][a-zA-Z0-9]*(?:\.[a-zA-Z0-9]+)+$/.test(key) || typeof value !== 'string') throw Error(`invalid message: ${key}`);
+        if (!value.trim()) throw Error(`empty message: ${key}`);
     }
     return catalog;
 }
@@ -118,6 +119,9 @@ function selfTest() {
     const en = parseCatalog('{"name":"English","texts":{"test.message":"Hello {name}"}}');
     assert.throws(() => parseCatalog('{"name":"English","texts":{"test.message":"a","test.message":"b"}}'), /duplicate/);
     assert.throws(() => parseCatalog('{"name":"English","texts":{},"messages":{}}'), /unexpected catalog field/);
+    for (const value of ['', ' ', '\t\r\n', '\u00a0\u2003']) {
+        assert.throws(() => parseCatalog(JSON.stringify({ name: 'English', texts: { 'test.message': value } })), /empty message: test\.message/);
+    }
     const complete = Object.fromEntries(requiredLanguages.map(code => [code, en]));
     assert.deepEqual(compare({ ...complete, cs: { name: 'Čeština', texts: { 'test.message': 'Ahoj {name}' } } }), []);
     for (const code of requiredLanguages) {

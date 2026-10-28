@@ -303,7 +303,7 @@
     "backend.terminal.takeControlBeforeResizing": "Assumi il controllo prima di ridimensionare",
     "backend.terminal.takeControlBeforeSendingInput": "prendere il controllo prima di inviare input",
     "backend.terminal.terminalClosed": "terminale chiuso",
-    "backend.terminal.terminalDisplayIsClosed": "",
+    "backend.terminal.terminalDisplayIsClosed": "il display del terminale è chiuso",
     "backend.terminal.terminalDisplayMetadataIsTooLarge": "i metadati del display del terminale sono troppo grandi",
     "backend.terminal.terminalDisplayOperationTimedOut": "il funzionamento del display del terminale è scaduto",
     "backend.terminal.terminalInputBufferIsFull": "il buffer di input del terminale è pieno",
