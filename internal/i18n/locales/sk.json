@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Znova pripojiť terminál",
     "term.renameTerminal": "Premenovať terminál",
     "term.resetConfirmationTitle": "Obnoviť terminál?",
-    "term.resetConsequences": "Týmto sa ukončia všetky príkazy a grafické aplikácie v tomto termináli a spustí sa nový shell v predvolenom adresári. Výstup terminálu a neuložená práca sa stratia. Túto akciu nemožno vrátiť späť.",
+    "term.resetConsequences": "Týmto sa ukončia všetky príkazy a grafické aplikácie v tomto termináli a spustí sa nový shell v predvolenom adresári. Neuložená práca sa stratí. Túto akciu nemožno vrátiť späť.",
     "term.resetTerminal": "Obnoviť terminál",
     "term.resizeTerminalInput": "Zmeniť veľkosť vstupu terminálu",
     "term.restartTerminal": "Reštartovať terminál",
@@ -766,6 +766,14 @@
     "updates.updates": "Aktualizácie",
     "updates.versionAvailable": "{version} k dispozícii",
     "validation.invalid": "Zadajte platnú hodnotu.",
-    "validation.required": "Vyplňte toto pole."
+    "validation.required": "Vyplňte toto pole.",
+    "term.restartArchive": "Reštartovať",
+    "term.closedArchives": "Zatvorené",
+    "term.lastApplication": "Posledná aplikácia",
+    "term.archiveBuffer": "Výstup",
+    "term.openArchive": "Otvoriť",
+    "settings.closedTerminalHistory": "Uchovať históriu zatvorených terminálov (hodiny)",
+    "backend.server.closedHistoryHoursRange": "Doba uchovania musí byť od {min} do {max} hodín.",
+    "term.postMortem": "Post mortem"
   }
 }

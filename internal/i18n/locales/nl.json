@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Sluit de terminal opnieuw aan",
     "term.renameTerminal": "Naam van terminal wijzigen",
     "term.resetConfirmationTitle": "Terminal resetten?",
-    "term.resetConsequences": "Hierdoor worden alle opdrachten en GUI-apps in deze terminal beëindigd en wordt een nieuwe shell in de standaardmap gestart. Terminaluitvoer en niet-opgeslagen werk gaan verloren. Dit kan niet ongedaan worden gemaakt.",
+    "term.resetConsequences": "Hierdoor worden alle opdrachten en GUI-apps in deze terminal beëindigd en wordt een nieuwe shell in de standaardmap gestart. Niet-opgeslagen werk gaat verloren. Dit kan niet ongedaan worden gemaakt.",
     "term.resetTerminal": "Terminal opnieuw instellen",
     "term.resizeTerminalInput": "Formaat van terminalinvoer wijzigen",
     "term.restartTerminal": "Start de terminal opnieuw",
@@ -766,6 +766,14 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} beschikbaar",
     "validation.invalid": "Voer een geldige waarde in.",
-    "validation.required": "Vul dit veld in."
+    "validation.required": "Vul dit veld in.",
+    "term.restartArchive": "Herstarten",
+    "term.closedArchives": "Gesloten",
+    "term.lastApplication": "Laatste toepassing",
+    "term.archiveBuffer": "Uitvoer",
+    "term.openArchive": "Openen",
+    "settings.closedTerminalHistory": "Geschiedenis van gesloten terminals bewaren (uren)",
+    "backend.server.closedHistoryHoursRange": "De bewaartijd moet tussen {min} en {max} uur liggen.",
+    "term.postMortem": "Post mortem"
   }
 }

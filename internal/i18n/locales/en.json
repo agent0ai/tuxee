@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Reconnect terminal",
     "term.renameTerminal": "Rename terminal",
     "term.resetConfirmationTitle": "Reset terminal?",
-    "term.resetConsequences": "This will kill all commands and GUI apps in this terminal and start a new shell in the default directory. Terminal output and unsaved work will be lost. This cannot be undone.",
+    "term.resetConsequences": "This will kill all commands and GUI apps in this terminal and start a new shell in the default directory. Unsaved work will be lost. This cannot be undone.",
     "term.resetTerminal": "Reset terminal",
     "term.resizeTerminalInput": "Resize terminal input",
     "term.restartTerminal": "Restart terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} available",
     "validation.invalid": "Please enter a valid value.",
-    "validation.required": "Please fill out this field."
+    "validation.required": "Please fill out this field.",
+    "term.restartArchive": "Restart",
+    "term.closedArchives": "Closed",
+    "term.lastApplication": "Last application",
+    "term.archiveBuffer": "Output",
+    "term.openArchive": "Open",
+    "settings.closedTerminalHistory": "Keep closed terminals history (hours)",
+    "backend.server.closedHistoryHoursRange": "History retention must be between {min} and {max} hours.",
+    "term.postMortem": "Post mortem"
   }
 }

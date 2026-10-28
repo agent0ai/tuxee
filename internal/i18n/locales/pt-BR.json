@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Reconectar terminal",
     "term.renameTerminal": "Renomear terminal",
     "term.resetConfirmationTitle": "Redefinir terminal?",
-    "term.resetConsequences": "Isso eliminará todos os comandos e aplicativos GUI neste terminal e iniciará um novo shell no diretório padrão. A saída do terminal e o trabalho não salvo serão perdidos. Isto não pode ser desfeito.",
+    "term.resetConsequences": "Isso eliminará todos os comandos e aplicativos GUI neste terminal e iniciará um novo shell no diretório padrão. O trabalho não salvo será perdido. Isto não pode ser desfeito.",
     "term.resetTerminal": "Redefinir terminal",
     "term.resizeTerminalInput": "Redimensionar entrada do terminal",
     "term.restartTerminal": "Reinicie o terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Atualizações",
     "updates.versionAvailable": "{version} disponível",
     "validation.invalid": "Insira um valor válido.",
-    "validation.required": "Por favor preencha este campo."
+    "validation.required": "Por favor preencha este campo.",
+    "term.restartArchive": "Reiniciar",
+    "term.closedArchives": "Fechados",
+    "term.lastApplication": "Último aplicativo",
+    "term.archiveBuffer": "Saída",
+    "term.openArchive": "Abrir",
+    "settings.closedTerminalHistory": "Manter histórico de terminais fechados (horas)",
+    "backend.server.closedHistoryHoursRange": "A retenção deve estar entre {min} e {max} horas.",
+    "term.postMortem": "Post mortem"
   }
 }

@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Ühendage terminal uuesti",
     "term.renameTerminal": "Nimetage terminal ümber",
     "term.resetConfirmationTitle": "Kas lähtestada terminal?",
-    "term.resetConsequences": "See tapab kõik selle terminali käsud ja GUI-rakendused ning käivitab vaikekataloogis uue kesta. Terminali väljund ja salvestamata töö lähevad kaotsi. Seda ei saa tagasi võtta.",
+    "term.resetConsequences": "See tapab kõik selle terminali käsud ja GUI-rakendused ning käivitab vaikekataloogis uue kesta. Salvestamata töö läheb kaotsi. Seda ei saa tagasi võtta.",
     "term.resetTerminal": "Lähtestage terminal",
     "term.resizeTerminalInput": "Muuda terminali sisendi suurust",
     "term.restartTerminal": "Taaskäivitage terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Värskendused",
     "updates.versionAvailable": "Saadaval {version}",
     "validation.invalid": "Sisestage kehtiv väärtus.",
-    "validation.required": "Palun täitke see väli."
+    "validation.required": "Palun täitke see väli.",
+    "term.restartArchive": "Taaskäivita",
+    "term.closedArchives": "Suletud",
+    "term.lastApplication": "Viimane rakendus",
+    "term.archiveBuffer": "Väljund",
+    "term.openArchive": "Ava",
+    "settings.closedTerminalHistory": "Säilita suletud terminalide ajalugu (tundi)",
+    "backend.server.closedHistoryHoursRange": "Säilitusaeg peab olema {min} kuni {max} tundi.",
+    "term.postMortem": "Pärast lõppu"
   }
 }

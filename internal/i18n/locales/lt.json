@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Iš naujo prijunkite terminalą",
     "term.renameTerminal": "Pervardyti terminalą",
     "term.resetConfirmationTitle": "Iš naujo nustatyti terminalą?",
-    "term.resetConsequences": "Tai užmuš visas komandas ir GUI programas šiame terminale ir pradės naują apvalkalą numatytame kataloge. Bus prarasta terminalo išvestis ir neišsaugotas darbas. To negalima anuliuoti.",
+    "term.resetConsequences": "Tai užmuš visas komandas ir GUI programas šiame terminale ir pradės naują apvalkalą numatytame kataloge. Bus prarastas neišsaugotas darbas. To negalima anuliuoti.",
     "term.resetTerminal": "Iš naujo nustatykite terminalą",
     "term.resizeTerminalInput": "Pakeiskite terminalo įvesties dydį",
     "term.restartTerminal": "Iš naujo paleiskite terminalą",
@@ -766,6 +766,14 @@
     "updates.updates": "Atnaujinimai",
     "updates.versionAvailable": "Galimas {version}",
     "validation.invalid": "Įveskite tinkamą reikšmę.",
-    "validation.required": "Užpildykite šį lauką."
+    "validation.required": "Užpildykite šį lauką.",
+    "term.restartArchive": "Paleisti iš naujo",
+    "term.closedArchives": "Uždaryti",
+    "term.lastApplication": "Paskutinė programa",
+    "term.archiveBuffer": "Išvestis",
+    "term.openArchive": "Atverti",
+    "settings.closedTerminalHistory": "Saugoti uždarytų terminalų istoriją (valandos)",
+    "backend.server.closedHistoryHoursRange": "Saugojimo laikas turi būti nuo {min} iki {max} valandų.",
+    "term.postMortem": "Po pabaigos"
   }
 }

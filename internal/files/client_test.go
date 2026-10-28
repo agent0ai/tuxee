@@ -71,8 +71,8 @@ func TestTerminalHistoryStateDirectory(t *testing.T) {
 			if _, err := Run(ctx, user, Request{Operation: "terminal-prune", Instance: "state-test"}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := os.Stat(folder); !os.IsNotExist(err) {
-				t.Fatalf("cleanup missed the state directory: %v", err)
+			if data, err := os.ReadFile(filepath.Join(folder, "meta.json")); err != nil || !strings.Contains(string(data), `"state":"dead"`) {
+				t.Fatalf("reconciliation missed the state directory: %s %v", data, err)
 			}
 		})
 	}

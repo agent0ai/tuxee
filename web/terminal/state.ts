@@ -815,3 +815,36 @@ export function installTerminalView(terminal: any): void {
     if (!parsing) send(...args);
   };
 }
+
+/** Durable visual text only; private cell decoding stays behind this adapter. */
+export function terminalArchiveRecorder(terminal: any, text: (lines: any[]) => string) {
+  let alternate: any;
+  const frame = (buffer: any) => ({
+    columns: terminal.cols, rows: terminal.rows, capturedAt: new Date().toISOString(),
+    text: text(Array.from({length: buffer.lines.length}, (_, i) => {
+      const line = buffer.lines.get(i);
+      return {Data: line._data, Length: line.length, Combined: line._combined};
+    }))
+  });
+  const sample = () => {
+    const buffers = terminal._core._bufferService.buffers;
+    if (buffers.active !== buffers.alt) return;
+    const value = frame(buffers.alt);
+    // Applications can clear the screen before leaving alternate mode.
+    if (value.text.trim()) alternate = value;
+  };
+  const handler = terminal.parser.registerCsiHandler({prefix: '?', final: 'l'}, (params: number[]) => {
+    if (params.some(p => p === 47 || p === 1047 || p === 1049)) sample();
+    return false;
+  });
+  return {
+    sample,
+    capture: () => {
+      sample();
+      const buffers = terminal._core._bufferService.buffers;
+      return {version: 1, active: buffers.active === buffers.alt ? 'alternate' : 'normal',
+        normal: frame(buffers.normal), alternate};
+    },
+    dispose: () => handler.dispose()
+  };
+}

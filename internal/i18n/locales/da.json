@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Tilslut terminal igen",
     "term.renameTerminal": "Omdøb terminal",
     "term.resetConfirmationTitle": "Nulstille terminal?",
-    "term.resetConsequences": "Dette vil dræbe alle kommandoer og GUI-apps i denne terminal og starte en ny shell i standardmappen. Terminaloutput og ikke-gemt arbejde vil gå tabt. Dette kan ikke fortrydes.",
+    "term.resetConsequences": "Dette vil dræbe alle kommandoer og GUI-apps i denne terminal og starte en ny shell i standardmappen. Ikke-gemt arbejde vil gå tabt. Dette kan ikke fortrydes.",
     "term.resetTerminal": "Nulstil terminal",
     "term.resizeTerminalInput": "Ændr størrelse på terminalindgang",
     "term.restartTerminal": "Genstart terminalen",
@@ -766,6 +766,14 @@
     "updates.updates": "Opdateringer",
     "updates.versionAvailable": "{version} tilgængelig",
     "validation.invalid": "Indtast venligst en gyldig værdi.",
-    "validation.required": "Udfyld venligst dette felt."
+    "validation.required": "Udfyld venligst dette felt.",
+    "term.restartArchive": "Genstart",
+    "term.closedArchives": "Lukkede",
+    "term.lastApplication": "Seneste program",
+    "term.archiveBuffer": "Output",
+    "term.openArchive": "Åbn",
+    "settings.closedTerminalHistory": "Behold lukkede terminalers historik (timer)",
+    "backend.server.closedHistoryHoursRange": "Opbevaringstiden skal være mellem {min} og {max} timer.",
+    "term.postMortem": "Post mortem"
   }
 }

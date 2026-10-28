@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "เชื่อมต่อเทอร์มินัลอีกครั้ง",
     "term.renameTerminal": "เปลี่ยนชื่อเทอร์มินัล",
     "term.resetConfirmationTitle": "รีเซ็ตเทอร์มินัลใช่ไหม",
-    "term.resetConsequences": "การดำเนินการนี้จะฆ่าคำสั่งและแอป GUI ทั้งหมดในเทอร์มินัลนี้ และเริ่มเชลล์ใหม่ในไดเร็กทอรีเริ่มต้น เอาต์พุตเทอร์มินัลและงานที่ยังไม่ได้บันทึกจะหายไป สิ่งนี้ไม่สามารถยกเลิกได้",
+    "term.resetConsequences": "การดำเนินการนี้จะฆ่าคำสั่งและแอป GUI ทั้งหมดในเทอร์มินัลนี้ และเริ่มเชลล์ใหม่ในไดเร็กทอรีเริ่มต้น งานที่ยังไม่ได้บันทึกจะหายไป สิ่งนี้ไม่สามารถยกเลิกได้",
     "term.resetTerminal": "รีเซ็ตเทอร์มินัล",
     "term.resizeTerminalInput": "ปรับขนาดอินพุตเทอร์มินัล",
     "term.restartTerminal": "รีสตาร์ทเทอร์มินัล",
@@ -766,6 +766,14 @@
     "updates.updates": "อัพเดท",
     "updates.versionAvailable": "{version} พร้อมใช้งาน",
     "validation.invalid": "กรุณากรอกค่าที่ถูกต้อง",
-    "validation.required": "กรุณากรอกข้อมูลในช่องนี้"
+    "validation.required": "กรุณากรอกข้อมูลในช่องนี้",
+    "term.restartArchive": "เริ่มใหม่",
+    "term.closedArchives": "ปิดแล้ว",
+    "term.lastApplication": "แอปล่าสุด",
+    "term.archiveBuffer": "เอาต์พุต",
+    "term.openArchive": "เปิด",
+    "settings.closedTerminalHistory": "เก็บประวัติเทอร์มินัลที่ปิดแล้ว (ชั่วโมง)",
+    "backend.server.closedHistoryHoursRange": "ระยะเวลาเก็บต้องอยู่ระหว่าง {min} ถึง {max} ชั่วโมง",
+    "term.postMortem": "หลังสิ้นสุด"
   }
 }

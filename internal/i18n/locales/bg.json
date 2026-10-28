@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Свържете отново терминала",
     "term.renameTerminal": "Преименувайте терминала",
     "term.resetConfirmationTitle": "Нулиране на терминала?",
-    "term.resetConsequences": "Това ще убие всички команди и GUI приложения в този терминал и ще стартира нова обвивка в директорията по подразбиране. Изходът от терминала и незапазената работа ще бъдат загубени. Това не може да бъде отменено.",
+    "term.resetConsequences": "Това ще убие всички команди и GUI приложения в този терминал и ще стартира нова обвивка в директорията по подразбиране. Незапазената работа ще бъде загубена. Това не може да бъде отменено.",
     "term.resetTerminal": "Нулирайте терминала",
     "term.resizeTerminalInput": "Преоразмеряване на входа на терминала",
     "term.restartTerminal": "Рестартирайте терминала",
@@ -766,6 +766,14 @@
     "updates.updates": "Актуализации",
     "updates.versionAvailable": "Наличен {version}",
     "validation.invalid": "Моля, въведете валидна стойност.",
-    "validation.required": "Моля, попълнете това поле."
+    "validation.required": "Моля, попълнете това поле.",
+    "term.restartArchive": "Рестарт",
+    "term.closedArchives": "Затворени",
+    "term.lastApplication": "Последно приложение",
+    "term.archiveBuffer": "Изход",
+    "term.openArchive": "Отвори",
+    "settings.closedTerminalHistory": "Пазене на историята на затворени терминали (часове)",
+    "backend.server.closedHistoryHoursRange": "Срокът за съхранение трябва да е от {min} до {max} часа.",
+    "term.postMortem": "След приключване"
   }
 }

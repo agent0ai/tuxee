@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "टर्मिनल पुनः कनेक्ट करें",
     "term.renameTerminal": "टर्मिनल का नाम बदलें",
     "term.resetConfirmationTitle": "टर्मिनल रीसेट करें?",
-    "term.resetConsequences": "इससे इस टर्मिनल के सभी कमांड और GUI ऐप बंद हो जाएँगे और डिफ़ॉल्ट डायरेक्टरी में एक नया शेल शुरू होगा। टर्मिनल आउटपुट और सहेजा न गया काम खो जाएगा। इसे पूर्ववत नहीं किया जा सकता।",
+    "term.resetConsequences": "इससे इस टर्मिनल के सभी कमांड और GUI ऐप बंद हो जाएँगे और डिफ़ॉल्ट डायरेक्टरी में एक नया शेल शुरू होगा। सहेजा न गया काम खो जाएगा। इसे पूर्ववत नहीं किया जा सकता।",
     "term.resetTerminal": "टर्मिनल रीसेट करें",
     "term.resizeTerminalInput": "टर्मिनल इनपुट का आकार बदलें",
     "term.restartTerminal": "टर्मिनल पुनः प्रारंभ करें",
@@ -766,6 +766,14 @@
     "updates.updates": "अपडेट",
     "updates.versionAvailable": "{version} उपलब्ध है",
     "validation.invalid": "कृपया एक मान्य मान दर्ज करें.",
-    "validation.required": "कृपया इस क्षेत्र को भरें।"
+    "validation.required": "कृपया इस क्षेत्र को भरें।",
+    "term.restartArchive": "फिर शुरू करें",
+    "term.closedArchives": "बंद",
+    "term.lastApplication": "पिछला ऐप",
+    "term.archiveBuffer": "आउटपुट",
+    "term.openArchive": "खोलें",
+    "settings.closedTerminalHistory": "बंद टर्मिनलों का इतिहास रखें (घंटे)",
+    "backend.server.closedHistoryHoursRange": "इतिहास रखने का समय {min} से {max} घंटे के बीच होना चाहिए।",
+    "term.postMortem": "समापन के बाद"
   }
 }

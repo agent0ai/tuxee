@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Återanslut terminalen",
     "term.renameTerminal": "Byt namn på terminal",
     "term.resetConfirmationTitle": "Återställa terminalen?",
-    "term.resetConsequences": "Detta kommer att döda alla kommandon och GUI-appar i den här terminalen och starta ett nytt skal i standardkatalogen. Terminalutgång och osparat arbete kommer att gå förlorade. Detta kan inte ångras.",
+    "term.resetConsequences": "Detta kommer att döda alla kommandon och GUI-appar i den här terminalen och starta ett nytt skal i standardkatalogen. Osparat arbete kommer att gå förlorat. Detta kan inte ångras.",
     "term.resetTerminal": "Återställ terminalen",
     "term.resizeTerminalInput": "Ändra storlek på terminalingång",
     "term.restartTerminal": "Starta om terminalen",
@@ -766,6 +766,14 @@
     "updates.updates": "Uppdateringar",
     "updates.versionAvailable": "{version} tillgänglig",
     "validation.invalid": "Ange ett giltigt värde.",
-    "validation.required": "Vänligen fyll i detta fält."
+    "validation.required": "Vänligen fyll i detta fält.",
+    "term.restartArchive": "Starta om",
+    "term.closedArchives": "Stängda",
+    "term.lastApplication": "Senaste program",
+    "term.archiveBuffer": "Utdata",
+    "term.openArchive": "Öppna",
+    "settings.closedTerminalHistory": "Behåll historik för stängda terminaler (timmar)",
+    "backend.server.closedHistoryHoursRange": "Lagringstiden måste vara mellan {min} och {max} timmar.",
+    "term.postMortem": "Post mortem"
   }
 }

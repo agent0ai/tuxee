@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Muling ikonekta ang terminal",
     "term.renameTerminal": "Palitan ang pangalan ng terminal",
     "term.resetConfirmationTitle": "I-reset ang terminal?",
-    "term.resetConsequences": "Papatayin nito ang lahat ng command at GUI app sa terminal na ito at magsisimula ng bagong shell sa default na direktoryo. Mawawala ang output ng terminal at hindi na-save na trabaho. Hindi na ito maaaring bawiin.",
+    "term.resetConsequences": "Papatayin nito ang lahat ng command at GUI app sa terminal na ito at magsisimula ng bagong shell sa default na direktoryo. Mawawala ang hindi na-save na trabaho. Hindi na ito maaaring bawiin.",
     "term.resetTerminal": "I-reset ang terminal",
     "term.resizeTerminalInput": "Baguhin ang laki ng input ng terminal",
     "term.restartTerminal": "I-restart ang terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Mga update",
     "updates.versionAvailable": "Available ang {version}",
     "validation.invalid": "Mangyaring magpasok ng wastong halaga.",
-    "validation.required": "Mangyaring punan ang field na ito."
+    "validation.required": "Mangyaring punan ang field na ito.",
+    "term.restartArchive": "Simulan muli",
+    "term.closedArchives": "Nakasara",
+    "term.lastApplication": "Huling app",
+    "term.archiveBuffer": "Output",
+    "term.openArchive": "Buksan",
+    "settings.closedTerminalHistory": "Itago ang history ng mga saradong terminal (oras)",
+    "backend.server.closedHistoryHoursRange": "Dapat nasa pagitan ng {min} at {max} oras ang pag-iimbak.",
+    "term.postMortem": "Pagkatapos magsara"
   }
 }

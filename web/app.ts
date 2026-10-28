@@ -9,7 +9,7 @@ import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
+import { id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
@@ -1035,7 +1035,7 @@ async function closeWorkspace(ws = current()) {
 }
 function unlistedTerminals() {
     const listed = new Set(settings.workspaces.flatMap(ws => ws.panels.filter(panel => panel.kind === 'terminal').map(panel => panel.terminal)));
-    return terminalSessions.filter(info => !listed.has(info.id));
+    return terminalSessions.filter(info => !info.closedAt && (info.exited || !listed.has(info.id)));
 }
 function stopTerminalPolling() {
     clearTimeout(terminalTimer); terminalRequest?.abort();
@@ -1148,25 +1148,42 @@ async function openAbout() {
 }
 async function retainedTerminals() {
     if (!await refreshTerminals()) throw new Error(terminalError || t("app.retainedUnavailable"));
-    const content = el('div', 'retained-list');
+    const content = el('div'), list = el('div', 'retained-list');
+    const tabs = el('div', 'monitor-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t("app.retainedTerminals"));
+    let closed = false;
+    const activeTab = button(t("app.retainedTerminals"), undefined, () => select(false));
+    const closedTab = button(t("term.closedArchives"), undefined, () => select(true));
+    for (const tab of [activeTab, closedTab]) { tab.setAttribute('role', 'tab'); tab.id = id(); tabs.append(tab); }
+    list.id = id(); list.setAttribute('role', 'tabpanel');
+    for (const tab of [activeTab, closedTab]) tab.setAttribute('aria-controls', list.id);
+    tabs.onkeydown = event => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); select(!closed); (closed ? closedTab : activeTab).focus(); }
+    };
+    content.append(tabs, list);
     const { close } = modal(t("app.retainedTerminals"), content);
+    const select = (value: boolean) => { closed = value; paint(); };
     const paint = () => {
-        content.replaceChildren();
-        const sessions = unlistedTerminals();
-        if (!sessions.length) content.append(el('p', 'muted', t("app.noRetainedTerminals")));
+        activeTab.setAttribute('aria-selected', String(!closed)); closedTab.setAttribute('aria-selected', String(closed));
+        activeTab.tabIndex = closed ? -1 : 0; closedTab.tabIndex = closed ? 0 : -1;
+        list.setAttribute('aria-labelledby', (closed ? closedTab : activeTab).id);
+        list.replaceChildren();
+        const sessions = closed ? terminalSessions.filter(info => info.closedAt) : unlistedTerminals();
+        if (!sessions.length) list.append(el('p', 'muted', t("app.noRetainedTerminals")));
         for (const info of sessions) {
             const row = el('div', 'retained-row'), text = el('div');
-            text.append(el('strong', '', info.name), el('small', 'muted', t("terminal.summary", { pid: info.pid, state: t(info.exited ? 'terminal.ended' : info.attached ? 'terminal.attached' : 'terminal.detached'), directory: info.directory })));
-            row.append(text, button(t("app.attach"), undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); }), button(t("app.terminate"), 'Trash2', async () => { if (await confirmAction(t("app.terminateTerminal"), t("terminal.stopNamed", { name: info.name }), t("app.terminate"))) {
+            text.append(el('strong', '', info.name), el('small', 'muted', info.exited ? `${t("terminal.ended")} · ${info.directory}` : t("terminal.summary", { pid: info.pid, state: t(info.attached ? 'terminal.attached' : 'terminal.detached'), directory: info.directory })));
+            row.append(text, button(t(info.exited ? "term.openArchive" : "app.attach"), undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); }));
+            if (!closed) row.append(button(t("common.close"), 'Trash2', async () => {
+                if (!info.exited && !await confirmAction(t("app.terminateTerminal"), t("terminal.stopNamed", { name: info.name }), t("common.close"))) return;
                 await api(`/terminals/${info.id}`, 'DELETE');
-                terminalSessions = terminalSessions.filter(value => value.id !== info.id);
-                updateMenuWarnings(); paint(); void refreshTerminals();
-            } }));
-            content.append(row);
+                await refreshTerminals(); updateMenuWarnings(); paint();
+            }));
+            list.append(row);
         }
     };
     paint();
 }
+
 async function openSettings() {
     const content = el('form', 'form settings-form');
     const serverName = el('input');
@@ -1249,6 +1266,9 @@ async function openSettings() {
         backgroundColumns.append(controls);
     }
     backgroundField.append(backgroundColumns);
+    const retention = el('input'); retention.type = 'number'; retention.min = '0'; retention.max = '876000'; retention.step = '1'; retention.required = true;
+    retention.name = 'closedTerminalHistoryHours'; retention.value = String(settings.closedTerminalHistoryHours ?? 168);
+    const retentionLabel = el('label', 'field'); retentionLabel.append(el('span', 'settings-label', t("settings.closedTerminalHistory")), retention);
     const uploads = el('select');
     const uploadOptions = [1, 2, 4, 8, 16, 32, 64];
     for (const n of uploadOptions) {
@@ -1273,7 +1293,7 @@ async function openSettings() {
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
+    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
     const dialog = modal(t("app.settings"), content);
     dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
     content.onsubmit = async event => {
@@ -1283,6 +1303,7 @@ async function openSettings() {
         const previous = settings.serverName;
         const previousColor = settings.serverColor;
         const previousUploads = settings.uploadConcurrency;
+        const previousRetention = settings.closedTerminalHistoryHours;
         const previousBackground = settings.terminalBackground;
         const previousLightBackground = settings.terminalBackgroundLight;
         const previousFontSize = settings.terminalFontSize;
@@ -1292,6 +1313,7 @@ async function openSettings() {
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
+        settings.closedTerminalHistoryHours = Number(retention.value);
         settings.terminalFontSize = Number(fontSize.value);
         settings.terminalFontFamily = fontFamily.value.trim();
         settings.defaultDirectory = directory.value || '~';
@@ -1305,7 +1327,7 @@ async function openSettings() {
             }
             setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close();
         }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.terminalFontFamily = previousFontFamily; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.closedTerminalHistoryHours = previousRetention; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.terminalFontFamily = previousFontFamily; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

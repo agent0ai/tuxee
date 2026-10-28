@@ -151,18 +151,18 @@ try {
     assert.equal(await resetPage.locator('.terminal-input').inputValue(), 'unsent draft');
     assert.equal(await resetPage.getByRole('button', { name: 'Previous input', exact: true }).isDisabled(), true);
     assert.deepEqual(await history(a, replacement), []);
-    assert.ok(!exists(folder(users[0], terminal.id)), 'reset did not remove old terminal folder');
+    assert.equal(JSON.parse(run('cat', `${folder(users[0], terminal.id)}/meta.json`)).state, 'closed');
     await resetPage.close();
     assert.equal((await a.api(`/terminals/${neighbour.id}`, 'DELETE')).status(), 200);
-    assert.ok(!exists(folder(users[0], neighbour.id)), 'explicit close did not remove folder');
+    assert.equal(JSON.parse(run('cat', `${folder(users[0], neighbour.id)}/meta.json`)).state, 'closed');
     const killed = await create(a);
     await history(a, killed.id, 'before kill');
     run('kill', '-KILL', '--', `-${killed.pid}`);
     await eventually(async () => (await (await a.api(`/terminals/${killed.id}`)).json()).exited, 'killed shell did not exit');
-    assert.deepEqual(await history(a, killed.id), []);
-    assert.equal((await a.api(`/terminals/${killed.id}/input-history`, 'POST', { text: 'late write' })).status(), 400);
+    assert.deepEqual(saved(users[0], killed.id), ['before kill']);
+    assert.ok([400, 404].includes((await a.api(`/terminals/${killed.id}/input-history`, 'POST', { text: 'late write' })).status()));
     const afterKill = await create(a);
-    assert.ok(!exists(folder(users[0], killed.id)), 'opening a terminal did not prune the killed shell');
+    assert.ok(exists(folder(users[0], killed.id)), 'lost unclosed archive: killed');
     const exited = await create(a);
     const socketPage = await a.context.newPage();
     await socketPage.goto(base + '/health');
@@ -182,9 +182,9 @@ try {
     await socketPage.close();
     await eventually(async () => (await (await a.api(`/terminals/${exited.id}`)).json()).exited, 'shell was not reaped');
     await a.relogin();
-    assert.ok(!exists(folder(users[0], exited.id)), 'login did not prune natural shell exit');
+    assert.ok(exists(folder(users[0], exited.id)), 'lost unclosed archive: exited');
     assert.ok(exists(folder(users[0], replacement)), 'cleanup removed a detached live terminal');
-    console.log('PASS reset preserves draft with fresh history; close, SIGKILL and ordinary exit cleanup preserve live terminals');
+    console.log('PASS reset preserves draft with fresh history; close retains history; SIGKILL and ordinary exit preserve unclosed archives');
 
     await history(a, afterKill.id, 'before server crash');
     await history(b, otherUser.id, 'other account before crash');
@@ -193,25 +193,25 @@ try {
     run('kill', '-KILL', serverPID);
     assert.ok(exists(folder(users[0], afterKill.id)), 'abrupt server death should leave files until activity');
     await a.relogin();
-    assert.ok(!exists(folder(users[0], afterKill.id)), 'login did not remove pre-crash history');
+    assert.ok(exists(folder(users[0], afterKill.id)), 'lost unclosed archive: afterKill');
     assert.ok(exists(folder(users[1], otherUser.id)), 'one user login cleaned another user');
     await b.relogin();
-    assert.ok(!exists(folder(users[1], otherUser.id)), 'second user login did not clean stale history');
-    assert.equal((await a.api(`/terminals/${afterKill.id}`)).status(), 404);
+    assert.ok(exists(folder(users[1], otherUser.id)), 'lost other account archive');
+    assert.equal((await (await a.api(`/terminals/${afterKill.id}`)).json()).exited, true);
 
     const beforeRestart = await create(a); await history(a, beforeRestart.id, 'before container restart');
     docker('restart', container);
     await a.relogin();
-    assert.ok(!exists(folder(users[0], beforeRestart.id)), 'container restart retained dead history');
+    assert.ok(exists(folder(users[0], beforeRestart.id)), 'lost unclosed archive: beforeRestart');
     const beforeHardStop = await create(a); await history(a, beforeHardStop.id, 'before hard container stop');
     docker('kill', '--signal', 'KILL', container); docker('start', container);
     assert.ok(exists(folder(users[0], beforeHardStop.id)), 'hard stop unexpectedly cleaned history');
     await a.relogin();
-    assert.ok(!exists(folder(users[0], beforeHardStop.id)), 'login after hard container restart did not clean history');
+    assert.ok(exists(folder(users[0], beforeHardStop.id)), 'lost unclosed archive: beforeHardStop');
     const fresh = await create(a); assert.deepEqual(await history(a, fresh.id), []);
     await a.api(`/terminals/${fresh.id}`, 'DELETE');
     assert.deepEqual(errors, []);
-    console.log('PASS real server SIGKILL, graceful Docker restart, hard Docker restart and per-user lazy cleanup');
+    console.log('PASS real server SIGKILL, graceful Docker restart, hard Docker restart and per-user archives');
 } finally {
     await browser.close();
     for (const user of users) {

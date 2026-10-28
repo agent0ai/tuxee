@@ -58,12 +58,12 @@ async function checkClose(width, height, columns, rows, shapes, closing, expecte
     }
     const settings = (await (await api('/me')).json()).settings;
     assert.deepEqual(settings.workspaces[0].panels.map(({ x, y, w, h }) => [x, y, w, h]), expected);
-    for (const p of panels.filter(p => closing.includes(p.id))) assert.equal((await api(`/terminals/${p.terminal}`)).status(), 404);
+    for (const p of panels.filter(p => closing.includes(p.id))) assert.ok((await (await api(`/terminals/${p.terminal}`)).json()).closedAt);
     await page.waitForTimeout(250);
     if (screenshot) await page.screenshot({ path: `test-results/${screenshot}.png` });
 }
 async function paint(id, color) {
-    await item(id).locator('textarea').focus();
+    await item(id).locator('.xterm-helper-textarea').focus();
     await page.keyboard.insertText(`printf '\\033[?1049h\\033]11;${color}\\007\\033[2J\\033[HTERMINAL BACKGROUND\\033[999;1HBOTTOM ROW'`);
     await page.keyboard.press('Enter');
     await page.waitForFunction(id => document.querySelector(`[data-panel="${id}"] .xterm-rows`).textContent.includes('BOTTOM ROW'), id);
@@ -72,14 +72,14 @@ async function checkSurface(id, color) {
     await page.waitForTimeout(200);
     const result = await item(id).evaluate(node => {
         const box = s => node.querySelector(s).getBoundingClientRect();
-        const body = box('.panel-body'), host = box('.terminal-host'), term = box('.xterm'), screen = box('.xterm-screen');
+        const body = box('.panel-body'), host = box('.terminal-host'), term = box('.xterm'), screen = box('.xterm-screen'), footer = box('.terminal-footer');
         const row = box('.xterm-rows > div:last-child');
-        return { body: body.bottom, host: host.bottom, term: term.bottom, screen: screen.bottom, rowHeight: row.height,
+        return { body: body.bottom, host: host.bottom, term: term.bottom, screen: screen.bottom, footerTop: footer.top, footerBottom: footer.bottom, rowHeight: row.height,
             color: getComputedStyle(node.querySelector('.xterm')).backgroundColor,
             viewportColor: getComputedStyle(node.querySelector('.xterm-scrollable-element')).backgroundColor,
             x: Math.floor(term.right - 20), y: Math.floor(term.bottom - 1) };
     });
-    assert.ok(Math.abs(result.body - result.host) < 1 && Math.abs(result.host - result.term) < 1, 'terminal surface reaches panel bottom');
+    assert.ok(Math.abs(result.body - result.footerBottom) < 1 && Math.abs(result.footerTop - result.host) < 1 && Math.abs(result.host - result.term) < 1, 'terminal surface fills the panel above its footer');
     assert.ok(result.term - result.screen >= -0.5 && result.term - result.screen < result.rowHeight, 'all rows fit and no room for another row is wasted');
     assert.equal(result.color, color, 'spare pixels match the application background');
     assert.equal(result.viewportColor, color);

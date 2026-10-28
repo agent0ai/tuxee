@@ -439,7 +439,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/download-archive" && (r.Method == "POST" || r.Method == "GET" || r.Method == "DELETE"):
 		s.archiveOperation(w, r, session)
 	case r.URL.Path == "/api/terminals" && r.Method == "GET":
-		jsonResponse(w, 200, s.Terminals.List(session.user))
+		values, err := s.Terminals.ArchiveInventory(r.Context(), session.user)
+		if err != nil {
+			failure(w, 500, err)
+			return
+		}
+		jsonResponse(w, 200, values)
 	case r.URL.Path == "/api/terminals" && r.Method == "POST":
 		var input struct {
 			Directory string `json:"directory"`
@@ -526,6 +531,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.Terminals.RegisterArchiveUser(user)
 	s.Terminals.PruneHistory(user)
 	token := randomToken()
 	ctx, cancel := context.WithCancel(context.Background())

@@ -81,7 +81,7 @@ try {
         await deniedDialog.locator('.update-command').click();
         assert.equal(await other.evaluate(() => window.getSelection().toString()), `sudo '${executable}' restart`);
         assert.equal(await other.locator('.connection-overlay').count(), 0);
-        assert.deepEqual(await (await api(1, '/connection')).json(), { authenticated: true, uid: identities[1].user.uid, csrf: identities[1].csrf });
+        assert.deepEqual(await (await api(1, '/connection')).json(), { authenticated: true, uid: identities[1].user.uid, csrf: identities[1].csrf, language: 'en' });
         for (const terminal of terminals) process.kill(terminal.pid, 0);
         assert.equal(starts, 1);
         await deniedDialog.getByRole('button', { name: 'Close dialog' }).click();
@@ -147,9 +147,11 @@ try {
         assert.equal((await api(i, '/me')).status(), 401);
         identities[i] = await login(i);
         assert.equal(identities[i].settings.workspaces[0].panels[1].terminal, terminals[i].id);
-        assert.deepEqual(await (await api(i, '/terminals')).json(), []);
+        const inventory = await (await api(i, '/terminals')).json();
+        assert.ok(inventory.some(info => info.id === terminals[i].id && info.exited && !info.closedAt));
+        assert.ok(inventory.every(info => info.exited));
     }
-    await page.reload(); await page.getByText('Terminal session lost', { exact: true }).waitFor();
+    await page.reload(); await page.getByText('Post mortem', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
 
     const deniedCLI = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8', uid: users[1].uid, gid: users[1].gid });

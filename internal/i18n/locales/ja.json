@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "端末を再接続",
     "term.renameTerminal": "端末の名前を変更する",
     "term.resetConfirmationTitle": "端末をリセットしますか？",
-    "term.resetConsequences": "これにより、この端末内のすべてのコマンドと GUI アプリが強制終了され、デフォルトのディレクトリで新しいシェルが開始されます。端末出力と保存されていない作業内容は失われます。これを元に戻すことはできません。",
+    "term.resetConsequences": "これにより、この端末内のすべてのコマンドと GUI アプリが強制終了され、デフォルトのディレクトリで新しいシェルが開始されます。保存されていない作業内容は失われます。これを元に戻すことはできません。",
     "term.resetTerminal": "端末をリセット",
     "term.resizeTerminalInput": "端末入力のサイズを変更する",
     "term.restartTerminal": "端末を再起動します",
@@ -766,6 +766,14 @@
     "updates.updates": "アップデート",
     "updates.versionAvailable": "{version} あり",
     "validation.invalid": "有効な値を入力してください。",
-    "validation.required": "このフィールドに記入してください。"
+    "validation.required": "このフィールドに記入してください。",
+    "term.restartArchive": "再起動",
+    "term.closedArchives": "閉じた履歴",
+    "term.lastApplication": "最後のアプリ",
+    "term.archiveBuffer": "出力",
+    "term.openArchive": "開く",
+    "settings.closedTerminalHistory": "閉じたターミナルの履歴を保持（時間）",
+    "backend.server.closedHistoryHoursRange": "保持時間は{min}～{max}時間で指定してください。",
+    "term.postMortem": "終了後"
   }
 }

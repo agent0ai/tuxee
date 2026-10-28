@@ -22,6 +22,7 @@ export type Workspace = {
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
+    closedTerminalHistoryHours?: number;
     shellCommand?: string;
     useTuxeePrompt?: boolean;
     defaultDirectory?: string;
@@ -46,6 +47,7 @@ export type User = {
     gid: number;
 };
 export type TerminalInfo = {
+    closedAt?: string;
     id: string;
     name: string;
     directory: string;

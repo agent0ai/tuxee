@@ -21,6 +21,8 @@ import (
 )
 
 type Request struct {
+	Terminal    *TerminalRecord `json:"terminal,omitempty"`
+	Archive     json.RawMessage `json:"archive,omitempty"`
 	Instance    string          `json:"instance,omitempty"`
 	Content     string          `json:"content,omitempty"`
 	Version     string          `json:"version,omitempty"`
@@ -58,18 +60,20 @@ type Entry struct {
 }
 
 type Response struct {
-	History   []string        `json:"history,omitempty"`
-	Text      *i18n.Message   `json:"text,omitempty"`
-	Content   string          `json:"content"`
-	Version   string          `json:"version,omitempty"`
-	Page      *TextPage       `json:"page,omitempty"`
-	Formats   []ArchiveFormat `json:"formats,omitempty"`
-	Error     string          `json:"error,omitempty"`
-	Path      string          `json:"path,omitempty"`
-	Entries   []Entry         `json:"entries,omitempty"`
-	Entry     *Entry          `json:"entry,omitempty"`
-	Truncated bool            `json:"truncated,omitempty"`
-	Settings  json.RawMessage `json:"settings,omitempty"`
+	Terminals []TerminalRecord `json:"terminals,omitempty"`
+	Archive   json.RawMessage  `json:"archive,omitempty"`
+	History   []string         `json:"history,omitempty"`
+	Text      *i18n.Message    `json:"text,omitempty"`
+	Content   string           `json:"content"`
+	Version   string           `json:"version,omitempty"`
+	Page      *TextPage        `json:"page,omitempty"`
+	Formats   []ArchiveFormat  `json:"formats,omitempty"`
+	Error     string           `json:"error,omitempty"`
+	Path      string           `json:"path,omitempty"`
+	Entries   []Entry          `json:"entries,omitempty"`
+	Entry     *Entry           `json:"entry,omitempty"`
+	Truncated bool             `json:"truncated,omitempty"`
+	Settings  json.RawMessage  `json:"settings,omitempty"`
 }
 
 // Worker serves one operation after exec has applied the user's Linux credentials.
@@ -136,7 +140,7 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
-	if r.Operation == "terminal-history" || r.Operation == "terminal-prune" {
+	if strings.HasPrefix(r.Operation, "terminal-") {
 		response, err := terminalFiles(ctx, r)
 		return response, nil, err
 	}

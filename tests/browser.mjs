@@ -454,7 +454,7 @@ try {
     await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close panel', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     assert.equal((await terminatedPanel).status(), 200);
-    assert.equal((await api(`/terminals/${motionTerminalID}`)).status(), 404);
+    assert.ok((await (await api(`/terminals/${motionTerminalID}`)).json()).closedAt);
     assert.equal(await page.evaluate(() => window.fixedFileNode === document.querySelector('.file-view')), true);
     assert.deepEqual(await fixedFile.boundingBox(), fixedBox);
     check('terminal close stops the process and preserves the file browser already at its automatic width cap');
@@ -491,7 +491,7 @@ try {
     await page.waitForTimeout(220);
     assert.deepEqual(await fixedFile.boundingBox(), settledBox);
     check('invalid panel drop slides the original back');
-    const sessionCount = (await (await api('/terminals')).json()).length;
+    const sessionCount = (await (await api('/terminals')).json()).filter(info => !info.exited).length;
     await page.route('**/api/terminals', async route => {
         if (route.request().method() === 'POST') await new Promise(resolve => setTimeout(resolve, 200));
         await route.continue();
@@ -502,7 +502,7 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     await page.unroute('**/api/terminals');
     assert.equal((await terminatedPending).status(), 200);
-    assert.equal((await (await api('/terminals')).json()).length, sessionCount);
+    assert.equal((await (await api('/terminals')).json()).filter(info => !info.exited).length, sessionCount);
     check('closing a still-starting terminal leaves no orphan process');
     await page.getByRole('button', { name: 'Desktop 1', exact: true }).click();
     const leftSlide = await page.evaluate(() => document.querySelector('.workspace-track').getAnimations()[0]?.effect.getKeyframes().map(frame => frame.transform));
@@ -677,7 +677,7 @@ try {
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
-    await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.status===404), portraitTerminal);
+    await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.json()).then(info => Boolean(info.closedAt)), portraitTerminal);
     check('confirmed workspace closure terminates its terminal');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
@@ -754,11 +754,11 @@ try {
     await page.locator('.terminal-view[data-state=connected]').waitFor();
     await page.getByRole('button', { name: 'More desktops', exact: true }).waitFor();
     const fullFile = page.locator('.file-view').first();
-    const terminalCount = (await (await api('/terminals')).json()).length;
+    const terminalCount = (await (await api('/terminals')).json()).filter(info => !info.exited).length;
     await fullFile.getByRole('button', { name: 'File actions', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Open terminal here', exact: true }).click();
     await fullFile.locator('..').locator('.component-notifications').getByRole('status').filter({ hasText: 'Desktop full' }).waitFor();
-    assert.equal((await (await api('/terminals')).json()).length, terminalCount);
+    assert.equal((await (await api('/terminals')).json()).filter(info => !info.exited).length, terminalCount);
     await page.setViewportSize({ width: 900, height: 750 }); await page.waitForTimeout(250);
     assert.ok(await fullFile.locator('.file-actions').evaluate(bar => [...bar.children].every(button => button.getBoundingClientRect().right <= bar.getBoundingClientRect().right)));
     const headerFit = () => [...document.querySelectorAll('.workspace-tabs, .component-tabs')].filter(node => node.clientWidth).every(node => node.scrollWidth <= node.clientWidth + 1);
@@ -853,7 +853,7 @@ try {
             await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
         }
         await page.keyboard.press('Enter');
-        await page.waitForFunction(id => fetch('/api/terminals/' + id).then(response => response.status === 404), terminal.id);
+        await page.waitForFunction(id => fetch('/api/terminals/' + id).then(response => response.json()).then(info => Boolean(info.closedAt)), terminal.id);
         await page.waitForFunction(() => document.querySelectorAll('.board').length === 1);
         check(`Open terminal here: ${width < 760 ? 'mobile' : 'desktop'} directory and reload`);
     }

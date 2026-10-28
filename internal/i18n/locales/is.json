@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Endurtengja skjáhermi",
     "term.renameTerminal": "Endurnefna skjáhermi",
     "term.resetConfirmationTitle": "Endurstilla skjáhermi?",
-    "term.resetConsequences": "Þetta stöðvar allar skipanir og myndræn forrit í þessum skjáhermi og ræsir nýja skel í sjálfgefnu möppunni. Úttak skjáhermis og óvistuð vinna tapast. Þetta er ekki hægt að afturkalla.",
+    "term.resetConsequences": "Þetta stöðvar allar skipanir og myndræn forrit í þessum skjáhermi og ræsir nýja skel í sjálfgefnu möppunni. Óvistuð vinna tapast. Þetta er ekki hægt að afturkalla.",
     "term.resetTerminal": "Endurstilla skjáhermi",
     "term.resizeTerminalInput": "Breyta stærð inntaks skjáhermis",
     "term.restartTerminal": "Endurræsa skjáhermi",
@@ -766,6 +766,14 @@
     "updates.updates": "Uppfærslur",
     "updates.versionAvailable": "{version} í boði",
     "validation.invalid": "Vinsamlega sláðu inn gilt gildi.",
-    "validation.required": "Vinsamlegast fylltu út þennan reit."
+    "validation.required": "Vinsamlegast fylltu út þennan reit.",
+    "term.restartArchive": "Endurræsa",
+    "term.closedArchives": "Lokaðir",
+    "term.lastApplication": "Síðasta forrit",
+    "term.archiveBuffer": "Úttak",
+    "term.openArchive": "Opna",
+    "settings.closedTerminalHistory": "Geyma feril lokaðra skjáherma (klst.)",
+    "backend.server.closedHistoryHoursRange": "Varðveislutími verður að vera á milli {min} og {max} klukkustunda.",
+    "term.postMortem": "Eftir lok"
   }
 }

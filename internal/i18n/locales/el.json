@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Επανασυνδέστε το τερματικό",
     "term.renameTerminal": "Μετονομασία τερματικού",
     "term.resetConfirmationTitle": "Επαναφορά τερματικού;",
-    "term.resetConsequences": "Αυτό θα σκοτώσει όλες τις εντολές και τις εφαρμογές GUI σε αυτό το τερματικό και θα ξεκινήσει ένα νέο κέλυφος στον προεπιλεγμένο κατάλογο. Η έξοδος τερματικού και η μη αποθηκευμένη εργασία θα χαθούν. Αυτό δεν μπορεί να αναιρεθεί.",
+    "term.resetConsequences": "Αυτό θα σκοτώσει όλες τις εντολές και τις εφαρμογές GUI σε αυτό το τερματικό και θα ξεκινήσει ένα νέο κέλυφος στον προεπιλεγμένο κατάλογο. Η μη αποθηκευμένη εργασία θα χαθεί. Αυτό δεν μπορεί να αναιρεθεί.",
     "term.resetTerminal": "Επαναφορά τερματικού",
     "term.resizeTerminalInput": "Αλλαγή μεγέθους εισόδου τερματικού",
     "term.restartTerminal": "Επανεκκινήστε το τερματικό",
@@ -766,6 +766,14 @@
     "updates.updates": "Ενημερώσεις",
     "updates.versionAvailable": "{version} διαθέσιμο",
     "validation.invalid": "Εισαγάγετε μια έγκυρη τιμή.",
-    "validation.required": "Συμπληρώστε αυτό το πεδίο."
+    "validation.required": "Συμπληρώστε αυτό το πεδίο.",
+    "term.restartArchive": "Επανεκκίνηση",
+    "term.closedArchives": "Κλειστά",
+    "term.lastApplication": "Τελευταία εφαρμογή",
+    "term.archiveBuffer": "Έξοδος",
+    "term.openArchive": "Άνοιγμα",
+    "settings.closedTerminalHistory": "Διατήρηση ιστορικού κλειστών τερματικών (ώρες)",
+    "backend.server.closedHistoryHoursRange": "Η διατήρηση πρέπει να είναι μεταξύ {min} και {max} ωρών.",
+    "term.postMortem": "Μετά τον τερματισμό"
   }
 }

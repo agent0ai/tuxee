@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,43 +54,50 @@ func (e Event) Bytes() int {
 }
 
 type Info struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Directory string `json:"directory"`
-	PID       int    `json:"pid"`
-	Exited    bool   `json:"exited"`
-	Attached  int    `json:"attached"`
+	ClosedAt  *time.Time `json:"closedAt,omitempty"`
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Directory string     `json:"directory"`
+	PID       int        `json:"pid"`
+	Exited    bool       `json:"exited"`
+	Attached  int        `json:"attached"`
 }
 
 type Manager struct {
-	HistoryInstance string
-	Audio           audio.Manager
-	mu              sync.Mutex
-	closing         sync.WaitGroup
-	sessions        map[string]*Session
-	closed          bool
-	recoveries      chan struct{}
-	recoveryWaiters chan struct{}
+	archiveAccountsPath string
+	archiveAccounts     map[string]uint32
+	archiveStop         chan struct{}
+	archiveStopped      chan struct{}
+	HistoryInstance     string
+	Audio               audio.Manager
+	mu                  sync.Mutex
+	closing             sync.WaitGroup
+	sessions            map[string]*Session
+	closed              bool
+	recoveries          chan struct{}
+	recoveryWaiters     chan struct{}
 }
 
 type Session struct {
-	Display     *desktop.Display
-	mu          sync.Mutex
-	manager     *Manager
-	user        identity.User
-	info        Info
-	cmd         *exec.Cmd
-	pty         *os.File
-	engine      *Engine
-	views       map[string]*Attachment
-	controller  string
-	input       chan inputFrame
-	done        chan struct{}
-	exited      chan struct{}
-	closed      bool
-	redrawTimer *time.Timer
-	background  string
-	foreground  string
+	Display      *desktop.Display
+	mu           sync.Mutex
+	manager      *Manager
+	user         identity.User
+	info         Info
+	cmd          *exec.Cmd
+	pty          *os.File
+	engine       *Engine
+	views        map[string]*Attachment
+	controller   string
+	input        chan inputFrame
+	done         chan struct{}
+	exited       chan struct{}
+	closed       bool
+	redrawTimer  *time.Timer
+	background   string
+	foreground   string
+	archiveDirty bool
+	archiveDead  bool
 }
 
 type Attachment struct {
@@ -222,8 +230,12 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if display != nil {
 		go s.watchDisplay()
 	}
+	if m.HistoryInstance != "" {
+		go s.watchArchive()
+	}
 	go s.readOutput()
 	go s.writeInput()
+	s.checkpointLocked()
 	go func() {
 		// Keep the PID allocated until group signaling and reaping can be serialized.
 		var status unix.Siginfo
@@ -285,6 +297,9 @@ func (m *Manager) List(user identity.User) []Info {
 }
 func (m *Manager) Close() {
 	m.mu.Lock()
+	if !m.closed && m.archiveStop != nil {
+		close(m.archiveStop)
+	}
 	m.closed = true
 	values := make([]*Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
@@ -292,9 +307,12 @@ func (m *Manager) Close() {
 	}
 	m.mu.Unlock()
 	for _, s := range values {
-		s.Close()
+		s.close(false)
 	}
 	m.closing.Wait()
+	if m.archiveStopped != nil {
+		<-m.archiveStopped
+	}
 	m.Audio.Close()
 }
 func (s *Session) Info() Info {
@@ -302,6 +320,7 @@ func (s *Session) Info() Info {
 	defer s.mu.Unlock()
 	info := s.info
 	info.Attached = len(s.views)
+	info.Exited = info.Exited || s.archiveDead
 	return info
 }
 
@@ -333,6 +352,7 @@ func (s *Session) Rename(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info.Name = name
+	s.archiveDirty = true
 	return nil
 }
 
@@ -547,6 +567,11 @@ func (s *Session) syncDisplayLocked(update DisplayUpdate) {
 	}
 }
 func (s *Session) readOutput() {
+	defer func() {
+		if s.manager.HistoryInstance != "" {
+			s.close(false)
+		}
+	}()
 	buffer := make([]byte, 32<<10)
 	for {
 		n, err := s.pty.Read(buffer)
@@ -556,19 +581,20 @@ func (s *Session) readOutput() {
 				s.mu.Unlock()
 				return
 			}
+			s.archiveDirty = true
 			data := append([]byte(nil), buffer[:n]...)
 			update, displayErr := s.engine.Apply(data, 0, 0)
 			if displayErr != nil {
 				s.broadcastLocked(Event{Type: "error", Message: i18n.New("terminal.displayFailed", i18n.Vars{"detail": i18n.Describe(displayErr)}).Error(), Text: &i18n.Message{Key: "terminal.displayFailed", Vars: i18n.Vars{"detail": i18n.Describe(displayErr)}}})
 				s.mu.Unlock()
-				s.Close()
+				s.close(false)
 				return
 			}
 			if len(update.Reply) > 0 {
 				if replyErr := s.inputLocked(update.Reply); replyErr != nil {
 					s.broadcastLocked(Event{Type: "error", Message: replyErr.Error(), Text: i18n.Describe(replyErr)})
 					s.mu.Unlock()
-					s.Close()
+					s.close(false)
 					return
 				}
 			}
@@ -582,6 +608,7 @@ func (s *Session) readOutput() {
 				if update, err := s.engine.Flush(); err == nil {
 					s.syncDisplayLocked(update)
 				}
+				s.archiveDead = true
 				s.broadcastLocked(Event{Type: "exit", Message: i18n.New("terminal.exited").Error(), Text: i18n.Describe(i18n.New("terminal.exited"))})
 			}
 			s.mu.Unlock()
@@ -606,22 +633,33 @@ func (s *Session) writeInput() {
 	}
 }
 
-func (s *Session) Close() {
+func (s *Session) Close() { s.close(true) }
+func (s *Session) close(explicit bool) {
+	s.manager.mu.Lock()
 	s.mu.Lock()
-	if s.closed {
-		s.mu.Unlock()
-		return
-	}
+	wasClosed := s.closed
 	s.closed = true
 	s.mu.Unlock()
-	s.destroy()
+	if !wasClosed {
+		s.checkpointLocked()
+	}
+	if explicit && s.manager.HistoryInstance != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := files.Run(ctx, s.user, files.Request{Operation: "terminal-close", Instance: s.manager.HistoryInstance, Path: s.info.ID})
+		cancel()
+		if err != nil {
+			log.Printf("terminal archive close %s: %v", s.info.ID, err)
+		}
+	}
+	delete(s.manager.sessions, s.info.ID)
+	s.manager.mu.Unlock()
+	if !wasClosed {
+		s.destroy()
+	}
 }
 func (s *Session) destroy() {
 	defer s.manager.closing.Done()
 	defer s.manager.PruneHistory(s.user)
-	s.manager.mu.Lock()
-	delete(s.manager.sessions, s.info.ID)
-	s.manager.mu.Unlock()
 	s.mu.Lock()
 	if s.redrawTimer != nil {
 		s.redrawTimer.Stop()

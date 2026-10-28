@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Sambungkan kembali terminal",
     "term.renameTerminal": "Ganti nama terminal",
     "term.resetConfirmationTitle": "Setel ulang terminal?",
-    "term.resetConsequences": "Ini akan mematikan semua perintah dan aplikasi GUI di terminal ini dan memulai shell baru di direktori default. Output terminal dan pekerjaan yang belum disimpan akan hilang. Hal ini tidak dapat dibatalkan.",
+    "term.resetConsequences": "Ini akan mematikan semua perintah dan aplikasi GUI di terminal ini dan memulai shell baru di direktori default. Pekerjaan yang belum disimpan akan hilang. Hal ini tidak dapat dibatalkan.",
     "term.resetTerminal": "Setel ulang terminal",
     "term.resizeTerminalInput": "Ubah ukuran masukan terminal",
     "term.restartTerminal": "Mulai ulang terminalnya",
@@ -766,6 +766,14 @@
     "updates.updates": "Pembaruan",
     "updates.versionAvailable": "{version} tersedia",
     "validation.invalid": "Silakan masukkan nilai yang valid.",
-    "validation.required": "Silakan isi kolom ini."
+    "validation.required": "Silakan isi kolom ini.",
+    "term.restartArchive": "Mulai ulang",
+    "term.closedArchives": "Ditutup",
+    "term.lastApplication": "Aplikasi terakhir",
+    "term.archiveBuffer": "Keluaran",
+    "term.openArchive": "Buka",
+    "settings.closedTerminalHistory": "Simpan riwayat terminal yang ditutup (jam)",
+    "backend.server.closedHistoryHoursRange": "Masa penyimpanan harus antara {min} dan {max} jam.",
+    "term.postMortem": "Setelah berakhir"
   }
 }

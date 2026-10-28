@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "חבר מחדש את המסוף",
     "term.renameTerminal": "שנה שם מסוף",
     "term.resetConfirmationTitle": "לאפס את המסוף?",
-    "term.resetConsequences": "זה יהרוג את כל הפקודות ואפליקציות ה-GUI במסוף זה ויתחיל מעטפת חדשה בספריית ברירת המחדל. פלט מסוף ועבודות שלא נשמרו יאבדו. לא ניתן לבטל זאת.",
+    "term.resetConsequences": "זה יהרוג את כל הפקודות ואפליקציות ה-GUI במסוף זה ויתחיל מעטפת חדשה בספריית ברירת המחדל. עבודות שלא נשמרו יאבדו. לא ניתן לבטל זאת.",
     "term.resetTerminal": "אפס את המסוף",
     "term.resizeTerminalInput": "שנה גודל קלט מסוף",
     "term.restartTerminal": "הפעל מחדש את המסוף",
@@ -766,6 +766,14 @@
     "updates.updates": "עדכונים",
     "updates.versionAvailable": "{version} זמין",
     "validation.invalid": "נא להזין ערך חוקי.",
-    "validation.required": "אנא מלא שדה זה."
+    "validation.required": "אנא מלא שדה זה.",
+    "term.restartArchive": "הפעלה מחדש",
+    "term.closedArchives": "סגורים",
+    "term.lastApplication": "היישום האחרון",
+    "term.archiveBuffer": "פלט",
+    "term.openArchive": "פתיחה",
+    "settings.closedTerminalHistory": "שמירת היסטוריית מסופים סגורים (שעות)",
+    "backend.server.closedHistoryHoursRange": "משך השמירה חייב להיות בין {min} ל־{max} שעות.",
+    "term.postMortem": "לאחר סיום"
   }
 }

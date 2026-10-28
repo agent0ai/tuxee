@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Reconnecta el terminal",
     "term.renameTerminal": "Canvia el nom del terminal",
     "term.resetConfirmationTitle": "Voleu restablir el terminal?",
-    "term.resetConsequences": "Això finalitzarà totes les ordres i aplicacions gràfiques d'aquest terminal i iniciarà un intèrpret nou al directori per defecte. Es perdran la sortida del terminal i la feina sense desar. Aquesta acció no es pot desfer.",
+    "term.resetConsequences": "Això finalitzarà totes les ordres i aplicacions gràfiques d'aquest terminal i iniciarà un intèrpret nou al directori per defecte. Es perdrà la feina sense desar. Aquesta acció no es pot desfer.",
     "term.resetTerminal": "Restableix el terminal",
     "term.resizeTerminalInput": "Canvia la mida de l'entrada del terminal",
     "term.restartTerminal": "Reinicia el terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Actualitzacions",
     "updates.versionAvailable": "{version} disponible",
     "validation.invalid": "Introduïu un valor vàlid.",
-    "validation.required": "Empleneu aquest camp."
+    "validation.required": "Empleneu aquest camp.",
+    "term.restartArchive": "Reinicia",
+    "term.closedArchives": "Tancats",
+    "term.lastApplication": "Última aplicació",
+    "term.archiveBuffer": "Sortida",
+    "term.openArchive": "Obre",
+    "settings.closedTerminalHistory": "Conserva l’historial de terminals tancats (hores)",
+    "backend.server.closedHistoryHoursRange": "La conservació ha de ser entre {min} i {max} hores.",
+    "term.postMortem": "Post mortem"
   }
 }

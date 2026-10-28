@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Kết nối lại terminal",
     "term.renameTerminal": "Đổi tên terminal",
     "term.resetConfirmationTitle": "Đặt lại terminal?",
-    "term.resetConsequences": "Thao tác này sẽ tắt tất cả các lệnh và ứng dụng GUI trong terminal này và khởi động một trình bao mới trong thư mục mặc định. Đầu ra của terminal và công việc chưa được lưu sẽ bị mất. Điều này không thể hoàn tác được.",
+    "term.resetConsequences": "Thao tác này sẽ tắt tất cả các lệnh và ứng dụng GUI trong terminal này và khởi động một trình bao mới trong thư mục mặc định. Công việc chưa được lưu sẽ bị mất. Điều này không thể hoàn tác được.",
     "term.resetTerminal": "Đặt lại terminal",
     "term.resizeTerminalInput": "Thay đổi kích thước đầu vào terminal",
     "term.restartTerminal": "Khởi động lại terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Cập nhật",
     "updates.versionAvailable": "{version} có sẵn",
     "validation.invalid": "Vui lòng nhập một giá trị hợp lệ.",
-    "validation.required": "Vui lòng điền vào trường này."
+    "validation.required": "Vui lòng điền vào trường này.",
+    "term.restartArchive": "Khởi động lại",
+    "term.closedArchives": "Đã đóng",
+    "term.lastApplication": "Ứng dụng cuối",
+    "term.archiveBuffer": "Đầu ra",
+    "term.openArchive": "Mở",
+    "settings.closedTerminalHistory": "Giữ lịch sử terminal đã đóng (giờ)",
+    "backend.server.closedHistoryHoursRange": "Thời gian lưu phải từ {min} đến {max} giờ.",
+    "term.postMortem": "Sau khi kết thúc"
   }
 }

@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "터미널 다시 연결",
     "term.renameTerminal": "터미널 이름 바꾸기",
     "term.resetConfirmationTitle": "터미널을 재설정하시겠습니까?",
-    "term.resetConsequences": "그러면 이 터미널의 모든 명령과 GUI 앱이 종료되고 기본 디렉터리에서 새 셸이 시작됩니다. 터미널 출력과 저장하지 않은 작업은 손실됩니다. 이 작업은 취소할 수 없습니다.",
+    "term.resetConsequences": "그러면 이 터미널의 모든 명령과 GUI 앱이 종료되고 기본 디렉터리에서 새 셸이 시작됩니다. 저장하지 않은 작업은 손실됩니다. 이 작업은 취소할 수 없습니다.",
     "term.resetTerminal": "터미널 재설정",
     "term.resizeTerminalInput": "터미널 입력 크기 조정",
     "term.restartTerminal": "터미널 다시 시작",
@@ -766,6 +766,14 @@
     "updates.updates": "업데이트",
     "updates.versionAvailable": "{version} 사용 가능",
     "validation.invalid": "유효한 값을 입력하세요.",
-    "validation.required": "이 필드를 작성해 주세요."
+    "validation.required": "이 필드를 작성해 주세요.",
+    "term.restartArchive": "다시 시작",
+    "term.closedArchives": "닫힌 터미널",
+    "term.lastApplication": "마지막 앱",
+    "term.archiveBuffer": "출력",
+    "term.openArchive": "열기",
+    "settings.closedTerminalHistory": "닫힌 터미널 기록 보관 (시간)",
+    "backend.server.closedHistoryHoursRange": "보관 기간은 {min}~{max}시간이어야 합니다.",
+    "term.postMortem": "종료 후"
   }
 }

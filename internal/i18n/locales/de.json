@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Terminal erneut verbinden",
     "term.renameTerminal": "Terminal umbenennen",
     "term.resetConfirmationTitle": "Terminal zurücksetzen?",
-    "term.resetConsequences": "Dies beendet alle Befehle und grafischen Anwendungen in diesem Terminal und startet eine neue Shell im Standardverzeichnis. Terminalausgabe und ungespeicherte Arbeit gehen verloren. Dies kann nicht rückgängig gemacht werden.",
+    "term.resetConsequences": "Dies beendet alle Befehle und grafischen Anwendungen in diesem Terminal und startet eine neue Shell im Standardverzeichnis. Ungespeicherte Arbeit geht verloren. Dies kann nicht rückgängig gemacht werden.",
     "term.resetTerminal": "Terminal zurücksetzen",
     "term.resizeTerminalInput": "Größe der Terminaleingabe ändern",
     "term.restartTerminal": "Terminal neu starten",
@@ -766,6 +766,14 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} verfügbar",
     "validation.invalid": "Bitte einen gültigen Wert eingeben.",
-    "validation.required": "Bitte dieses Feld ausfüllen."
+    "validation.required": "Bitte dieses Feld ausfüllen.",
+    "term.restartArchive": "Neustart",
+    "term.closedArchives": "Geschlossen",
+    "term.lastApplication": "Letzte Anwendung",
+    "term.archiveBuffer": "Ausgabe",
+    "term.openArchive": "Öffnen",
+    "settings.closedTerminalHistory": "Verlauf geschlossener Terminals behalten (Stunden)",
+    "backend.server.closedHistoryHoursRange": "Die Aufbewahrung muss zwischen {min} und {max} Stunden liegen.",
+    "term.postMortem": "Post mortem"
   }
 }

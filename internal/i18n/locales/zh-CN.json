@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "重新连接终端",
     "term.renameTerminal": "重命名终端",
     "term.resetConfirmationTitle": "重置终端？",
-    "term.resetConsequences": "这将终止此终端中的所有命令和 GUI 应用程序，并在默认目录中启动一个新的 shell。终端输出和未保存的工作将丢失。此操作无法撤消。",
+    "term.resetConsequences": "这将终止此终端中的所有命令和 GUI 应用程序，并在默认目录中启动一个新的 shell。未保存的工作将丢失。此操作无法撤消。",
     "term.resetTerminal": "重置终端",
     "term.resizeTerminalInput": "调整终端输入的大小",
     "term.restartTerminal": "重启终端",
@@ -766,6 +766,14 @@
     "updates.updates": "更新",
     "updates.versionAvailable": "{version} 可用",
     "validation.invalid": "请输入有效值。",
-    "validation.required": "请填写此字段。"
+    "validation.required": "请填写此字段。",
+    "term.restartArchive": "重启",
+    "term.closedArchives": "已关闭",
+    "term.lastApplication": "最后的应用",
+    "term.archiveBuffer": "输出",
+    "term.openArchive": "打开",
+    "settings.closedTerminalHistory": "保留已关闭终端的历史（小时）",
+    "backend.server.closedHistoryHoursRange": "保留时间必须在 {min} 到 {max} 小时之间。",
+    "term.postMortem": "结束后"
   }
 }

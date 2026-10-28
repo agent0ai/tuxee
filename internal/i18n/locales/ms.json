@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Sambung semula terminal",
     "term.renameTerminal": "Namakan semula terminal",
     "term.resetConfirmationTitle": "Set semula terminal?",
-    "term.resetConsequences": "Tindakan ini akan menamatkan semua perintah dan aplikasi GUI dalam terminal ini serta memulakan cangkerang baharu dalam direktori lalai. Output terminal dan kerja yang belum disimpan akan hilang. Tindakan ini tidak boleh dibuat asal.",
+    "term.resetConsequences": "Tindakan ini akan menamatkan semua perintah dan aplikasi GUI dalam terminal ini serta memulakan cangkerang baharu dalam direktori lalai. Kerja yang belum disimpan akan hilang. Tindakan ini tidak boleh dibuat asal.",
     "term.resetTerminal": "Set semula terminal",
     "term.resizeTerminalInput": "Ubah saiz input terminal",
     "term.restartTerminal": "Mulakan semula terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Kemas kini",
     "updates.versionAvailable": "{version} tersedia",
     "validation.invalid": "Sila masukkan nilai yang sah.",
-    "validation.required": "Sila isi medan ini."
+    "validation.required": "Sila isi medan ini.",
+    "term.restartArchive": "Mula semula",
+    "term.closedArchives": "Ditutup",
+    "term.lastApplication": "Aplikasi terakhir",
+    "term.archiveBuffer": "Output",
+    "term.openArchive": "Buka",
+    "settings.closedTerminalHistory": "Simpan sejarah terminal yang ditutup (jam)",
+    "backend.server.closedHistoryHoursRange": "Tempoh penyimpanan mestilah antara {min} dan {max} jam.",
+    "term.postMortem": "Selepas tamat"
   }
 }

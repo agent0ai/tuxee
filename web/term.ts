@@ -1,4 +1,4 @@
-import { t, errorText } from './i18n';
+import { t, errorText, locale } from './i18n';
 import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
@@ -52,6 +52,8 @@ export class TerminalView implements View {
     private events = new AbortController();
     private control = button(t("app.takeControl"), 'Hand', () => this.sendControl({ type: 'take-control' }));
     private name = t("common.terminal");
+    private archiveView?: HTMLElement;
+    private updateArchiveScroll = () => {};
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
     private drawer = el('textarea', 'terminal-input');
@@ -313,7 +315,7 @@ export class TerminalView implements View {
         left.append(toggle, previousInput, nextInput, historySeparator, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.renamePanel()), browse, button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.rename()), browse, button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -347,8 +349,8 @@ export class TerminalView implements View {
             if (event.type === 'keydown') this.term.input('\x1b[13;2u');
             return false;
         });
-        this.observer = new ResizeObserver(() => { updateDrawerGrip(); this.closeText(); this.resize(); });
-        this.observer.observe(this.host);
+        this.observer = new ResizeObserver(() => { updateDrawerGrip(); this.closeText(); this.resize(); this.updateArchiveScroll(); });
+        this.observer.observe(this.host); this.observer.observe(this.root);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
     }
     private openLink(target: NonNullable<ReturnType<typeof terminalLink>>) {
@@ -364,7 +366,7 @@ export class TerminalView implements View {
         }
         if (!this.disposed) await this.hooks.openFileBrowser(path, line, column);
     }
-    private focusInput() { if (this.drawer.hidden) this.term.focus(); else this.drawer.focus({ preventScroll: true }); }
+    private focusInput() { if (this.archiveView) { this.archiveView.querySelector('pre')?.focus({preventScroll:true}); return; } if (this.drawer.hidden) this.term.focus(); else this.drawer.focus({ preventScroll: true }); }
     private showText(anchor: HTMLElement) {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
         this.closeText();
@@ -464,8 +466,69 @@ export class TerminalView implements View {
         this.uncertainInput ||= this.pendingBytes > 0;
         this.queue = []; this.pendingBytes = 0; this.inFlight = [];
     }
+    private async showArchive(terminal: string) {
+        let archive;
+        try { archive = await api(`/terminals/${terminal}/archive`, 'GET', undefined, this.events.signal); }
+        catch (error) {
+            if (error instanceof APIError && error.status === 404 && this.panel.terminal === terminal) { this.sessionLost(terminal); return; }
+            throw error;
+        }
+        if (this.disposed || this.closing || this.panel.terminal !== terminal) return;
+        if (archive && (archive.version !== 1 || !archive.normal || typeof archive.normal.text !== 'string' ||
+            !['normal', 'alternate'].includes(archive.active) || archive.alternate && typeof archive.alternate.text !== 'string')) throw Error(t("term.invalidTerminalOutputFrame"));
+        this.ended = true; this.ready = false; this.state('ended'); this.discardInput(); this.closeText();
+        clearTimeout(this.reconnect);
+        const socket = this.socket; this.socket = undefined; socket?.close();
+        this.display.update(); this.surface.hidden = true;
+        this.root.querySelector('.terminal-recovery')?.remove(); this.root.classList.remove('session-lost');
+        this.archiveView?.remove();
+        const view = this.archiveView = el('div', 'terminal-archive');
+        const pre = el('pre'); pre.tabIndex = 0;
+        pre.setAttribute('role', 'textbox'); pre.setAttribute('aria-readonly', 'true'); pre.setAttribute('aria-multiline', 'true');
+        pre.setAttribute('aria-label', t("term.terminalContentsAsText"));
+        pre.style.fontFamily = String(this.term.options.fontFamily); pre.style.fontSize = `${this.term.options.fontSize}px`;
+        pre.addEventListener('keydown', event => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+                event.preventDefault(); const range = document.createRange(); range.selectNodeContents(pre);
+                const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
+            }
+        });
+        const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
+        const buffers = el('select'); buffers.setAttribute('aria-label', t("term.archiveBuffer"));
+        for (const [value, label] of [['normal', t("app.shell")], ['alternate', t("term.lastApplication")]]) {
+            if (value === 'alternate' && !archive?.alternate) continue;
+            const option = el('option', '', label); option.value = value; buffers.append(option);
+        }
+        buffers.value = archive?.active === 'alternate' && archive.alternate ? 'alternate' : 'normal';
+        buffers.hidden = !archive?.alternate;
+        const top = button(t("term.jumpToTop"), 'ArrowUp', () => { pre.scrollTop = 0; pre.focus({preventScroll:true}); });
+        const bottom = button(t("term.jumpToBottom"), 'ArrowDown', () => { pre.scrollTop = pre.scrollHeight; pre.focus({preventScroll:true}); });
+        const updateScroll = this.updateArchiveScroll = () => { top.disabled = pre.scrollTop <= 0; bottom.disabled = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 1; };
+        const paint = () => {
+            const frame = archive?.[buffers.value]; pre.textContent = frame?.text || '';
+            pre.title = frame?.capturedAt ? new Date(frame.capturedAt).toLocaleString(locale()) : '';
+            pre.scrollTop = buffers.value === 'normal' ? pre.scrollHeight : 0; updateScroll();
+        };
+        buffers.onchange = paint; pre.onscroll = updateScroll;
+        const restart = button(t("term.restartArchive"), undefined, () => {
+            if (this.resetting) return;
+            this.resetting = restart.disabled = true;
+            this.starting = (async () => {
+                if (this.panel.terminal === terminal) delete this.panel.terminal;
+                if (!this.panel.terminal) this.panel.path = this.hooks.defaultDirectory();
+                else await this.hooks.changed(true);
+                await this.start();
+            })().catch(this.notice).finally(() => { this.resetting = restart.disabled = false; });
+        }, 'primary restart-terminal');
+        const separator = el('span', 'terminal-footer-separator', '|'); separator.setAttribute('aria-hidden', 'true');
+        left.append(buffers);
+        const dead = el('span', 'terminal-dead-label', t("term.postMortem")); dead.title = t("term.postMortem");
+        right.append(dead, restart, separator, top, bottom);
+        footer.append(left, right); view.append(pre, footer); this.root.append(view); paint();
+    }
     private sessionLost(lost: string | undefined) {
         if (this.disposed || this.closing) return;
+        this.archiveView?.remove(); this.archiveView = undefined; this.updateArchiveScroll = () => {};
         this.ended = true; this.ready = false; this.control.hidden = true;
         this.state('ended');
         this.display.update();
@@ -516,6 +579,9 @@ export class TerminalView implements View {
         this.name = info.name;
         this.hooks.title?.(info.name); this.display.rename(info.name);
         this.root.dataset.terminal = info.id;
+        if (info.exited) { await this.showArchive(info.id); return; }
+        this.archiveView?.remove(); this.archiveView = undefined; this.updateArchiveScroll = () => {};
+        this.ended = false;
         await this.loadHistory(info.id);
         if (!this.disposed && !this.closing) {
             this.root.querySelector('.terminal-recovery')?.remove(); this.root.classList.remove('session-lost');
@@ -595,7 +661,7 @@ export class TerminalView implements View {
                             !Number.isInteger(value.rows) || value.rows < 1 || value.rows > 200) throw Error(t("term.invalidTerminalSize"));
                         break;
                     case 'exit': this.ended = true; this.display.update(); break;
-                    case 'closed': this.sessionLost(terminal); return;
+                    case 'closed': this.ended = true; void this.showArchive(terminal).catch(this.notice); return;
                     case 'display': break;
                     case 'background':
                         for (const color of [value.background, value.foreground]) if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw Error(t("term.invalidTerminalColor"));
@@ -649,6 +715,7 @@ export class TerminalView implements View {
                     if (!current()) return;
                     rendered();
                     if (value.type === 'snapshot') this.resize();
+                    if (value.type === 'exit') await this.showArchive(terminal);
                 }).catch(failed);
             } catch (error) { failed(error); }
         };
@@ -664,7 +731,8 @@ export class TerminalView implements View {
             this.state('disconnected');
             this.reconnect = setTimeout(async () => {
                 try {
-                    await api(`/terminals/${terminal}`);
+                    const info = await api<TerminalInfo>(`/terminals/${terminal}`);
+                    if (info.exited) { await this.showArchive(terminal); return; }
                     if (this.socket || this.ended || this.resetting || this.panel.terminal !== terminal) return;
                     this.connect();
                 }
@@ -724,6 +792,8 @@ export class TerminalView implements View {
         if (this.term.options.fontSize === size && this.term.options.fontFamily === family) return;
         this.closeText(); this.resizeDisplay.release();
         this.term.options = { fontSize: size, fontFamily: family };
+        const pre = this.archiveView?.querySelector('pre');
+        if (pre) { pre.style.fontSize = `${size}px`; pre.style.fontFamily = family; }
         this.resize();
     }
     resize = () => { if (!this.host.checkVisibility()) { this.cancelDrawerResize?.(); this.closeText(); } this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
@@ -744,7 +814,8 @@ export class TerminalView implements View {
             }
         }
     }
-    async renamePanel() {
+    get renamePanel() { return this.ended ? undefined : () => this.rename(); }
+    private async rename() {
         const name = await ask(t("term.renameTerminal"), t("common.name"), this.name, 'Terminal');
         if (!name) return;
         await this.starting;

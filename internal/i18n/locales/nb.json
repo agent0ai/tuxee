@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Koble til terminalen igjen",
     "term.renameTerminal": "Gi nytt navn til terminal",
     "term.resetConfirmationTitle": "Tilbakestille terminalen?",
-    "term.resetConsequences": "Dette vil drepe alle kommandoer og GUI-apper i denne terminalen og starte et nytt skall i standardkatalogen. Terminalutgang og ulagret arbeid vil gå tapt. Dette kan ikke angres.",
+    "term.resetConsequences": "Dette vil drepe alle kommandoer og GUI-apper i denne terminalen og starte et nytt skall i standardkatalogen. Ulagret arbeid vil gå tapt. Dette kan ikke angres.",
     "term.resetTerminal": "Tilbakestill terminal",
     "term.resizeTerminalInput": "Endre størrelse på terminalinngang",
     "term.restartTerminal": "Start terminalen på nytt",
@@ -766,6 +766,14 @@
     "updates.updates": "Oppdateringer",
     "updates.versionAvailable": "{version} tilgjengelig",
     "validation.invalid": "Vennligst skriv inn en gyldig verdi.",
-    "validation.required": "Vennligst fyll ut dette feltet."
+    "validation.required": "Vennligst fyll ut dette feltet.",
+    "term.restartArchive": "Start på nytt",
+    "term.closedArchives": "Lukkede",
+    "term.lastApplication": "Siste program",
+    "term.archiveBuffer": "Utdata",
+    "term.openArchive": "Åpne",
+    "settings.closedTerminalHistory": "Behold historikk for lukkede terminaler (timer)",
+    "backend.server.closedHistoryHoursRange": "Lagringstiden må være mellom {min} og {max} timer.",
+    "term.postMortem": "Post mortem"
   }
 }

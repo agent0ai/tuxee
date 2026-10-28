@@ -22,7 +22,7 @@ func (m *Manager) PruneHistory(user identity.User) {
 			continue
 		}
 		s.mu.Lock()
-		if !s.closed && !s.info.Exited {
+		if !s.closed && !s.info.Exited && !s.archiveDead {
 			live = append(live, id)
 		}
 		s.mu.Unlock()
@@ -43,7 +43,7 @@ func (s *Session) InputHistory(ctx context.Context, text string) ([]string, erro
 	s.manager.mu.Lock()
 	defer s.manager.mu.Unlock()
 	s.mu.Lock()
-	alive := !s.closed && !s.info.Exited
+	alive := !s.closed && !s.info.Exited && !s.archiveDead
 	s.mu.Unlock()
 	if !alive {
 		if text == "" {

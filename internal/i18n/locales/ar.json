@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "أعد توصيل المحطة",
     "term.renameTerminal": "إعادة تسمية المحطة",
     "term.resetConfirmationTitle": "إعادة تعيين المحطة؟",
-    "term.resetConsequences": "سيؤدي هذا إلى إنهاء جميع الأوامر والتطبيقات الرسومية في هذه الطرفية وبدء صدفة أوامر جديدة في الدليل الافتراضي. ستُفقد مخرجات الطرفية والعمل غير المحفوظ. لا يمكن التراجع عن هذا.",
+    "term.resetConsequences": "سيؤدي هذا إلى إنهاء جميع الأوامر والتطبيقات الرسومية في هذه الطرفية وبدء صدفة أوامر جديدة في الدليل الافتراضي. ستُفقد العمل غير المحفوظ. لا يمكن التراجع عن هذا.",
     "term.resetTerminal": "إعادة تعيين المحطة",
     "term.resizeTerminalInput": "تغيير حجم المدخلات الطرفية",
     "term.restartTerminal": "إعادة تشغيل المحطة",
@@ -766,6 +766,14 @@
     "updates.updates": "التحديثات",
     "updates.versionAvailable": "{version} متاح",
     "validation.invalid": "الرجاء إدخال قيمة صالحة.",
-    "validation.required": "يرجى ملء هذا الحقل."
+    "validation.required": "يرجى ملء هذا الحقل.",
+    "term.restartArchive": "إعادة التشغيل",
+    "term.closedArchives": "المغلقة",
+    "term.lastApplication": "آخر تطبيق",
+    "term.archiveBuffer": "المخرجات",
+    "term.openArchive": "فتح",
+    "settings.closedTerminalHistory": "الاحتفاظ بسجل الطرفيات المغلقة (ساعات)",
+    "backend.server.closedHistoryHoursRange": "يجب أن تكون مدة الاحتفاظ بين {min} و{max} ساعة.",
+    "term.postMortem": "بعد الانتهاء"
   }
 }

@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Terminali yeniden bağlayın",
     "term.renameTerminal": "Terminali yeniden adlandır",
     "term.resetConfirmationTitle": "Terminal sıfırlansın mı?",
-    "term.resetConsequences": "Bu, bu terminaldeki tüm komutları ve GUI uygulamalarını sonlandıracak ve varsayılan dizinde yeni bir kabuk başlatacaktır. Terminal çıktısı ve kaydedilmemiş çalışmalar kaybolacaktır. Bu geri alınamaz.",
+    "term.resetConsequences": "Bu, bu terminaldeki tüm komutları ve GUI uygulamalarını sonlandıracak ve varsayılan dizinde yeni bir kabuk başlatacaktır. Kaydedilmemiş çalışmalar kaybolacaktır. Bu geri alınamaz.",
     "term.resetTerminal": "Terminali sıfırla",
     "term.resizeTerminalInput": "Terminal girişini yeniden boyutlandır",
     "term.restartTerminal": "Terminali yeniden başlat",
@@ -766,6 +766,14 @@
     "updates.updates": "Güncellemeler",
     "updates.versionAvailable": "{version} mevcut",
     "validation.invalid": "Lütfen geçerli bir değer girin.",
-    "validation.required": "Lütfen bu alanı doldurun."
+    "validation.required": "Lütfen bu alanı doldurun.",
+    "term.restartArchive": "Yeniden başlat",
+    "term.closedArchives": "Kapatılanlar",
+    "term.lastApplication": "Son uygulama",
+    "term.archiveBuffer": "Çıktı",
+    "term.openArchive": "Aç",
+    "settings.closedTerminalHistory": "Kapatılan terminallerin geçmişini sakla (saat)",
+    "backend.server.closedHistoryHoursRange": "Saklama süresi {min} ile {max} saat arasında olmalıdır.",
+    "term.postMortem": "Sonlandırma sonrası"
   }
 }

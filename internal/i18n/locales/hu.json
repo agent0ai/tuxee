@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Csatlakoztassa újra a terminált",
     "term.renameTerminal": "Terminál átnevezése",
     "term.resetConfirmationTitle": "Reset terminál?",
-    "term.resetConsequences": "Ez leállítja a terminál összes parancsát és grafikus alkalmazását, majd új parancsértelmezőt indít az alapértelmezett könyvtárban. A terminál kimenete és a nem mentett munka elvész. Ez nem vonható vissza.",
+    "term.resetConsequences": "Ez leállítja a terminál összes parancsát és grafikus alkalmazását, majd új parancsértelmezőt indít az alapértelmezett könyvtárban. A nem mentett munka elvész. Ez nem vonható vissza.",
     "term.resetTerminal": "Terminál visszaállítása",
     "term.resizeTerminalInput": "A terminál bemenet átméretezése",
     "term.restartTerminal": "Indítsa újra a terminált",
@@ -766,6 +766,14 @@
     "updates.updates": "Frissítések",
     "updates.versionAvailable": "{version} elérhető",
     "validation.invalid": "Adjon meg egy érvényes értéket.",
-    "validation.required": "Kérjük, töltse ki ezt a mezőt."
+    "validation.required": "Kérjük, töltse ki ezt a mezőt.",
+    "term.restartArchive": "Újraindítás",
+    "term.closedArchives": "Bezártak",
+    "term.lastApplication": "Utolsó alkalmazás",
+    "term.archiveBuffer": "Kimenet",
+    "term.openArchive": "Megnyitás",
+    "settings.closedTerminalHistory": "Bezárt terminálok előzményeinek megőrzése (óra)",
+    "backend.server.closedHistoryHoursRange": "A megőrzési idő {min} és {max} óra között lehet.",
+    "term.postMortem": "Leállás után"
   }
 }

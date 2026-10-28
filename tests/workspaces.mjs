@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtemp, writeFile, chown, rm } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
-const user = 'tuxee-poc-a', base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
+const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a', base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
 const fields = spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':');
 assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
@@ -25,6 +25,7 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
 const page = await context.newPage(), sockets = [], terminals = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('websocket', socket => {
+    if (!/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) return;
     const record = { url: socket.url(), closed: false, snapshots: 0 };
     sockets.push(record);
     socket.on('close', () => { record.closed = true; });
@@ -130,7 +131,7 @@ try {
     if (!await tab(2).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await tab(2).click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Close desktop', exact: true }).click();
-    await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.status === 404), terminals[2].id);
+    await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.json()).then(info => Boolean(info.closedAt)), terminals[2].id);
     assert.ok(connections(2)[0].closed, 'closing an inactive cached workspace cleans up its connection');
     const beforeReload = sockets.length;
     await page.reload(); await settled(0);

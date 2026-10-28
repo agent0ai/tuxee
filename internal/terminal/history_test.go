@@ -65,7 +65,12 @@ func TestInputHistoryConcurrentAppendAndClose(t *testing.T) {
 		t.Fatalf("closed history: %v, %v", history, err)
 	}
 	path := filepath.Join(user.Home, ".local", "state", "tuxee", "terminals", s.Info().ID)
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("append recreated closed session folder: %v", err)
+	data, err := os.ReadFile(filepath.Join(path, "meta.json"))
+	if err != nil || !strings.Contains(string(data), `"state":"closed"`) {
+		t.Fatalf("closed archive missing: %s %v", data, err)
+	}
+	saved, err := os.ReadFile(filepath.Join(path, "input-history.json"))
+	if err != nil || strings.Contains(string(saved), "late write") {
+		t.Fatalf("closed history changed: %s %v", saved, err)
 	}
 }

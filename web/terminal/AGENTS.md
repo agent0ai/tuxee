@@ -36,6 +36,8 @@ Underline links only on hover through native xterm rendering. Map Unicode and wr
 
 Use Ctrl-click on Linux/Windows and Cmd-click on macOS for both detected and OSC links, including application mouse tracking; consume pointer and compatibility mouse events for the entire gesture before xterm sees them. Ordinary mouse clicks reach the terminal/application. Touch taps open only without application mouse tracking. Cancel on movement (including moving away and back), long presses, extra pointers, Escape or blur; preserve selection, scrolling and multi-touch. Hover identifies the platform modifier and shows the destination for web URLs. The same parser serves the T text-view selection action, which accepts selected paths/file URIs or HTTP(S) URLs, including explicitly selected spaces in paths.
 
+`terminalArchiveRecorder` exports visual text through the native Go cell decoder, preserving Unicode, padding and original geometry. Keep private xterm cell/buffer access here. Retain one nonblank alternate frame; sample periodically and before alternate-exit CSI processing, including multiple transitions in one batch. Keep capture times and active-buffer identity distinct so an old TUI frame never replaces current shell output. This versioned visual format stores no styles, parser internals or executable escape sequences.
+
 # Work Guidance
 
 Preserve upstream validation and memory bounds. Bundle runtime.ts into the Go terminal package; share state.ts with browser rendering.

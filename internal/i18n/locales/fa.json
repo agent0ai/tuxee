@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "ترمینال را دوباره وصل کنید",
     "term.renameTerminal": "تغییر نام ترمینال",
     "term.resetConfirmationTitle": "ترمینال بازنشانی شود؟",
-    "term.resetConsequences": "با این کار تمام دستورات و برنامه‌های رابط کاربری گرافیکی در این ترمینال از بین می‌رود و پوسته جدیدی در فهرست پیش‌فرض شروع می‌شود. خروجی ترمینال و کار ذخیره نشده از بین خواهند رفت. این قابل واگرد نیست.",
+    "term.resetConsequences": "با این کار تمام دستورات و برنامه‌های رابط کاربری گرافیکی در این ترمینال از بین می‌رود و پوسته جدیدی در فهرست پیش‌فرض شروع می‌شود. کار ذخیره نشده از بین خواهد رفت. این قابل واگرد نیست.",
     "term.resetTerminal": "ترمینال را بازنشانی کنید",
     "term.resizeTerminalInput": "تغییر اندازه ورودی ترمینال",
     "term.restartTerminal": "ترمینال را مجددا راه اندازی کنید",
@@ -766,6 +766,14 @@
     "updates.updates": "به روز رسانی ها",
     "updates.versionAvailable": "{version} موجود است",
     "validation.invalid": "لطفا یک مقدار معتبر وارد کنید.",
-    "validation.required": "لطفا این فیلد را پر کنید"
+    "validation.required": "لطفا این فیلد را پر کنید",
+    "term.restartArchive": "راه‌اندازی مجدد",
+    "term.closedArchives": "بسته‌شده",
+    "term.lastApplication": "آخرین برنامه",
+    "term.archiveBuffer": "خروجی",
+    "term.openArchive": "باز کردن",
+    "settings.closedTerminalHistory": "نگهداری تاریخچهٔ پایانه‌های بسته‌شده (ساعت)",
+    "backend.server.closedHistoryHoursRange": "مدت نگهداری باید بین {min} و {max} ساعت باشد.",
+    "term.postMortem": "پس از پایان"
   }
 }

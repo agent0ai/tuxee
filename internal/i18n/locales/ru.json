@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Переподключить терминал",
     "term.renameTerminal": "Переименование терминала",
     "term.resetConfirmationTitle": "Сбросить терминал?",
-    "term.resetConsequences": "Это приведет к уничтожению всех команд и приложений с графическим интерфейсом в этом терминале и запуску новой оболочки в каталоге по умолчанию. Вывод терминала и несохраненная работа будут потеряны. Это невозможно отменить.",
+    "term.resetConsequences": "Это приведет к уничтожению всех команд и приложений с графическим интерфейсом в этом терминале и запуску новой оболочки в каталоге по умолчанию. Несохраненная работа будет потеряна. Это невозможно отменить.",
     "term.resetTerminal": "Сбросить терминал",
     "term.resizeTerminalInput": "Изменить размер ввода терминала",
     "term.restartTerminal": "Перезапустить терминал",
@@ -766,6 +766,14 @@
     "updates.updates": "Обновления",
     "updates.versionAvailable": "{version} доступен",
     "validation.invalid": "Пожалуйста, введите допустимое значение.",
-    "validation.required": "Пожалуйста, заполните это поле."
+    "validation.required": "Пожалуйста, заполните это поле.",
+    "term.restartArchive": "Перезапустить",
+    "term.closedArchives": "Закрытые",
+    "term.lastApplication": "Последнее приложение",
+    "term.archiveBuffer": "Вывод",
+    "term.openArchive": "Открыть",
+    "settings.closedTerminalHistory": "Хранить историю закрытых терминалов (часы)",
+    "backend.server.closedHistoryHoursRange": "Срок хранения должен быть от {min} до {max} часов.",
+    "term.postMortem": "После завершения"
   }
 }

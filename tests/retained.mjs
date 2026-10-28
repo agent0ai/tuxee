@@ -35,9 +35,9 @@ async function warning(count) {
         return count ? control?.getAttribute('aria-description')?.startsWith(`${count} running terminal`) : !control?.getAttribute('aria-description')?.includes('running terminal');
     }, count, { timeout: 15000 });
 }
-async function terminate(name) {
-    await row(name).getByRole('button', { name: 'Terminate', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Terminate terminal?', exact: true }).getByRole('button', { name: 'Terminate', exact: true }).click();
+async function terminate(name, exited = false) {
+    await row(name).getByRole('button', { name: 'Close', exact: true }).click();
+    if (!exited) await page.getByRole('dialog', { name: 'Terminate terminal?', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
     await row(name).waitFor({ state: 'detached' });
 }
 try {
@@ -69,7 +69,7 @@ try {
     assert.equal(await item.locator('.menu-warning').count(), 1);
     assert.ok((await menu.getAttribute('aria-description')).split('\n').includes(await item.getAttribute('aria-description')));
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-    assert.equal(await page.getByRole('spinbutton').count(), 0);
+    assert.equal(await page.locator('[name=closedTerminalHistoryHours]').inputValue(), String(me.settings.closedTerminalHistoryHours ?? 168));
     assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await openRetained();
@@ -90,12 +90,12 @@ try {
     assert.ok((await (await api('/me')).json()).settings.workspaces[0].panels.some(panel => panel.terminal === lost.id));
     await openRetained();
     assert.equal(await row(lost.name).count(), 0);
-    await row(attached.name).getByRole('button', { name: 'Terminate', exact: true }).click();
+    await row(attached.name).getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 200);
     await terminate(attached.name); await warning(0);
-    assert.equal((await api(`/terminals/${attached.id}`)).status(), 404);
-    await terminate(ended.name);
+    assert.ok((await (await api(`/terminals/${attached.id}`)).json()).closedAt);
+    await terminate(ended.name, true);
     await retained.getByText('No retained terminals.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
     console.log('PASS no timeout setting; warnings exclude inactive workspaces; attach preserves PID; confirmed termination and ended-session cleanup clear badges');

@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Liitä pääte uudelleen",
     "term.renameTerminal": "Nimeä pääte uudelleen",
     "term.resetConfirmationTitle": "Nollataanko pääte?",
-    "term.resetConsequences": "Tämä lopettaa kaikki tämän päätteen komennot ja graafiset sovellukset ja käynnistää uuden komentotulkin oletushakemistossa. Päätteen tuloste ja tallentamaton työ menetetään. Tätä ei voi kumota.",
+    "term.resetConsequences": "Tämä lopettaa kaikki tämän päätteen komennot ja graafiset sovellukset ja käynnistää uuden komentotulkin oletushakemistossa. Tallentamaton työ menetetään. Tätä ei voi kumota.",
     "term.resetTerminal": "Nollaa pääte",
     "term.resizeTerminalInput": "Muuta päätteen tulon kokoa",
     "term.restartTerminal": "Käynnistä pääte uudelleen",
@@ -766,6 +766,14 @@
     "updates.updates": "Päivitykset",
     "updates.versionAvailable": "{version} saatavilla",
     "validation.invalid": "Anna kelvollinen arvo.",
-    "validation.required": "Täytä tämä kenttä."
+    "validation.required": "Täytä tämä kenttä.",
+    "term.restartArchive": "Käynnistä",
+    "term.closedArchives": "Suljetut",
+    "term.lastApplication": "Viimeisin sovellus",
+    "term.archiveBuffer": "Tuloste",
+    "term.openArchive": "Avaa",
+    "settings.closedTerminalHistory": "Säilytä suljettujen päätteiden historia (tuntia)",
+    "backend.server.closedHistoryHoursRange": "Säilytysajan on oltava {min}–{max} tuntia.",
+    "term.postMortem": "Post mortem"
   }
 }

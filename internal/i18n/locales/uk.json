@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Повторно підключіть термінал",
     "term.renameTerminal": "Перейменувати термінал",
     "term.resetConfirmationTitle": "Скинути термінал?",
-    "term.resetConsequences": "Це призведе до знищення всіх команд і програм GUI в цьому терміналі та запуску нової оболонки в каталозі за замовчуванням. Результат терміналу та незбережену роботу буде втрачено. Це неможливо скасувати.",
+    "term.resetConsequences": "Це призведе до знищення всіх команд і програм GUI в цьому терміналі та запуску нової оболонки в каталозі за замовчуванням. Незбережену роботу буде втрачено. Це неможливо скасувати.",
     "term.resetTerminal": "Скинути термінал",
     "term.resizeTerminalInput": "Змінити розмір введеного терміналу",
     "term.restartTerminal": "Перезапустіть термінал",
@@ -766,6 +766,14 @@
     "updates.updates": "Оновлення",
     "updates.versionAvailable": "{version} в наявності",
     "validation.invalid": "Введіть дійсне значення.",
-    "validation.required": "Будь ласка, заповніть це поле."
+    "validation.required": "Будь ласка, заповніть це поле.",
+    "term.restartArchive": "Перезапустити",
+    "term.closedArchives": "Закриті",
+    "term.lastApplication": "Остання програма",
+    "term.archiveBuffer": "Вивід",
+    "term.openArchive": "Відкрити",
+    "settings.closedTerminalHistory": "Зберігати історію закритих терміналів (години)",
+    "backend.server.closedHistoryHoursRange": "Термін зберігання має бути від {min} до {max} годин.",
+    "term.postMortem": "Після завершення"
   }
 }

@@ -26,7 +26,7 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 
 - [i18n/AGENTS.md](i18n/AGENTS.md): Unified language catalogs, named variables, fallback, system overrides, immutable session bundles and translation checks.
 
-- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, shell commands and embedded prompts, display interpreter, attachments, and explicit termination.
+- [terminal/AGENTS.md](terminal/AGENTS.md): Retained PTYs, shell commands and embedded prompts, display interpreter, attachments, post-mortem text archives and explicit termination.
 - [desktop/AGENTS.md](desktop/AGENTS.md): Lazy terminal X/VNC runtimes, native window discovery, credentials and process cleanup.
 - [audio/AGENTS.md](audio/AGENTS.md): Shared per-user PulseAudio, lazy client endpoints, silence suppression and browser capture subscriptions.
 

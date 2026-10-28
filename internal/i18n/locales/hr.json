@@ -694,7 +694,7 @@
     "term.reconnectTerminal": "Ponovno spojite terminal",
     "term.renameTerminal": "Preimenuj terminal",
     "term.resetConfirmationTitle": "Resetirati terminal?",
-    "term.resetConsequences": "Ovo će uništiti sve naredbe i GUI aplikacije u ovom terminalu i pokrenuti novu ljusku u zadanom direktoriju. Terminalni izlaz i nespremljeni rad bit će izgubljeni. Ovo se ne može poništiti.",
+    "term.resetConsequences": "Ovo će uništiti sve naredbe i GUI aplikacije u ovom terminalu i pokrenuti novu ljusku u zadanom direktoriju. Nespremljeni rad bit će izgubljeni. Ovo se ne može poništiti.",
     "term.resetTerminal": "Resetirajte terminal",
     "term.resizeTerminalInput": "Promjena veličine ulaza terminala",
     "term.restartTerminal": "Ponovno pokrenite terminal",
@@ -766,6 +766,14 @@
     "updates.updates": "Ažuriranja",
     "updates.versionAvailable": "{version} dostupan",
     "validation.invalid": "Unesite valjanu vrijednost.",
-    "validation.required": "Molimo ispunite ovo polje."
+    "validation.required": "Molimo ispunite ovo polje.",
+    "term.restartArchive": "Ponovno pokreni",
+    "term.closedArchives": "Zatvoreni",
+    "term.lastApplication": "Zadnja aplikacija",
+    "term.archiveBuffer": "Izlaz",
+    "term.openArchive": "Otvori",
+    "settings.closedTerminalHistory": "Čuvaj povijest zatvorenih terminala (sati)",
+    "backend.server.closedHistoryHoursRange": "Vrijeme čuvanja mora biti od {min} do {max} sati.",
+    "term.postMortem": "Nakon završetka"
   }
 }

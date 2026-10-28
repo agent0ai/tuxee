@@ -1503,3 +1503,12 @@ pre, code, .process-label small, .login-language {
 :root[dir=rtl] input[role=switch]:checked::before { transform: translateX(-12px); }
 :root[dir=rtl] .directional-icon { transform: scaleX(-1); }
 :root[dir=rtl] .process-fold[aria-expanded=false] svg { transform: rotate(90deg); }
+
+.terminal-archive { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+.terminal-archive pre { color: var(--text); line-height: 1; flex: 1; min-height: 0; margin: 0; padding: 8px; overflow: auto; white-space: pre; direction: ltr; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
+.terminal-archive .terminal-footer > div:first-child { min-width: 0; }
+.terminal-archive select { max-width: min(180px, 28vw); min-width: 0; padding: 2px; font-size: 11px; }
+.terminal-archive .restart-terminal { color: var(--accent); background: var(--accent-bg); padding-inline: 5px; }
+.terminal-archive .terminal-footer > div:last-child { flex: 1; min-width: 0; justify-content: flex-end; }
+.terminal-archive .terminal-footer button { flex-shrink: 0; }
+.terminal-dead-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

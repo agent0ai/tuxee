@@ -508,7 +508,7 @@ try {
     await poll(() => second.locator('.terminal-host').isVisible(), 'shell exit left a dead display visible');
     await poll(async () => !await alive(Number(shellLines[1])), 'shell exit left GUI app running');
     await page.locator('.terminal-view').last().locator('..').getByRole('button', { name: 'Close panel', exact: true }).click();
-    await poll(() => api(`/terminals/${panels[1].terminal}`).then(response => response.status() === 404), 'closing panel left GUI session running');
+    await poll(() => api(`/terminals/${panels[1].terminal}`).then(response => response.json()).then(info => Boolean(info.closedAt)), 'closing panel left GUI session running');
     await poll(async () => !await alive(Number(shellLines[1])), 'closing panel left its shell running');
     assert.ok(await alive(input.pid));
     console.log('PASS mobile fit, logout socket revocation, login reconnection and individual session termination');
