@@ -32,6 +32,7 @@ export type Settings = {
     terminalFontSize?: number;
     terminalFontFamily?: string;
     uploadConcurrency?: number;
+    editorLineWrap?: boolean;
     theme: 'dark' | 'light';
     current: string;
     workspaces: Workspace[];
@@ -59,6 +60,8 @@ export type Hooks = {
     openFileBrowser: (path: string, line?: number, column?: number) => Promise<void>;
     defaultDirectory: () => string;
     workspaceDefault: (path: string) => Promise<void>;
+    editorLineWrap: () => boolean;
+    setEditorLineWrap: (enabled: boolean) => Promise<void>;
     user: User;
     title?: (name: string) => void;
 };

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Замен: {count}",
     "editor.searchReplacedLine": "Совпадение в строке {line} заменено",
     "editor.selectionDeleted": "Выбранное удалено.",
+    "editor.lineWrap": "Перенос строк",
     "editor.syntax": "Синтаксис",
     "editor.thisBrowserCannotPlayTheFile": "Этот браузер не может воспроизвести файл",
     "editor.undo": "Отменить",

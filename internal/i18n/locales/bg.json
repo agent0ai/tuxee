@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Замени: {count}",
     "editor.searchReplacedLine": "Съвпадението на ред {line} е заменено",
     "editor.selectionDeleted": "Избраният текст е изтрит",
+    "editor.lineWrap": "Пренасяне",
     "editor.syntax": "Синтаксис",
     "editor.thisBrowserCannotPlayTheFile": "Този браузър не може да възпроизведе файла",
     "editor.undo": "Отмяна",

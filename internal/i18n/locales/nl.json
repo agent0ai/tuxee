@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Vervangingen: {count}",
     "editor.searchReplacedLine": "Overeenkomst op regel {line} vervangen",
     "editor.selectionDeleted": "Geselecteerde tekst verwijderd",
+    "editor.lineWrap": "Regelomloop",
     "editor.syntax": "Syntaxis",
     "editor.thisBrowserCannotPlayTheFile": "Deze browser kan het bestand niet afspelen",
     "editor.undo": "Ongedaan maken",

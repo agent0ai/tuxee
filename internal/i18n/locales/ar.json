@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "عمليات الاستبدال: {count}",
     "editor.searchReplacedLine": "استُبدل التطابق في السطر {line}",
     "editor.selectionDeleted": "تم حذف النص المحدد",
+    "editor.lineWrap": "التفاف السطر",
     "editor.syntax": "الصياغة",
     "editor.thisBrowserCannotPlayTheFile": "لا يمكن لهذا المتصفح تشغيل الملف",
     "editor.undo": "تراجع",

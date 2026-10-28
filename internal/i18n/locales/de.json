@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Ersetzungen: {count}",
     "editor.searchReplacedLine": "Treffer in Zeile {line} ersetzt",
     "editor.selectionDeleted": "Auswahl gelöscht",
+    "editor.lineWrap": "Zeilenumbruch",
     "editor.syntax": "Syntax",
     "editor.thisBrowserCannotPlayTheFile": "Dieser Browser kann die Datei nicht abspielen",
     "editor.undo": "Rückgängig",

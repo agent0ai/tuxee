@@ -82,6 +82,12 @@ function save() {
     savePromise = savePromise.catch(() => { }).then(() => api('/settings', 'PUT', value)).then(() => { void refreshTerminals(); });
     return savePromise;
 }
+async function setEditorLineWrap(enabled: boolean) {
+    const previous = settings.editorLineWrap;
+    settings.editorLineWrap = enabled;
+    try { await save(); }
+    catch (error) { settings.editorLineWrap = previous; throw error; }
+}
 function destroyWorkspace(value?: Mounted) {
     if (!value) return;
     warmWorkspaces.delete(value.ws.id);
@@ -452,7 +458,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 grip.onpointerdown = event => beginPanelResize(item!.owner, panel, edge, event);
                 node.append(grip);
             }
-            const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
+            const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }

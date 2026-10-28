@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "החלפות: {count}",
     "editor.searchReplacedLine": "ההתאמה בשורה {line} הוחלפה",
     "editor.selectionDeleted": "הטקסט שנבחר נמחק",
+    "editor.lineWrap": "גלישת שורות",
     "editor.syntax": "תחביר",
     "editor.thisBrowserCannotPlayTheFile": "הדפדפן הזה לא יכול להפעיל את הקובץ",
     "editor.undo": "ביטול פעולה",

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "바꾼 항목: {count}",
     "editor.searchReplacedLine": "{line}행의 일치 항목을 바꿨습니다",
     "editor.selectionDeleted": "선택 항목이 삭제되었습니다.",
+    "editor.lineWrap": "줄 바꿈",
     "editor.syntax": "구문",
     "editor.thisBrowserCannotPlayTheFile": "이 브라우저는 파일을 재생할 수 없습니다",
     "editor.undo": "실행 취소",

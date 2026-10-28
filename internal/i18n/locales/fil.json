@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Mga pagpapalit: {count}",
     "editor.searchReplacedLine": "Pinalitan ang tugma sa linya {line}",
     "editor.selectionDeleted": "Na-delete ang napiling text",
+    "editor.lineWrap": "Balot ng linya",
     "editor.syntax": "Syntax",
     "editor.thisBrowserCannotPlayTheFile": "Hindi ma-play ng browser na ito ang file",
     "editor.undo": "I-undo",

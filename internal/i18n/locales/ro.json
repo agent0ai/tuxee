@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Înlocuiri: {count}",
     "editor.searchReplacedLine": "Potrivirea de la linia {line} a fost înlocuită",
     "editor.selectionDeleted": "Textul selectat a fost șters",
+    "editor.lineWrap": "Încadrare rând",
     "editor.syntax": "Sintaxă",
     "editor.thisBrowserCannotPlayTheFile": "Acest browser nu poate reda fișierul",
     "editor.undo": "Anulează",

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Erstatninger: {count}",
     "editor.searchReplacedLine": "Forekomst på linje {line} er erstattet",
     "editor.selectionDeleted": "Den valgte tekst er slettet",
+    "editor.lineWrap": "Linjeombrydning",
     "editor.syntax": "Syntaks",
     "editor.thisBrowserCannotPlayTheFile": "Denne browser kan ikke afspille filen",
     "editor.undo": "Fortryd",

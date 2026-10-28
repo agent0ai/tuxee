@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Sostituzioni: {count}",
     "editor.searchReplacedLine": "Risultato sostituito alla riga {line}",
     "editor.selectionDeleted": "Selezione eliminata",
+    "editor.lineWrap": "A capo",
     "editor.syntax": "Sintassi",
     "editor.thisBrowserCannotPlayTheFile": "Questo browser non può riprodurre il file",
     "editor.undo": "Annulla",

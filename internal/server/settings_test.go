@@ -8,6 +8,31 @@ import (
 	"testing"
 )
 
+func TestEditorLineWrapSettings(t *testing.T) {
+	for _, value := range []string{"null", "true", "false", `"false"`, "0", "[]"} {
+		var settings Settings
+		err := json.Unmarshal([]byte(`{"editorLineWrap":`+value+`}`), &settings)
+		valid := value == "null" || value == "true" || value == "false"
+		if (err == nil) != valid {
+			t.Fatalf("%s: %v", value, err)
+		}
+		if !valid {
+			continue
+		}
+		data, err := json.Marshal(settings)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if value == "null" {
+			if settings.EditorLineWrap != nil || strings.Contains(string(data), "editorLineWrap") {
+				t.Fatal("absent preference must use the default")
+			}
+		} else if !strings.Contains(string(data), `"editorLineWrap":`+value) {
+			t.Fatalf("preference did not round-trip: %s", data)
+		}
+	}
+}
+
 func TestShellSettings(t *testing.T) {
 	for _, raw := range []string{`{}`, `{"shellCommand":"  zsh -l  ","useTuxeePrompt":false}`, `{"shellCommand":"fish","useTuxeePrompt":true}`, `{"useTuxeePrompt":null}`, `{"useTuxeePrompt":"false"}`, `{"shellCommand":"bash\nexit"}`, `{"shellCommand":"bash\u0000"}`} {
 		var settings Settings

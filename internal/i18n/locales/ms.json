@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Penggantian: {count}",
     "editor.searchReplacedLine": "Padanan pada baris {line} diganti",
     "editor.selectionDeleted": "Pilihan dipadamkan",
+    "editor.lineWrap": "Balut baris",
     "editor.syntax": "Sintaks",
     "editor.thisBrowserCannotPlayTheFile": "Pelayar ini tidak dapat memainkan fail",
     "editor.undo": "Buat asal",

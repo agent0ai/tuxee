@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Cserék: {count}",
     "editor.searchReplacedLine": "A találat cserélve a(z) {line}. sorban",
     "editor.selectionDeleted": "A kijelölt szöveg törölve",
+    "editor.lineWrap": "Sortörés",
     "editor.syntax": "Szintaxis",
     "editor.thisBrowserCannotPlayTheFile": "Ez a böngésző nem tudja lejátszani a fájlt",
     "editor.undo": "Visszavonás",

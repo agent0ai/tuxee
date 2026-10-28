@@ -71,6 +71,7 @@ type Settings struct {
 	TerminalFontSize        *int        `json:"terminalFontSize,omitempty"`
 	TerminalFontFamily      string      `json:"terminalFontFamily,omitempty"`
 	UploadConcurrency       *int        `json:"uploadConcurrency,omitempty"`
+	EditorLineWrap          *bool       `json:"editorLineWrap,omitempty"`
 	Theme                   string      `json:"theme"`
 	Current                 string      `json:"current"`
 	Workspaces              []Workspace `json:"workspaces"`

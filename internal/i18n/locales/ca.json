@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Substitucions: {count}",
     "editor.searchReplacedLine": "Coincidència substituïda a la línia {line}",
     "editor.selectionDeleted": "S'ha suprimit la selecció",
+    "editor.lineWrap": "Ajust de línia",
     "editor.syntax": "Sintaxi",
     "editor.thisBrowserCannotPlayTheFile": "Aquest navegador no pot reproduir el fitxer",
     "editor.undo": "Desfés",

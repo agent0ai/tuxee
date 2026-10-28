@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "รายการที่แทนที่: {count}",
     "editor.searchReplacedLine": "แทนที่ผลลัพธ์ในบรรทัด {line} แล้ว",
     "editor.selectionDeleted": "ลบข้อความที่เลือกแล้ว",
+    "editor.lineWrap": "ตัดบรรทัด",
     "editor.syntax": "ไวยากรณ์",
     "editor.thisBrowserCannotPlayTheFile": "เบราว์เซอร์นี้ไม่สามารถเล่นไฟล์ได้",
     "editor.undo": "เลิกทำ",

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "取代數：{count}",
     "editor.searchReplacedLine": "已取代第 {line} 行的相符項目",
     "editor.selectionDeleted": "已刪除選取內容",
+    "editor.lineWrap": "自動換行",
     "editor.syntax": "語法",
     "editor.thisBrowserCannotPlayTheFile": "此瀏覽器無法播放檔案",
     "editor.undo": "復原",

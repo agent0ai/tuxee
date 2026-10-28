@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Αντικαταστάσεις: {count}",
     "editor.searchReplacedLine": "Το αποτέλεσμα στη γραμμή {line} αντικαταστάθηκε",
     "editor.selectionDeleted": "Το επιλεγμένο κείμενο διαγράφηκε",
+    "editor.lineWrap": "Αναδίπλωση",
     "editor.syntax": "Σύνταξη",
     "editor.thisBrowserCannotPlayTheFile": "Αυτό το πρόγραμμα περιήγησης δεν μπορεί να παίξει το αρχείο",
     "editor.undo": "Αναίρεση",

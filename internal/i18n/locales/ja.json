@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "置換数: {count}",
     "editor.searchReplacedLine": "{line} 行目の一致を置換しました",
     "editor.selectionDeleted": "選択範囲が削除されました",
+    "editor.lineWrap": "折り返し",
     "editor.syntax": "構文",
     "editor.thisBrowserCannotPlayTheFile": "このブラウザではファイルを再生できません",
     "editor.undo": "元に戻す",

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Zamene: {count}",
     "editor.searchReplacedLine": "Podudaranje u redu {line} zamenjeno",
     "editor.selectionDeleted": "Izbor je obrisan",
+    "editor.lineWrap": "Prelom reda",
     "editor.syntax": "Sintaksa",
     "editor.thisBrowserCannotPlayTheFile": "Ovaj pregledač ne može da reprodukuje datoteku",
     "editor.undo": "Opozovi",

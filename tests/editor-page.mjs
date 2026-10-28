@@ -7,7 +7,7 @@ await build({
     stdin: { contents: "export * from './web/editor-page'; export { EditorState } from './web/vendor/code-editor/library.js';", resolveDir: process.cwd(), loader: 'ts' },
     bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/editor-page.mjs'
 });
-const { EditorState, PageDraft, languageFor, pageLimitError, pageWrapping } = await import('../.test-state/editor-page.mjs');
+const { EditorState, PageDraft, languageFor, pageLimitError } = await import('../.test-state/editor-page.mjs');
 for (const [path, mode] of [
     ['/root/.bashrc', 'shell'], ['/root/.profile', 'shell'], ['/root/.env', 'shell'],
     ['/root/.config.json', 'json'], ['/root/.thing.unknown', 'text'],
@@ -45,9 +45,4 @@ change({ from: 2, to: 5, insert: '界\n' });
 assert.equal(draft.content(), 'on界\r\nwo\nthree\rfour🙂\r\nnew\r\nline', 'replace across CRLF without touching later line endings');
 assert.equal(draft.dirty(state.doc), true);
 
-for (const [content, count] of [['x'.repeat(1000), 0], ['🙂'.repeat(1001), 1], ['x'.repeat(2001) + '\nend', 2]]) {
-    const value = EditorState.create({ doc: content, extensions: [pageWrapping] });
-    assert.equal(value.field(pageWrapping).size, count);
-    assert.equal(value.sliceDoc(), content, 'visual wrapping never inserts file bytes');
-}
-console.log('PASS bounded editor pages, hidden-file syntax, exact line endings and visual-only wrapping');
+console.log('PASS bounded editor pages, hidden-file syntax and exact line endings');

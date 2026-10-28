@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Útskiptingar: {count}",
     "editor.searchReplacedLine": "Skipt út niðurstöðu á línu {line}",
     "editor.selectionDeleted": "Völdum texta eytt",
+    "editor.lineWrap": "Línuskipting",
     "editor.syntax": "Setningafræði",
     "editor.thisBrowserCannotPlayTheFile": "Þessi vafri getur ekki spilað skrána",
     "editor.undo": "Afturkalla",

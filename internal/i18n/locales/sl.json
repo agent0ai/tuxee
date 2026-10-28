@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Zamenjave: {count}",
     "editor.searchReplacedLine": "Ujemanje v vrstici {line} zamenjano",
     "editor.selectionDeleted": "Izbrano besedilo izbrisano",
+    "editor.lineWrap": "Prelom vrstic",
     "editor.syntax": "Skladnja",
     "editor.thisBrowserCannotPlayTheFile": "Ta brskalnik ne more predvajati datoteke",
     "editor.undo": "Razveljavi",

@@ -735,7 +735,7 @@ export class FileView implements View {
             const restoreFocus = document.activeElement === document.body || this.root.contains(document.activeElement);
             this.inspector?.dispose(); this.inspector = undefined; this.showPath(this.panel.path);
             if (restoreFocus) this.focus(path);
-        }, this.showPath, line, column);
+        }, this.showPath, this.hooks, line, column);
         return true;
     }
     canClose = () => this.inspector?.canClose() ?? Promise.resolve(true);

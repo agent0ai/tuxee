@@ -1,11 +1,13 @@
-import { errorText, t } from './i18n';
+import { errorText, locale, t } from './i18n';
 import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages, search, openSearchPanel, closeSearchPanel } from './vendor/code-editor/library.js';
 import { xml } from './vendor/code-editor/xml.js';
 import { api, button, confirmAction, el, notify, popover, scopeNotifications } from './ui';
 import { fittingHeaderItemCount } from './overflow';
 import { download } from './transfers';
 import type { DraggedFile } from './file-drag';
-import { languageFor, PageDraft, pageLimitError, pageWrapping, type TextPage } from './editor-page';
+import { languageFor, PageDraft, pageLimitError, type TextPage } from './editor-page';
+import type { Hooks } from './model';
+import { compactSize } from './monitor-values';
 import { ImageViewer, isImage } from './image-viewer';
 import { editorSearchPanel, editorSearchKeymap } from './editor-search';
 export { languageFor } from './editor-page';
@@ -46,6 +48,10 @@ export class FileInspector {
     private root = el('section', 'file-inspector');
     private toolbar = el('div', 'inspector-toolbar');
     private body = el('div', 'inspector-body');
+    private footer = el('div', 'file-footer inspector-footer');
+    private lineWrap = el('input');
+    private size = el('span', 'inspector-size');
+    private pageSeparator = el('span', 'file-footer-separator', '|');
     private back = button(t("editor.backToFiles"), 'ArrowLeft', () => this.close());
     private separator = el('span', 'file-navigation-separator', '|');
     private more = button(t("editor.fileTools"), 'Ellipsis', () => this.menu());
@@ -68,6 +74,8 @@ export class FileInspector {
     private editor?: InstanceType<typeof EditorView>;
     private imageViewer?: ImageViewer;
     private language = new Compartment();
+    private wrapping = new Compartment();
+    private savingWrap = false;
     private readOnly = new Compartment();
     private draft?: PageDraft;
     private page?: TextPage;
@@ -82,7 +90,7 @@ export class FileInspector {
     private request?: AbortController;
     private events = new AbortController();
     private index: number;
-    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void, private targetLine?: number, private targetColumn?: number) {
+    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void, private preferences: Pick<Hooks, 'editorLineWrap' | 'setEditorLineWrap'>, private targetLine?: number, private targetColumn?: number) {
         if (mediaKind(path)) this.files = files.filter(file => mediaKind(file.name));
         this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
@@ -95,7 +103,16 @@ export class FileInspector {
         this.separator.setAttribute('aria-hidden', 'true');
         this.more.setAttribute('aria-haspopup', 'dialog');
         this.pagination.append(this.pageUp, this.pageLabel, this.pageDown);
-        this.root.append(this.toolbar, this.body); host.append(this.root);
+        this.lineWrap.type = 'checkbox'; this.lineWrap.checked = preferences.editorLineWrap();
+        this.lineWrap.onchange = () => this.setLineWrap();
+        const wrap = el('label', 'file-hidden'); wrap.title = t('editor.lineWrap'); wrap.append(this.lineWrap, el('span', '', t('editor.lineWrap')));
+        const left = el('div', 'inspector-preferences'), right = el('div', 'inspector-info');
+        const separator = el('span', 'file-footer-separator', '|'); separator.setAttribute('aria-hidden', 'true');
+        this.pageSeparator.setAttribute('aria-hidden', 'true');
+        left.append(wrap, separator, this.syntax);
+        right.append(this.pagination, this.pageSeparator, this.size);
+        this.footer.append(left, right); this.footer.hidden = true;
+        this.root.append(this.toolbar, this.body, this.footer); host.append(this.root);
         this.resize.observe(this.toolbar);
         this.root.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); this.save().catch(error => notify(error, host)); }
@@ -114,12 +131,20 @@ export class FileInspector {
         this.previous.disabled = this.next.disabled = this.files.length < 2;
         for (const control of [this.syntax, this.searchButton, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
         this.pagination.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
+        this.footer.hidden = !this.editor;
+        this.pageSeparator.hidden = this.pagination.hidden;
+        if (this.page && this.draft) {
+            const bytes = this.page.total - (this.page.end - this.page.offset) + new TextEncoder().encode(this.draft.content()).length;
+            this.size.textContent = compactSize(bytes, 1024);
+            this.size.title = `${bytes.toLocaleString(locale())} B`;
+        }
         const busy = this.saving || this.loading;
         // Query the bundled commands without applying their transactions.
         const state = this.editor && { state: this.editor.state, dispatch: () => {} };
         this.undo.disabled = busy || !state || !undoCommand(state);
         this.redo.disabled = busy || !state || !redoCommand(state);
         this.syntax.disabled = busy;
+        this.lineWrap.disabled = busy || this.savingWrap;
         this.searchButton.disabled = busy;
         this.saveButton.disabled = !this.dirty || busy;
         this.pageUp.disabled = busy || this.pageIndex === 0;
@@ -154,16 +179,12 @@ export class FileInspector {
         content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t("editor.fileTools"));
         scopeNotifications(content, this.host);
         for (const item of this.overflow) {
-            const controls = item.matches('button,select') ? [item] : [...item.children];
+            const controls = item.matches('button') ? [item] : [...item.children];
             for (const source of controls) {
                 if (source instanceof HTMLButtonElement) {
                     const action = button(source.title, undefined, () => { this.closeMenu(); source.click(); });
                     action.replaceChildren(...[...source.childNodes].map(node => node.cloneNode(true)), el('span', '', source.title));
                     action.disabled = source.disabled; content.append(action);
-                } else if (source instanceof HTMLSelectElement) {
-                    const select = source.cloneNode(true) as HTMLSelectElement; select.value = source.value;
-                    select.onchange = () => { source.value = select.value; this.closeMenu(); source.dispatchEvent(new Event('change')); };
-                    const label = el('label', 'field', t("editor.syntax")); label.append(select); content.append(label);
                 } else content.append(source.cloneNode(true));
             }
         }
@@ -178,6 +199,21 @@ export class FileInspector {
         const editor = this.editor, name = this.syntax.value;
         const extension = await languageMode(name);
         if (this.editor === editor && this.syntax.value === name) editor?.dispatch({ effects: this.language.reconfigure(extension) });
+    }
+    private async setLineWrap() {
+        const enabled = this.lineWrap.checked;
+        this.editor?.dispatch({ effects: this.wrapping.reconfigure(enabled ? EditorView.lineWrapping : []) });
+        this.savingWrap = true; this.controls();
+        try { await this.preferences.setEditorLineWrap(enabled); }
+        catch (error) {
+            if (this.events.signal.aborted) return;
+            this.lineWrap.checked = !enabled;
+            this.editor?.dispatch({ effects: this.wrapping.reconfigure(!enabled ? EditorView.lineWrapping : []) });
+            notify(error, this.host);
+        } finally {
+            this.savingWrap = false;
+            if (!this.events.signal.aborted) this.controls();
+        }
     }
     private async load() {
         ++this.sequence;
@@ -210,7 +246,7 @@ export class FileInspector {
             actions.append(downloadButton);
             this.toolbarItems = [navigation, ...(this.imageViewer ? [this.imageViewer.controls] : []), actions];
         } else {
-            this.toolbarItems = [this.undo, this.redo, this.syntax, this.searchButton, downloadButton, this.saveButton, this.pagination];
+            this.toolbarItems = [this.undo, this.redo, this.searchButton, downloadButton, this.saveButton];
         }
         this.toolbar.replaceChildren(this.back, this.separator, ...this.toolbarItems, this.more);
         if (!this.media) {
@@ -247,7 +283,8 @@ export class FileInspector {
                     'replaced match on line $': t('editor.searchReplacedLine', { line: '$1' }),
                     'replaced $ matches': t('editor.searchReplacedCount', { count: '$1' }) }),
                 lineNumbers({ formatNumber: number => String(position.line + number - 1) }),
-                history(), bracketMatching(), indentOnInput(), highlighting, pageWrapping,
+                history(), bracketMatching(), indentOnInput(), highlighting,
+                this.wrapping.of(this.lineWrap.checked ? EditorView.lineWrapping : []),
                 search({ top: true, literal: true, lineOffset: position.line - 1, createPanel: view => editorSearchPanel(view, () => !!this.page && (this.pageIndex > 0 || this.page.end < this.page.total)) }),
                 this.language.of([]), this.readOnly.of(EditorState.readOnly.of(false)),
                 keymap.of([...editorSearchKeymap, ...defaultKeymap, ...historyKeymap]),

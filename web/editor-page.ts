@@ -1,5 +1,4 @@
 import { t } from './i18n';
-import { Decoration, EditorView, StateField, WidgetType } from './vendor/code-editor/library.js';
 
 export const MAX_PAGE_BYTES = 1 << 20, MAX_PAGE_ROWS = 10000, WRAP_COLUMNS = 1000;
 export type TextPage = { offset: number; end: number; total: number; lineBreaks: number; hash: string };
@@ -56,31 +55,3 @@ export class PageDraft {
     }
     dirty(doc): boolean { return !doc.eq(this.base); }
 }
-
-class SoftBreak extends WidgetType {
-    eq() { return true; }
-    toDOM() { const br = document.createElement('br'); br.className = 'editor-soft-break'; return br; }
-    get lineBreaks() { return 1; }
-}
-const softBreak = new SoftBreak();
-function wrappedLines(doc) {
-    const ranges = [];
-    for (let number = 1; number <= doc.lines; number++) {
-        const line = doc.line(number);
-        let columns = 0, position = line.from;
-        for (const char of line.text) {
-            if (columns === WRAP_COLUMNS) {
-                ranges.push(Decoration.widget({ widget: softBreak, side: 1 }).range(position));
-                columns = 0;
-            }
-            position += char.length;
-            columns++;
-        }
-    }
-    return Decoration.set(ranges);
-}
-export const pageWrapping = StateField.define({
-    create: state => wrappedLines(state.doc),
-    update: (value, transaction) => transaction.docChanged ? wrappedLines(transaction.newDoc) : value,
-    provide: field => EditorView.decorations.from(field)
-});

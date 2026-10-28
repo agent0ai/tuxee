@@ -12,6 +12,9 @@ assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).statu
 const dir = await mkdtemp(fields[5] + '/tuxee-toolbar-');
 const shell = '#!/bin/bash\n# Start the services\nset -e\ncd /root/workspace\nexec /usr/local/bin/spynel serve\nexec /root/.local/bin/codex-bridge --config /root/.config/codex-bridge/config.yaml\necho "# literal" "$HOME" # inline comment\n';
 await writeFile(dir + '/syntax.sh', shell);
+const longLine = 'w'.repeat(2001) + '🙂\r\nlast\n';
+await writeFile(dir + '/wrap.txt', longLine);
+await writeFile(dir + '/paged.txt', ('x'.repeat(500) + '\r\n').repeat(3000));
 await mkdir(dir + '/copies'); await writeFile(dir + '/alpha.txt', 'toolbar fixture');
 await mkdir(dir + '/.hidden-folder'); await writeFile(dir + '/.hidden-folder/.nested', 'nested fixture');
 await writeFile(dir + '/.hidden.txt', 'hidden fixture');
@@ -39,6 +42,12 @@ const page = await context.newPage(), errors = []; page.on('pageerror', error =>
 page.setDefaultTimeout(10000);
 const file = page.locator('.file-view'), path = page.getByRole('textbox', { name: 'File or directory path', exact: true });
 const toolbar = file.locator('.inspector-toolbar'), content = file.locator('.cm-content');
+const footer = file.locator('.inspector-footer'), wrap = footer.getByRole('checkbox', { name: 'Line wrap', exact: true });
+async function wrapped(enabled) {
+ await wrap.setChecked(enabled);
+ await page.waitForFunction(() => !document.querySelector('.inspector-footer input').disabled);
+ assert.equal((await (await api('/me', 'GET')).json()).settings.editorLineWrap, enabled);
+}
 const tool = name => toolbar.getByRole('button', { name, exact: true });
 const tools = page.getByRole('dialog', { name: 'File tools', exact: true });
 const requests = [];
@@ -53,7 +62,7 @@ try {
  assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'editor', workspaces: [{ id: 'editor', name: 'Editor', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: dir, x: 0, y: 0, w: 4, h: 2 }] }] })).status(), 200);
  await page.goto(base); await file.locator('.file-entry').first().waitFor();
  await open(dir + '/syntax.sh'); await content.waitFor();
- const shellSyntax = toolbar.getByRole('combobox', { name: 'Syntax', exact: true });
+ const shellSyntax = file.locator('.inspector-footer').getByRole('combobox', { name: 'Syntax', exact: true });
  assert.equal(await shellSyntax.inputValue(), 'shell');
  for (const theme of ['dark', 'light']) {
   if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
@@ -70,11 +79,60 @@ try {
  assert.ok(await tool('Save file').isDisabled()); assert.equal(await readFile(dir + '/syntax.sh', 'utf8'), shell);
  await back(); await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
  console.log('PASS shell shebang, comments, commands, options, strings and variables in both themes, syntax switching and unchanged bytes');
+ await open(dir + '/wrap.txt'); await content.waitFor();
+ assert.ok(await wrap.isChecked(), 'wrapping defaults on');
+ assert.equal(await toolbar.locator('select, .inspector-pagination').count(), 0);
+ assert.deepEqual(await footer.evaluate(node => [...node.firstElementChild.children].map(n => n.tagName)), ['LABEL', 'SPAN', 'SELECT']);
+ assert.ok(await footer.locator('.inspector-pagination').isHidden());
+ assert.ok(await footer.locator('.inspector-info > .file-footer-separator').isHidden());
+ assert.equal(await footer.locator('.inspector-size').textContent(), '2.0K');
+ assert.equal(await footer.locator('.inspector-size').getAttribute('title'), Buffer.byteLength(longLine).toLocaleString('en') + ' B');
+ await page.waitForFunction(() => { const scroller = document.querySelector('.cm-scroller'); return scroller.scrollWidth <= scroller.clientWidth + 1; });
+ await wrapped(false);
+ await page.waitForFunction(() => { const scroller = document.querySelector('.cm-scroller'); return scroller.scrollWidth > scroller.clientWidth + 1000; });
+ assert.ok(await tool('Save file').isDisabled()); assert.ok(await tool('Undo').isDisabled());
+ await edited('界');
+ const draft = await content.textContent();
+ assert.equal(await footer.locator('.inspector-size').getAttribute('title'), (Buffer.byteLength(longLine) + 3).toLocaleString('en') + ' B');
+ await wrapped(true); assert.equal(await content.textContent(), draft);
+ await tool('Undo').click(); assert.ok(await tool('Save file').isDisabled());
+ await tool('Redo').click(); assert.equal(await content.textContent(), draft);
+ await wrapped(false); await tool('Undo').click();
+ assert.equal(await readFile(dir + '/wrap.txt', 'utf8'), longLine);
+ await back(); await open(dir + '/syntax.sh'); await content.waitFor(); assert.equal(await wrap.isChecked(), false);
+ await page.reload(); await file.locator('.file-entry').first().waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.equal(await wrap.isChecked(), false, 'false survives reload');
+ const rejectWrap = route => route.request().method() === 'PUT' ? route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'wrap setting rejected' }) }) : route.continue();
+ await page.route('**/api/settings', rejectWrap); await wrap.check();
+ await file.locator('..').locator('.toast').filter({ hasText: 'wrap setting rejected' }).waitFor();
+ await page.waitForFunction(() => !document.querySelector('.inspector-footer input').disabled);
+ assert.equal(await wrap.isChecked(), false, 'failed save restores wrapping');
+ await page.unroute('**/api/settings', rejectWrap);
+ await back(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.equal(await wrap.isChecked(), false, 'failed save restores the next-file preference');
+ await wrapped(true); await page.reload(); await file.locator('.file-entry').first().waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.ok(await wrap.isChecked(), 'true survives reload');
+ await back(); await open(dir + '/paged.txt'); await content.waitFor();
+ assert.equal(await footer.locator('.inspector-size').textContent(), '1.4M');
+ assert.ok(await footer.locator('.inspector-info > .file-footer-separator').isVisible());
+ assert.deepEqual(await footer.locator('.inspector-info').evaluate(node => [...node.children].map(n => n.className)), ['inspector-pagination', 'file-footer-separator', 'inspector-size']);
+ await footer.getByRole('button', { name: 'Page down', exact: true }).click();
+ await footer.getByText('Page 2', { exact: true }).waitFor();
+ assert.equal(await footer.locator('.inspector-size').textContent(), '1.4M', 'size describes the whole file');
+ for (const theme of ['dark', 'light']) {
+  if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+  for (const width of [320, 390, 1440]) {
+   await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(200);
+   assert.ok(await footer.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `footer fits at ${width}`);
+   assert.ok(await footer.evaluate(node => node.firstElementChild.getBoundingClientRect().right <= node.lastElementChild.getBoundingClientRect().left), 'footer groups do not overlap');
+   await page.screenshot({ path: `test-results/inspector-footer-${theme}-${width}.png` });
+  }
+ }
+ await back();
+ console.log('PASS footer order, B/K/M sizes, visual wrapping and horizontal scrolling, unchanged bytes/undo, preference persistence and failure rollback, paginated mobile/theme bounds');
  await open(dir + '/alpha.txt'); await content.waitFor();
  assert.equal(await path.inputValue(), dir + '/alpha.txt'); assert.equal(await path.getAttribute('title'), dir + '/alpha.txt');
  assert.equal(await file.locator('.inspector-title').count(), 0); assert.equal(await tool('Close file').count(), 0);
+ assert.equal(await footer.locator('.inspector-size').textContent(), '15B');
  assert.deepEqual(await toolbar.locator('button:visible').evaluateAll(nodes => nodes.map(node => node.title)), ['Back to files', 'Undo', 'Redo', 'Search and replace', 'Download file', 'Save file']);
- assert.ok(await toolbar.evaluate(node => node.children[1].textContent === '|' && node.children[2].title === 'Undo' && node.children[3].title === 'Redo' && node.children[4].getAttribute('aria-label') === 'Syntax'));
+ assert.ok(await toolbar.evaluate(node => node.children[1].textContent === '|' && node.children[2].title === 'Undo' && node.children[3].title === 'Redo' && node.children[4].title === 'Search and replace'));
  assert.ok(await tool('Undo').isDisabled()); assert.ok(await tool('Redo').isDisabled());
  await content.click(); await page.keyboard.press('ArrowRight'); assert.ok(await tool('Undo').isDisabled(), 'selection is not a document undo');
  await edited(' changed'); assert.ok(await tool('Undo').isEnabled()); assert.ok(await tool('Redo').isDisabled());
@@ -135,10 +193,9 @@ try {
  await tools.getByRole('button', { name: 'Save file', exact: true }).click();
  await page.waitForFunction(() => document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');
  assert.equal(await readFile(dir + '/alpha.txt', 'utf8'), 'toolbar fixture changed mobile narrow');
- await tool('File tools').click();
- const syntax = tools.getByRole('combobox', { name: 'Syntax', exact: true });
- await syntax.selectOption('python'); await tools.waitFor({ state: 'detached' });
- assert.equal(await toolbar.locator('.syntax-select').inputValue(), 'python');
+ const syntax = file.locator('.inspector-footer').getByRole('combobox', { name: 'Syntax', exact: true });
+ await syntax.selectOption('python');
+ assert.equal(await syntax.inputValue(), 'python');
  await file.locator('..').evaluate(node => node.style.width = '100px'); await page.waitForTimeout(200);
  await tool('File tools').click();
  assert.ok(await tools.getByRole('button', { name: 'Undo', exact: true }).isEnabled());
@@ -162,6 +219,7 @@ try {
 
  await open(dir + '/image.png');
  await file.locator('.image-viewport[data-ready=true]').waitFor();
+ assert.ok(await footer.isHidden(), 'editor footer is not shown for media');
  assert.equal(await path.inputValue(), dir + '/image.png');
  await tool('Next file').click(); assert.equal(await path.inputValue(), dir + '/second.png');
  await file.locator('.file-inspector').focus(); await page.keyboard.press('ArrowLeft'); assert.equal(await path.inputValue(), dir + '/image.png');

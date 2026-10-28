@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Nahradenia: {count}",
     "editor.searchReplacedLine": "Zhoda na riadku {line} nahradená",
     "editor.selectionDeleted": "Výber odstránený",
+    "editor.lineWrap": "Zalamovanie",
     "editor.syntax": "Syntax",
     "editor.thisBrowserCannotPlayTheFile": "Tento prehliadač nedokáže prehrať súbor",
     "editor.undo": "Späť",

@@ -104,7 +104,20 @@ try {
     const arSearch = ar.locator('.editor-search'); await arSearch.waitFor();
     assert.equal(await arSearch.locator('textarea').first().getAttribute('dir'), 'ltr');
     assert.ok(await arSearch.evaluate(node => node.scrollWidth <= node.clientWidth), 'RTL search controls fit the drawer');
+    await ar.locator('.path-input').fill(large); await ar.locator('.path-input').press('Enter'); await ar.locator('.inspector-pagination').waitFor();
+    assert.ok(await ar.locator('.inspector-footer').evaluate(node => node.scrollWidth <= node.clientWidth + 1), 'RTL paginated footer fits');
+    await ar.screenshot({ path: 'test-results/inspector-footer-ar.png' });
     await arabic.close();
+    for (const language of ['fr', 'uk']) {
+        const translated = await browser.newContext({ viewport: { width: 320, height: 844 } });
+        assert.equal((await translated.request.post(base + '/api/login', { data: { username: user, password, language }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
+        const localized = await translated.newPage(); await localized.goto(base);
+        await localized.locator('.path-input').fill(large); await localized.locator('.path-input').press('Enter'); await localized.locator('.inspector-pagination').waitFor();
+        assert.ok(await localized.locator('.inspector-footer').evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${language} paginated footer fits`);
+        await localized.screenshot({ path: `test-results/inspector-footer-${language}.png` });
+        await translated.close();
+    }
+
     console.log('PASS search drawer, multiline replacement, regex captures, undo, save, page scope and mobile bounds');
 } finally {
     if (browser) await browser.close(); server.kill('SIGTERM'); await stopped;

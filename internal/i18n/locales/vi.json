@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Số lần thay thế: {count}",
     "editor.searchReplacedLine": "Đã thay kết quả ở dòng {line}",
     "editor.selectionDeleted": "Đã xóa văn bản đã chọn",
+    "editor.lineWrap": "Ngắt dòng",
     "editor.syntax": "Cú pháp",
     "editor.thisBrowserCannotPlayTheFile": "Trình duyệt này không thể phát tệp",
     "editor.undo": "Hoàn tác",

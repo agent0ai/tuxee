@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "جایگزینی‌ها: {count}",
     "editor.searchReplacedLine": "تطبیق در خط {line} جایگزین شد",
     "editor.selectionDeleted": "متن انتخاب شده حذف شد",
+    "editor.lineWrap": "شکستن خط",
     "editor.syntax": "نحو",
     "editor.thisBrowserCannotPlayTheFile": "این مرورگر نمی تواند فایل را پخش کند",
     "editor.undo": "واگرد",

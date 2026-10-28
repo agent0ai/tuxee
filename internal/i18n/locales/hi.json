@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "बदलाव: {count}",
     "editor.searchReplacedLine": "पंक्ति {line} में मिलान बदला गया",
     "editor.selectionDeleted": "चयनित पाठ हटा दिया गया",
+    "editor.lineWrap": "पंक्ति लपेटें",
     "editor.syntax": "सिंटैक्स",
     "editor.thisBrowserCannotPlayTheFile": "यह ब्राउज़र फ़ाइल नहीं चला सकता",
     "editor.undo": "पूर्ववत करें",

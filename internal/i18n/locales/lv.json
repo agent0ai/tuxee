@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Aizstāšanas: {count}",
     "editor.searchReplacedLine": "Atbilstība rindā {line} aizstāta",
     "editor.selectionDeleted": "Atlasītais teksts ir izdzēsts",
+    "editor.lineWrap": "Rindu aplaušana",
     "editor.syntax": "Sintakse",
     "editor.thisBrowserCannotPlayTheFile": "Šī pārlūkprogramma nevar atskaņot failu",
     "editor.undo": "Atsaukt",

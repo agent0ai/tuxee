@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Zamiany: {count}",
     "editor.searchReplacedLine": "Zamieniono dopasowanie w wierszu {line}",
     "editor.selectionDeleted": "Wybór usunięty",
+    "editor.lineWrap": "Zawijanie",
     "editor.syntax": "Składnia",
     "editor.thisBrowserCannotPlayTheFile": "Ta przeglądarka nie może odtworzyć pliku",
     "editor.undo": "Cofnij",

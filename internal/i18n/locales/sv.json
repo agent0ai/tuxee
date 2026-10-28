@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Ersättningar: {count}",
     "editor.searchReplacedLine": "Träff på rad {line} ersatt",
     "editor.selectionDeleted": "Markerad text raderad",
+    "editor.lineWrap": "Radbrytning",
     "editor.syntax": "Syntax",
     "editor.thisBrowserCannotPlayTheFile": "Den här webbläsaren kan inte spela upp filen",
     "editor.undo": "Ångra",

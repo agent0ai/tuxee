@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Korvaukset: {count}",
     "editor.searchReplacedLine": "Osuma rivillä {line} korvattu",
     "editor.selectionDeleted": "Valittu teksti poistettu",
+    "editor.lineWrap": "Rivitys",
     "editor.syntax": "Syntaksi",
     "editor.thisBrowserCannotPlayTheFile": "Tämä selain ei voi toistaa tiedostoa",
     "editor.undo": "Kumoa",

@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Pakeitimai: {count}",
     "editor.searchReplacedLine": "Atitikmuo eilutėje {line} pakeistas",
     "editor.selectionDeleted": "Pasirinktas tekstas ištrintas",
+    "editor.lineWrap": "Eilučių laužymas",
     "editor.syntax": "Sintaksė",
     "editor.thisBrowserCannotPlayTheFile": "Ši naršyklė negali paleisti failo",
     "editor.undo": "Atšaukti veiksmą",

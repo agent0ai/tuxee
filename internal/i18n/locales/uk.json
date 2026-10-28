@@ -423,6 +423,7 @@
     "editor.searchReplacedCount": "Замін: {count}",
     "editor.searchReplacedLine": "Збіг у рядку {line} замінено",
     "editor.selectionDeleted": "Виділений текст видалено",
+    "editor.lineWrap": "Перенесення рядків",
     "editor.syntax": "Синтаксис",
     "editor.thisBrowserCannotPlayTheFile": "Цей браузер не може відтворити файл",
     "editor.undo": "Скасувати",
