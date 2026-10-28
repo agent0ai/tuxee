@@ -56,7 +56,12 @@ export function editorSearchPanel(view, multipage: () => boolean) {
     }
     function commit() {
         const nextQuery = new SearchQuery({ search: find.value, replace: replace.value, caseSensitive: matchCase.input.checked, regexp: regex.input.checked, literal: true });
-        if (!nextQuery.eq(lastQuery)) { lastQuery = nextQuery; view.dispatch({ effects: setSearchQuery.of(nextQuery) }); }
+        if (nextQuery.eq(lastQuery)) return;
+        const searchChanged = nextQuery.search !== lastQuery.search || nextQuery.caseSensitive !== lastQuery.caseSensitive || nextQuery.regexp !== lastQuery.regexp;
+        const match = searchChanged && nextQuery.valid ? nextQuery.getCursor(view.state).next() : undefined;
+        const selection = match && !match.done ? { anchor: match.value.from, head: match.value.to } : undefined;
+        lastQuery = nextQuery;
+        view.dispatch({ effects: setSearchQuery.of(nextQuery), selection, scrollIntoView: !!selection });
     }
     for (const control of [find, replace, matchCase.input, regex.input]) control.addEventListener('input', commit);
     dom.addEventListener('keydown', event => {

@@ -46,8 +46,14 @@ try {
     const toggle = page.getByRole('button', { name: 'Search and replace', exact: true });
     await toggle.click(); await search.waitFor(); await position('0/0');
     assert.deepEqual(await search.locator('.editor-search-navigation').evaluate(node => [...node.children].map(n => n.tagName)), ['BUTTON', 'SPAN', 'BUTTON']);
-    await find.fill('target'); await position('0/16');
-    for (let index = 1; index <= 3; index++) { await action('Next match').click(); await position(`${index}/16`); }
+    await find.pressSequentially('target'); await position('1/16');
+    assert.equal(await find.inputValue(), 'target', 'incremental search preserves typed text');
+    assert.ok(await find.evaluate(node => node === document.activeElement && node.selectionStart === node.value.length && node.selectionEnd === node.value.length), 'search retains focus and input caret');
+    assert.equal(await page.locator('.cm-line').first().locator('.cm-searchMatch-selected').textContent(), 'target', 'first match is really selected');
+    assert.ok(await page.getByRole('button', { name: 'Undo', exact: true }).isDisabled(), 'search selection does not edit the document');
+    for (let index = 2; index <= 3; index++) { await action('Next match').click(); await position(`${index}/16`); }
+    await replacement.fill('replacement'); await position('3/16');
+    await replacement.fill(''); await position('3/16');
     await action('Previous match').click(); await position('2/16');
     await find.focus(); await find.press('F3'); await position('3/16');
     await find.press('Shift+F3'); await position('2/16');
@@ -79,13 +85,13 @@ try {
     assert.deepEqual(await page.locator('.inspector-toolbar button:visible').evaluateAll(nodes => nodes.map(n => n.title)), ['Back to files', 'Undo', 'Redo', 'Search and replace', 'Download file', 'Save file']);
     await page.locator('.cm-content').click(); await page.keyboard.press('Control+f'); await search.waitFor();
     assert.ok(await search.locator('.editor-search-warning').isHidden());
-    await find.fill('ALPHA'); await count(2);
+    await find.fill('ALPHA'); await position('1/2');
     await search.getByRole('checkbox', { name: 'Match case' }).check(); await count(0);
-    await search.getByRole('checkbox', { name: 'Match case' }).uncheck(); await count(2);
+    await search.getByRole('checkbox', { name: 'Match case' }).uncheck(); await position('1/2');
     await action('Next match').click(); await page.locator('.cm-searchMatch-selected').first().waitFor();
     assert.match(await page.locator('.cm-announced').textContent(), /Match on line \d+: .*alpha/i);
     await action('Previous match').click(); await page.locator('.cm-searchMatch-selected').first().waitFor();
-    await find.fill('alpha\nbeta'); await count(2);
+    await find.fill('alpha\nbeta'); await position('1/2');
     await replacement.fill('X\nY'); await action('Replace all').click();
     assert.match(await page.locator('.cm-announced').textContent(), /Replacements: 2/);
     assert.ok(await page.getByRole('button', { name: 'Save file' }).isEnabled());
@@ -96,7 +102,7 @@ try {
     await page.waitForFunction(() => document.querySelector('[aria-label="Save file"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');
     assert.equal(await readFile(first, 'utf8'), 'X\r\nY\r\nX\r\nY\r\na123 a456\r\n');
     await search.getByRole('checkbox', { name: 'Regular expression' }).check();
-    await find.fill('a(\\d+)'); await replacement.fill('b$1'); await count(2);
+    await find.fill('a(\\d+)'); await position('1/2'); await replacement.fill('b$1'); await position('1/2');
     await action('Next match').click(); await action('Replace current').click(); await count(1);
     await action('Replace all').click(); await count(0);
     await page.getByRole('button', { name: 'Save file', exact: true }).click();
@@ -111,7 +117,7 @@ try {
     await page.getByRole('button', { name: 'Page down', exact: true }).click();
     await page.getByText('Page 2', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Search and replace', exact: true }).click(); await search.waitFor();
-    assert.ok(await search.locator('.editor-search-warning').isVisible()); await find.fill('second-only'); await count(1);
+    assert.ok(await search.locator('.editor-search-warning').isVisible()); await find.fill('second-only'); await position('1/1');
     await action('Next match').click(); assert.match(await page.locator('.cm-announced').textContent(), /Match on line 10002:/);
     await replacement.fill('changed'); await action('Replace current').click();
     assert.match(await page.locator('.cm-announced').textContent(), /Replaced match on line 10002/);
