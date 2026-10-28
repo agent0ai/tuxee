@@ -1,5 +1,5 @@
 import { errorText, t } from './i18n';
-import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages } from './vendor/code-editor/library.js';
+import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages, search, openSearchPanel, closeSearchPanel } from './vendor/code-editor/library.js';
 import { xml } from './vendor/code-editor/xml.js';
 import { api, button, confirmAction, el, notify, popover, scopeNotifications } from './ui';
 import { fittingHeaderItemCount } from './overflow';
@@ -7,6 +7,7 @@ import { download } from './transfers';
 import type { DraggedFile } from './file-drag';
 import { languageFor, PageDraft, pageLimitError, pageWrapping, type TextPage } from './editor-page';
 import { ImageViewer, isImage } from './image-viewer';
+import { editorSearchPanel, editorSearchKeymap } from './editor-search';
 export { languageFor } from './editor-page';
 
 const modes = ['css', 'go', 'html', 'javascript', 'json', 'jsx', 'markdown', 'python', 'shell', 'sql', 'text', 'toml', 'tsx', 'typescript', 'xml', 'yaml'];
@@ -55,6 +56,7 @@ export class FileInspector {
     private pagination = el('div', 'inspector-pagination');
     private syntax = el('select', 'syntax-select');
     private saveButton = button(t("editor.saveFile"), 'Save', () => this.save());
+    private searchButton = button(t('editor.searchReplace'), 'Search', () => this.editor && openSearchPanel(this.editor));
     private previous = button(t("editor.previousFile"), 'ChevronLeft', () => this.step(-1));
     private next = button(t("editor.nextFile"), 'ChevronRight', () => this.step(1));
     private filePosition = el('span', 'inspector-position');
@@ -97,7 +99,7 @@ export class FileInspector {
         this.resize.observe(this.toolbar);
         this.root.onkeydown = event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); this.save().catch(error => notify(error, host)); }
-            else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); this.close().catch(error => notify(error, host)); }
+            else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!this.editor || !closeSearchPanel(this.editor)) this.close().catch(error => notify(error, host)); }
             else if (this.media && !["INPUT","SELECT","BUTTON"].includes((event.target as Element).tagName) && ["ArrowLeft",'ArrowRight'].includes(event.key)) { event.preventDefault(); this.step((event.key === 'ArrowLeft' ? -1 : 1) * (document.documentElement.dir === 'rtl' ? -1 : 1)).catch(error => notify(error, host)); }
         };
         window.addEventListener('beforeunload', event => { if (this.dirty) event.preventDefault(); }, { signal: this.events.signal });
@@ -109,7 +111,7 @@ export class FileInspector {
         this.changed(this.file.path, this.dirty);
         this.filePosition.textContent = `${this.index + 1}/${this.files.length}`;
         this.previous.disabled = this.next.disabled = this.files.length < 2;
-        for (const control of [this.syntax, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
+        for (const control of [this.syntax, this.searchButton, this.saveButton, this.undo, this.redo]) control.hidden = !this.editor;
         this.pagination.hidden = !this.editor || !this.page || (this.pageIndex === 0 && this.page.end >= this.page.total);
         const busy = this.saving || this.loading;
         // Query the bundled commands without applying their transactions.
@@ -117,6 +119,7 @@ export class FileInspector {
         this.undo.disabled = busy || !state || !undoCommand(state);
         this.redo.disabled = busy || !state || !redoCommand(state);
         this.syntax.disabled = busy;
+        this.searchButton.disabled = busy;
         this.saveButton.disabled = !this.dirty || busy;
         this.pageUp.disabled = busy || this.pageIndex === 0;
         this.pageDown.disabled = busy || !this.page || this.page.end >= this.page.total;
@@ -206,7 +209,7 @@ export class FileInspector {
             actions.append(downloadButton);
             this.toolbarItems = [navigation, ...(this.imageViewer ? [this.imageViewer.controls] : []), actions];
         } else {
-            this.toolbarItems = [this.undo, this.redo, this.syntax, downloadButton, this.saveButton, this.pagination];
+            this.toolbarItems = [this.undo, this.redo, this.syntax, this.searchButton, downloadButton, this.saveButton, this.pagination];
         }
         this.toolbar.replaceChildren(this.back, this.separator, ...this.toolbarItems, this.more);
         if (!this.media) await this.loadPage(0);
@@ -223,11 +226,15 @@ export class FileInspector {
             const value = await api('/files', 'POST', { operation: 'read', path: this.file.path, offset: position.offset, version: this.version }, request.signal);
             if (generation !== this.sequence) return;
             const state = EditorState.create({ doc: value.content || '', extensions: [
-                EditorState.phrases.of({ 'Diagnostics': t('editor.diagnostics'), 'No diagnostics': t('editor.noDiagnostics'), 'Selection deleted': t('editor.selectionDeleted'), 'close': t('common.close') }),
+                EditorState.phrases.of({ 'Diagnostics': t('editor.diagnostics'), 'No diagnostics': t('editor.noDiagnostics'), 'Selection deleted': t('editor.selectionDeleted'), 'close': t('common.close'),
+                    'Match on line $1: $2': t('editor.searchAnnouncement', { line: '$1', text: '$2' }),
+                    'replaced match on line $': t('editor.searchReplacedLine', { line: '$1' }),
+                    'replaced $ matches': t('editor.searchReplacedCount', { count: '$1' }) }),
                 lineNumbers({ formatNumber: number => String(position.line + number - 1) }),
                 history(), bracketMatching(), indentOnInput(), highlighting, pageWrapping,
+                search({ top: true, literal: true, lineOffset: position.line - 1, createPanel: view => editorSearchPanel(view, () => !!this.page && (this.pageIndex > 0 || this.page.end < this.page.total)) }),
                 this.language.of([]), this.readOnly.of(EditorState.readOnly.of(false)),
-                keymap.of([...defaultKeymap, ...historyKeymap]),
+                keymap.of([...editorSearchKeymap, ...defaultKeymap, ...historyKeymap]),
                 EditorView.contentAttributes.of({ 'aria-label': t("editor.content") }),
                 EditorState.transactionFilter.of(transaction => {
                     if (!transaction.docChanged) return transaction;

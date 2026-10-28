@@ -6,7 +6,7 @@ Locally vendored frontend libraries.
 
 # Ownership
 
-Own the CodeMirror 6 JavaScript chunks copied from the8020/uui commit b14a6096fee6bd4f64c6b25c16064822cefb225a, services/shell/frontend/components/code-editor/vendor. Integration stays in web/editor.ts and web/editor-page.ts. The latter imports WidgetType from the matched chunk-36OFQ4TD.js export `u`, which library.js does not re-export.
+Own the CodeMirror 6 JavaScript chunks rebuilt with esbuild from the8020/uui commit b14a6096fee6bd4f64c6b25c16064822cefb225a's code-editor library entrypoint, using the package versions in the bundled notices. Add WidgetType and @codemirror/search 6.7.2 to that entrypoint so the editor and search share one CodeMirror runtime. Integration stays in web/editor.ts, web/editor-page.ts and web/editor-search.ts.
 
 The novnc child owns the pinned noVNC desktop client; integration stays in web/display.ts.
 
@@ -14,9 +14,11 @@ The novnc child owns the pinned noVNC desktop client; integration stays in web/d
 
 # Local Contracts
 
-Keep vendor chunks intact and matched except the shell command-list fix below and the documented noVNC resource-lifetime and framebuffer-size fixes described in its child contract. Build resolves all local language imports into the self-contained index. No CDN or remote imports. Verbatim licenses live in third_party/CODEMIRROR-LICENSES.txt; source attribution lives in THIRD_PARTY_NOTICES.md.
+Keep vendor chunks intact and matched except the shell command-list and search-announcement fixes below and the documented noVNC resource-lifetime and framebuffer-size fixes described in its child contract. Build resolves all local language imports into the self-contained index. No CDN or remote imports. Verbatim licenses live in third_party/CODEMIRROR-LICENSES.txt; source attribution lives in THIRD_PARTY_NOTICES.md.
 
-`code-editor/shell-YUCGLZSD.js` adds `exec` to the bundled shell mode's built-in command list. Preserve this fix when updating unless upstream includes it; command recognition otherwise retains the upstream static list.
+`code-editor/shell-XT4L6IAW.js` adds `exec` to the bundled shell mode's built-in command list. Preserve this fix when updating unless upstream includes it; command recognition otherwise retains the upstream static list.
+
+The bundled search module changes its match announcement to one `Match on line $1: $2` phrase, allowing the line number and text to be translated together instead of concatenating English fragments. Its `lineOffset` search option adjusts match and replacement announcements to the file's line numbers on later pages. Preserve these adaptations when rebuilding.
 
 # Work Guidance
 
@@ -24,7 +26,7 @@ Update the complete matched set and licenses when updating the editor library.
 
 # Verification
 
-npm run build verifies no external runtime imports. npm run test:features checks editor language selection, highlighting, saving and previews against the native server. `node tests/inspector.mjs` covers shell tokens in both themes and syntax switching.
+npm run build verifies no external runtime imports. npm run test:features checks editor language selection, highlighting, saving and previews against the native server. `node tests/inspector.mjs` covers shell tokens in both themes and syntax switching. `node tests/editor-search.mjs` exercises the shared search module in the editor.
 
 # Child DOX Index
 

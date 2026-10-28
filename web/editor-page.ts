@@ -1,7 +1,5 @@
 import { t } from './i18n';
-import { Decoration, EditorView, StateField } from './vendor/code-editor/library.js';
-// WidgetType is exposed by this matched vendor chunk, not its library entrypoint.
-import { u as WidgetType } from './vendor/code-editor/chunk-36OFQ4TD.js';
+import { Decoration, EditorView, StateField, WidgetType } from './vendor/code-editor/library.js';
 
 export const MAX_PAGE_BYTES = 1 << 20, MAX_PAGE_ROWS = 10000, WRAP_COLUMNS = 1000;
 export type TextPage = { offset: number; end: number; total: number; lineBreaks: number; hash: string };

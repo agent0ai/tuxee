@@ -23,7 +23,7 @@ await copyFile('assets/tuxee-logo-emblem-light.png', dir + '/image.png');
 await copyFile('assets/tuxee-logo-emblem-light.png', dir + '/second.png');
 assert.equal(spawnSync('chown', ['-R', `${fields[2]}:${fields[3]}`, dir]).status, 0);
 const state = await mkdtemp('/tmp/tuxee-toolbar-server-');
-const server = spawn('./bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
+const server = spawn(process.env.TUXEE_TEST_BINARY || './bin/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => server.once('exit', resolve));
 const base = await new Promise((resolve, reject) => {
  const timer = setTimeout(() => reject(Error('server startup timed out')), 10000);
@@ -73,7 +73,7 @@ try {
  await open(dir + '/alpha.txt'); await content.waitFor();
  assert.equal(await path.inputValue(), dir + '/alpha.txt'); assert.equal(await path.getAttribute('title'), dir + '/alpha.txt');
  assert.equal(await file.locator('.inspector-title').count(), 0); assert.equal(await tool('Close file').count(), 0);
- assert.deepEqual(await toolbar.locator('button:visible').evaluateAll(nodes => nodes.map(node => node.title)), ['Back to files', 'Undo', 'Redo', 'Download file', 'Save file']);
+ assert.deepEqual(await toolbar.locator('button:visible').evaluateAll(nodes => nodes.map(node => node.title)), ['Back to files', 'Undo', 'Redo', 'Search and replace', 'Download file', 'Save file']);
  assert.ok(await toolbar.evaluate(node => node.children[1].textContent === '|' && node.children[2].title === 'Undo' && node.children[3].title === 'Redo' && node.children[4].getAttribute('aria-label') === 'Syntax'));
  assert.ok(await tool('Undo').isDisabled()); assert.ok(await tool('Redo').isDisabled());
  await content.click(); await page.keyboard.press('ArrowRight'); assert.ok(await tool('Undo').isDisabled(), 'selection is not a document undo');

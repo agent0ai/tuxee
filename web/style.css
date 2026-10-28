@@ -1293,6 +1293,14 @@ h3 {
 .file-pdf { width: 100%; height: 100%; border: 0; }
 .file-media { max-width: 100%; max-height: 100%; }
 .inspector-body > .cm-editor { align-self: stretch; height: 100%; width: 100%; font-size: 13px; }
+.editor-search { padding: 5px; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.editor-search-fields { display: flex; gap: 5px; }
+.editor-search-fields textarea { flex: 1; min-width: 0; resize: vertical; font: inherit; }
+.editor-search-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-top: 4px; }
+.editor-search-actions button { padding: 4px; }
+.editor-search-actions label { display: flex; align-items: center; gap: 3px; font-size: 11px; }
+.editor-search-status, .editor-search-warning { font-size: 11px; color: var(--muted); }
+.editor-search-warning { padding-top: 4px; }
 .cm-editor .cm-scroller { font-family: ui-monospace, monospace; overflow: auto; }
 .cm-editor .cm-gutters { background: var(--surface); color: var(--muted); border-color: var(--line); }
 .cm-editor .cm-content { caret-color: var(--text); }
