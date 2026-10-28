@@ -28,6 +28,8 @@ Ended processes retain their terminal output until their session is explicitly c
 
 Serialize process-group signals with child reaping. Never signal a retained terminal's numeric PID after it has exited and been reaped.
 
+`WorkingDirectory` resolves the live tracked terminal process's `/proc/PID/cwd` through the credential-dropped file worker. Hold the session lock through the bounded, cancellable lookup so PID reuse cannot redirect it; reject closed or reaped sessions. The result is the process's current directory, not historical output or necessarily a nested shell's directory.
+
 Manager.Close waits for every session's cleanup, including sessions already removed from the visible inventory by a concurrent Close. Force-killed shells must be reaped and their displays closed before cleanup completes, so runtime re-execution cannot strand child processes.
 
 Snapshot capture is admitted before allocation: at most two unacknowledged recoveries globally and 32 queued requests. Waiting is context-cancellable; release admission on snapshot acknowledgement or transport closure, including failed capture. Serialized snapshots are limited to 64 MiB separately from each attachment's 1 MiB/512-event live queue. Queue accounting includes events already sent but not rendered. Slow views detach without terminating the PTY; input cancellation never implies that accepted bytes can be replayed.

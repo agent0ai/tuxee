@@ -5,6 +5,7 @@ export type Panel = {
     kind: Kind;
     path: string;
     terminal?: string;
+    pinned?: boolean;
     x: number;
     y: number;
     w: number;
@@ -55,6 +56,7 @@ export type Hooks = {
     changed: (immediate?: boolean) => void | Promise<void>;
     close: () => void;
     openTerminal: (path: string) => void;
+    openFileBrowser: (path: string, line?: number, column?: number) => Promise<void>;
     defaultDirectory: () => string;
     workspaceDefault: (path: string) => Promise<void>;
     user: User;

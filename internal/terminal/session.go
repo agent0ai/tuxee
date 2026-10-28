@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"tuxee/internal/files"
 	"tuxee/internal/i18n"
 
 	"github.com/creack/pty"
@@ -300,6 +301,25 @@ func (s *Session) Info() Info {
 	info := s.info
 	info.Attached = len(s.views)
 	return info
+}
+
+// WorkingDirectory reads only the still-owned, unreaped terminal process.
+func (s *Session) WorkingDirectory(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.info.Exited {
+		return "", i18n.New("terminal.closed")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	response, err := files.Run(ctx, s.user, files.Request{Operation: "stat", Path: fmt.Sprintf("/proc/%d/cwd", s.cmd.Process.Pid)})
+	if err != nil {
+		return "", err
+	}
+	if response.Entry == nil || response.Entry.Link == "" {
+		return "", os.ErrPermission
+	}
+	return response.Entry.Link, nil
 }
 
 const maxTerminalNameBytes = 80

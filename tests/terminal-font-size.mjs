@@ -87,7 +87,8 @@ try {
         assert.equal(await text.evaluate(node => parseFloat(getComputedStyle(node).fontSize)), size);
         const rows = await panel.locator('.xterm-rows > div').first().evaluate(node => ({ height: node.getBoundingClientRect().height, spacing: getComputedStyle(node).letterSpacing, family: getComputedStyle(node).fontFamily }));
         assert.equal(await text.evaluate(node => parseFloat(getComputedStyle(node).lineHeight)), rows.height);
-        assert.equal(await text.evaluate(node => getComputedStyle(node).letterSpacing), rows.spacing);
+        const spacing = await text.evaluate(node => parseFloat(getComputedStyle(node).letterSpacing) || 0);
+        assert.ok(Math.abs(spacing - (parseFloat(rows.spacing) || 0)) < 0.00001, 'text view preserves terminal letter spacing within CSS rounding');
         assert.equal(await text.evaluate(node => getComputedStyle(node).fontFamily), rows.family);
         await page.keyboard.press('Escape');
     };

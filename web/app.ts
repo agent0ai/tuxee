@@ -452,7 +452,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 grip.onpointerdown = event => beginPanelResize(item!.owner, panel, edge, event);
                 node.append(grip);
             }
-            const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
+            const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
@@ -817,6 +817,18 @@ function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: Ter
         .sort((a, b) => b.w * b.h - a.w * a.h || Number(a.kind === 'terminal') - Number(b.kind === 'terminal'))[0];
     if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error(t("app.workspaceFull"));
     ws.active = panel.id; layoutChanged(ws); render();
+    return panel;
+}
+async function openFileBrowser(owner: Mounted, path: string, line?: number, column?: number) {
+    const { entry } = await api('/files', 'POST', { operation: 'stat', path });
+    if (mounted !== owner || current() !== owner.ws) return;
+    let panel = owner.ws.panels.find(panel => panel.kind === 'files' && owner.items.get(panel.id)?.view instanceof FileView && !(owner.items.get(panel.id)!.view as FileView).pinned);
+    if (!panel) panel = addPanel('files', entry.directory ? entry.path : entry.path.split('/').slice(0, -1).join('/') || '/');
+    const view = owner.items.get(panel.id)?.view;
+    if (!(view instanceof FileView) || !await view.openPath(entry.path, line, column)) return;
+    if (mounted !== owner || !owner.ws.panels.includes(panel)) return;
+    activatePanel(panel);
+    view.focusOpened();
 }
 function addSplitPanel(kind: Kind, target: Panel) {
     const ws = current(), panel = newPanel(kind, defaultDirectory(ws));

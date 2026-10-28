@@ -75,7 +75,7 @@ try {
     const neighbor = await (await api(`/terminals/${panels[1].terminal}`)).json();
     assert.deepEqual(await terminal.locator('.terminal-footer > div').last().locator('button, span').evaluateAll(nodes =>
         nodes.map(node => node.getAttribute('aria-label') || node.textContent)),
-    ['Rename terminal', 'Reconnect terminal', 'Reset terminal', '|', 'Jump to top', 'Jump to bottom']);
+    ['Rename terminal', 'Browse shell folder', 'Reconnect terminal', 'Reset terminal', '|', 'Jump to top', 'Jump to bottom']);
     for (const [label, icon] of [['Reconnect terminal', RefreshCw], ['Reset terminal', Power]]) {
         const paths = await terminal.getByRole('button', { name: label, exact: true }).locator('svg path').evaluateAll(nodes => nodes.map(node => node.getAttribute('d')));
         assert.deepEqual(paths, icon[2].filter(([tag]) => tag === 'path').map(([, attrs]) => attrs.d), `${label} icon`);
@@ -185,6 +185,7 @@ try {
     assert.equal((await info()).id, unsavedID);
     assert.equal((await (await api('/me')).json()).settings.workspaces[0].panels[0].terminal, unsavedID);
     console.log('PASS exited-shell reset, delete failure preserves shell, create/save failures retry without duplicate shells');
+    for (const dismiss of await page.locator('[data-panel="reset"] .toast button').all()) await dismiss.click();
 
     const closing = await info(), beforeClose = creations;
     const pendingDelete = await hold(`/terminals/${closing.id}`, 'DELETE');

@@ -113,6 +113,15 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 		s.terminalDisplay(w, r, value, action)
 		return
 	}
+	if action == "cwd" && r.Method == "GET" {
+		directory, err := value.WorkingDirectory(r.Context())
+		if err != nil {
+			failure(w, 400, err)
+			return
+		}
+		jsonResponse(w, 200, map[string]string{"path": directory})
+		return
+	}
 	if action == "ws" && r.Method == "GET" {
 		if r.Header.Get("Origin") == "" {
 			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))

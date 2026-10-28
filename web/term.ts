@@ -3,6 +3,7 @@ import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
+import { installTerminalPaths, terminalPath } from './terminal/paths';
 import { api, APIError, button, el, notify, ask, popover, confirmAction } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
 import { readFileClipboard } from './file-clipboard';
@@ -109,6 +110,7 @@ export class TerminalView implements View {
             event.preventDefault(); event.stopImmediatePropagation();
         }, { signal: this.events.signal });
         this.term.open(this.host);
+        installTerminalPaths(this.term, (path, line, column) => { void this.openPath(path, line, column).catch(this.notice); }, this.events.signal);
         installTerminalView(this.term);
         installTerminalMetrics(this.term);
         this.resizeDisplay = installTerminalResize(this.term);
@@ -232,10 +234,12 @@ export class TerminalView implements View {
         const text = button(t("term.terminalContentsAsText"), undefined, () => this.showText(text));
         text.textContent = t("term.t"); text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
+        const browse = button(t("term.browseShellFolder"), 'FolderOpen', () => this.openPath('.'));
+        browse.dataset.action = 'browse-shell-folder';
         left.append(toggle, previousInput, nextInput, historySeparator, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.renamePanel()), button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.renamePanel()), browse, button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -272,6 +276,15 @@ export class TerminalView implements View {
         this.observer.observe(this.host);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
     }
+    private async openPath(path: string, line?: number, column?: number) {
+        if (path === '~' || path.startsWith('~/')) path = path === '~' ? this.hooks.user.home : join(this.hooks.user.home, path.slice(2));
+        else if (!path.startsWith('/')) {
+            if (!this.panel.terminal) throw new Error(t("terminal.closed"));
+            const cwd = await api<{ path: string }>(`/terminals/${this.panel.terminal}/cwd`);
+            path = join(cwd.path, path);
+        }
+        if (!this.disposed) await this.hooks.openFileBrowser(path, line, column);
+    }
     private showText(anchor: HTMLElement) {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
         this.closeText();
@@ -300,8 +313,27 @@ export class TerminalView implements View {
             lines.push(line.translateToString(false));
         }
         text.textContent = lines.join('\n');
-        content.append(text);
-        ({ close: this.closeText } = popover(anchor, content));
+        let selected: ReturnType<typeof terminalPath>;
+        const open = button(t('terminal.openInFileBrowser'), undefined, () => {
+            if (!selected) return;
+            const { path, line, column } = selected;
+            this.closeText();
+            return this.openPath(path, line, column).catch(this.notice);
+        });
+        open.dataset.action = 'open-selected-path'; open.disabled = true;
+        open.onpointerdown = event => event.preventDefault();
+        const actions = el('div', 'terminal-text-actions'); actions.append(open);
+        content.append(text, actions);
+        const events = new AbortController();
+        document.addEventListener('selectionchange', () => {
+            const selection = window.getSelection();
+            selected = selection && text.contains(selection.anchorNode) && text.contains(selection.focusNode)
+                ? terminalPath(selection.toString().trim()) : undefined;
+            open.disabled = !selected;
+        }, { signal: events.signal });
+        content.addEventListener('toggle', event => { if (event.newState === 'closed') events.abort(); });
+        const { close } = popover(anchor, content);
+        this.closeText = () => { events.abort(); close(); };
         content.style.left = `${rect.left}px`; content.style.top = `${rect.top}px`;
         text.focus({ preventScroll: true });
         // Keep the spare pixels below the last terminal row so bottom scrolling stays aligned.

@@ -82,7 +82,7 @@ export class FileInspector {
     private request?: AbortController;
     private events = new AbortController();
     private index: number;
-    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void) {
+    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void, private targetLine?: number, private targetColumn?: number) {
         if (mediaKind(path)) this.files = files.filter(file => mediaKind(file.name));
         this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
@@ -106,6 +106,7 @@ export class FileInspector {
         this.load().catch(error => notify(error, host));
     }
     private get file() { return this.files[this.index]; }
+    focus() { if (this.editor) this.editor.focus(); else if (this.imageViewer) this.imageViewer.focus(); else this.root.focus(); }
     canClose = async () => !this.root.inert && !this.saving && (!this.dirty || await confirmAction(t("editor.discardChanges"), this.file.name, t("editor.discard")));
     private controls() {
         this.changed(this.file.path, this.dirty);
@@ -212,7 +213,22 @@ export class FileInspector {
             this.toolbarItems = [this.undo, this.redo, this.syntax, this.searchButton, downloadButton, this.saveButton, this.pagination];
         }
         this.toolbar.replaceChildren(this.back, this.separator, ...this.toolbarItems, this.more);
-        if (!this.media) await this.loadPage(0);
+        if (!this.media) {
+            await this.loadPage(0);
+            const target = this.targetLine;
+            this.targetLine = undefined;
+            while (target && this.page && this.editor && this.page.end < this.page.total && (target > this.positions[this.pageIndex].line + this.page.lineBreaks || target === this.positions[this.pageIndex].line + this.page.lineBreaks && this.editor.state.doc.line(this.editor.state.doc.lines).length === 0) && !this.events.signal.aborted) {
+                const before = this.pageIndex;
+                await this.turnPage(1);
+                if (this.pageIndex === before) break;
+            }
+            if (target && this.editor) {
+                const number = Math.min(this.editor.state.doc.lines, Math.max(1, target - this.positions[this.pageIndex].line + 1));
+                const row = this.editor.state.doc.line(number);
+                const offset = Math.min(row.to, row.from + Math.max(0, (this.targetColumn || 1) - 1));
+                this.editor.dispatch({ selection: { anchor: offset }, effects: EditorView.scrollIntoView(offset, { y: 'center' }) });
+            }
+        }
         this.controls();
         if (this.imageViewer) this.imageViewer.focus();
         else if (!this.editor) this.root.focus();

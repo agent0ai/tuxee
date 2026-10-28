@@ -25,6 +25,7 @@ type Entry = {
 const trashPath = 'trash:///';
 const instances = new Set<FileView>();
 export class FileView implements View {
+    get pinned() { return !!this.panel.pinned; }
     private entries: Entry[] = [];
     private nameOrder = new Intl.Collator(locale(), { numeric: true, sensitivity: 'base' });
     private selected = new Set<string>();
@@ -210,7 +211,13 @@ export class FileView implements View {
         this.showHidden.type = 'checkbox';
         this.showHidden.onchange = () => { this.hiddenFiles = this.showHidden.checked; this.render(); };
         hiddenLabel.append(this.showHidden, t("files.hidden"));
-        footer.append(this.filterButton, this.filterInput, hiddenSeparator, hiddenLabel, this.status, this.propertiesButton);
+        const pin = button(t("files.pinCurrentFolder"), 'Pin', () => {
+            this.panel.pinned = !this.pinned;
+            pin.setAttribute('aria-pressed', String(this.pinned));
+            this.hooks.changed();
+        });
+        pin.setAttribute('aria-pressed', String(this.pinned)); pin.dataset.action = 'pin';
+        footer.append(this.filterButton, this.filterInput, hiddenSeparator, hiddenLabel, this.status, pin, this.propertiesButton);
         const table = el('div', 'file-table');
         table.append(header, this.list);
         root.append(actions, table, footer, this.uploadInput);
@@ -244,35 +251,41 @@ export class FileView implements View {
         this.modified.hidden = !dirty;
         this.hooks.title?.((path === trashPath ? t("files.trashBin") : path.split('/').filter(Boolean).at(-1) || t("common.files")) + (dirty ? ' •' : ''));
     };
-    private async openPath(path: string) {
+    async openPath(path: string, line?: number, column?: number): Promise<boolean> {
         if (path === trashPath) {
             if (this.inspector) await this.inspector.leave(async () => { if (await this.navigate(path)) { this.inspector?.dispose(); this.inspector = undefined; this.showPath(path); } });
             else await this.navigate(path);
-            return;
+            return this.panel.path === path && !this.inspector;
         }
         this.request?.abort();
         const request = this.request = new AbortController();
         try {
             const { entry } = await api('/files', 'POST', { operation: 'stat', path }, request.signal);
-            if (request.signal.aborted || this.disposed) return;
+            if (request.signal.aborted || this.disposed) return false;
             if (entry.directory) {
+                let opened = false;
                 const navigate = async () => {
                     if (request.signal.aborted || this.disposed) return;
                     this.request = undefined;
                     if (!await this.navigate(entry.path)) return;
                     this.inspector?.dispose(); this.inspector = undefined;
                     this.showPath(this.panel.path);
+                    opened = true;
                 };
                 if (this.inspector) await this.inspector.leave(navigate);
                 else await navigate();
-            } else await this.openFile(entry, request.signal);
+                if (!opened) return false;
+            } else if (!await this.openFile(entry, request.signal, line, column)) return false;
             if (this.pathInput.value === path || this.pathInput.value === this.displayedPath) this.pathInput.blur();
+            return true;
         } catch (error) {
             if (!request.signal.aborted) throw error;
+            return false;
         } finally {
             if (this.request === request) this.request = undefined;
         }
     }
+    focusOpened() { if (this.inspector) this.inspector.focus(); else this.focus(''); }
     resize() {
         const compact = !!this.root.closest('.compact-board');
         const parent = compact ? this.root : this.root.closest('.panel')!.querySelector('.panel-header')!;
@@ -701,12 +714,12 @@ export class FileView implements View {
             await Promise.all([...instances].map(view => view.refresh().catch(() => {})));
         }
     }
-    private async openFile(entry = this.single(), signal?: AbortSignal) {
+    private async openFile(entry = this.single(), signal?: AbortSignal, line?: number, column?: number): Promise<boolean> {
         if (!signal) this.request?.abort();
-        if (entry.directory) return this.navigate(entry.path, '');
-        if (this.inspector && !await this.inspector.canClose()) return;
-        if (this.disposed || signal?.aborted) return;
-        if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) return this.archiveDialog(true, entry);
+        if (entry.directory) return !!await this.navigate(entry.path, '');
+        if (this.inspector && !await this.inspector.canClose()) return false;
+        if (this.disposed || signal?.aborted) return false;
+        if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) { await this.archiveDialog(true, entry); return true; }
         this.request?.abort(); this.request = undefined;
         const parent = entry.path.split('/').slice(0, -1).join('/') || '/';
         const files = parent === this.panel.path ? this.visibleEntries().filter(file => !file.directory) : [];
@@ -721,7 +734,8 @@ export class FileView implements View {
             const restoreFocus = document.activeElement === document.body || this.root.contains(document.activeElement);
             this.inspector?.dispose(); this.inspector = undefined; this.showPath(this.panel.path);
             if (restoreFocus) this.focus(path);
-        }, this.showPath);
+        }, this.showPath, line, column);
+        return true;
     }
     canClose = () => this.inspector?.canClose() ?? Promise.resolve(true);
     private async archiveDialog(extract = false, entry?: Entry) {

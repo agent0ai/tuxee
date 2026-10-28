@@ -96,7 +96,7 @@ try {
     let save;
     assert.equal(await panel('panel-6').locator('.panel-header').getByRole('button', { name: 'Rename terminal', exact: true }).count(), 0);
     const rename = panel('panel-6').locator('.terminal-footer').getByRole('button', { name: 'Rename terminal', exact: true });
-    assert.equal(await rename.evaluate(node => node.nextElementSibling?.getAttribute('aria-label')), 'Reconnect terminal');
+    assert.equal(await rename.evaluate(node => node.nextElementSibling?.getAttribute('aria-label')), 'Browse shell folder');
     await rename.click();
     await renameDialog('terminal', 'Build');
     await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .panel-title')?.textContent === 'Build');
@@ -114,7 +114,7 @@ try {
     await path.fill('/var'); save = saved(); await path.press('Enter');
     assert.equal((await save).status(), 200);
     assert.equal(await path.inputValue(), '/var');
-    check('footer rename precedes reconnect; manual names survive application titles, reload and file navigation');
+    check('footer order is rename, browse folder, reconnect; manual names survive application titles, reload and file navigation');
 
     const workspace = id => page.locator(`.workspace-tab-item[data-workspace="${id}"]`);
     const workspaceOrder = async () => (await snapshot()).workspaces.map(ws => ws.id);
