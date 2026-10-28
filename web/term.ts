@@ -244,6 +244,20 @@ export class TerminalView implements View {
         });
         toggle.setAttribute('aria-expanded', 'false');
         drawer.onkeydown = event => {
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229 || event.repeat ||
+                    drawer.selectionStart !== drawer.selectionEnd) return;
+                const back = event.key === 'ArrowUp';
+                if (drawer.selectionStart !== (back ? 0 : drawer.value.length) || (back ? previousInput : nextInput).disabled) return;
+                event.preventDefault(); event.stopPropagation();
+                browseHistory(back ? -1 : 1);
+                if (historyIndex < history.length) {
+                    const caret = back ? 0 : drawer.value.length;
+                    drawer.setSelectionRange(caret, caret);
+                    drawer.scrollTop = back ? 0 : drawer.scrollHeight;
+                }
+                return;
+            }
             if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing && event.keyCode !== 229 &&
                 (event.key.toLowerCase() === 'z' || event.key.toLowerCase() === 'y' && !event.shiftKey)) {
                 event.preventDefault(); event.stopPropagation();

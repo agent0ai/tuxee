@@ -427,6 +427,8 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await toggle.click();
     assert.ok(await previousInput.isVisible() && await nextInput.isVisible() && await historySeparator.isVisible());
     assert.ok(await previousInput.isDisabled() && await nextInput.isDisabled());
+    await drawer.press('ArrowUp'); await drawer.press('ArrowDown');
+    assert.equal(await drawer.inputValue(), '', 'empty history leaves the empty drawer unchanged');
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
     assert.equal(await drawer.getAttribute('rows'), '3');
@@ -620,6 +622,75 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await previousInput.click(); await previousInput.click();
     assert.equal(await drawer.inputValue(), longInput, 'history preserves long Unicode text and original newlines without paste framing');
     await nextInput.click(); await nextInput.click();
+    const caret = () => drawer.evaluate(node => node.selectionStart);
+    const beforeArrowHistory = sent.filter(Buffer.isBuffer).length;
+    for (const width of [800, 320]) {
+        await page.locator('#terminal').evaluate((node, width) => node.style.width = `${width}px`, width);
+        await idle();
+        for (const draft of ['single line', 'first line\nmiddle line\nlast line', 'wrapped words 🐧 '.repeat(20)]) {
+            await drawer.fill(draft);
+            let position = await caret(), steps = 0;
+            while (position > 0) {
+                await drawer.press('ArrowUp');
+                assert.equal(await drawer.inputValue(), draft, 'Up navigates text before recalling history');
+                const next = await caret(); assert.ok(next < position); position = next; steps++;
+            }
+            if (draft.startsWith('wrapped')) assert.ok(steps > 1, 'soft-wrapped rows remain navigable');
+            await drawer.press('ArrowUp');
+            assert.equal(await drawer.inputValue(), 'second'); assert.equal(await caret(), 0);
+            await drawer.press('ArrowUp');
+            assert.equal(await drawer.inputValue(), longInput); assert.equal(await caret(), 0);
+            assert.equal(await drawer.evaluate(node => node.scrollTop), 0, 'recalled start is visible');
+            await drawer.press('Control+End'); await drawer.press('ArrowLeft');
+            await drawer.press('ArrowDown');
+            assert.equal(await drawer.inputValue(), longInput, 'Down reaches the end before recalling history');
+            assert.equal(await caret(), longInput.length);
+            await drawer.press('ArrowDown');
+            assert.equal(await drawer.inputValue(), 'second'); assert.equal(await caret(), 'second'.length);
+            await drawer.press('ArrowDown');
+            assert.equal(await drawer.inputValue(), draft); assert.equal(await caret(), 0, 'draft restores its saved caret');
+            position = 0;
+            while (position < draft.length) {
+                await drawer.press('ArrowDown');
+                assert.equal(await drawer.inputValue(), draft);
+                const next = await caret(); assert.ok(next > position); position = next;
+            }
+            await drawer.press('ArrowDown');
+            assert.equal(await drawer.inputValue(), draft, 'newest history boundary preserves the draft');
+        }
+    }
+    await page.locator('#terminal').evaluate(node => node.style.width = '800px');
+    await drawer.fill('held draft');
+    await page.keyboard.down('ArrowUp'); await page.keyboard.down('ArrowUp'); await page.keyboard.up('ArrowUp');
+    assert.equal(await drawer.inputValue(), 'held draft', 'held Up cannot cross from text into history');
+    assert.equal(await caret(), 0);
+    await drawer.press('ArrowUp'); assert.equal(await drawer.inputValue(), 'second');
+    for (const key of ['ArrowUp', 'ArrowDown']) {
+        for (const modifier of ['Shift', 'Control', 'Alt', 'Meta']) {
+            await drawer.evaluate((node, key) => {
+                const position = key === 'ArrowUp' ? 0 : node.value.length; node.setSelectionRange(position, position);
+            }, key);
+            await drawer.press(`${modifier}+${key}`);
+            assert.equal(await drawer.inputValue(), 'second', `${modifier}+${key} preserves history`);
+        }
+        for (const guard of [{isComposing:true}, {keyCode:229}, {repeat:true}]) {
+            await drawer.evaluate((node, key) => {
+                const position = key === 'ArrowUp' ? 0 : node.value.length; node.setSelectionRange(position, position);
+            }, key);
+            await drawer.dispatchEvent('keydown', {key, ...guard});
+            assert.equal(await drawer.inputValue(), 'second', 'IME and repeated arrows preserve history');
+        }
+        await drawer.selectText(); await drawer.press(key);
+        assert.equal(await drawer.inputValue(), 'second', 'selection collapses without recalling history');
+    }
+    await drawer.evaluate(node => node.setSelectionRange(3, 3));
+    await page.keyboard.down('ArrowDown'); await page.keyboard.down('ArrowDown'); await page.keyboard.up('ArrowDown');
+    assert.equal(await drawer.inputValue(), 'second', 'held Down cannot cross from text into history');
+    assert.equal(await caret(), 'second'.length);
+    await drawer.press('ArrowDown');
+    assert.equal(await drawer.inputValue(), 'held draft'); assert.equal(await caret(), 0);
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeArrowHistory, 'arrow navigation never sends PTY input');
+    console.log('PASS drawer arrows preserve native multiline/wrapped navigation, exact boundaries, draft/caret, modifiers, selection, IME and held keys');
     const beforeMeta = sent.length;
     await drawer.fill('keep this draft'); await page.keyboard.press('Meta+Enter'); await idle();
     assert.equal(sent.length, beforeMeta, 'Command+Enter sends no terminal input');
@@ -627,11 +698,13 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     const recent = Array.from({length:52}, (_, i) => `history ${i}`);
     for (const text of recent) { await drawer.fill(text); await drawer.press('Control+Enter'); await idle(); }
     await drawer.fill('live draft after history fills');
+    await drawer.press('Control+Home');
     const beforeBoundedHistory = sent.filter(Buffer.isBuffer).length;
-    for (let i = 0; i < 50; i++) await previousInput.click();
+    for (let i = 0; i < 51; i++) await drawer.press('ArrowUp');
     assert.equal(await drawer.inputValue(), recent[2], 'only the last 50 sent entries are retained');
     assert.ok(await previousInput.isDisabled());
-    for (let i = 0; i < 50; i++) await nextInput.click();
+    await drawer.press('ArrowDown'); assert.equal(await drawer.inputValue(), recent[2], 'first Down reaches the end');
+    for (let i = 0; i < 50; i++) await drawer.press('ArrowDown');
     assert.equal(await drawer.inputValue(), 'live draft after history fills');
     assert.ok(await nextInput.isDisabled());
     assert.equal(sent.filter(Buffer.isBuffer).length, beforeBoundedHistory);
