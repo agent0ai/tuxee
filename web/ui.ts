@@ -51,6 +51,18 @@ export function button(label: string, name?: keyof typeof icons, action?: () => 
         };
     return b;
 }
+export function focusPanelChrome(root: HTMLElement, focus: () => void, signal: AbortSignal) {
+    root.closest<HTMLElement>('.panel')!.addEventListener('pointerdown', event => {
+        if (event.button !== 0 || !event.isPrimary) return;
+        const target = event.target as Element;
+        const chrome = target.closest('.panel-header, .display-controls, .file-nav, .terminal-footer, .file-footer, .file-actions, .inspector-toolbar');
+        if (!chrome) return;
+        const control = target.closest('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], label, [tabindex], [contenteditable]');
+        if (control && chrome.contains(control)) return;
+        // Disabled buttons still emit pointerdown; prevent the browser from blurring the input.
+        event.preventDefault(); focus();
+    }, { capture: true, signal });
+}
 let csrf = '';
 export class APIError extends Error {
     constructor(message: string, readonly status: number, readonly command?: string) { super(message); }

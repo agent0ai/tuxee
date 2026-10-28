@@ -4,7 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
 import { installTerminalPaths, terminalPath } from './terminal/paths';
-import { api, APIError, button, el, notify, ask, popover, confirmAction } from './ui';
+import { api, APIError, button, el, notify, ask, popover, confirmAction, focusPanelChrome } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
 import { readFileClipboard } from './file-clipboard';
 import { uploadBatch, type UploadSource } from './transfers';
@@ -118,7 +118,7 @@ export class TerminalView implements View {
         const scroll = (top: boolean) => {
             this.resizeDisplay.release();
             if (top) this.term.scrollToTop(); else this.term.scrollToBottom();
-            this.term.focus();
+            this.focusInput();
         };
         const top = button(t("term.jumpToTop"), 'ArrowUp', () => scroll(true));
         const bottom = button(t("term.jumpToBottom"), 'ArrowDown', () => scroll(false));
@@ -128,15 +128,47 @@ export class TerminalView implements View {
             bottom.disabled = buffer.type !== 'normal' || buffer.viewportY === buffer.baseY;
         };
         const drawer = this.drawer;
-        const history: { text: string; draft: string }[] = [];
-        let historyIndex = 0, liveDraft = '';
+        const history: string[] = [];
+        const snapshot = () => ({ text: drawer.value, start: drawer.selectionStart, end: drawer.selectionEnd, direction: drawer.selectionDirection });
+        type Draft = ReturnType<typeof snapshot>;
+        let historyIndex = 0, liveDraft = snapshot();
+        const undo: Draft[] = [], redo: Draft[] = [];
+        let beforeEdit = liveDraft, editGroup = '', editTime = 0;
+        const restore = (draft: Draft) => {
+            drawer.value = draft.text;
+            drawer.setSelectionRange(draft.start, draft.end, draft.direction);
+        };
+        const undoDraft = (back: boolean) => {
+            const from = back ? undo : redo, to = back ? redo : undo, draft = from.pop();
+            if (!draft) return;
+            to.push(historyIndex === history.length ? snapshot() : liveDraft);
+            historyIndex = history.length; liveDraft = draft; restore(draft);
+            editGroup = ''; updateHistory();
+        };
+        drawer.onbeforeinput = event => {
+            if (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
+                event.preventDefault(); undoDraft(event.inputType === 'historyUndo'); return;
+            }
+            beforeEdit = historyIndex === history.length ? snapshot() : liveDraft;
+        };
+        drawer.oninput = event => {
+            const after = snapshot(), type = (event as InputEvent).inputType;
+            if (after.text !== beforeEdit.text) {
+                const grouped = ['insertText', 'deleteContentBackward', 'deleteContentForward', 'insertCompositionText'].includes(type);
+                if (!grouped || type !== editGroup || performance.now() - editTime > 500 || type !== 'insertCompositionText' && (beforeEdit.start !== liveDraft.start || beforeEdit.end !== liveDraft.end)) {
+                    undo.push(beforeEdit); if (undo.length > 100) undo.shift();
+                }
+                redo.length = 0; editGroup = grouped ? type : ''; editTime = performance.now();
+            }
+            historyIndex = history.length; liveDraft = after; updateHistory();
+        };
+        drawer.onblur = drawer.oncompositionend = () => { editGroup = ''; };
         const browseHistory = (step: number) => {
-            if (historyIndex < history.length) history[historyIndex].draft = drawer.value;
-            else liveDraft = drawer.value;
+            if (historyIndex === history.length) liveDraft = snapshot();
             historyIndex = Math.max(0, Math.min(history.length, historyIndex + step));
-            drawer.value = history[historyIndex]?.draft ?? liveDraft;
-            updateHistory();
-            drawer.focus(); drawer.setSelectionRange(drawer.value.length, drawer.value.length);
+            const text = history[historyIndex];
+            restore(text === undefined ? liveDraft : { text, start: text.length, end: text.length, direction: 'none' });
+            editGroup = ''; updateHistory(); drawer.focus();
         };
         const previousInput = button(t("term.previousInput"), 'ArrowUp', () => browseHistory(-1));
         const nextInput = button(t("term.nextInput"), 'ArrowDown', () => browseHistory(1));
@@ -212,6 +244,11 @@ export class TerminalView implements View {
         });
         toggle.setAttribute('aria-expanded', 'false');
         drawer.onkeydown = event => {
+            if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing && event.keyCode !== 229 &&
+                (event.key.toLowerCase() === 'z' || event.key.toLowerCase() === 'y' && !event.shiftKey)) {
+                event.preventDefault(); event.stopPropagation();
+                undoDraft(event.key.toLowerCase() === 'z' && !event.shiftKey); return;
+            }
             if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
             event.preventDefault(); event.stopPropagation();
             if (!this.canUpload()) { this.notice(t("term.terminalIsNotReadyForInput")); return; }
@@ -221,13 +258,15 @@ export class TerminalView implements View {
             if (!event.ctrlKey) data += '\r';
             if (this.input(data)) {
                 const text = drawer.value;
-                if (historyIndex < history.length) history[historyIndex].draft = history[historyIndex].text;
-                else liveDraft = '';
-                if (text && text !== history.at(-1)?.text) {
-                    history.push({ text, draft: text });
+                if (historyIndex === history.length && text) {
+                    undo.push(snapshot()); if (undo.length > 100) undo.shift();
+                    redo.length = 0; liveDraft = { text: '', start: 0, end: 0, direction: 'none' };
+                }
+                if (text && text !== history.at(-1)) {
+                    history.push(text);
                     if (history.length > 50) history.shift();
                 }
-                historyIndex = history.length; drawer.value = liveDraft;
+                historyIndex = history.length; restore(liveDraft); editGroup = '';
                 updateHistory(); this.term.scrollToBottom();
             }
         };
@@ -257,7 +296,8 @@ export class TerminalView implements View {
             }
         });
         installTerminalTouch(this.term, this.events.signal);
-        this.display = new TerminalDisplay(root, this.surface, () => this.panel.terminal, () => { this.resize(); this.term.focus(); }, this.hooks.user);
+        this.display = new TerminalDisplay(root, this.surface, () => this.panel.terminal, () => { this.resize(); this.focusInput(); }, this.hooks.user);
+        focusPanelChrome(root, () => { if (this.display.visible) this.display.focusContent(); else this.focusInput(); }, this.events.signal);
         this.term.onData(data => this.input(data));
         this.term.onBinary(data => this.input(data, true));
         this.term.attachCustomKeyEventHandler(event => {
@@ -285,6 +325,7 @@ export class TerminalView implements View {
         }
         if (!this.disposed) await this.hooks.openFileBrowser(path, line, column);
     }
+    private focusInput() { if (this.drawer.hidden) this.term.focus(); else this.drawer.focus({ preventScroll: true }); }
     private showText(anchor: HTMLElement) {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }
         this.closeText();
@@ -346,7 +387,11 @@ export class TerminalView implements View {
     private pasteFiles(files: DraggedFile[], point?: { clientX: number; clientY: number }, toDrawer = !this.drawer.hidden) {
         const target = toDrawer || !this.drawer.hidden ? this.drawer : this.host;
         const text = shellPaths(files);
-        if (target === this.drawer) this.drawer.setRangeText(text, this.drawer.selectionStart, this.drawer.selectionEnd, 'end');
+        if (target === this.drawer) {
+            this.drawer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste' }));
+            this.drawer.setRangeText(text, this.drawer.selectionStart, this.drawer.selectionEnd, 'end');
+            this.drawer.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste' }));
+        }
         else this.term.paste(text);
         if (point && target.checkVisibility()) animateFileDrop(files, point, target);
     }

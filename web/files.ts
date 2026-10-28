@@ -1,5 +1,5 @@
 import { locale, errorText, t } from './i18n';
-import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications } from './ui';
+import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, focusPanelChrome } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
@@ -70,6 +70,7 @@ export class FileView implements View {
             if (!this.request) this.refreshUploaded();
         }, { signal: this.events.signal });
         root.classList.add('file-view');
+        focusPanelChrome(root, () => { if (this.inspector) this.inspector.focus(); else this.focus(this.focusedPath); }, this.events.signal);
         this.pathInput.value = panel.path || hooks.defaultDirectory();
         this.pathInput.setAttribute('aria-label', t("files.fileOrDirectoryPath"));
         this.pathInput.autocomplete = 'off'; this.pathInput.spellcheck = false;

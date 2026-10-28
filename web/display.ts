@@ -51,6 +51,8 @@ export class TerminalDisplay {
         this.disposeOverflow = overflowTabs(this.windows, this.items, t("display.moreWindows"), () => {});
     }
 
+    focusContent() { this.rfb?.focus(); }
+
     rename(name: string) {
         this.terminalButton.title = name; this.terminalButton.setAttribute('aria-label', name);
         window.dispatchEvent(new Event('tuxee-tabs-changed'));
