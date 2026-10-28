@@ -860,10 +860,10 @@ h3 {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  text-align: start;
   font-size: 13px;
 }
 .about-details th, .about-details td {
+  text-align: start;
   padding: 11px 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;

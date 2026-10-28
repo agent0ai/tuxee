@@ -114,7 +114,7 @@ export class Processes {
             tr.append(name, cpu, ram); body.append(tr); this.rowElements.set(row.id, tr);
         }
         this.table.replaceChildren(head, body);
-        this.footer.textContent = t("processes.footer", { shown: data.rows.length.toLocaleString(locale()), total: data.total.toLocaleString(locale()), time: new Date(data.time).toLocaleTimeString(locale()) });
+        this.footer.textContent = t(data.rows.length === data.total ? "processes.footerAll" : "processes.footer", { shown: data.rows.length.toLocaleString(locale()), total: data.total.toLocaleString(locale()), time: new Date(data.time).toLocaleTimeString(locale()) });
         if (!data.rows.length) this.footer.textContent = t("processes.noProcesses");
         this.updateSelection();
     }

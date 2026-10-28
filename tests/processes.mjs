@@ -122,10 +122,18 @@ try {
 
  await mkdir('test-results', { recursive: true });
  const renderings = [];
+ const footerPrefixes = {
+  container: 'Total processes: 146 · ',
+  wide: 'Largest processes: 102 · Total processes: 5,002 · ',
+  zombies: 'Largest processes: 3 · Total processes: 20,002 · ',
+  large: 'Largest processes: 1,000 · Total processes: 9,901 · ',
+  deep: 'Largest processes: 1,000 · Total processes: 5,000 · ',
+ };
  for (const name of ['container', 'wide', 'zombies', 'large', 'deep']) {
   fixture = name; const started = performance.now(); await refresh();
   const elapsed = Math.round(performance.now() - started); renderings.push({ fixture: name, processes: fixtures[name].total, rows: await dialog.locator('tbody tr').count(), renderMS: elapsed });
   assert.equal(await dialog.locator('tbody tr').count(), fixtures[name].rows.length); assert.ok(fixtures[name].rows.length <= 1000);
+  assert.ok((await dialog.locator('.process-footer').textContent()).startsWith(footerPrefixes[name]), name + ' footer counts');
   assert.ok(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth), name + ' overflow');
   await page.screenshot({ path: `test-results/processes-${name}.png` });
   const fold = dialog.locator('.process-fold').first(), beforeFold = requests;

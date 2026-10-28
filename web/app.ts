@@ -1097,7 +1097,7 @@ async function openAbout() {
     const versionRow = el('tr'), versionHeading = el('th', '', t("app.tuxeeVersion")), version = el('td', '', '—');
     versionHeading.scope = 'row'; versionRow.append(versionHeading, version); body.append(versionRow);
     const githubRow = el('tr'), githubHeading = el('th', '', t("app.github")), githubCell = el('td');
-    const github = el('a', '', t("app.agent0aiTuxee"));
+    const github = el('a', '', 'agent0ai/tuxee');
     github.dir = 'ltr'; github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
     githubHeading.scope = 'row'; githubCell.append(github); githubRow.append(githubHeading, githubCell);
     table.append(body);

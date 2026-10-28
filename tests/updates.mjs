@@ -74,6 +74,17 @@ try {
     await firstStatus;
     await openAbout();
     await dialog.getByRole('rowheader', { name: 'Shell', exact: true }).waitFor();
+    for (const direction of ['rtl', 'ltr']) {
+        await page.evaluate(value => { document.documentElement.dir = value; }, direction);
+        const misaligned = await dialog.locator('.about-details tr:not(.about-update) > *').evaluateAll(cells => cells.filter(cell => {
+            const range = document.createRange(); range.selectNodeContents(cell);
+            const text = range.getBoundingClientRect(), box = cell.getBoundingClientRect(), style = getComputedStyle(cell);
+            const gap = style.direction === 'rtl' ? box.right - text.right : text.left - box.left;
+            return Math.abs(gap - parseFloat(style.paddingInlineStart)) > 1;
+        }).map(cell => cell.textContent));
+        assert.deepEqual(misaligned, [], `About labels and values align to the ${direction === 'rtl' ? 'right' : 'left'} edge`);
+        assert.equal(await dialog.locator('.about-tagline').evaluate(node => getComputedStyle(node).textAlign), 'center');
+    }
     await dialog.getByText('Up to date', { exact: true }).waitFor();
     assert.ok(await updateRow.evaluate(node => node.previousElementSibling?.querySelector('th')?.textContent === 'Tuxee version'));
     assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:12');
