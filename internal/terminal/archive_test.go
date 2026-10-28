@@ -86,6 +86,32 @@ func TestVisualArchiveShellRows(t *testing.T) {
 	}
 }
 
+func TestVisualArchiveNormalFullscreen(t *testing.T) {
+	e, apply, capture := archiveFixture(t, 40, 8)
+	apply("BEFORE\r\n\x1b[?1h\x1b[?25l\x1b[H\x1b[2JOLD FRAME")
+	apply("\x1b[?25hINPUT PROMPT\x1b[?25l")
+	apply("\x1b[H\x1b[2JLAST FRAME")
+	if _, err := e.Apply(nil, 30, 6); err != nil {
+		t.Fatal(err)
+	}
+	apply("\x1b[H\x1b[2JRESIZED FRAME\x1b[?1l\x1b[6;1H\r\n\x1b[?25hAFTER\r\n")
+	apply("\x1b[?1h\x1b[?25l\x1b[H\x1b[2JSECOND FRAME")
+	_ = capture()
+	apply("\x1b[H\x1b[2J\x1b[?1l\x1b[6;1H\x1b[?25hFINAL\r\n")
+	output := capture()
+	last := -1
+	for _, part := range []string{"BEFORE", "RESIZED FRAME", "AFTER", "SECOND FRAME", "FINAL"} {
+		at := strings.Index(output, part)
+		if at <= last || strings.Count(output, part) != 1 {
+			t.Fatalf("normal-screen redraw lost/repeated/reordered %q: %q", part, output)
+		}
+		last = at
+	}
+	if strings.Contains(output, "OLD FRAME") || strings.Contains(output, "LAST FRAME") {
+		t.Fatalf("retained intermediate redraws: %q", output)
+	}
+}
+
 func TestVisualArchivePartialLineReflow(t *testing.T) {
 	e, apply, capture := archiveFixture(t, 20, 5)
 	apply("PREFIX_12345678\x1b[?1049h\x1b[HAPP\x1b[?1049l")
@@ -96,6 +122,24 @@ func TestVisualArchivePartialLineReflow(t *testing.T) {
 	output := capture()
 	if strings.Count(output, "PREFIX_12345678") != 1 || !strings.Contains(strings.ReplaceAll(output, "\n", ""), "SUFFIX") {
 		t.Fatalf("reflow broke the continuation: %q", output)
+	}
+}
+
+func TestVisualArchiveReset(t *testing.T) {
+	_, apply, capture := archiveFixture(t, 30, 6)
+	apply("BEFORE\r\n\x1b[?1049h\x1b[HAPPLICATION")
+	_ = capture()
+	apply("\x1bcAFTER\r\n\x1bcSHELL RESET\r\n\x1b[?1h\x1b[?25l\x1b[HNORMAL APP")
+	_ = capture()
+	apply("\x1bcFINAL\r\n")
+	output := capture()
+	last := -1
+	for _, part := range []string{"BEFORE", "APPLICATION", "AFTER", "SHELL RESET", "NORMAL APP", "FINAL"} {
+		at := strings.Index(output, part)
+		if at <= last || strings.Count(output, part) != 1 {
+			t.Fatalf("terminal reset lost/repeated/reordered %q: %q", part, output)
+		}
+		last = at
 	}
 }
 

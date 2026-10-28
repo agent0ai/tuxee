@@ -822,6 +822,7 @@ export function terminalArchiveRecorder(terminal: any, text: (lines: any[]) => s
   const buffers = terminal._core._bufferService.buffers;
   let history: Line[] = [], alternate: Line[] = [];
   let boundary: any, column = 0;
+  let hiddenCursor = false, normalFullscreen = false, normalLeaving = false;
   const bounded = (lines: Line[]) => {
     let cells = lines.reduce((sum, line) => sum + line.cells, 0), start = 0;
     while (lines.length - start > 5000 || cells > MAX_NORMAL_CELLS) cells -= lines[start++].cells;
@@ -871,33 +872,58 @@ export function terminalArchiveRecorder(terminal: any, text: (lines: any[]) => s
     return lines(buffer, start, end, x);
   };
   const sample = () => {
-    if (buffers.active !== buffers.alt) return;
-    const value = lines(buffers.alt, 0, buffers.alt.lines.length);
-    // Applications can clear the screen before leaving alternate mode.
+    if (normalLeaving || buffers.active !== buffers.alt && !normalFullscreen) return;
+    const value = normalFullscreen ? lines(buffers.normal, buffers.normal.ybase, buffers.normal.lines.length) : lines(buffers.alt, 0, buffers.alt.lines.length);
+    // Applications can clear the screen before restoring shell mode.
     if (value.some(line => line.text.trim())) alternate = value;
   };
   const mode = (params: number[]) => params.some(p => p === 47 || p === 1047 || p === 1049);
   const enter = terminal.parser.registerCsiHandler({prefix: '?', final: 'h'}, (params: number[]) => {
+    if (params.includes(25)) {
+      hiddenCursor = false;
+      if (normalFullscreen && normalLeaving) {
+        sample(); history = bounded([...history, ...alternate]); alternate = [];
+        normalFullscreen = normalLeaving = false; mark();
+      }
+    }
     if (mode(params) && buffers.active === buffers.normal) {
-      history = bounded([...history, ...normal()]);
+      sample(); history = bounded([...history, ...(normalFullscreen ? alternate : normal())]);
       mark();
-      alternate = [];
+      alternate = []; normalFullscreen = normalLeaving = false;
     }
     return false;
   });
   const leave = terminal.parser.registerCsiHandler({prefix: '?', final: 'l'}, (params: number[]) => {
+    if (params.includes(25)) hiddenCursor = true;
+    if (params.includes(1) && normalFullscreen) { sample(); normalLeaving = true; }
     if (mode(params) && buffers.active === buffers.alt) {
       sample(); history = bounded([...history, ...alternate]); alternate = [];
     }
+    return false;
+  });
+  const home = terminal.parser.registerCsiHandler({final: 'H'}, (params: number[]) => {
+    // shortcut: normal-buffer visits need these signals; add shell lifecycle markers if other redraw protocols need support.
+    if (buffers.active === buffers.normal && hiddenCursor && terminal.modes.applicationCursorKeysMode && params.every(p => p <= 1)) {
+      if (!normalFullscreen) {
+        history = bounded([...history, ...normal()]); alternate = []; normalFullscreen = true;
+      } else sample();
+    }
+    return false;
+  });
+  const reset = terminal.parser.registerEscHandler({final: 'c'}, () => {
+    sample();
+    history = bounded([...history, ...(buffers.active === buffers.alt || normalFullscreen ? alternate : normal())]);
+    alternate = []; normalFullscreen = normalLeaving = hiddenCursor = false;
+    boundary?.dispose(); boundary = undefined; column = 0;
     return false;
   });
   return {
     sample,
     capture: () => {
       sample();
-      const tail = buffers.active === buffers.alt ? alternate : normal();
+      const tail = buffers.active === buffers.alt || normalFullscreen ? alternate : normal();
       return {version: 2, capturedAt: new Date().toISOString(), text: bounded([...history, ...tail]).map(line => line.text).join('\n')};
     },
-    dispose: () => { enter.dispose(); leave.dispose(); boundary?.dispose(); terminal.resize = resize; }
+    dispose: () => { enter.dispose(); leave.dispose(); home.dispose(); reset.dispose(); boundary?.dispose(); terminal.resize = resize; }
   };
 }

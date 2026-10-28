@@ -105,6 +105,28 @@ try {
         await page.screenshot({path:`test-results/terminal-archive-${theme}-${width}.png`});
     }
     await page.setViewportSize({width:1280,height:850});
+    const originalLayout=structuredClone(settings);
+    Object.assign(settings.workspaces[0].panels[0],{w:2,h:1});
+    settings.workspaces.push({id:'destination',name:'Destination',columns:4,rows:2,panels:[]});
+    await json('/settings','PUT',settings);await page.reload();await page.locator('.terminal-archive pre').waitFor();
+    const archiveNode=await page.locator('.terminal-archive').elementHandle();
+    await page.locator('[data-panel=primary] .panel-header').dblclick();
+    await wait(async()=>await page.locator('[data-panel=primary]').getAttribute('gs-w')==='4','archive header expansion');
+    for(const [name,id] of [['Destination','destination'],['Archives','archive']]) {
+        await page.locator('[data-panel=primary] .panel-header').click({button:'right',position:{x:20,y:10}});
+        const menu=page.locator('.menu-actions.popover-menu');
+        assert.equal(await menu.getByRole('menuitem',{name:'Rename',exact:true}).count(),0);
+        await menu.getByRole('menuitem',{name:'Move to desktop',exact:true}).click();
+        await menu.getByRole('menuitem',{name,exact:true}).click();
+        await wait(async()=> (await json('/me')).settings.workspaces.find(w=>w.id===id).panels.some(p=>p.id==='primary'),'archive move');
+        await page.locator('.workspace-tab').filter({hasText:new RegExp('^'+name+'$')}).click();
+        await page.locator('.terminal-archive pre').waitFor();
+        assert.ok(await archiveNode.evaluate(node=>node.isConnected));
+        assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
+        assert.equal(await page.locator('.terminal-surface:visible').count(),0);
+    }
+    settings=originalLayout;await json('/settings','PUT',settings);await page.reload();await page.locator('.terminal-archive pre').waitFor();
+    console.log('PASS archive header expansion, context menus and desktop moves preserve output without live rendering');
     let created = 0;
     page.on('response', response => { if (response.url()===base+'/api/terminals' && response.request().method()==='POST' && response.status()===201) created++; });
     await page.route(base+'/api/terminals', route=>route.request().method()==='POST' ? route.fulfill({status:409,json:{error:'Test archive create failure'}}) : route.continue());

@@ -100,7 +100,7 @@ try {
     await page.route(base + '/api/connection', route => route.fulfill({ json: oldState }));
     await login(users[0]);
     assert.equal((await api(`/terminals/${original.id}`, 'DELETE')).status(), 200);
-    const restart = terminal.getByRole('button', { name: 'Restart terminal', exact: true });
+    const restart = terminal.getByRole('button', { name: 'Restart', exact: true });
     await restart.waitFor();
     const denied = page.waitForResponse(r => r.url() === base + '/api/terminals' && r.request().method() === 'POST');
     await restart.click();
@@ -128,7 +128,7 @@ try {
     assert.equal(creations, attempts, 'retry a failed save using the already-created shell');
     assert.equal(await terminal.getAttribute('data-terminal'), replacement.id);
     assert.equal((await (await api('/me')).json()).settings.workspaces[0].panels[1].terminal, replacement.id);
-    assert.equal((await (await api('/terminals')).json()).length, 1);
+    assert.equal((await (await api('/terminals')).json()).filter(terminal => !terminal.exited).length, 1);
     await terminal.locator('.xterm-helper-textarea').focus();
     await page.keyboard.type("printf 'SESSION_%s\\n' 'RECOVERED'"); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('SESSION_RECOVERED'));

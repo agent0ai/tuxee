@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a', base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
@@ -35,6 +35,7 @@ try {
         }],
     })).status(), 200);
     assert.equal((await api(`/terminals/${lost.id}`, 'DELETE')).status(), 200);
+    await rm(`${fields[5]}/.local/state/tuxee/terminals/${lost.id}`, { recursive: true });
     await page.goto(base); await restart.waitFor();
     for (const [name, width, theme] of [
         ['desktop-dark', 1440, 'dark'], ['desktop-light', 1440, 'light'],
@@ -72,15 +73,20 @@ try {
     await page.keyboard.type("printf 'RECOVERY_%s\\n' 'WORKS'"); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('RECOVERY_WORKS'));
     assert.equal((await api(`/terminals/${freshID}`, 'DELETE')).status(), 200);
+    await terminal.locator('.terminal-archive').waitFor();
+    assert.match(await terminal.locator('.terminal-archive pre').textContent(), /RECOVERY_WORKS/);
+    await rm(`${fields[5]}/.local/state/tuxee/terminals/${freshID}`, { recursive: true });
+    await page.reload();
     await restart.waitFor();
-    assert.equal(await terminal.getByText('Terminal session lost', { exact: true }).count(), 1, 'backend closure uses the same recovery view');
+    assert.equal(await terminal.getByText('Terminal session lost', { exact: true }).count(), 1, 'missing archive uses the same recovery view');
     await restart.click(); await page.locator('.terminal-view[data-state=connected]').waitFor();
     await terminal.locator('.xterm-helper-textarea').focus(); await page.keyboard.type('exit'); await page.keyboard.press('Enter');
     await page.locator('.terminal-view[data-state=ended]').waitFor();
     assert.equal(await terminal.locator('.terminal-recovery').count(), 0, 'normal process exit preserves its output');
-    assert.ok(await terminal.locator('.terminal-host').isVisible());
+    await terminal.locator('.terminal-archive').waitFor();
+    assert.equal(await terminal.locator('.terminal-host').isVisible(), false);
     assert.deepEqual(errors, []);
-    console.log('PASS restart saves a new working shell; backend closure shares recovery; normal exit retains output');
+    console.log('PASS restart saves a new working shell; closure and normal exit archive output; missing archives show recovery');
 } finally {
     await page.goto('about:blank');
     assert.equal((await api('/settings', 'PUT', original)).status(), 200);
