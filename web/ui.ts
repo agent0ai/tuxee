@@ -14,6 +14,19 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text
             node.setCustomValidity(t(node.validity.valueMissing ? 'validation.required' : 'validation.invalid'));
         });
     }
+    if (node instanceof HTMLSelectElement) node.addEventListener('pointerdown', event => {
+        if (event.pointerType !== 'mouse' || event.button !== 0 || node.matches(':disabled') || node.multiple || node.size > 1 || typeof node.showPicker !== 'function') return;
+        // Chromium can move a long popup over its opener; open it after the opening release.
+        event.preventDefault(); node.focus();
+        const press = new AbortController(), signal = press.signal;
+        window.addEventListener('pointerup', release => {
+            press.abort();
+            if (release.pointerId === event.pointerId && release.target === node && node.isConnected && !node.matches(':disabled')) node.showPicker();
+        }, { capture: true, once: true, signal });
+        for (const type of ['pointerdown', 'pointercancel', 'blur', 'keydown']) {
+            window.addEventListener(type, () => press.abort(), { capture: true, once: true, signal });
+        }
+    });
     return node;
 }
 export function icon(name: keyof typeof icons): SVGElement {

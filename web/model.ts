@@ -29,6 +29,7 @@ export type Settings = {
     terminalBackground?: string;
     terminalBackgroundLight?: string;
     terminalFontSize?: number;
+    terminalFontFamily?: string;
     uploadConcurrency?: number;
     theme: 'dark' | 'light';
     current: string;

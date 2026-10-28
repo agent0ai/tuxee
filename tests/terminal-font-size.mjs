@@ -57,14 +57,18 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     page.setDefaultTimeout(10000);
     const sockets = [];
-    let panelID = 'a';
     page.on('websocket', socket => { if (/\/terminals\/[^/]+\/ws$/.test(socket.url())) sockets.push(socket); });
-    const font = size => page.waitForFunction(size => {
+    const defaultFamily = 'ui-monospace, SFMono-Regular, Consolas, monospace';
+    const customFamily = '"DejaVu Sans Mono", monospace';
+    const font = (size, family = defaultFamily) => page.waitForFunction(({ size, family }) => {
         const rows = [...document.querySelectorAll('.terminal-view .xterm-rows > div')];
-        return rows.length && rows.every(row => parseFloat(getComputedStyle(row).fontSize) === size);
-    }, size);
+        return rows.length && rows.every(row => parseFloat(getComputedStyle(row).fontSize) === size && getComputedStyle(row).fontFamily === family);
+    }, { size, family });
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
     const input = dialog.locator('[name=terminalFontSize]');
+    const familyInput = dialog.locator('[name=terminalFontFamily]');
+    const fontGroup = dialog.getByRole('group', { name: 'Terminal font', exact: true });
+    const reset = fontGroup.getByRole('button', { name: 'Reset', exact: true });
     const open = async () => {
         await page.getByRole('button', { name: 'User menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -77,18 +81,18 @@ try {
         if (status === 200) await dialog.waitFor({ state: 'hidden' });
     };
     const textView = async size => {
-        const panel = page.locator(`[data-panel=${panelID}]`);
+        const panel = page.locator('.terminal-view:visible').first();
         await panel.getByRole('button', { name: 'Terminal contents as text', exact: true }).click();
         const text = page.locator('.terminal-text pre'); await text.waitFor();
         assert.equal(await text.evaluate(node => parseFloat(getComputedStyle(node).fontSize)), size);
-        const rows = await panel.locator('.xterm-rows > div').first().evaluate(node => ({ height: node.getBoundingClientRect().height, spacing: getComputedStyle(node).letterSpacing }));
+        const rows = await panel.locator('.xterm-rows > div').first().evaluate(node => ({ height: node.getBoundingClientRect().height, spacing: getComputedStyle(node).letterSpacing, family: getComputedStyle(node).fontFamily }));
         assert.equal(await text.evaluate(node => parseFloat(getComputedStyle(node).lineHeight)), rows.height);
         assert.equal(await text.evaluate(node => getComputedStyle(node).letterSpacing), rows.spacing);
+        assert.equal(await text.evaluate(node => getComputedStyle(node).fontFamily), rows.family);
         await page.keyboard.press('Escape');
     };
     const switchTo = async id => {
         await page.locator(`[data-workspace=ws-${id}] .workspace-tab`).click();
-        panelID = id;
         await page.locator(`[data-panel=${id}] .terminal-view[data-state=connected]`).waitFor();
         await page.waitForFunction(() => !document.querySelector('.workspaces-sliding'));
     };
@@ -100,28 +104,40 @@ try {
     await page.locator('.terminal-footer > div').first().locator('button').first().click();
     const drawer = page.locator('.terminal-input'); await drawer.fill('unsent\nfont size draft');
     await open(); assert.equal(await input.inputValue(), '13');
-    assert.equal(await input.getAttribute('min'), '8'); assert.equal(await input.getAttribute('max'), '32');
-    await input.fill('18'); await font(13);
+    await input.evaluate(node => { const showPicker = node.showPicker; window.pickerOpens = 0; node.showPicker = function () { window.pickerOpens++; return showPicker.call(this); }; });
+    const fontBox = await input.boundingBox();
+    await page.mouse.move(fontBox.x + fontBox.width / 2, fontBox.y + fontBox.height / 2); await page.mouse.down();
+    assert.equal(await page.evaluate(() => window.pickerOpens), 0, 'font dropdown waits for mouse release');
+    await page.mouse.up(); assert.equal(await page.evaluate(() => window.pickerOpens), 1);
+    assert.equal(await input.inputValue(), '13', 'opening must preserve the selected font size');
+    await page.keyboard.press('Escape'); await input.evaluate(node => { delete node.showPicker; });
+    assert.equal(await familyInput.inputValue(), defaultFamily); assert.equal(await reset.isDisabled(), true);
+    assert.deepEqual(await input.locator('option').allTextContents(), [...Array.from({ length: 19 }, (_, i) => i + 6), 26, 28, 32, 36, 40, 48, 56, 64, 80, 96, 128].map(n => `${n}px`));
+    await input.selectOption('18'); await familyInput.fill(customFamily); await font(13);
+    assert.equal(await reset.isEnabled(), true);
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
     assert.equal((await saved()).terminalFontSize, undefined);
+    assert.equal((await saved()).terminalFontFamily, undefined);
     await open(); assert.equal(await input.inputValue(), '13');
-    for (const invalid of ['', '7', '33', '13.5']) {
-        await input.fill(invalid); assert.equal(await input.evaluate(node => node.checkValidity()), false);
+    assert.equal(await familyInput.inputValue(), defaultFamily);
+    for (const invalid of ['monospace; color: red', 'url(https://example.invalid/font)']) {
+        await familyInput.fill(invalid); assert.equal(await familyInput.evaluate(node => node.checkValidity()), false);
     }
-    await input.fill('18');
+    await input.selectOption('18'); await familyInput.fill('  ' + customFamily + '  ');
     await page.route(base + '/api/settings', route => route.fulfill({ status: 400, json: { error: 'save rejected' } }));
-    await save(400); await font(13); assert.equal((await saved()).terminalFontSize, undefined);
+    await save(400); await font(13); assert.equal((await saved()).terminalFontSize, undefined); assert.equal((await saved()).terminalFontFamily, undefined);
     await page.unroute(base + '/api/settings');
-    await save(); await font(18);
+    await save(); await font(18, customFamily);
     assert.equal((await saved()).terminalFontSize, 18);
+    assert.equal((await saved()).terminalFontFamily, customFamily);
     assert.equal(await drawer.inputValue(), 'unsent\nfont size draft');
     assert.ok(await activeNode.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')), 'font change preserves the renderer');
     assert.equal(sockets.length, baselineSockets, 'font change must not reconnect terminals');
     await textView(18);
-    await switchTo('b'); await font(18); await textView(18);
+    await switchTo('b'); await font(18, customFamily); await textView(18);
     assert.ok(await warmNode.evaluate(node => node === document.querySelector('[data-panel=b] .xterm')), 'warm terminal stays mounted');
-    await switchTo('c'); await font(18); await textView(18);
-    await switchTo('a'); await font(18);
+    await switchTo('c'); await font(18, customFamily); await textView(18);
+    await switchTo('a'); await font(18, customFamily);
     // The real PTY must receive its new grid, rather than merely zooming browser text.
     const helper = page.locator('[data-panel=a] .xterm-helper-textarea'); await helper.focus();
     await page.keyboard.insertText(`stty size > '${home}/size.txt'`); await page.keyboard.press('Enter');
@@ -132,24 +148,46 @@ try {
     assert.equal(await page.locator('[data-panel=a] .xterm-rows > div').count(), rows);
     for (const terminal of terminals) assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
     await page.getByRole('button', { name: 'Add terminal', exact: true }).click();
-    await page.waitForFunction(() => document.querySelectorAll('.terminal-view[data-state=connected]').length === 2); await font(18);
-    await page.reload(); await page.locator('.terminal-view[data-state=connected]').first().waitFor(); await font(18);
+    await page.waitForFunction(() => document.querySelectorAll('.terminal-view[data-state=connected]').length === 2); await font(18, customFamily);
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]:visible').first().waitFor(); await font(18, customFamily);
     await page.goto('about:blank'); assert.equal((await api('/logout', 'POST')).status(), 200); csrf = await login();
-    await page.goto(base); await page.locator('.terminal-view[data-state=connected]').first().waitFor(); await font(18);
-    await page.setViewportSize({ width: 390, height: 844 }); await open();
+    await page.goto(base); await page.locator('.terminal-view[data-state=connected]:visible').first().waitFor(); await font(18, customFamily);
+    await open(); await familyInput.fill('monospace'); await save(); await font(18, 'monospace'); await textView(18);
+    await page.setViewportSize({ width: 320, height: 844 }); await open();
     assert.equal(await input.inputValue(), '18');
-    assert.ok(await input.evaluate(node => { const r = node.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
+    assert.ok(await fontGroup.evaluate(node => {
+        const controls = [...node.querySelectorAll('select, input, button')].map(el => el.getBoundingClientRect());
+        return controls.every(r => r.left >= 0 && r.right <= innerWidth && r.width > 0 && Math.abs(r.top - controls[0].top) < 4);
+    }));
     await mkdir('test-results', { recursive: true }); await page.screenshot({ path: 'test-results/terminal-font-size-settings-mobile.png' });
-    await input.fill('8'); await save(); await font(8);
-    await open(); await input.fill('32'); await save(); await font(32);
-    await open(); await input.fill('13'); await save(); await font(13);
+    await reset.click(); assert.equal(await input.inputValue(), '13'); assert.equal(await familyInput.inputValue(), defaultFamily);
+    assert.equal(await reset.isDisabled(), true); await font(18, 'monospace');
+    await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click(); await font(18, 'monospace');
+    await open(); assert.equal(await input.inputValue(), '18'); assert.equal(await familyInput.inputValue(), 'monospace');
+    await reset.click(); await save(); await font(13); await textView(13);
+    await open(); await input.selectOption('6'); await save(); await font(6);
+    await open(); await input.selectOption('128'); await save(); await font(128);
+    await open(); await reset.click(); await familyInput.fill(''); await save(); await font(13);
+    assert.equal((await saved()).terminalFontFamily, undefined);
+    const legacy = await api('/settings', 'PUT', { ...await saved(), terminalFontSize: 30 }); assert.equal(legacy.status(), 200);
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]:visible').first().waitFor(); await font(30);
+    await open(); assert.equal(await input.inputValue(), '30'); assert.equal(await input.locator('option:checked').textContent(), '30px');
+    await save(); assert.equal((await saved()).terminalFontSize, 30);
+    await open(); await reset.click(); await save(); await font(13);
     assert.equal((await saved()).terminalFontSize, 13);
-    for (const invalid of [0, 7, 33, 13.5, '18']) {
+    await open(); await familyInput.fill('"unclosed'); await save(); await font(13, 'unclosed'); await textView(13);
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]:visible').first().waitFor(); await font(13, 'unclosed');
+    await open(); await reset.click(); await save(); await font(13);
+    for (const invalid of [0, 5, 129, 13.5, '18']) {
         assert.equal((await api('/settings', 'PUT', { ...await saved(), terminalFontSize: invalid })).status(), 400);
         assert.equal((await saved()).terminalFontSize, 13, 'invalid API saves must not change preferences');
     }
+    for (const invalid of [13, 'a'.repeat(513), 'a\u0000b', 'monospace; color: red', 'monospace}body{display:none', 'a/*']) {
+        assert.equal((await api('/settings', 'PUT', { ...await saved(), terminalFontFamily: invalid })).status(), 400);
+        assert.equal((await saved()).terminalFontFamily, defaultFamily, 'invalid API saves must not change preferences');
+    }
     assert.deepEqual(errors, []);
-    console.log('PASS terminal font size defaults, range, save/cancel/failure, live/warm/new terminals, text metrics, PTY resize, draft/PID/DOM retention, reload/login and mobile');
+    console.log('PASS terminal font defaults, presets/extremes, family, reset/cancel/failure, live/warm/new terminals, text metrics, PTY resize, draft/PID/DOM retention, reload/login, legacy sizes and mobile');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
     run('userdel', [user]);

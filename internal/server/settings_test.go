@@ -122,7 +122,7 @@ func TestUploadConcurrencySettings(t *testing.T) {
 }
 
 func TestTerminalFontSizeSettings(t *testing.T) {
-	for raw, valid := range map[string]bool{"null": true, "8": true, "13": true, "32": true, "0": false, "7": false, "33": false, "-1": false, "13.5": false, `"13"`: false} {
+	for raw, valid := range map[string]bool{"null": true, "6": true, "7": true, "13": true, "30": true, "32": true, "128": true, "0": false, "5": false, "129": false, "-1": false, "13.5": false, `"13"`: false} {
 		t.Run(raw, func(t *testing.T) {
 			var value Settings
 			err := json.Unmarshal([]byte(`{"theme":"dark","workspaces":[],"terminalFontSize":`+raw+`}`), &value)
@@ -151,6 +151,37 @@ func TestTerminalFontSizeSettings(t *testing.T) {
 	value := Settings{Theme: "dark", Workspaces: []Workspace{}}
 	if err := validateSettings(&value); err != nil || value.TerminalFontSize != nil {
 		t.Fatalf("missing setting must retain the frontend default: %v", err)
+	}
+}
+
+func TestTerminalFontFamilySettings(t *testing.T) {
+	for _, family := range []string{"", "  ", "monospace", `  "DejaVu Sans Mono", monospace  `, "'字体', monospace", strings.Repeat("a", 512), strings.Repeat("a", 513), strings.Repeat("字", 512), strings.Repeat("😀", 257), "a\x00b", "a\nb", "a\tb", "a\x7fb", "monospace; color: red", "monospace}body{display:none", "a/*", `a\62`, "<style>"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, TerminalFontFamily: family}
+		valid := family == "" || family == "  " || family == "monospace" || family == `  "DejaVu Sans Mono", monospace  ` || family == "'字体', monospace" || family == strings.Repeat("a", 512) || family == strings.Repeat("字", 512)
+		if err := validateSettings(&value); (err == nil) != valid {
+			t.Fatalf("font %q: %v", family, err)
+		}
+		if err := migrateSettings(&value); (err == nil) != valid {
+			t.Fatalf("load font %q: %v", family, err)
+		}
+		if !valid {
+			continue
+		}
+		if value.TerminalFontFamily != strings.TrimSpace(family) {
+			t.Fatal("font family was not trimmed")
+		}
+		data, err := json.Marshal(value)
+		var restored Settings
+		if err != nil || json.Unmarshal(data, &restored) != nil || !reflect.DeepEqual(value, restored) {
+			t.Fatalf("font family did not round-trip: %s", data)
+		}
+	}
+	for _, raw := range []string{`{}`, `{"terminalFontFamily":null}`, `{"terminalFontFamily":13}`} {
+		var value Settings
+		err := json.Unmarshal([]byte(raw), &value)
+		if (err != nil) != strings.Contains(raw, "13") || value.TerminalFontFamily != "" {
+			t.Fatalf("font family type/default: %s: %v", raw, err)
+		}
 	}
 }
 

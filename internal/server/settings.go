@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"tuxee/internal/i18n"
+	"unicode"
 	"unicode/utf16"
 
 	"tuxee/internal/files"
@@ -16,14 +17,15 @@ import (
 )
 
 const (
-	maxShellCommandBytes     = 4096
-	maxDefaultDirectoryBytes = 4096
-	minUploadConcurrency     = 1
-	maxUploadConcurrency     = 64
-	minTerminalFontSize      = 8
-	maxTerminalFontSize      = 32
-	maxServerNameUnits       = 64
-	maxWorkspaces            = 24
+	maxShellCommandBytes       = 4096
+	maxDefaultDirectoryBytes   = 4096
+	minUploadConcurrency       = 1
+	maxUploadConcurrency       = 64
+	minTerminalFontSize        = 6
+	maxTerminalFontSize        = 128
+	maxTerminalFontFamilyUnits = 512
+	maxServerNameUnits         = 64
+	maxWorkspaces              = 24
 )
 
 type Panel struct {
@@ -66,6 +68,7 @@ type Settings struct {
 	TerminalBackground      string      `json:"terminalBackground,omitempty"`
 	TerminalBackgroundLight string      `json:"terminalBackgroundLight,omitempty"`
 	TerminalFontSize        *int        `json:"terminalFontSize,omitempty"`
+	TerminalFontFamily      string      `json:"terminalFontFamily,omitempty"`
 	UploadConcurrency       *int        `json:"uploadConcurrency,omitempty"`
 	Theme                   string      `json:"theme"`
 	Current                 string      `json:"current"`
@@ -111,6 +114,11 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	}
 	if n := value.TerminalFontSize; n != nil && (*n < minTerminalFontSize || *n > maxTerminalFontSize) {
 		return i18n.New("backend.server.terminalFontSizeRange", i18n.Vars{"min": minTerminalFontSize, "max": maxTerminalFontSize})
+	}
+	value.TerminalFontFamily = strings.TrimSpace(value.TerminalFontFamily)
+	// xterm inserts this value into its renderer stylesheet.
+	if len(utf16.Encode([]rune(value.TerminalFontFamily))) > maxTerminalFontFamilyUnits || strings.ContainsAny(value.TerminalFontFamily, ";{}\\<>") || strings.Contains(value.TerminalFontFamily, "/*") || strings.IndexFunc(value.TerminalFontFamily, unicode.IsControl) >= 0 {
+		return i18n.New("backend.server.terminalFontFamilyInvalid", i18n.Vars{"max": maxTerminalFontFamilyUnits})
 	}
 	for name, color := range map[string]string{"settings.colorMarkerField": value.ServerColor, "settings.backgroundField": value.TerminalBackground, "settings.lightBackgroundField": value.TerminalBackgroundLight} {
 		if color == "" {

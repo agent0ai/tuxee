@@ -13,7 +13,7 @@ import { directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resize
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
-import { TerminalView, terminateTerminal, TERMINAL_FONT_SIZE } from './term';
+import { TerminalView, terminateTerminal, TERMINAL_FONT } from './term';
 import { terminalTheme } from './terminal/state';
 import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
@@ -140,19 +140,6 @@ function showLogin() {
     form.append(logo);
     const language = el('select', 'login-language');
     language.name = 'language';
-    language.onpointerdown = event => {
-        if (event.pointerType !== 'mouse' || event.button !== 0 || typeof language.showPicker !== 'function') return;
-        // Chromium can move a long popup over its opener; open it after the opening release.
-        event.preventDefault(); language.focus();
-        const press = new AbortController(), signal = press.signal;
-        window.addEventListener('pointerup', release => {
-            press.abort();
-            if (release.pointerId === event.pointerId && release.target === language && language.isConnected && !language.disabled) language.showPicker();
-        }, { capture: true, once: true, signal });
-        for (const type of ['pointerdown', 'pointercancel', 'blur', 'keydown']) {
-            window.addEventListener(type, () => press.abort(), { capture: true, once: true, signal });
-        }
-    };
     for (const item of translations().languages) {
         const option = el('option', '', `${item.code.toUpperCase()} ${item.name}`); option.value = item.code; language.append(option);
     }
@@ -466,7 +453,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 node.append(grip);
             }
             const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
-            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize);
+            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         item.node.hidden = compact && panel.id !== ws.active;
@@ -1186,11 +1173,31 @@ async function openSettings() {
     prompt.setAttribute('role', 'switch'); prompt.checked = settings.useTuxeePrompt !== false;
     const promptLabel = el('label', 'settings-switch');
     promptLabel.append(prompt, el('span', '', t("app.useTuxeeShellPrompt")));
-    const fontSize = el('input'); fontSize.type = 'number'; fontSize.name = 'terminalFontSize';
-    fontSize.min = String(TERMINAL_FONT_SIZE.min); fontSize.max = String(TERMINAL_FONT_SIZE.max); fontSize.step = '1'; fontSize.required = true;
-    fontSize.value = String(settings.terminalFontSize ?? TERMINAL_FONT_SIZE.default); fontSize.style.width = '7em';
-    const fontSizeLabel = el('label', 'field');
-    fontSizeLabel.append(el('span', 'settings-label', t('settings.terminalFontSize')), fontSize);
+    const fontSize = el('select'); fontSize.name = 'terminalFontSize';
+    fontSize.setAttribute('aria-label', t('settings.terminalFontSize'));
+    const fontSizes = [...Array.from({ length: 19 }, (_, i) => i + 6), 26, 28, 32, 36, 40, 48, 56, 64, 80, 96, 128];
+    const savedFontSize = settings.terminalFontSize ?? TERMINAL_FONT.size;
+    if (!fontSizes.includes(savedFontSize)) fontSizes.push(savedFontSize);
+    for (const size of fontSizes.sort((a, b) => a - b)) {
+        const option = el('option', '', `${size}px`); option.value = String(size); fontSize.append(option);
+    }
+    fontSize.value = String(savedFontSize);
+    const fontFamily = el('input'); fontFamily.name = 'terminalFontFamily';
+    fontFamily.value = settings.terminalFontFamily || TERMINAL_FONT.family;
+    fontFamily.maxLength = TERMINAL_FONT.maxFamilyLength; fontFamily.autocomplete = 'off'; fontFamily.spellcheck = false;
+    fontFamily.setAttribute('aria-label', t('settings.terminalFont'));
+    const resetFont = button(t('common.reset'), undefined, () => {
+        fontSize.value = String(TERMINAL_FONT.size); fontFamily.value = TERMINAL_FONT.family; updateFont();
+    });
+    const updateFont = () => {
+        const family = fontFamily.value.trim();
+        fontFamily.setCustomValidity(family && !CSS.supports('font-family', family) ? t('backend.server.terminalFontFamilyInvalid', { max: TERMINAL_FONT.maxFamilyLength }) : '');
+        resetFont.disabled = Number(fontSize.value) === TERMINAL_FONT.size && family === TERMINAL_FONT.family;
+    };
+    fontSize.onchange = fontFamily.oninput = updateFont; updateFont();
+    const fontControls = el('div', 'terminal-font-controls'); fontControls.append(fontSize, fontFamily, resetFont);
+    const fontField = el('fieldset', 'field terminal-font');
+    fontField.append(el('legend', 'settings-label', t('settings.terminalFont')), fontControls);
     let markerColor = settings.serverColor || '';
     const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
     const color = el('input');
@@ -1248,7 +1255,7 @@ async function openSettings() {
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontSizeLabel, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
+    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
     const dialog = modal(t("app.settings"), content);
     dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
     content.onsubmit = async event => {
@@ -1261,12 +1268,14 @@ async function openSettings() {
         const previousBackground = settings.terminalBackground;
         const previousLightBackground = settings.terminalBackgroundLight;
         const previousFontSize = settings.terminalFontSize;
+        const previousFontFamily = settings.terminalFontFamily;
         const previousDirectory = settings.defaultDirectory;
         const previousShell = settings.shellCommand, previousPrompt = settings.useTuxeePrompt;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
-        settings.terminalFontSize = fontSize.valueAsNumber;
+        settings.terminalFontSize = Number(fontSize.value);
+        settings.terminalFontFamily = fontFamily.value.trim();
         settings.defaultDirectory = directory.value || '~';
         settings.shellCommand = shell.value.trim() || 'bash'; settings.useTuxeePrompt = prompt.checked;
         Object.assign(settings, terminalColors);
@@ -1274,11 +1283,11 @@ async function openSettings() {
         try {
             await save();
             for (const workspace of warmWorkspaces.values()) for (const { view } of workspace.items.values()) {
-                if (view instanceof TerminalView) view.setFontSize(settings.terminalFontSize);
+                if (view instanceof TerminalView) view.setFont(settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             }
             setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close();
         }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.terminalFontFamily = previousFontFamily; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

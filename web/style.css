@@ -1461,7 +1461,10 @@ input[role=switch]:disabled { opacity: .5; cursor: wait; }
 .display-screen { width: 0; height: 0; overflow: hidden; }
 .display-status:not([hidden]) { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; background: var(--bg); overflow: auto; }
 
-.terminal-colors { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
+.terminal-colors, .terminal-font { border: 0; padding: 0; margin-inline: 0; min-width: 0; }
+.terminal-font-controls { display: flex; align-items: center; gap: 8px; }
+.terminal-font-controls input { flex: 1; width: 0; }
+.terminal-font-controls select, .terminal-font-controls button { flex-shrink: 0; }
 .terminal-color-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
 .terminal-color-columns .settings-color { flex-wrap: wrap; }
@@ -1469,11 +1472,11 @@ input[role=switch]:disabled { opacity: .5; cursor: wait; }
 .settings-label { font-size: 13px; font-weight: 700; color: var(--text); }
 .settings-form > .field { gap: 10px; }
 .settings-form > hr { margin: 0; border: 0; border-top: 1px solid var(--line); }
-.terminal-colors legend { padding: 0; margin-bottom: 10px; }
+.terminal-colors legend, .terminal-font legend { padding: 0; margin-bottom: 10px; }
 
 /* Technical surfaces retain their physical coordinate and text order in RTL UI. */
 .terminal-host, .terminal-text pre, .terminal-input, .cm-editor, .terminal-display,
-.path-input, input[name=defaultDirectory], input[name=shellCommand],
+.path-input, input[name=defaultDirectory], input[name=shellCommand], input[name=terminalFontFamily], select[name=terminalFontSize],
 pre, code, .process-label small, .login-language {
   direction: ltr;
   unicode-bidi: isolate;
