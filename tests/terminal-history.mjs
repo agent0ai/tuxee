@@ -15,7 +15,7 @@ const run = (command, ...args) => docker('exec', container, command, ...args);
 const users = [`tuxee-history-${process.pid}-a`, `tuxee-history-${process.pid}-b`];
 const passwords = users.map(() => randomBytes(24).toString('base64url'));
 const home = user => `/home/${user}`;
-const folder = (user, id) => `${home(user)}/.config/tuxee/terminals/${id}`;
+const folder = (user, id) => `${home(user)}/.local/state/tuxee/terminals/${id}`;
 const exists = path => spawnSync('docker', ['exec', container, 'test', '-e', path]).status === 0;
 const saved = (user, id) => JSON.parse(run('cat', `${folder(user, id)}/input-history.json`));
 const eventually = async (check, label) => {
@@ -62,6 +62,7 @@ try {
     };
     const terminal = await create(a), neighbour = await create(a), otherUser = await create(b);
     assert.ok(exists(`${folder(users[0], terminal.id)}/meta.json`), 'creation prepares terminal folder');
+    assert.ok(!exists(`${home(users[0])}/.config/tuxee/terminals`), 'history must not create configuration directories');
     const uid = run('id', '-u', users[0]);
     assert.equal(run('stat', '-c', '%u:%a', folder(users[0], terminal.id)), `${uid}:700`);
     const settings = { theme: 'dark', current: 'history', workspaces: [{ id: 'history', name: 'History', columns: 4, rows: 2, active: 'terminal', panels: [

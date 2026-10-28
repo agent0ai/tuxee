@@ -50,7 +50,11 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	base := filepath.Join(home, ".config", "tuxee", "terminals")
+	state := os.Getenv("XDG_STATE_HOME")
+	if !filepath.IsAbs(state) {
+		state = filepath.Join(home, ".local", "state")
+	}
+	base := filepath.Join(state, "tuxee", "terminals")
 	if r.Operation == "terminal-prune" {
 		for _, id := range r.Paths {
 			if !terminalID(id) {

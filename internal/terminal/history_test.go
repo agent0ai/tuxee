@@ -23,6 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestInputHistoryConcurrentAppendAndClose(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "")
 	if os.Geteuid() != 0 {
 		t.Skip("credential-dropped worker requires root")
 	}
@@ -63,7 +64,7 @@ func TestInputHistoryConcurrentAppendAndClose(t *testing.T) {
 	if history, err := s.InputHistory(ctx, ""); err != nil || len(history) != 0 {
 		t.Fatalf("closed history: %v, %v", history, err)
 	}
-	path := filepath.Join(user.Home, ".config", "tuxee", "terminals", s.Info().ID)
+	path := filepath.Join(user.Home, ".local", "state", "tuxee", "terminals", s.Info().ID)
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("append recreated closed session folder: %v", err)
 	}

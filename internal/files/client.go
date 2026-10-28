@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -35,6 +37,10 @@ func Start(ctx context.Context, user identity.User, request Request, body io.Rea
 	header = append(header, '\n')
 	ctx, cancel := context.WithCancel(ctx)
 	cmd := user.Command(ctx, identity.Self, "__files")
+	// A service account's state override must not redirect another user's files.
+	if state := os.Getenv("XDG_STATE_HOME"); user.UID == uint32(os.Geteuid()) && filepath.IsAbs(state) {
+		cmd.Env = append(cmd.Env, "XDG_STATE_HOME="+state)
+	}
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.WaitDelay = 3 * time.Second
 	cmd.Stdin = bytes.NewReader(header)

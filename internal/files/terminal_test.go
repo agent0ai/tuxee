@@ -14,9 +14,10 @@ import (
 func TestTerminalHistoryAndCleanup(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", "")
 	ctx := context.Background()
 	live, dead, other := strings.Repeat("1", 24), strings.Repeat("2", 24), strings.Repeat("3", 24)
-	base := filepath.Join(home, ".config", "tuxee", "terminals")
+	base := filepath.Join(home, ".local", "state", "tuxee", "terminals")
 	run := func(r Request) Response {
 		t.Helper()
 		response, err := terminalFiles(ctx, r)
@@ -90,12 +91,13 @@ func TestTerminalHistoryAndCleanup(t *testing.T) {
 
 func TestTerminalHistoryRejectsCorruptAndSpecialFiles(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", "")
 	id := strings.Repeat("a", 24)
 	r := Request{Operation: "terminal-history", Instance: "one", Path: id, Content: "first"}
 	if _, err := terminalFiles(context.Background(), r); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(os.Getenv("HOME"), ".config", "tuxee", "terminals", id, "input-history.json")
+	path := filepath.Join(os.Getenv("HOME"), ".local", "state", "tuxee", "terminals", id, "input-history.json")
 	if err := os.WriteFile(path, []byte("{broken"), 0600); err != nil {
 		t.Fatal(err)
 	}
