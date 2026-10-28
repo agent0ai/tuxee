@@ -2,13 +2,22 @@ package server
 
 import (
 	"context"
+	"crypto/des"
 	"crypto/sha256"
+	"encoding/binary"
+	"io"
+	"math/bits"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 	"tuxee/internal/terminal"
+
+	"github.com/coder/websocket"
 )
 
 func TestDisplayAdmission(t *testing.T) {
@@ -55,5 +64,109 @@ func TestDisplayAdmission(t *testing.T) {
 		if w.Code != tc.status {
 			t.Fatalf("%s %s origin=%q: %d, want %d", tc.method, tc.path, tc.origin, w.Code, tc.status)
 		}
+	}
+}
+
+func TestDisplayKeepalive(t *testing.T) {
+	if os.Getenv("TUXEE_SYSTEM_TEST") != "1" {
+		t.Skip("requires the real GUI runtime")
+	}
+	for _, tool := range []string{"tuxee-Xvnc", "xterm"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(err)
+		}
+	}
+	_, session, address := terminalFixture(t, "xterm -title Keepalive")
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+	for session.Display == nil || len(session.Display.State().Windows) == 0 {
+		select {
+		case <-ctx.Done():
+			t.Fatal("display did not start")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	address = strings.Replace(strings.TrimSuffix(address, "/ws")+"/display/ws", "http:", "ws:", 1)
+	for _, reply := range []bool{true, false} {
+		name := "unresponsive"
+		if reply {
+			name = "responsive"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx, stop := context.WithTimeout(context.Background(), 35*time.Second)
+			defer stop()
+			ping := make(chan struct{}, 2)
+			c, _, err := websocket.Dial(ctx, address, &websocket.DialOptions{
+				HTTPHeader:     http.Header{"Origin": {"http://localhost"}},
+				OnPingReceived: func(context.Context, []byte) bool { ping <- struct{}{}; return reply },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.CloseNow()
+			stream := websocket.NetConn(ctx, c, websocket.MessageBinary)
+			read := func(size int) []byte {
+				data := make([]byte, size)
+				if _, err := io.ReadFull(stream, data); err != nil {
+					t.Fatal(err)
+				}
+				return data
+			}
+			write := func(data []byte) {
+				if _, err := stream.Write(data); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Complete real VNC authentication, then leave the display idle without update requests.
+			greeting := read(12)
+			if string(greeting) != "RFB 003.008\n" {
+				t.Fatalf("unexpected VNC greeting: %q", greeting)
+			}
+			write(greeting)
+			types := read(int(read(1)[0]))
+			if len(types) != 1 || types[0] != 2 {
+				t.Fatalf("unexpected VNC security types: %v", types)
+			}
+			write([]byte{2})
+			challenge, key := read(16), make([]byte, 8)
+			copy(key, session.Display.Password)
+			for i := range key {
+				key[i] = bits.Reverse8(key[i])
+			}
+			cipher, _ := des.NewCipher(key)
+			cipher.Encrypt(challenge[:8], challenge[:8])
+			cipher.Encrypt(challenge[8:], challenge[8:])
+			write(challenge)
+			if binary.BigEndian.Uint32(read(4)) != 0 {
+				t.Fatal("VNC authentication failed")
+			}
+			write([]byte{1})
+			read(int(binary.BigEndian.Uint32(read(24)[20:])))
+			ended := make(chan struct{})
+			go func() { io.Copy(io.Discard, stream); close(ended) }()
+			select {
+			case <-ping:
+			case <-ended:
+				t.Fatal("display closed before its keepalive")
+			case <-ctx.Done():
+				t.Fatal("missing display keepalive")
+			}
+			if reply {
+				select {
+				case <-ended:
+					t.Fatal("healthy idle viewer disconnected")
+				case <-time.After(9 * time.Second):
+				}
+			} else {
+				select {
+				case <-ended:
+				case <-ctx.Done():
+					t.Fatal("unresponsive viewer was not disconnected")
+				}
+			}
+			if !session.Display.State().Ready || len(session.Display.State().Windows) == 0 {
+				t.Fatal("viewer loss stopped the application")
+			}
+		})
 	}
 }

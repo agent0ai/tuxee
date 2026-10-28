@@ -11,7 +11,7 @@ const maxBytes = 256 * 1024, maxImageBytes = 16 * 1024 * 1024;
 type Copy = { resolve: (text: Blob) => void; reject: (error: Error) => void; timer: number; cancelled: boolean; blocked: boolean; text?: string; version: number };
 
 type NativeClipboard = { text?: string; png?: string; files?: string[] };
-type ClipboardOptions = { path: string; uid: number; upload: (files: File[]) => Promise<DraggedFile[]>; disconnected: () => void };
+type ClipboardOptions = { path: string; uid: number; upload: (files: File[]) => Promise<DraggedFile[]> };
 
 export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLElement, options: ClipboardOptions) {
     const events = new AbortController(), signal = events.signal;
@@ -21,7 +21,8 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
     let reading: AbortController | undefined;
     const url = new URL('/api' + options.path + '/clipboard/events', location.href);
     url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const changes = new WebSocket(url);
+    let changes: WebSocket | undefined, attempt = 0;
+    let reconnect: ReturnType<typeof setTimeout> | undefined, connecting: ReturnType<typeof setTimeout> | undefined;
     const blobs = (data: NativeClipboard): Record<string, Blob> => {
         if (data.png) return { 'image/png': new Blob([Uint8Array.from(atob(data.png), c => c.charCodeAt(0))], { type: 'image/png' }) };
         if (data.files) {
@@ -192,8 +193,9 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
     screen.addEventListener('focusout', lostFocus, { signal });
     window.addEventListener('blur', lostFocus, { signal });
     document.addEventListener('visibilitychange', () => { if (document.hidden) lostFocus(); }, { signal });
-    changes.addEventListener('message', event => {
+    const received = (event: MessageEvent) => {
         const change = JSON.parse(event.data) as { version: number; local: boolean };
+        if (!Number.isSafeInteger(change?.version) || change.version < 0 || typeof change.local !== 'boolean') throw new Error(t("display.connectionFailed"));
         const initial = remoteVersion < 0; remoteVersion = change.version;
         screen.dataset.clipboardReady = 'true';
         if (initial || change.local || pasting || !focused() || !interacted) return;
@@ -217,8 +219,26 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
                 void writeNative(data).then(() => { if (data.files) offer(data, current); }).catch(() => offer(data, current));
             }
         }).catch(error => { if (!request.signal.aborted && focused() && current === version) { cancel(); notify(error, owner); } });
-    }, { signal });
-    changes.addEventListener('close', () => { if (!signal.aborted) { cancel(); delete screen.dataset.clipboardReady; remoteVersion = -1; options.disconnected(); } }, { signal });
+    };
+    const connect = () => {
+        if (signal.aborted) return;
+        const socket = changes = new WebSocket(url);
+        const failed = () => {
+            if (signal.aborted || changes !== socket) return;
+            changes = undefined; clearTimeout(connecting); socket.close();
+            cancel(); version++; reading?.abort(); interacted = false; remoteVersion = -1;
+            fallback?.remove(); closeDialog?.(); delete screen.dataset.clipboardReady;
+            reconnect = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 15000));
+        };
+        connecting = setTimeout(failed, 15000);
+        socket.onmessage = event => {
+            if (signal.aborted || changes !== socket) return;
+            try { received(event); clearTimeout(connecting); attempt = 0; }
+            catch { failed(); }
+        };
+        socket.onclose = failed;
+    };
+    connect();
     return {
         pastePaths: async (files: DraggedFile[]) => {
             const text = files.map(file => file.path).join('\n'); if (!valid(text)) return;
@@ -226,7 +246,8 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
             await paste({ text }, false, current);
         },
         dispose: () => {
-            lostFocus(); events.abort(); changes.close(); version++; fallback?.remove(); closeDialog?.(); delete screen.dataset.clipboardReady;
+            lostFocus(); events.abort(); clearTimeout(reconnect); clearTimeout(connecting); changes?.close(); changes = undefined;
+            version++; fallback?.remove(); closeDialog?.(); delete screen.dataset.clipboardReady;
         }
     };
 }
