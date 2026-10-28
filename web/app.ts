@@ -140,6 +140,19 @@ function showLogin() {
     form.append(logo);
     const language = el('select', 'login-language');
     language.name = 'language';
+    language.onpointerdown = event => {
+        if (event.pointerType !== 'mouse' || event.button !== 0 || typeof language.showPicker !== 'function') return;
+        // Chromium can move a long popup over its opener; open it after the opening release.
+        event.preventDefault(); language.focus();
+        const press = new AbortController(), signal = press.signal;
+        window.addEventListener('pointerup', release => {
+            press.abort();
+            if (release.pointerId === event.pointerId && release.target === language && language.isConnected && !language.disabled) language.showPicker();
+        }, { capture: true, once: true, signal });
+        for (const type of ['pointerdown', 'pointercancel', 'blur', 'keydown']) {
+            window.addEventListener(type, () => press.abort(), { capture: true, once: true, signal });
+        }
+    };
     for (const item of translations().languages) {
         const option = el('option', '', `${item.code.toUpperCase()} ${item.name}`); option.value = item.code; language.append(option);
     }
