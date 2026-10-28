@@ -158,8 +158,28 @@ func (s *Server) terminalDisplay(w http.ResponseWriter, r *http.Request, value *
 		return
 	}
 	defer connection.CloseNow()
-	stream := websocket.NetConn(r.Context(), connection, websocket.MessageBinary)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	stream := websocket.NetConn(ctx, connection, websocket.MessageBinary)
 	connection.SetReadLimit(1 << 20)
+	go func() {
+		ticker := time.NewTicker(20 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pingCtx, stop := context.WithTimeout(ctx, 8*time.Second)
+				err := connection.Ping(pingCtx)
+				stop()
+				if err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)

@@ -30,6 +30,10 @@ export class TerminalDisplay {
     private events = new AbortController();
     private dropNotice?: HTMLElement;
     private resizeTimer?: ReturnType<typeof setTimeout>;
+    private reconnect?: ReturnType<typeof setTimeout>;
+    private connecting?: ReturnType<typeof setTimeout>;
+    private attempt = 0;
+    private focusOnConnect = false;
     private observer = new ResizeObserver(() => this.resize());
     visible = false;
     get connected() { return this.visible && !!this.clipboard && this.frame.getClientRects().length > 0 && this.frame.dataset.state === 'connected'; }
@@ -42,6 +46,7 @@ export class TerminalDisplay {
         this.frame.append(this.screen, this.status); this.frame.hidden = true;
         root.append(this.frame);
         this.update();
+        document.addEventListener('focusin', event => { this.focusOnConnect = this.root.contains(event.target as Node); }, { signal: this.events.signal });
         this.observer.observe(this.frame);
         this.disposeOverflow = overflowTabs(this.windows, this.items, t("display.moreWindows"), () => {});
     }
@@ -104,11 +109,12 @@ export class TerminalDisplay {
             item.group.classList.toggle('active', selected);
             b.classList.toggle('active', selected); b.setAttribute('aria-pressed', String(selected));
         }
-        if (this.visible && !this.rfb && !this.request) void this.connect();
-        if (!this.visible) this.disconnect();
+        if (this.visible && !this.rfb && !this.request && !this.reconnect) void this.connect();
+        if (!this.visible) { this.disconnect(); this.attempt = 0; }
         this.resize();
         window.dispatchEvent(new Event('tuxee-tabs-changed'));
         if (focus || previous !== this.visible) {
+            this.focusOnConnect = true;
             if (this.visible) this.rfb?.focus();
             else this.focus();
         }
@@ -127,9 +133,12 @@ export class TerminalDisplay {
     }
 
     private async connect() {
+        if (this.disposed || !this.visible || !this.state?.ready) return;
         this.disconnect();
         const request = this.request = new AbortController();
+        this.frame.dataset.state = 'connecting';
         this.status.hidden = false; this.status.replaceChildren(el('span', '', t("term.loading")));
+        this.connecting = setTimeout(() => this.disconnected(t("display.connectionFailed")), 15000);
         try {
             const session = await api<{ password: string }>(`/terminals/${this.id()}/display`, 'GET', undefined, request.signal);
             if (this.disposed || request.signal.aborted) return;
@@ -139,14 +148,14 @@ export class TerminalDisplay {
             rfb.scaleViewport = true; rfb.resizeSession = true; rfb.background = '#111827'; this.resize();
             rfb.addEventListener('connect', () => {
                 if (this.rfb !== rfb) return;
+                clearTimeout(this.connecting); this.connecting = undefined; this.attempt = 0;
                 this.status.hidden = true; this.frame.dataset.state = 'connected';
                 this.screen.querySelector('canvas')?.setAttribute('aria-label', t("display.terminalDisplay"));
                 this.clipboard = displayClipboard(this.screen, rfb, this.root, {
                     path: `/terminals/${this.id()}/display`, uid: this.user.uid,
-                    upload: files => uploadBatch(join(this.user.home, 'uploads'), files, this.root, this.events.signal, true),
-                    disconnected: () => rfb.disconnect()
+                    upload: files => uploadBatch(join(this.user.home, 'uploads'), files, this.root, this.events.signal, true)
                 });
-                if (this.visible) rfb.focus();
+                if (this.visible && this.focusOnConnect) rfb.focus();
             });
             rfb.addEventListener('disconnect', () => {
                 if (this.rfb !== rfb || this.disposed) return;
@@ -158,9 +167,11 @@ export class TerminalDisplay {
     }
 
     private disconnected(message: string) {
-        this.clipboard?.dispose(); this.clipboard = undefined;
+        this.disconnect();
+        if (this.disposed || !this.visible) return;
         this.frame.dataset.state = 'disconnected'; this.status.hidden = false;
         this.status.replaceChildren(el('span', '', message), button(t("display.reconnectDisplay"), undefined, () => this.connect(), 'primary'));
+        this.reconnect = setTimeout(() => { this.reconnect = undefined; void this.connect(); }, Math.min(1000 * 2 ** this.attempt++, 15000));
     }
 
     resize() {
@@ -209,6 +220,8 @@ export class TerminalDisplay {
     }
 
     private disconnect() {
+        clearTimeout(this.reconnect); this.reconnect = undefined;
+        clearTimeout(this.connecting); this.connecting = undefined;
         this.dropNotice?.remove();
         this.clipboard?.dispose(); this.clipboard = undefined;
         this.request?.abort(); this.request = undefined;

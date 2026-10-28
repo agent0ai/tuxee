@@ -49,6 +49,21 @@ try {
     const page = await context.newPage(), errors = [], uploads = [];
     page.setDefaultTimeout(20000); page.on('pageerror', error => errors.push(error.message));
     page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/api/upload')) uploads.push(request.url()); });
+    const viewer = { connections: [], reject: 0, stall: 0 }, clipboardEvents = { connections: [], reject: 0, stall: 0 };
+    await page.routeWebSocket('**/api/terminals/*/display/**', socket => {
+        const channel = socket.url().endsWith('/clipboard/events') ? clipboardEvents : viewer;
+        const connection = { socket, at: Date.now() }; channel.connections.push(connection);
+        if (channel.reject) { channel.reject--; socket.close({ code: 1013 }); }
+        else if (channel.stall) channel.stall--;
+        else connection.server = socket.connectToServer();
+    });
+    await page.addInitScript(() => {
+        // noVNC checks the direct prototype; Playwright adds a subclass above its socket implementation.
+        const prototype = WebSocket.prototype, parent = Object.getPrototypeOf(prototype);
+        for (const name of ['send', 'close', 'binaryType', 'onerror', 'onmessage', 'onopen']) {
+            if (!Object.hasOwn(prototype, name)) Object.defineProperty(prototype, name, Object.getOwnPropertyDescriptor(parent, name));
+        }
+    });
     await page.goto(base);
     const view = page.locator('[data-panel=shell]'), canvas = view.locator('.terminal-display canvas');
     await view.locator('.terminal-view[data-state=connected]').waitFor();
@@ -115,6 +130,72 @@ try {
     await write('preserve for primary'); remoteClip('primary alone', 'primary'); await pause(300); assert.equal(await read(), 'preserve for primary');
     console.log('PASS denied-write fallback, remote-menu clipboard changes and PRIMARY isolation');
 
+    const displayReady = () => view.locator('.terminal-display[data-state=connected]').waitFor({ timeout: 60000 });
+    const clipboardReady = () => view.locator('[data-clipboard-ready=true]').waitFor({ timeout: 60000 });
+    const disconnect = (channel, reject = 0) => {
+        channel.reject = reject;
+        const connection = channel.connections.at(-1), start = { at: Date.now(), index: channel.connections.length };
+        connection.socket.close({ code: 1013 }); connection.server?.close({ code: 1013 }); return start;
+    };
+    const cadence = (channel, start, delays) => {
+        const connections = channel.connections.slice(start.index);
+        assert.equal(connections.length, delays.length, 'unexpected reconnect count');
+        const gaps = connections.map((value, i) => value.at - (i ? connections[i - 1].at : start.at));
+        gaps.forEach((gap, i) => assert.ok(gap >= delays[i] - 100 && gap < delays[i] + 3000, `retry ${i}: ${gap} ms, expected ${delays[i]} ms`));
+        return gaps;
+    };
+    await clipboardReady();
+    const originalCanvas = await canvas.elementHandle(), viewerCount = viewer.connections.length;
+    await write('preserve across clipboard reconnect');
+    const clipStart = disconnect(clipboardEvents, 5);
+    await view.locator('[data-clipboard-ready=true]').waitFor({ state: 'detached' });
+    await canvas.focus(); await page.keyboard.press('Control+a'); await page.keyboard.type('draft survives clipboard loss');
+    await until(async () => assert.equal((await record()).text, 'draft survives clipboard loss'));
+    await page.keyboard.press('Control+a'); await page.keyboard.press('Control+c');
+    await until(async () => assert.equal(run('xclip', ['-o', '-selection', 'clipboard'], { uid, gid, env }), 'draft survives clipboard loss'));
+    await clipboardReady();
+    console.log('PASS independent clipboard retry cadence (ms)', cadence(clipboardEvents, clipStart, [1000, 2000, 4000, 8000, 15000, 15000]));
+    assert.equal(viewer.connections.length, viewerCount);
+    assert.ok(await originalCanvas.evaluate(node => node === document.querySelector('.terminal-display canvas')));
+    assert.equal(await read(), 'preserve across clipboard reconnect', 'initial snapshot must not overwrite device clipboard');
+    await page.keyboard.press('Control+c'); await until(async () => assert.equal(await read(), 'draft survives clipboard loss'));
+
+    const clipCount = clipboardEvents.connections.length, displayStart = disconnect(viewer, 5);
+    await view.locator('.terminal-display[data-state=disconnected]').waitFor();
+    const pathInput = page.locator('[data-panel=files] .path-input'); await pathInput.focus();
+    await displayReady(); await clipboardReady();
+    console.log('PASS viewer retry cadence (ms)', cadence(viewer, displayStart, [1000, 2000, 4000, 8000, 15000, 15000]));
+    assert.ok(await pathInput.evaluate(node => document.activeElement === node), 'automatic reconnect stole focus');
+    assert.equal(clipboardEvents.connections.length, clipCount + 1);
+    assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
+    assert.equal((await record()).text, 'draft survives clipboard loss');
+    await paste('after automatic recovery');
+
+    // Manual recovery bypasses backoff and cancels the old scheduled attempt.
+    const manual = disconnect(viewer, 2);
+    await until(async () => assert.equal(viewer.connections.length, manual.index + 2));
+    await view.locator('.display-status button').click(); await displayReady(); await clipboardReady();
+    assert.equal(viewer.connections.length, manual.index + 3);
+    await pause(4500); assert.equal(viewer.connections.length, manual.index + 3);
+    // Switching to the shell deliberately cancels recovery on both channels.
+    disconnect(clipboardEvents); disconnect(viewer);
+    await view.locator('.terminal-tab').click();
+    const hiddenCounts = [viewer.connections.length, clipboardEvents.connections.length];
+    await pause(1500); assert.deepEqual([viewer.connections.length, clipboardEvents.connections.length], hiddenCounts);
+    await view.locator('.display-window').click(); await displayReady(); await clipboardReady();
+    console.log('PASS manual recovery, cancelled hidden-view retries and retained application/PID');
+
+    // An open socket without a protocol handshake must also recover.
+    for (const [channel, ready] of [[viewer, displayReady], [clipboardEvents, clipboardReady]]) {
+        channel.stall = 1; const start = disconnect(channel);
+        await until(async () => assert.equal(channel.connections.length, start.index + 1));
+        await ready(); await clipboardReady();
+        cadence(channel, start, [1000, 17000]);
+    }
+    await paste('after stalled handshake');
+    console.log('PASS bounded VNC/clipboard handshakes and recovered native paste');
+    await paste('Command modifiers!');
+
     await page.evaluate(async () => {
         const image = document.createElement('canvas'); image.width = image.height = 1;
         const blob = await new Promise(resolve => image.toBlob(resolve));
@@ -124,7 +205,7 @@ try {
     await until(async () => assert.deepEqual((await record()).received.image, [1, 1]));
     assert.deepEqual(uploads, []); assert.equal((await record()).text, 'Command modifiers!');
     await write('x'.repeat(256 * 1024)); await page.keyboard.press('Control+V');
-    await view.getByText('GUI clipboard text is too large (maximum 256 KB).', { exact: true }).waitFor();
+    await view.getByText('GUI clipboard text is too large (maximum 256 KiB).', { exact: true }).waitFor();
     assert.equal((await record()).text, 'Command modifiers!');
     await view.getByRole('button', { name: 'Clipboard proof', exact: true }).click();
     await view.getByRole('button', { name: 'GUI clipboard proof', exact: true }).click();

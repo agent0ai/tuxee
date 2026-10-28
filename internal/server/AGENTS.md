@@ -10,6 +10,8 @@ Own HTTP routing and session revocation. Delegate filesystem syscalls to files, 
 
 Terminal sessions own GUI lifetime. After the existing terminal UID check, `GET /api/terminals/{id}/display` returns the running display's temporary VNC password; it never starts a display. Its `/ws` suffix bridges the private Unix VNC socket through authenticated, same-origin binary WebSocket frames. `/api/terminals/{id}/display/window` accepts POST to activate and DELETE to request a normal window close; both require CSRF and a window ID from that display. Accept no caller-provided destination. Logout revokes transports while retaining the terminal and applications.
 
+Ping VNC WebSockets every 20 seconds with an eight-second pong deadline, matching terminal liveness. On failure, cancel both bridge directions and release only that viewer; preserve the terminal, X display and applications. Clipboard transport remains independent, with its existing 30-second ping/five-second deadline.
+
 Terminal `/display/clipboard/events` streams XFixes version/local notifications through an authenticated same-origin WebSocket; require Origin and revoke on logout. `/display/clipboard?version=N` reads only that current clipboard version. CSRF-protected POST `/display/clipboard` accepts one bounded text, base64 PNG or absolute Linux file list; POST `/display/drop` accepts files plus display coordinates and a window from that terminal. Both reuse terminal UID admission. Limit clipboard/drop payload operations to two server-wide before reading bodies, bound JSON to the owning data limits, and impose 30-second HTTP deadlines. X11 reads/drops also have ten-second cancellation. No caller-supplied X endpoint, UID, command or privileged filesystem access.
 
 `GET /api/audio` subscribes only to the authenticated Linux UID's shared audio manager. Require the shared origin/session admission plus explicit WebSocket Origin; accept no source, UID or client audio/input messages. Send 960-frame packets of 48 kHz stereo signed 16-bit little-endian PCM with an 8-byte little-endian sample position; omit digital silence. Bound writes to 250 ms and ping during silence. Disconnect/logout releases that browser subscription; the last listener stops shared capture without terminating applications. `/api/me` reports optional audio-runtime availability. There is no per-terminal audio route.
@@ -75,6 +77,8 @@ Authenticated `GET /api/update` reads the shared cached update status and a comm
 Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.
 
 # Verification
+
+`TUXEE_SYSTEM_TEST=1 go test -race ./internal/server -run TestDisplayKeepalive` completes real VNC authentication, checks healthy idle connections and missing-pong disconnection, and verifies applications survive viewer loss. Requires `tuxee-Xvnc` and `xterm` on PATH.
 
 Instance-cookie tests share one HTTP cookie jar across two server ports and verify exact-name admission, legacy-cookie rejection and logout/session isolation. CLI tests cover ID persistence, independent directories, private permissions and malformed/read-failure preservation. `tests/instance-sessions.mjs` checks real login/PTY/restart behavior across two Docker runtimes.
 
