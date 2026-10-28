@@ -20,6 +20,8 @@ const (
 	maxDefaultDirectoryBytes = 4096
 	minUploadConcurrency     = 1
 	maxUploadConcurrency     = 64
+	minTerminalFontSize      = 8
+	maxTerminalFontSize      = 32
 	maxServerNameUnits       = 64
 	maxWorkspaces            = 24
 )
@@ -63,6 +65,7 @@ type Settings struct {
 	ServerColor             string      `json:"serverColor,omitempty"`
 	TerminalBackground      string      `json:"terminalBackground,omitempty"`
 	TerminalBackgroundLight string      `json:"terminalBackgroundLight,omitempty"`
+	TerminalFontSize        *int        `json:"terminalFontSize,omitempty"`
 	UploadConcurrency       *int        `json:"uploadConcurrency,omitempty"`
 	Theme                   string      `json:"theme"`
 	Current                 string      `json:"current"`
@@ -105,6 +108,9 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	}
 	if n := value.UploadConcurrency; n != nil && (*n < minUploadConcurrency || *n > maxUploadConcurrency) {
 		return i18n.New("backend.server.uploadConcurrencyRange", i18n.Vars{"min": minUploadConcurrency, "max": maxUploadConcurrency})
+	}
+	if n := value.TerminalFontSize; n != nil && (*n < minTerminalFontSize || *n > maxTerminalFontSize) {
+		return i18n.New("backend.server.terminalFontSizeRange", i18n.Vars{"min": minTerminalFontSize, "max": maxTerminalFontSize})
 	}
 	for name, color := range map[string]string{"settings.colorMarkerField": value.ServerColor, "settings.backgroundField": value.TerminalBackground, "settings.lightBackgroundField": value.TerminalBackgroundLight} {
 		if color == "" {

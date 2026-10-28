@@ -13,7 +13,7 @@ import { directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resize
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
-import { TerminalView, terminateTerminal } from './term';
+import { TerminalView, terminateTerminal, TERMINAL_FONT_SIZE } from './term';
 import { terminalTheme } from './terminal/state';
 import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
@@ -466,7 +466,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 node.append(grip);
             }
             const hooks = { user, changed, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
-            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks);
+            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         item.node.hidden = compact && panel.id !== ws.active;
@@ -1186,6 +1186,11 @@ async function openSettings() {
     prompt.setAttribute('role', 'switch'); prompt.checked = settings.useTuxeePrompt !== false;
     const promptLabel = el('label', 'settings-switch');
     promptLabel.append(prompt, el('span', '', t("app.useTuxeeShellPrompt")));
+    const fontSize = el('input'); fontSize.type = 'number'; fontSize.name = 'terminalFontSize';
+    fontSize.min = String(TERMINAL_FONT_SIZE.min); fontSize.max = String(TERMINAL_FONT_SIZE.max); fontSize.step = '1'; fontSize.required = true;
+    fontSize.value = String(settings.terminalFontSize ?? TERMINAL_FONT_SIZE.default); fontSize.style.width = '7em';
+    const fontSizeLabel = el('label', 'field');
+    fontSizeLabel.append(el('span', 'settings-label', t('settings.terminalFontSize')), fontSize);
     let markerColor = settings.serverColor || '';
     const defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
     const color = el('input');
@@ -1243,7 +1248,7 @@ async function openSettings() {
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, el('hr'), shellLabel, promptLabel, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
+    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontSizeLabel, backgroundField, directoryLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
     const dialog = modal(t("app.settings"), content);
     dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
     content.onsubmit = async event => {
@@ -1255,17 +1260,25 @@ async function openSettings() {
         const previousUploads = settings.uploadConcurrency;
         const previousBackground = settings.terminalBackground;
         const previousLightBackground = settings.terminalBackgroundLight;
+        const previousFontSize = settings.terminalFontSize;
         const previousDirectory = settings.defaultDirectory;
         const previousShell = settings.shellCommand, previousPrompt = settings.useTuxeePrompt;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
         settings.uploadConcurrency = Number(uploads.value);
+        settings.terminalFontSize = fontSize.valueAsNumber;
         settings.defaultDirectory = directory.value || '~';
         settings.shellCommand = shell.value.trim() || 'bash'; settings.useTuxeePrompt = prompt.checked;
         Object.assign(settings, terminalColors);
         serverName.value = settings.serverName;
-        try { await save(); setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close(); }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
+        try {
+            await save();
+            for (const workspace of warmWorkspaces.values()) for (const { view } of workspace.items.values()) {
+                if (view instanceof TerminalView) view.setFontSize(settings.terminalFontSize);
+            }
+            setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close();
+        }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

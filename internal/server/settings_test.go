@@ -121,6 +121,39 @@ func TestUploadConcurrencySettings(t *testing.T) {
 	}
 }
 
+func TestTerminalFontSizeSettings(t *testing.T) {
+	for raw, valid := range map[string]bool{"null": true, "8": true, "13": true, "32": true, "0": false, "7": false, "33": false, "-1": false, "13.5": false, `"13"`: false} {
+		t.Run(raw, func(t *testing.T) {
+			var value Settings
+			err := json.Unmarshal([]byte(`{"theme":"dark","workspaces":[],"terminalFontSize":`+raw+`}`), &value)
+			if err == nil {
+				err = validateSettings(&value)
+			}
+			if (err == nil) != valid {
+				t.Fatalf("unexpected validation result: %v", err)
+			}
+			if !valid {
+				return
+			}
+			if err := migrateSettings(&value); err != nil {
+				t.Fatalf("load validation: %v", err)
+			}
+			data, err := json.Marshal(value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var restored Settings
+			if err := json.Unmarshal(data, &restored); err != nil || !reflect.DeepEqual(value, restored) {
+				t.Fatalf("setting did not round-trip: %s, %v", data, err)
+			}
+		})
+	}
+	value := Settings{Theme: "dark", Workspaces: []Workspace{}}
+	if err := validateSettings(&value); err != nil || value.TerminalFontSize != nil {
+		t.Fatalf("missing setting must retain the frontend default: %v", err)
+	}
+}
+
 func TestTerminalBackgroundSettings(t *testing.T) {
 	for _, color := range []string{"", "#1a202c", "#ABCDEF", "#000000", "#ffffff", "red", "#123", "#12345678", "#12345g", " #123456", "rgb(26 32 44)"} {
 		t.Run(color, func(t *testing.T) {

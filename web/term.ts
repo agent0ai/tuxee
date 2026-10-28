@@ -9,6 +9,7 @@ import { readFileClipboard } from './file-clipboard';
 import { uploadBatch, type UploadSource } from './transfers';
 import { join, type Panel, type Hooks, type View, type TerminalInfo } from './model';
 const creating = new Map<string, Promise<TerminalInfo>>();
+export const TERMINAL_FONT_SIZE = { default: 13, min: 8, max: 32 } as const;
 export async function terminateTerminal(panel: Panel) {
     await creating.get(panel.id);
     if (!panel.terminal) return;
@@ -52,11 +53,11 @@ export class TerminalView implements View {
     private rendering = el('div', 'terminal-rendering', t("term.loading"));
     private renderingStarted = performance.now();
     private renderingTimer?: ReturnType<typeof setTimeout>;
-    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
+    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT_SIZE.default) {
         root.classList.add('terminal-view');
         Terminal.strings.promptLabel = t('terminal.inputLabel');
         Terminal.strings.tooMuchOutput = t('terminal.tooMuchOutput');
-        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
+        this.term = new Terminal({ allowProposedApi: true, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
             theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' },
             linkHandler: { activate: (_event, uri) => { window.open(uri, '_blank', 'noopener,noreferrer'); } } });
         installTerminalUnicode(this.term);
@@ -592,6 +593,12 @@ export class TerminalView implements View {
             try { this.socket.send(frame); }
             catch { this.socket.close(); return; }
         }
+    }
+    setFontSize(size: number = TERMINAL_FONT_SIZE.default) {
+        if (this.term.options.fontSize === size) return;
+        this.closeText(); this.resizeDisplay.release();
+        this.term.options.fontSize = size;
+        this.resize();
     }
     resize = () => { if (!this.host.checkVisibility()) { this.cancelDrawerResize?.(); this.closeText(); } this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };
     private fitSize() {

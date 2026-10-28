@@ -28,6 +28,7 @@ export type Settings = {
     serverColor?: string;
     terminalBackground?: string;
     terminalBackgroundLight?: string;
+    terminalFontSize?: number;
     uploadConcurrency?: number;
     theme: 'dark' | 'light';
     current: string;
