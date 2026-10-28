@@ -812,10 +812,9 @@ function splitPanel(target: Panel, panel: Panel) {
 function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
-    const target = !near && ws.panels.filter(p => p.w > 1 || p.h > 1).map(panel => {
-        const { width, height } = panelSize(panel);
-        return { panel, area: width * height };
-    }).sort((a, b) => b.area - a.area)[0]?.panel;
+    const full = ws.panels.reduce((sum, p) => sum + p.w * p.h, 0) === ws.columns * ws.rows;
+    const target = !near && full && ws.panels.filter(p => p.w > 1 || p.h > 1)
+        .sort((a, b) => b.w * b.h - a.w * a.h || Number(a.kind === 'terminal') - Number(b.kind === 'terminal'))[0];
     if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error(t("app.workspaceFull"));
     ws.active = panel.id; layoutChanged(ws); render();
 }

@@ -155,21 +155,43 @@ try {
             const added = page.locator('[data-panel]:not([data-panel=a]):not([data-panel=b])');
             await added.waitFor();
             const id = await added.getAttribute('data-panel');
-            const expected = [1, 1, 1, 1];
-            assert.deepEqual(await rect(id), expected, `${width}x${height} ${kind} splits the largest panel even with free space`);
-            assert.deepEqual(await rect('a'), portrait ? [0, 1, 1, 1] : [1, 0, 1, 1]);
+            const expected = portrait ? [0, 2, kind === 'files' ? 1 : 2, 2] : [2, 0, kind === 'files' ? 1 : 2, 2];
+            assert.deepEqual(await rect(id), expected, `${width}x${height} ${kind} uses free space`);
+            assert.deepEqual(await rect('a'), [panels[0].x, panels[0].y, panels[0].w, panels[0].h]);
             for (const p of panels.slice(1)) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h]);
             assert.ok(await originalTerminal.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')));
             assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
             if (width >= 760) assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), '0');
-            if (width === 1440) await page.screenshot({ path: `test-results/add-${kind}-split.png` });
+            if (width === 1440) await page.screenshot({ path: `test-results/add-${kind}-gap.png` });
             await page.waitForTimeout(400); await page.reload(); await added.waitFor();
-            assert.deepEqual(await rect(id), expected, 'split size persists after reload');
+            assert.deepEqual(await rect(id), expected, 'added geometry persists after reload');
             assert.equal((await (await api('/me')).json()).settings.workspaces[0].layout, undefined, 'adding resets the saved automatic layout');
             if (width < 760) assert.equal(await page.locator('[data-panel]:visible').getAttribute('data-panel'), id, 'activate the added compact component');
         }
     }
-    console.log('PASS navbar additions split the largest panel before using gaps on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
+    console.log('PASS navbar additions use gaps on desktop, ultrawide, portrait and mobile; neighbors, PIDs and saved sizes survive');
+    for (const kind of ['files', 'terminal']) for (const largest of [false, true]) {
+        const panels = largest
+            ? [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 1, 2), panel('c', 3, 0, 1, 2)]
+            : [panel('a', 0, 0, 1, 2), panel('b', 1, 0, 1, 2), panel('c', 2, 0, 1, 2), panel('d', 3, 0, 1, 2)];
+        await fixture(panels);
+        const originalTerminal = await item('a').locator('.xterm').elementHandle();
+        const created = kind === 'terminal' ? page.waitForResponse(response => response.url().endsWith('/api/terminals') && response.request().method() === 'POST') : undefined;
+        await page.getByRole('button', { name: kind === 'files' ? 'Add file browser' : 'Add terminal', exact: true }).click();
+        if (created) {
+            const response = await created; assert.equal(response.status(), 201);
+            const info = await response.json(); addedTerminals.push(info.id);
+            await page.locator(`.terminal-view[data-terminal="${info.id}"][data-state=connected]`).waitFor();
+        }
+        const addedID = await page.locator('[data-panel]').evaluateAll((nodes, ids) => nodes.map(node => node.dataset.panel).find(id => !ids.includes(id)), panels.map(p => p.id));
+        const target = largest ? 'a' : 'b', x = largest ? 0 : 1, w = largest ? 2 : 1;
+        assert.deepEqual(await rect(target), [x, 0, w, 1], 'split the largest panel, preferring the first file browser on a tie');
+        assert.deepEqual(await rect(addedID), [x, 1, w, 1]);
+        for (const p of panels.filter(p => p.id !== target)) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h]);
+        assert.ok(await originalTerminal.evaluate(node => node === document.querySelector('[data-panel=a] .xterm')));
+        assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).pid, terminal.pid);
+    }
+    console.log('PASS full workspaces split largest panels and prefer file browsers with stable ties');
     const resizeCases = [
         { name: 'exposed east edge', edge: 'e', panels: [panel('a', 0, 0, 1, 2), panel('b', 3, 0, 1, 2)], dx: .8, dy: 0, expected: [[0, 0, 2, 2], [3, 0, 1, 2]] },
         { name: 'exposed west edge', edge: 'w', panels: [panel('a', 3, 0, 1, 2), panel('b', 0, 0, 1, 2)], dx: -.8, dy: 0, expected: [[2, 0, 2, 2], [0, 0, 1, 2]] },
