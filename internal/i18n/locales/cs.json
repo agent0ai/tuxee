@@ -519,6 +519,7 @@
     "files.noMatches": "Žádné shody",
     "files.noTuxeeFilesOnTheClipboard": "Ve schránce nejsou soubory Tuxee",
     "files.open": "Otevřít",
+    "files.pinCurrentFolder": "Připnout aktuální složku",
     "files.openTerminalHere": "Otevřít zde terminál",
     "files.parentDirectory": "Nadřazený adresář",
     "files.permanentConfirm": "Trvale smazat? {items}",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Přejít na začátek",
     "term.killAndReset": "Ukončit a obnovit",
     "term.loading": "Načítání…",
+    "term.browseShellFolder": "Procházet složku shellu",
     "term.reconnectTerminal": "Znovu připojit terminál",
     "term.renameTerminal": "Přejmenovat terminál",
     "term.resetConfirmationTitle": "Obnovit terminál?",
@@ -739,6 +741,8 @@
     "updates.updates": "Aktualizace",
     "updates.versionAvailable": "Dostupná verze: {version}",
     "validation.invalid": "Zadejte platnou hodnotu.",
-    "validation.required": "Vyplňte toto pole."
+    "validation.required": "Vyplňte toto pole.",
+    "terminal.openPathHint": "Otevřít pomocí {modifier}+kliknutí",
+    "terminal.openInFileBrowser": "Otevřít v prohlížeči souborů"
   }
 }

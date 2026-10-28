@@ -519,6 +519,7 @@
     "files.noMatches": "ไม่มีการแข่งขัน",
     "files.noTuxeeFilesOnTheClipboard": "ไม่มีไฟล์ Tuxee บนคลิปบอร์ด",
     "files.open": "เปิด",
+    "files.pinCurrentFolder": "ปักหมุดโฟลเดอร์ปัจจุบัน",
     "files.openTerminalHere": "เปิดเทอร์มินัลที่นี่",
     "files.parentDirectory": "ไดเรกทอรีหลัก",
     "files.permanentConfirm": "ลบ {items} อย่างถาวรหรือไม่",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "ข้ามไปด้านบน",
     "term.killAndReset": "ฆ่าและรีเซ็ต",
     "term.loading": "กำลังโหลด...",
+    "term.browseShellFolder": "เรียกดูโฟลเดอร์เชลล์",
     "term.reconnectTerminal": "เชื่อมต่อเทอร์มินัลอีกครั้ง",
     "term.renameTerminal": "เปลี่ยนชื่อเทอร์มินัล",
     "term.resetConfirmationTitle": "รีเซ็ตเทอร์มินัลใช่ไหม",
@@ -739,6 +741,8 @@
     "updates.updates": "อัพเดท",
     "updates.versionAvailable": "{version} พร้อมใช้งาน",
     "validation.invalid": "กรุณากรอกค่าที่ถูกต้อง",
-    "validation.required": "กรุณากรอกข้อมูลในช่องนี้"
+    "validation.required": "กรุณากรอกข้อมูลในช่องนี้",
+    "terminal.openPathHint": "{modifier}+คลิกเพื่อเปิด",
+    "terminal.openInFileBrowser": "เปิดในตัวเรียกดูไฟล์"
   }
 }

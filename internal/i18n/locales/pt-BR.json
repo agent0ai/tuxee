@@ -519,6 +519,7 @@
     "files.noMatches": "Sem resultados",
     "files.noTuxeeFilesOnTheClipboard": "Nenhum arquivo Tuxee na área de transferência",
     "files.open": "Abrir",
+    "files.pinCurrentFolder": "Fixar pasta atual",
     "files.openTerminalHere": "Abra o terminal aqui",
     "files.parentDirectory": "Diretório pai",
     "files.permanentConfirm": "Excluir permanentemente {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Ir para o topo",
     "term.killAndReset": "Encerrar e redefinir",
     "term.loading": "Carregando…",
+    "term.browseShellFolder": "Explorar pasta do shell",
     "term.reconnectTerminal": "Reconectar terminal",
     "term.renameTerminal": "Renomear terminal",
     "term.resetConfirmationTitle": "Redefinir terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Atualizações",
     "updates.versionAvailable": "{version} disponível",
     "validation.invalid": "Insira um valor válido.",
-    "validation.required": "Por favor preencha este campo."
+    "validation.required": "Por favor preencha este campo.",
+    "terminal.openPathHint": "{modifier}+clique para abrir",
+    "terminal.openInFileBrowser": "Abrir no explorador de arquivos"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "Eşleşme yok",
     "files.noTuxeeFilesOnTheClipboard": "Panoda Tuxee dosyası yok",
     "files.open": "Aç",
+    "files.pinCurrentFolder": "Geçerli klasörü sabitle",
     "files.openTerminalHere": "Terminali burada açın",
     "files.parentDirectory": "Ana dizin",
     "files.permanentConfirm": "{items} kalıcı olarak silinsin mi?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Yukarıya atla",
     "term.killAndReset": "Öldür ve sıfırla",
     "term.loading": "Yükleniyor...",
+    "term.browseShellFolder": "Kabuk klasörüne göz at",
     "term.reconnectTerminal": "Terminali yeniden bağlayın",
     "term.renameTerminal": "Terminali yeniden adlandır",
     "term.resetConfirmationTitle": "Terminal sıfırlansın mı?",
@@ -739,6 +741,8 @@
     "updates.updates": "Güncellemeler",
     "updates.versionAvailable": "{version} mevcut",
     "validation.invalid": "Lütfen geçerli bir değer girin.",
-    "validation.required": "Lütfen bu alanı doldurun."
+    "validation.required": "Lütfen bu alanı doldurun.",
+    "terminal.openPathHint": "Açmak için {modifier}+tıklayın",
+    "terminal.openInFileBrowser": "Dosya tarayıcısında aç"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "لا توجد مباريات",
     "files.noTuxeeFilesOnTheClipboard": "لا توجد ملفات Tuxee في الحافظة",
     "files.open": "فتح",
+    "files.pinCurrentFolder": "تثبيت المجلد الحالي",
     "files.openTerminalHere": "افتح المحطة هنا",
     "files.parentDirectory": "دليل الوالدين",
     "files.permanentConfirm": "هل تريد حذف {items} نهائيًا؟",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "اذهب إلى الأعلى",
     "term.killAndReset": "قتل وإعادة تعيين",
     "term.loading": "تحميل...",
+    "term.browseShellFolder": "تصفح مجلد الصدفة",
     "term.reconnectTerminal": "أعد توصيل المحطة",
     "term.renameTerminal": "إعادة تسمية المحطة",
     "term.resetConfirmationTitle": "إعادة تعيين المحطة؟",
@@ -739,6 +741,8 @@
     "updates.updates": "التحديثات",
     "updates.versionAvailable": "{version} متاح",
     "validation.invalid": "الرجاء إدخال قيمة صالحة.",
-    "validation.required": "يرجى ملء هذا الحقل."
+    "validation.required": "يرجى ملء هذا الحقل.",
+    "terminal.openPathHint": "افتح بـ {modifier}+نقر",
+    "terminal.openInFileBrowser": "فتح في متصفح الملفات"
   }
 }

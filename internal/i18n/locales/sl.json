@@ -519,6 +519,7 @@
     "files.noMatches": "Ni ujemanja",
     "files.noTuxeeFilesOnTheClipboard": "V odložišču ni datotek Tuxee",
     "files.open": "Odpri",
+    "files.pinCurrentFolder": "Pripni trenutno mapo",
     "files.openTerminalHere": "Tukaj odprite terminal",
     "files.parentDirectory": "Nadrejeni imenik",
     "files.permanentConfirm": "Trajno izbrisati {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Skoči na vrh",
     "term.killAndReset": "Ubij in ponastavi",
     "term.loading": "Nalaganje...",
+    "term.browseShellFolder": "Odpri mapo lupine",
     "term.reconnectTerminal": "Ponovno priključite terminal",
     "term.renameTerminal": "Preimenuj terminal",
     "term.resetConfirmationTitle": "Ponastaviti terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Posodobitve",
     "updates.versionAvailable": "{version} na voljo",
     "validation.invalid": "Vnesite veljavno vrednost.",
-    "validation.required": "Prosimo izpolnite to polje."
+    "validation.required": "Prosimo izpolnite to polje.",
+    "terminal.openPathHint": "{modifier}+klik za odpiranje",
+    "terminal.openInFileBrowser": "Odpri v brskalniku datotek"
   }
 }

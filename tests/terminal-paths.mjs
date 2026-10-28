@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import headless from '@xterm/headless';
+const { Terminal } = headless;
+const compiled = await build({ entryPoints: ['web/terminal/paths.ts'], bundle: true, format: 'esm', platform: 'node', write: false });
+const { terminalPaths, terminalPath } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+assert.deepEqual(terminalPath('"~/spaced name":12:3'), { path: '~/spaced name', line: 12, column: 3 });
+assert.deepEqual(terminalPath('/tmp/selected name'), { path: '/tmp/selected name', line: undefined, column: undefined });
+for (const text of ['/', '10.2', 'MB/s', 'https://example.com/a', '/tmp/a\n/tmp/b']) assert.equal(terminalPath(text), undefined);
+const term = new Terminal({ cols: 40, rows: 10, allowProposedApi: true });
+const write = text => new Promise(resolve => term.write(text, resolve));
+await write('"/tmp/a b.txt":12:3 ./relative.go:8 https://example.com/a\r\n');
+const first = terminalPaths(term, 1);
+assert.deepEqual(first.map(({ path, line, column }) => ({ path, line, column })), [
+    { path: '/tmp/a b.txt', line: 12, column: 3 }, { path: './relative.go', line: 8, column: undefined },
+]);
+assert.equal(first[0].range.end.x, 19, 'line and column are clickable');
+await write('👋 /tmp/long-folder/this-is-a-long-name.txt\r\n');
+const wrapped = terminalPaths(term, 3).find(value => value.path === '/tmp/long-folder/this-is-a-long-name.txt');
+assert.ok(wrapped);
+assert.equal(wrapped.range.start.y, 3);
+assert.equal(wrapped.range.end.y, 4);
+term.reset();
+await write('("./my folder") (/tmp/file) (https://example.com/a)');
+assert.deepEqual(terminalPaths(term, 1).map(value => value.path), ['./my folder', '/tmp/file']);
+term.reset(); term.resize(120, 10);
+await write("Fetched 10.2 MB in 1s (10.4 MB/s) Run 'apt list --upgradable' trixie/main / /:12\r\n");
+assert.deepEqual(terminalPaths(term, 1), []);
+await write('~/folder ../other ./file /etc/test "./my folder":3:2');
+assert.deepEqual(terminalPaths(term, 2).map(value => value.path), ['~/folder', '../other', './file', '/etc/test', './my folder']);
+term.dispose();
+console.log('PASS terminal paths: required prefixes, false positives, quoted names, line/column and wrapped cells');

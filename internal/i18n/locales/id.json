@@ -519,6 +519,7 @@
     "files.noMatches": "Tidak ada kecocokan",
     "files.noTuxeeFilesOnTheClipboard": "Tidak ada file Tuxee di clipboard",
     "files.open": "Buka",
+    "files.pinCurrentFolder": "Sematkan folder saat ini",
     "files.openTerminalHere": "Buka terminal di sini",
     "files.parentDirectory": "Direktori induk",
     "files.permanentConfirm": "Hapus {items} secara permanen?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Lompat ke atas",
     "term.killAndReset": "Bunuh dan setel ulang",
     "term.loading": "Memuat...",
+    "term.browseShellFolder": "Jelajahi folder shell",
     "term.reconnectTerminal": "Sambungkan kembali terminal",
     "term.renameTerminal": "Ganti nama terminal",
     "term.resetConfirmationTitle": "Setel ulang terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Pembaruan",
     "updates.versionAvailable": "{version} tersedia",
     "validation.invalid": "Silakan masukkan nilai yang valid.",
-    "validation.required": "Silakan isi kolom ini."
+    "validation.required": "Silakan isi kolom ini.",
+    "terminal.openPathHint": "{modifier}+klik untuk membuka",
+    "terminal.openInFileBrowser": "Buka di penjelajah berkas"
   }
 }

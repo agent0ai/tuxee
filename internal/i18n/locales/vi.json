@@ -519,6 +519,7 @@
     "files.noMatches": "Không khớp",
     "files.noTuxeeFilesOnTheClipboard": "Không có tệp Tuxee trên bảng nhớ tạm",
     "files.open": "Mở",
+    "files.pinCurrentFolder": "Ghim thư mục hiện tại",
     "files.openTerminalHere": "Mở terminal ở đây",
     "files.parentDirectory": "Thư mục gốc",
     "files.permanentConfirm": "Xóa vĩnh viễn {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Nhảy lên đầu",
     "term.killAndReset": "Giết và thiết lập lại",
     "term.loading": "Đang tải...",
+    "term.browseShellFolder": "Duyệt thư mục shell",
     "term.reconnectTerminal": "Kết nối lại terminal",
     "term.renameTerminal": "Đổi tên terminal",
     "term.resetConfirmationTitle": "Đặt lại terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Cập nhật",
     "updates.versionAvailable": "{version} có sẵn",
     "validation.invalid": "Vui lòng nhập một giá trị hợp lệ.",
-    "validation.required": "Vui lòng điền vào trường này."
+    "validation.required": "Vui lòng điền vào trường này.",
+    "terminal.openPathHint": "{modifier}+nhấp để mở",
+    "terminal.openInFileBrowser": "Mở trong trình duyệt tệp"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "没有匹配项",
     "files.noTuxeeFilesOnTheClipboard": "剪贴板上没有 Tuxee 文件",
     "files.open": "打开",
+    "files.pinCurrentFolder": "固定当前文件夹",
     "files.openTerminalHere": "在这里打开终端",
     "files.parentDirectory": "上级目录",
     "files.permanentConfirm": "永久删除 {items}？",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "跳转到顶部",
     "term.killAndReset": "终止并重置",
     "term.loading": "加载中…",
+    "term.browseShellFolder": "浏览 Shell 文件夹",
     "term.reconnectTerminal": "重新连接终端",
     "term.renameTerminal": "重命名终端",
     "term.resetConfirmationTitle": "重置终端？",
@@ -739,6 +741,8 @@
     "updates.updates": "更新",
     "updates.versionAvailable": "{version} 可用",
     "validation.invalid": "请输入有效值。",
-    "validation.required": "请填写此字段。"
+    "validation.required": "请填写此字段。",
+    "terminal.openPathHint": "{modifier}+单击打开",
+    "terminal.openInFileBrowser": "在文件浏览器中打开"
   }
 }

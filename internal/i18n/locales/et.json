@@ -519,6 +519,7 @@
     "files.noMatches": "Vasteid pole",
     "files.noTuxeeFilesOnTheClipboard": "Lõikepuhvril pole Tuxee-faile",
     "files.open": "Ava",
+    "files.pinCurrentFolder": "Kinnita praegune kaust",
     "files.openTerminalHere": "Ava terminal siin",
     "files.parentDirectory": "Ülemkataloog",
     "files.permanentConfirm": "Kas kustutada {items} jäädavalt?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hüppa üles",
     "term.killAndReset": "Tapa ja lähtesta",
     "term.loading": "Laadimine...",
+    "term.browseShellFolder": "Sirvi kesta kausta",
     "term.reconnectTerminal": "Ühendage terminal uuesti",
     "term.renameTerminal": "Nimetage terminal ümber",
     "term.resetConfirmationTitle": "Kas lähtestada terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Värskendused",
     "updates.versionAvailable": "Saadaval {version}",
     "validation.invalid": "Sisestage kehtiv väärtus.",
-    "validation.required": "Palun täitke see väli."
+    "validation.required": "Palun täitke see väli.",
+    "terminal.openPathHint": "Avamiseks {modifier}+klõps",
+    "terminal.openInFileBrowser": "Ava failibrauseris"
   }
 }

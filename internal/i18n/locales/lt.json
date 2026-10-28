@@ -519,6 +519,7 @@
     "files.noMatches": "Jokių atitikmenų",
     "files.noTuxeeFilesOnTheClipboard": "Iškarpinėje nėra Tuxee failų",
     "files.open": "Atverti",
+    "files.pinCurrentFolder": "Prisegti dabartinį aplanką",
     "files.openTerminalHere": "Atidarykite terminalą čia",
     "files.parentDirectory": "Pirminis katalogas",
     "files.permanentConfirm": "Visam laikui ištrinti {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Peršokti į viršų",
     "term.killAndReset": "Nužudyk ir nustatyk iš naujo",
     "term.loading": "Įkeliama...",
+    "term.browseShellFolder": "Naršyti apvalkalo aplanką",
     "term.reconnectTerminal": "Iš naujo prijunkite terminalą",
     "term.renameTerminal": "Pervardyti terminalą",
     "term.resetConfirmationTitle": "Iš naujo nustatyti terminalą?",
@@ -739,6 +741,8 @@
     "updates.updates": "Atnaujinimai",
     "updates.versionAvailable": "Galimas {version}",
     "validation.invalid": "Įveskite tinkamą reikšmę.",
-    "validation.required": "Užpildykite šį lauką."
+    "validation.required": "Užpildykite šį lauką.",
+    "terminal.openPathHint": "Atverti: {modifier}+spustelėjimas",
+    "terminal.openInFileBrowser": "Atverti failų naršyklėje"
   }
 }

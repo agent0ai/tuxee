@@ -519,6 +519,7 @@
     "files.noMatches": "Ingen kampe",
     "files.noTuxeeFilesOnTheClipboard": "Ingen Tuxee filer på udklipsholderen",
     "files.open": "Åbn",
+    "files.pinCurrentFolder": "Fastgør den aktuelle mappe",
     "files.openTerminalHere": "Åbn terminal her",
     "files.parentDirectory": "Forældrekartotek",
     "files.permanentConfirm": "Vil du slette {items} permanent?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hop til toppen",
     "term.killAndReset": "Dræb og nulstil",
     "term.loading": "Indlæser...",
+    "term.browseShellFolder": "Gennemse shell-mappe",
     "term.reconnectTerminal": "Tilslut terminal igen",
     "term.renameTerminal": "Omdøb terminal",
     "term.resetConfirmationTitle": "Nulstille terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Opdateringer",
     "updates.versionAvailable": "{version} tilgængelig",
     "validation.invalid": "Indtast venligst en gyldig værdi.",
-    "validation.required": "Udfyld venligst dette felt."
+    "validation.required": "Udfyld venligst dette felt.",
+    "terminal.openPathHint": "{modifier}+klik for at åbne",
+    "terminal.openInFileBrowser": "Åbn i filbrowser"
   }
 }

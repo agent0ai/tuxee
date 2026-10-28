@@ -519,6 +519,7 @@
     "files.noMatches": "Ei osumia",
     "files.noTuxeeFilesOnTheClipboard": "Ei Tuxee-tiedostoja leikepöydällä",
     "files.open": "Avaa",
+    "files.pinCurrentFolder": "Kiinnitä nykyinen kansio",
     "files.openTerminalHere": "Avaa pääte tästä",
     "files.parentDirectory": "Päähakemisto",
     "files.permanentConfirm": "Poistetaanko {items} pysyvästi?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hyppää ylös",
     "term.killAndReset": "Tapa ja nollaa",
     "term.loading": "Ladataan...",
+    "term.browseShellFolder": "Selaa komentotulkin kansiota",
     "term.reconnectTerminal": "Liitä pääte uudelleen",
     "term.renameTerminal": "Nimeä pääte uudelleen",
     "term.resetConfirmationTitle": "Nollataanko pääte?",
@@ -739,6 +741,8 @@
     "updates.updates": "Päivitykset",
     "updates.versionAvailable": "{version} saatavilla",
     "validation.invalid": "Anna kelvollinen arvo.",
-    "validation.required": "Täytä tämä kenttä."
+    "validation.required": "Täytä tämä kenttä.",
+    "terminal.openPathHint": "Avaa: {modifier}+napsautus",
+    "terminal.openInFileBrowser": "Avaa tiedostoselaimessa"
   }
 }

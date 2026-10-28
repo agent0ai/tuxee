@@ -519,6 +519,7 @@
     "files.noMatches": "موردی یافت نشد",
     "files.noTuxeeFilesOnTheClipboard": "هیچ فایل Tuxee در کلیپ بورد وجود ندارد",
     "files.open": "باز کردن",
+    "files.pinCurrentFolder": "سنجاق کردن پوشهٔ فعلی",
     "files.openTerminalHere": "ترمینال را اینجا باز کنید",
     "files.parentDirectory": "دایرکتوری والدین",
     "files.permanentConfirm": "آیا {items} برای همیشه حذف شود؟",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "پرش به بالا",
     "term.killAndReset": "کشتن و تنظیم مجدد",
     "term.loading": "در حال بارگیری...",
+    "term.browseShellFolder": "مرور پوشهٔ پوسته",
     "term.reconnectTerminal": "ترمینال را دوباره وصل کنید",
     "term.renameTerminal": "تغییر نام ترمینال",
     "term.resetConfirmationTitle": "ترمینال بازنشانی شود؟",
@@ -739,6 +741,8 @@
     "updates.updates": "به روز رسانی ها",
     "updates.versionAvailable": "{version} موجود است",
     "validation.invalid": "لطفا یک مقدار معتبر وارد کنید.",
-    "validation.required": "لطفا این فیلد را پر کنید"
+    "validation.required": "لطفا این فیلد را پر کنید",
+    "terminal.openPathHint": "برای باز کردن {modifier}+کلیک کنید",
+    "terminal.openInFileBrowser": "باز کردن در مرورگر فایل"
   }
 }

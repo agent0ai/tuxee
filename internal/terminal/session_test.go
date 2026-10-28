@@ -438,3 +438,11 @@ func TestSnapshotPermitFollowsAttachment(t *testing.T) {
 		t.Fatal("closed transport leaked snapshot admission")
 	}
 }
+
+func TestWorkingDirectoryClosed(t *testing.T) {
+	for _, session := range []*Session{{closed: true}, {info: Info{Exited: true}}} {
+		if _, err := session.WorkingDirectory(context.Background()); err == nil {
+			t.Fatal("closed session exposed a working directory")
+		}
+	}
+}

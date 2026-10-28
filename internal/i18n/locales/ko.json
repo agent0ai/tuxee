@@ -519,6 +519,7 @@
     "files.noMatches": "일치하는 항목 없음",
     "files.noTuxeeFilesOnTheClipboard": "클립보드에 Tuxee 파일이 없습니다.",
     "files.open": "열기",
+    "files.pinCurrentFolder": "현재 폴더 고정",
     "files.openTerminalHere": "여기에서 터미널을 엽니다.",
     "files.parentDirectory": "상위 디렉터리",
     "files.permanentConfirm": "{items} 영구 삭제?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "맨 위로 이동",
     "term.killAndReset": "종료 후 초기화",
     "term.loading": "불러오는 중…",
+    "term.browseShellFolder": "셸 폴더 찾아보기",
     "term.reconnectTerminal": "터미널 다시 연결",
     "term.renameTerminal": "터미널 이름 바꾸기",
     "term.resetConfirmationTitle": "터미널을 재설정하시겠습니까?",
@@ -739,6 +741,8 @@
     "updates.updates": "업데이트",
     "updates.versionAvailable": "{version} 사용 가능",
     "validation.invalid": "유효한 값을 입력하세요.",
-    "validation.required": "이 필드를 작성해 주세요."
+    "validation.required": "이 필드를 작성해 주세요.",
+    "terminal.openPathHint": "{modifier}+클릭하여 열기",
+    "terminal.openInFileBrowser": "파일 브라우저에서 열기"
   }
 }

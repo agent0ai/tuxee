@@ -519,6 +519,7 @@
     "files.noMatches": "Няма съвпадения",
     "files.noTuxeeFilesOnTheClipboard": "Няма Tuxee файлове в клипборда",
     "files.open": "Отваряне",
+    "files.pinCurrentFolder": "Закрепи текущата папка",
     "files.openTerminalHere": "Отворете терминала тук",
     "files.parentDirectory": "Родителска директория",
     "files.permanentConfirm": "Изтриване за постоянно на {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Отидете до върха",
     "term.killAndReset": "Убийте и нулирайте",
     "term.loading": "Зареждане...",
+    "term.browseShellFolder": "Отвори папката на обвивката",
     "term.reconnectTerminal": "Свържете отново терминала",
     "term.renameTerminal": "Преименувайте терминала",
     "term.resetConfirmationTitle": "Нулиране на терминала?",
@@ -739,6 +741,8 @@
     "updates.updates": "Актуализации",
     "updates.versionAvailable": "Наличен {version}",
     "validation.invalid": "Моля, въведете валидна стойност.",
-    "validation.required": "Моля, попълнете това поле."
+    "validation.required": "Моля, попълнете това поле.",
+    "terminal.openPathHint": "{modifier}+щракване за отваряне",
+    "terminal.openInFileBrowser": "Отвори във файловия браузър"
   }
 }

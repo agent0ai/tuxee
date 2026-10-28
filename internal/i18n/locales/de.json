@@ -519,6 +519,7 @@
     "files.noMatches": "Keine Treffer",
     "files.noTuxeeFilesOnTheClipboard": "Keine Tuxee-Dateien in der Zwischenablage",
     "files.open": "Öffnen",
+    "files.pinCurrentFolder": "Aktuellen Ordner anheften",
     "files.openTerminalHere": "Terminal hier öffnen",
     "files.parentDirectory": "Übergeordnetes Verzeichnis",
     "files.permanentConfirm": "{items} endgültig löschen?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Zum Anfang springen",
     "term.killAndReset": "Beenden und zurücksetzen",
     "term.loading": "Wird geladen…",
+    "term.browseShellFolder": "Shell-Ordner öffnen",
     "term.reconnectTerminal": "Terminal erneut verbinden",
     "term.renameTerminal": "Terminal umbenennen",
     "term.resetConfirmationTitle": "Terminal zurücksetzen?",
@@ -739,6 +741,8 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} verfügbar",
     "validation.invalid": "Bitte einen gültigen Wert eingeben.",
-    "validation.required": "Bitte dieses Feld ausfüllen."
+    "validation.required": "Bitte dieses Feld ausfüllen.",
+    "terminal.openPathHint": "Mit {modifier}+Klick öffnen",
+    "terminal.openInFileBrowser": "Im Dateibrowser öffnen"
   }
 }

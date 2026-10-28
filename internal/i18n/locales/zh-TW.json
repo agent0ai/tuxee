@@ -519,6 +519,7 @@
     "files.noMatches": "沒有符合的項目",
     "files.noTuxeeFilesOnTheClipboard": "剪貼簿中沒有 Tuxee 檔案",
     "files.open": "開啟",
+    "files.pinCurrentFolder": "釘選目前資料夾",
     "files.openTerminalHere": "在此處開啟終端機",
     "files.parentDirectory": "上層目錄",
     "files.permanentConfirm": "永久刪除 {items}？",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "跳至頂端",
     "term.killAndReset": "終止並重設",
     "term.loading": "載入中…",
+    "term.browseShellFolder": "瀏覽 Shell 資料夾",
     "term.reconnectTerminal": "重新連接終端機",
     "term.renameTerminal": "重新命名終端機",
     "term.resetConfirmationTitle": "重設終端機？",
@@ -739,6 +741,8 @@
     "updates.updates": "更新",
     "updates.versionAvailable": "{version} 可用",
     "validation.invalid": "請輸入有效的值。",
-    "validation.required": "請填寫此欄位。"
+    "validation.required": "請填寫此欄位。",
+    "terminal.openPathHint": "{modifier}+點擊開啟",
+    "terminal.openInFileBrowser": "在檔案瀏覽器中開啟"
   }
 }

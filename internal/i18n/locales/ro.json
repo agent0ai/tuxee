@@ -519,6 +519,7 @@
     "files.noMatches": "Fără meciuri",
     "files.noTuxeeFilesOnTheClipboard": "Nu există fișiere Tuxee în clipboard",
     "files.open": "Deschide",
+    "files.pinCurrentFolder": "Fixează folderul curent",
     "files.openTerminalHere": "Deschideți terminalul aici",
     "files.parentDirectory": "Directorul părinte",
     "files.permanentConfirm": "Ștergeți definitiv {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Sari sus",
     "term.killAndReset": "Ucide și reseta",
     "term.loading": "Încărcare...",
+    "term.browseShellFolder": "Răsfoiește folderul shellului",
     "term.reconnectTerminal": "Reconectați terminalul",
     "term.renameTerminal": "Redenumiți terminalul",
     "term.resetConfirmationTitle": "Resetați terminalul?",
@@ -739,6 +741,8 @@
     "updates.updates": "Actualizări",
     "updates.versionAvailable": "{version} disponibil",
     "validation.invalid": "Vă rugăm să introduceți o valoare validă.",
-    "validation.required": "Vă rugăm să completați acest câmp."
+    "validation.required": "Vă rugăm să completați acest câmp.",
+    "terminal.openPathHint": "{modifier}+clic pentru a deschide",
+    "terminal.openInFileBrowser": "Deschide în navigatorul de fișiere"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "Inga matchningar",
     "files.noTuxeeFilesOnTheClipboard": "Inga Tuxee-filer på urklippet",
     "files.open": "Öppna",
+    "files.pinCurrentFolder": "Fäst aktuell mapp",
     "files.openTerminalHere": "Öppna terminalen här",
     "files.parentDirectory": "Föräldrakatalog",
     "files.permanentConfirm": "Vill du ta bort {items} permanent?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hoppa till toppen",
     "term.killAndReset": "Döda och återställa",
     "term.loading": "Belastning...",
+    "term.browseShellFolder": "Bläddra i skalmappen",
     "term.reconnectTerminal": "Återanslut terminalen",
     "term.renameTerminal": "Byt namn på terminal",
     "term.resetConfirmationTitle": "Återställa terminalen?",
@@ -739,6 +741,8 @@
     "updates.updates": "Uppdateringar",
     "updates.versionAvailable": "{version} tillgänglig",
     "validation.invalid": "Ange ett giltigt värde.",
-    "validation.required": "Vänligen fyll i detta fält."
+    "validation.required": "Vänligen fyll i detta fält.",
+    "terminal.openPathHint": "{modifier}+klick för att öppna",
+    "terminal.openInFileBrowser": "Öppna i filbläddraren"
   }
 }

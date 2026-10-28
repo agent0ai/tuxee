@@ -519,6 +519,7 @@
     "files.noMatches": "אין התאמות",
     "files.noTuxeeFilesOnTheClipboard": "אין קבצי Tuxee בלוח",
     "files.open": "פתיחה",
+    "files.pinCurrentFolder": "נעיצת התיקייה הנוכחית",
     "files.openTerminalHere": "פתח את הטרמינל כאן",
     "files.parentDirectory": "ספריית הורים",
     "files.permanentConfirm": "למחוק לצמיתות את {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "קפוץ למעלה",
     "term.killAndReset": "הרוג ואפס",
     "term.loading": "טְעִינָה...",
+    "term.browseShellFolder": "עיון בתיקיית המעטפת",
     "term.reconnectTerminal": "חבר מחדש את המסוף",
     "term.renameTerminal": "שנה שם מסוף",
     "term.resetConfirmationTitle": "לאפס את המסוף?",
@@ -739,6 +741,8 @@
     "updates.updates": "עדכונים",
     "updates.versionAvailable": "{version} זמין",
     "validation.invalid": "נא להזין ערך חוקי.",
-    "validation.required": "אנא מלא שדה זה."
+    "validation.required": "אנא מלא שדה זה.",
+    "terminal.openPathHint": "{modifier}+לחיצה לפתיחה",
+    "terminal.openInFileBrowser": "פתיחה בסייר הקבצים"
   }
 }

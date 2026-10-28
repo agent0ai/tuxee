@@ -519,6 +519,7 @@
     "files.noMatches": "Немає збігів",
     "files.noTuxeeFilesOnTheClipboard": "У буфері обміну немає файлів Tuxee",
     "files.open": "Відкрити",
+    "files.pinCurrentFolder": "Закріпити поточну теку",
     "files.openTerminalHere": "Відкрийте термінал тут",
     "files.parentDirectory": "Батьківський каталог",
     "files.permanentConfirm": "Видалити {items} назавжди?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Перейти вгору",
     "term.killAndReset": "Убити і скинути",
     "term.loading": "Завантаження...",
+    "term.browseShellFolder": "Відкрити теку оболонки",
     "term.reconnectTerminal": "Повторно підключіть термінал",
     "term.renameTerminal": "Перейменувати термінал",
     "term.resetConfirmationTitle": "Скинути термінал?",
@@ -739,6 +741,8 @@
     "updates.updates": "Оновлення",
     "updates.versionAvailable": "{version} в наявності",
     "validation.invalid": "Введіть дійсне значення.",
-    "validation.required": "Будь ласка, заповніть це поле."
+    "validation.required": "Будь ласка, заповніть це поле.",
+    "terminal.openPathHint": "{modifier}+клацання для відкриття",
+    "terminal.openInFileBrowser": "Відкрити у файловому браузері"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "Нет совпадений",
     "files.noTuxeeFilesOnTheClipboard": "В буфере обмена нет файлов Tuxee.",
     "files.open": "Открыть",
+    "files.pinCurrentFolder": "Закрепить текущую папку",
     "files.openTerminalHere": "Открыть терминал здесь",
     "files.parentDirectory": "Родительский каталог",
     "files.permanentConfirm": "Удалить безвозвратно: {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Перейти наверх",
     "term.killAndReset": "Завершить и сбросить",
     "term.loading": "Загрузка…",
+    "term.browseShellFolder": "Открыть папку оболочки",
     "term.reconnectTerminal": "Переподключить терминал",
     "term.renameTerminal": "Переименование терминала",
     "term.resetConfirmationTitle": "Сбросить терминал?",
@@ -739,6 +741,8 @@
     "updates.updates": "Обновления",
     "updates.versionAvailable": "{version} доступен",
     "validation.invalid": "Пожалуйста, введите допустимое значение.",
-    "validation.required": "Пожалуйста, заполните это поле."
+    "validation.required": "Пожалуйста, заполните это поле.",
+    "terminal.openPathHint": "{modifier}+щелчок для открытия",
+    "terminal.openInFileBrowser": "Открыть в файловом браузере"
   }
 }

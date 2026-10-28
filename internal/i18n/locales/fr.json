@@ -519,6 +519,7 @@
     "files.noMatches": "Aucune correspondance",
     "files.noTuxeeFilesOnTheClipboard": "Aucun fichier Tuxee dans le presse-papiers",
     "files.open": "Ouvrir",
+    "files.pinCurrentFolder": "Épingler le dossier actuel",
     "files.openTerminalHere": "Ouvrir le terminal ici",
     "files.parentDirectory": "Répertoire parent",
     "files.permanentConfirm": "Supprimer définitivement {items} ?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Aller en haut",
     "term.killAndReset": "Arrêter et réinitialiser",
     "term.loading": "Chargement…",
+    "term.browseShellFolder": "Parcourir le dossier du shell",
     "term.reconnectTerminal": "Reconnecter le terminal",
     "term.renameTerminal": "Renommer le terminal",
     "term.resetConfirmationTitle": "Réinitialiser le terminal ?",
@@ -739,6 +741,8 @@
     "updates.updates": "Mises à jour",
     "updates.versionAvailable": "{version} disponible",
     "validation.invalid": "Veuillez saisir une valeur valide.",
-    "validation.required": "Veuillez remplir ce champ."
+    "validation.required": "Veuillez remplir ce champ.",
+    "terminal.openPathHint": "{modifier}+clic pour ouvrir",
+    "terminal.openInFileBrowser": "Ouvrir dans l’explorateur de fichiers"
   }
 }

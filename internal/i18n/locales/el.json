@@ -519,6 +519,7 @@
     "files.noMatches": "Χωρίς αγώνες",
     "files.noTuxeeFilesOnTheClipboard": "Δεν υπάρχουν αρχεία Tuxee στο πρόχειρο",
     "files.open": "Άνοιγμα",
+    "files.pinCurrentFolder": "Καρφίτσωμα τρέχοντος φακέλου",
     "files.openTerminalHere": "Ανοίξτε το τερματικό εδώ",
     "files.parentDirectory": "Γονικός κατάλογος",
     "files.permanentConfirm": "Να διαγραφεί οριστικά το {items};",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Μετάβαση στην κορυφή",
     "term.killAndReset": "Σκοτώστε και επαναφέρετε",
     "term.loading": "Φόρτωση...",
+    "term.browseShellFolder": "Προβολή φακέλου κελύφους",
     "term.reconnectTerminal": "Επανασυνδέστε το τερματικό",
     "term.renameTerminal": "Μετονομασία τερματικού",
     "term.resetConfirmationTitle": "Επαναφορά τερματικού;",
@@ -739,6 +741,8 @@
     "updates.updates": "Ενημερώσεις",
     "updates.versionAvailable": "{version} διαθέσιμο",
     "validation.invalid": "Εισαγάγετε μια έγκυρη τιμή.",
-    "validation.required": "Συμπληρώστε αυτό το πεδίο."
+    "validation.required": "Συμπληρώστε αυτό το πεδίο.",
+    "terminal.openPathHint": "{modifier}+κλικ για άνοιγμα",
+    "terminal.openInFileBrowser": "Άνοιγμα στην περιήγηση αρχείων"
   }
 }

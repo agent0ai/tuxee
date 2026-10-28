@@ -519,6 +519,7 @@
     "files.noMatches": "Nav atbilstību",
     "files.noTuxeeFilesOnTheClipboard": "Starpliktuvē nav Tuxee failu",
     "files.open": "Atvērt",
+    "files.pinCurrentFolder": "Piespraust pašreizējo mapi",
     "files.openTerminalHere": "Atveriet termināli šeit",
     "files.parentDirectory": "Vecāku direktorijs",
     "files.permanentConfirm": "Vai neatgriezeniski dzēst {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Pārlēkt uz augšu",
     "term.killAndReset": "Nogalināt un atiestatīt",
     "term.loading": "Notiek ielāde...",
+    "term.browseShellFolder": "Pārlūkot čaulas mapi",
     "term.reconnectTerminal": "Atkārtoti pievienojiet termināli",
     "term.renameTerminal": "Pārdēvēt termināli",
     "term.resetConfirmationTitle": "Vai atiestatīt termināli?",
@@ -739,6 +741,8 @@
     "updates.updates": "Atjauninājumi",
     "updates.versionAvailable": "Pieejams {version}",
     "validation.invalid": "Lūdzu, ievadiet derīgu vērtību.",
-    "validation.required": "Lūdzu, aizpildiet šo lauku."
+    "validation.required": "Lūdzu, aizpildiet šo lauku.",
+    "terminal.openPathHint": "{modifier}+klikšķis, lai atvērtu",
+    "terminal.openInFileBrowser": "Atvērt failu pārlūkā"
   }
 }

@@ -29,6 +29,7 @@ type Panel struct {
 	Kind     string `json:"kind"`
 	Path     string `json:"path"`
 	Terminal string `json:"terminal,omitempty"`
+	Pinned   bool   `json:"pinned,omitempty"`
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
 	W        int    `json:"w"`

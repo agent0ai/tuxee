@@ -519,6 +519,7 @@
     "files.noMatches": "No matches",
     "files.noTuxeeFilesOnTheClipboard": "No Tuxee files on the clipboard",
     "files.open": "Open",
+    "files.pinCurrentFolder": "Pin current folder",
     "files.openTerminalHere": "Open terminal here",
     "files.parentDirectory": "Parent directory",
     "files.permanentConfirm": "Permanently delete {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Jump to top",
     "term.killAndReset": "Kill and reset",
     "term.loading": "Loading...",
+    "term.browseShellFolder": "Browse shell folder",
     "term.reconnectTerminal": "Reconnect terminal",
     "term.renameTerminal": "Rename terminal",
     "term.resetConfirmationTitle": "Reset terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} available",
     "validation.invalid": "Please enter a valid value.",
-    "validation.required": "Please fill out this field."
+    "validation.required": "Please fill out this field.",
+    "terminal.openPathHint": "{modifier}+click to open",
+    "terminal.openInFileBrowser": "Open in file browser"
   }
 }

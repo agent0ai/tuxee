@@ -519,6 +519,7 @@
     "files.noMatches": "Cap coincidència",
     "files.noTuxeeFilesOnTheClipboard": "No hi ha fitxers del Tuxee al porta-retalls",
     "files.open": "Obre",
+    "files.pinCurrentFolder": "Fixa la carpeta actual",
     "files.openTerminalHere": "Obre un terminal aquí",
     "files.parentDirectory": "Directori superior",
     "files.permanentConfirm": "Voleu suprimir definitivament {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Ves al principi",
     "term.killAndReset": "Finalitza i restableix",
     "term.loading": "S'està carregant...",
+    "term.browseShellFolder": "Explora la carpeta de l’intèrpret",
     "term.reconnectTerminal": "Reconnecta el terminal",
     "term.renameTerminal": "Canvia el nom del terminal",
     "term.resetConfirmationTitle": "Voleu restablir el terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Actualitzacions",
     "updates.versionAvailable": "{version} disponible",
     "validation.invalid": "Introduïu un valor vàlid.",
-    "validation.required": "Empleneu aquest camp."
+    "validation.required": "Empleneu aquest camp.",
+    "terminal.openPathHint": "{modifier}+clic per obrir",
+    "terminal.openInFileBrowser": "Obre al navegador de fitxers"
   }
 }

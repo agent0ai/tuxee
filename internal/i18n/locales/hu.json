@@ -519,6 +519,7 @@
     "files.noMatches": "Nincs egyezés",
     "files.noTuxeeFilesOnTheClipboard": "Nincsenek Tuxee fájlok a vágólapon",
     "files.open": "Megnyitás",
+    "files.pinCurrentFolder": "Aktuális mappa rögzítése",
     "files.openTerminalHere": "Nyissa meg a terminált itt",
     "files.parentDirectory": "Szülőkönyvtár",
     "files.permanentConfirm": "Véglegesen törli a {items}-t?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Ugrás a tetejére",
     "term.killAndReset": "Öld meg és állítsd vissza",
     "term.loading": "Terhelés...",
+    "term.browseShellFolder": "A shell mappájának böngészése",
     "term.reconnectTerminal": "Csatlakoztassa újra a terminált",
     "term.renameTerminal": "Terminál átnevezése",
     "term.resetConfirmationTitle": "Reset terminál?",
@@ -739,6 +741,8 @@
     "updates.updates": "Frissítések",
     "updates.versionAvailable": "{version} elérhető",
     "validation.invalid": "Adjon meg egy érvényes értéket.",
-    "validation.required": "Kérjük, töltse ki ezt a mezőt."
+    "validation.required": "Kérjük, töltse ki ezt a mezőt.",
+    "terminal.openPathHint": "Megnyitás: {modifier}+kattintás",
+    "terminal.openInFileBrowser": "Megnyitás a fájlböngészőben"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "Geen overeenkomsten",
     "files.noTuxeeFilesOnTheClipboard": "Geen Tuxee-bestanden op het klembord",
     "files.open": "Openen",
+    "files.pinCurrentFolder": "Huidige map vastzetten",
     "files.openTerminalHere": "Open hier de terminal",
     "files.parentDirectory": "Bovenliggende map",
     "files.permanentConfirm": "{items} definitief verwijderen?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Spring naar boven",
     "term.killAndReset": "Dood en reset",
     "term.loading": "Laden...",
+    "term.browseShellFolder": "Shellmap openen",
     "term.reconnectTerminal": "Sluit de terminal opnieuw aan",
     "term.renameTerminal": "Naam van terminal wijzigen",
     "term.resetConfirmationTitle": "Terminal resetten?",
@@ -739,6 +741,8 @@
     "updates.updates": "Updates",
     "updates.versionAvailable": "{version} beschikbaar",
     "validation.invalid": "Voer een geldige waarde in.",
-    "validation.required": "Vul dit veld in."
+    "validation.required": "Vul dit veld in.",
+    "terminal.openPathHint": "{modifier}+klik om te openen",
+    "terminal.openInFileBrowser": "Openen in bestandsbrowser"
   }
 }

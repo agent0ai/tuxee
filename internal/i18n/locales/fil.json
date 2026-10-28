@@ -519,6 +519,7 @@
     "files.noMatches": "Walang tugma",
     "files.noTuxeeFilesOnTheClipboard": "Walang Tuxee file sa clipboard",
     "files.open": "Buksan",
+    "files.pinCurrentFolder": "I-pin ang kasalukuyang folder",
     "files.openTerminalHere": "Buksan ang terminal dito",
     "files.parentDirectory": "Direktoryo ng magulang",
     "files.permanentConfirm": "Permanenteng tanggalin ang {items}?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Tumalon sa itaas",
     "term.killAndReset": "Patayin at i-reset",
     "term.loading": "Naglo-load...",
+    "term.browseShellFolder": "Buksan ang folder ng shell",
     "term.reconnectTerminal": "Muling ikonekta ang terminal",
     "term.renameTerminal": "Palitan ang pangalan ng terminal",
     "term.resetConfirmationTitle": "I-reset ang terminal?",
@@ -739,6 +741,8 @@
     "updates.updates": "Mga update",
     "updates.versionAvailable": "Available ang {version}",
     "validation.invalid": "Mangyaring magpasok ng wastong halaga.",
-    "validation.required": "Mangyaring punan ang field na ito."
+    "validation.required": "Mangyaring punan ang field na ito.",
+    "terminal.openPathHint": "{modifier}+click para buksan",
+    "terminal.openInFileBrowser": "Buksan sa file browser"
   }
 }

@@ -519,6 +519,7 @@
     "files.noMatches": "Engar samsvörun",
     "files.noTuxeeFilesOnTheClipboard": "Engar Tuxee skrár á klemmuspjaldinu",
     "files.open": "Opna",
+    "files.pinCurrentFolder": "Festa núverandi möppu",
     "files.openTerminalHere": "Opna skjáhermi hér",
     "files.parentDirectory": "Foreldraskrá",
     "files.permanentConfirm": "Eyða {items} varanlega?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hoppa efst",
     "term.killAndReset": "Drepa og endurstilla",
     "term.loading": "Hleður...",
+    "term.browseShellFolder": "Skoða möppu skeljar",
     "term.reconnectTerminal": "Endurtengja skjáhermi",
     "term.renameTerminal": "Endurnefna skjáhermi",
     "term.resetConfirmationTitle": "Endurstilla skjáhermi?",
@@ -739,6 +741,8 @@
     "updates.updates": "Uppfærslur",
     "updates.versionAvailable": "{version} í boði",
     "validation.invalid": "Vinsamlega sláðu inn gilt gildi.",
-    "validation.required": "Vinsamlegast fylltu út þennan reit."
+    "validation.required": "Vinsamlegast fylltu út þennan reit.",
+    "terminal.openPathHint": "{modifier}+smelltu til að opna",
+    "terminal.openInFileBrowser": "Opna í skráavafra"
   }
 }

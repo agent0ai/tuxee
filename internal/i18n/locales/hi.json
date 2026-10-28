@@ -519,6 +519,7 @@
     "files.noMatches": "कोई मेल नहीं",
     "files.noTuxeeFilesOnTheClipboard": "क्लिपबोर्ड पर कोई Tuxee फ़ाइल नहीं है",
     "files.open": "खोलें",
+    "files.pinCurrentFolder": "मौजूदा फ़ोल्डर पिन करें",
     "files.openTerminalHere": "यहां टर्मिनल खोलें",
     "files.parentDirectory": "मूल निर्देशिका",
     "files.permanentConfirm": "{items} को स्थायी रूप से हटाएं?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "शीर्ष पर जाएँ",
     "term.killAndReset": "मारो और रीसेट करो",
     "term.loading": "लोड हो रहा है...",
+    "term.browseShellFolder": "शेल फ़ोल्डर खोलें",
     "term.reconnectTerminal": "टर्मिनल पुनः कनेक्ट करें",
     "term.renameTerminal": "टर्मिनल का नाम बदलें",
     "term.resetConfirmationTitle": "टर्मिनल रीसेट करें?",
@@ -739,6 +741,8 @@
     "updates.updates": "अपडेट",
     "updates.versionAvailable": "{version} उपलब्ध है",
     "validation.invalid": "कृपया एक मान्य मान दर्ज करें.",
-    "validation.required": "कृपया इस क्षेत्र को भरें।"
+    "validation.required": "कृपया इस क्षेत्र को भरें।",
+    "terminal.openPathHint": "खोलने के लिए {modifier}+क्लिक करें",
+    "terminal.openInFileBrowser": "फ़ाइल ब्राउज़र में खोलें"
   }
 }

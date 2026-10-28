@@ -519,6 +519,7 @@
     "files.noMatches": "Ingen treff",
     "files.noTuxeeFilesOnTheClipboard": "Ingen Tuxee-filer på utklippstavlen",
     "files.open": "Åpne",
+    "files.pinCurrentFolder": "Fest gjeldende mappe",
     "files.openTerminalHere": "Åpne terminal her",
     "files.parentDirectory": "Overordnet katalog",
     "files.permanentConfirm": "Vil du slette {items} permanent?",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "Hopp til toppen",
     "term.killAndReset": "Drep og tilbakestill",
     "term.loading": "Laster inn...",
+    "term.browseShellFolder": "Bla i skallmappen",
     "term.reconnectTerminal": "Koble til terminalen igjen",
     "term.renameTerminal": "Gi nytt navn til terminal",
     "term.resetConfirmationTitle": "Tilbakestille terminalen?",
@@ -739,6 +741,8 @@
     "updates.updates": "Oppdateringer",
     "updates.versionAvailable": "{version} tilgjengelig",
     "validation.invalid": "Vennligst skriv inn en gyldig verdi.",
-    "validation.required": "Vennligst fyll ut dette feltet."
+    "validation.required": "Vennligst fyll ut dette feltet.",
+    "terminal.openPathHint": "{modifier}+klikk for å åpne",
+    "terminal.openInFileBrowser": "Åpne i filutforsker"
   }
 }

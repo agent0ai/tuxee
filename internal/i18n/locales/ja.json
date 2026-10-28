@@ -519,6 +519,7 @@
     "files.noMatches": "一致しません",
     "files.noTuxeeFilesOnTheClipboard": "クリップボードに Tuxee ファイルがありません",
     "files.open": "開く",
+    "files.pinCurrentFolder": "現在のフォルダーを固定",
     "files.openTerminalHere": "ここで端末を開きます",
     "files.parentDirectory": "親ディレクトリ",
     "files.permanentConfirm": "{items} を完全に削除しますか？",
@@ -667,6 +668,7 @@
     "term.jumpToTop": "先頭へジャンプ",
     "term.killAndReset": "終了してリセット",
     "term.loading": "読み込み中…",
+    "term.browseShellFolder": "シェルのフォルダーを開く",
     "term.reconnectTerminal": "端末を再接続",
     "term.renameTerminal": "端末の名前を変更する",
     "term.resetConfirmationTitle": "端末をリセットしますか？",
@@ -739,6 +741,8 @@
     "updates.updates": "アップデート",
     "updates.versionAvailable": "{version} あり",
     "validation.invalid": "有効な値を入力してください。",
-    "validation.required": "このフィールドに記入してください。"
+    "validation.required": "このフィールドに記入してください。",
+    "terminal.openPathHint": "{modifier}+クリックで開く",
+    "terminal.openInFileBrowser": "ファイルブラウザーで開く"
   }
 }
