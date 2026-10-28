@@ -593,16 +593,24 @@ export function checkEngineTextBounds(terminal: any): void {
 export function installTerminalMetrics(terminal: any): void {
   const renderer = terminal._core._renderService._renderer.value;
   const cache = renderer._widthCache;
+  let spacingUnmeasured = false;
   cache._measure = (text: string, variant: number) => {
     const element = cache._measureElements[variant];
     element.textContent = text.repeat(32);
     // offsetWidth rounds the entire run; that error accumulates across a terminal row.
-    return (parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).width) || 0) / 32;
+    const width = (parseFloat(element.ownerDocument.defaultView.getComputedStyle(element).width) || 0) / 32;
+    if (text === 'W' && variant === 0 && width === 0) spacingUnmeasured = true;
+    return width;
   };
   renderer.handleCharSizeChanged();
   const factory = renderer._rowFactory;
   const createRow = factory.createRow;
   factory.createRow = function (...args: any[]): HTMLSpanElement[] {
+    // A hidden font measurement must not leave a full-cell gap after the view returns.
+    if (spacingUnmeasured && cache.get('W', false, false) > 0) {
+      spacingUnmeasured = false;
+      renderer._setDefaultSpacing();
+    }
     const cellWidth = args[7];
     return createRow.apply(this, args).flatMap((span: HTMLSpanElement) => {
       const text = span.textContent || '';

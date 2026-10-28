@@ -367,6 +367,12 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     const wrapped = 'x'.repeat(await page.evaluate(() => view.term.cols - 1)) + '界_WRAP_DONE';
     await input(`printf '%s\\n' '${wrapped}'\n`);
     await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).some(line => line.endsWith('界_WRAP_DONE')));
+    await page.evaluate(async () => {
+        const host = document.querySelector('.terminal-host');
+        host.hidden = true; view.term.options.fontFamily = 'monospace'; host.hidden = false;
+        view.term.refresh(0, view.term.rows - 1);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
     const beforeText = await page.evaluate(() => [view.term.cols, view.term.rows]);
     await textButton.click();
     assert.ok((await textContent.textContent()).includes('HISTORY_0001'));
@@ -374,6 +380,13 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.ok((await textContent.textContent()).includes('s'.repeat(beforeText[0] - 1) + ' \n[271 kB]'), 'space at the wrap boundary is retained');
     assert.ok((await textContent.textContent()).includes('x'.repeat(beforeText[0] - 1) + ' \n界_WRAP_DONE'), 'wide-character wrap padding and row break are preserved');
     assert.equal(await textContent.textContent(), await page.evaluate(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(false)).join('\n')), 'every buffer row and space is preserved');
+    const textWidthError = await textContent.evaluate((node, columns) => {
+        const start = node.textContent.indexOf('s'.repeat(columns - 1) + ' \n');
+        const range = document.createRange();
+        range.setStart(node.firstChild, start); range.setEnd(node.firstChild, start + columns);
+        return range.getBoundingClientRect().width - document.querySelector('.xterm-rows > div').getBoundingClientRect().width;
+    }, beforeText[0]);
+    assert.ok(Math.abs(textWidthError) < .5, 'text snapshot keeps terminal cell spacing after hidden font measurements');
     assert.deepEqual(await page.evaluate(() => [view.term.cols, view.term.rows]), beforeText, 'popover does not resize PTY');
     assert.equal(await textContent.evaluate(() => window.getSelection().toString().length), 0, 'opening static text does not select it');
     assert.equal(await textButton.getAttribute('aria-expanded'), 'true');

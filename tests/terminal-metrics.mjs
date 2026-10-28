@@ -36,6 +36,24 @@ try {
         await page.setContent(`<style>${css}</style><div id="terminal"></div>`);
         await page.addScriptTag({ content: bundle.outputFiles[0].text });
         await page.evaluate(() => window.createTerminal());
+        for (const detached of [false, true]) {
+            const error = await page.evaluate(async detached => {
+                const host = document.querySelector('#terminal');
+                if (detached) host.remove(); else host.hidden = true;
+                term.options.fontFamily = detached ? 'monospace' : 'Liberation Mono';
+                if (detached) document.body.append(host); else host.hidden = false;
+                await new Promise(resolve => term.write('\r\nMeasured after showing', resolve));
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                const row = host.querySelector('.xterm-rows > div'), style = getComputedStyle(row);
+                const text = document.createElement('pre');
+                Object.assign(text.style, { fontFamily: style.fontFamily, fontSize: style.fontSize, letterSpacing: style.letterSpacing });
+                text.textContent = 'W'.repeat(term.cols); document.body.append(text);
+                const range = document.createRange(); range.selectNodeContents(text);
+                const error = range.getBoundingClientRect().width - row.getBoundingClientRect().width;
+                text.remove(); return error;
+            }, detached);
+            assert.ok(Math.abs(error) < .5, `DPR ${dpr}, ${detached ? 'detached' : 'hidden'} font measurement leaves stale row spacing: ${error}`);
+        }
         for (const font of ['monospace', 'DejaVu Sans Mono', 'Liberation Mono']) {
             const cases = await page.evaluate(async font => {
                 const term = window.term;
