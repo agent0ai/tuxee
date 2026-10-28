@@ -726,6 +726,7 @@
     "terminal.exited": "El procés ha finalitzat",
     "terminal.inputLabel": "Entrada del terminal",
     "terminal.openInFileBrowser": "Obre al navegador de fitxers",
+    "terminal.openLink": "Obre l’enllaç",
     "terminal.openPathHint": "{modifier}+clic per obrir",
     "terminal.stopNamed": "Voleu aturar {name} i la feina que hi ha en execució?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

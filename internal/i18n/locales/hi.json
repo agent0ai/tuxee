@@ -726,6 +726,7 @@
     "terminal.exited": "प्रक्रिया समाप्त हो गई",
     "terminal.inputLabel": "टर्मिनल इनपुट",
     "terminal.openInFileBrowser": "फ़ाइल ब्राउज़र में खोलें",
+    "terminal.openLink": "लिंक खोलें",
     "terminal.openPathHint": "खोलने के लिए {modifier}+क्लिक करें",
     "terminal.stopNamed": "{name} और उसके चालू कार्य को रोकें?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

@@ -726,6 +726,7 @@
     "terminal.exited": "Proces ieșit",
     "terminal.inputLabel": "Intrare terminală",
     "terminal.openInFileBrowser": "Deschide în navigatorul de fișiere",
+    "terminal.openLink": "Deschide linkul",
     "terminal.openPathHint": "{modifier}+clic pentru a deschide",
     "terminal.stopNamed": "Opriți {name} și funcționarea sa?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

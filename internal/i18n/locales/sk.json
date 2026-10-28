@@ -726,6 +726,7 @@
     "terminal.exited": "Proces sa skončil",
     "terminal.inputLabel": "Vstup terminálu",
     "terminal.openInFileBrowser": "Otvoriť v prehliadači súborov",
+    "terminal.openLink": "Otvoriť odkaz",
     "terminal.openPathHint": "Otvoriť pomocou {modifier}+kliknutia",
     "terminal.stopNamed": "Zastaviť {name} aj prebiehajúcu prácu?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

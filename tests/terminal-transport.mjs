@@ -116,7 +116,7 @@ try {
     const linkBox=await link.boundingBox(), linkX=linkBox.x+linkBox.width/2, linkY=linkBox.y+linkBox.height/2;
     await page.mouse.move(linkX,linkY);
     await page.waitForFunction(()=>!!document.querySelector('.xterm-cursor-pointer'));
-    const opened=context.waitForEvent('page'); await page.mouse.click(linkX,linkY);
+    const opened=context.waitForEvent('page'); await page.keyboard.down('Control'); await page.mouse.click(linkX,linkY); await page.keyboard.up('Control');
     const popup=await opened; await popup.waitForLoadState();
     assert.equal(await popup.evaluate(()=>window.opener),null); assert.equal(linkReferer,undefined); await popup.close();
     assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.xterm-scrollable-element')).overscrollBehavior),'contain');

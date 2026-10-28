@@ -726,6 +726,7 @@
     "terminal.exited": "进程退出",
     "terminal.inputLabel": "终端输入",
     "terminal.openInFileBrowser": "在文件浏览器中打开",
+    "terminal.openLink": "打开链接",
     "terminal.openPathHint": "{modifier}+单击打开",
     "terminal.stopNamed": "停止 {name} 及其正在运行的工作吗？",
     "terminal.summary": "PID {pid} · {state} · {directory}",

@@ -726,6 +726,7 @@
     "terminal.exited": "A folyamat kilépve",
     "terminal.inputLabel": "Terminál bemenet",
     "terminal.openInFileBrowser": "Megnyitás a fájlböngészőben",
+    "terminal.openLink": "Hivatkozás megnyitása",
     "terminal.openPathHint": "Megnyitás: {modifier}+kattintás",
     "terminal.stopNamed": "Leállítja a {name}-t és működését?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

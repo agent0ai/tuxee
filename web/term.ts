@@ -3,7 +3,7 @@ import { TerminalDisplay } from './display';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
-import { installTerminalPaths, terminalPath } from './terminal/paths';
+import { installTerminalLinks, terminalLink } from './terminal/paths';
 import { api, APIError, button, el, notify, ask, popover, confirmAction, focusPanelChrome } from './ui';
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
 import { readFileClipboard } from './file-clipboard';
@@ -60,14 +60,14 @@ export class TerminalView implements View {
     private rendering = el('div', 'terminal-rendering', t("term.loading"));
     private renderingStarted = performance.now();
     private renderingTimer?: ReturnType<typeof setTimeout>;
+    private hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')?.content || '';
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT.size, fontFamily: string = TERMINAL_FONT.family) {
         fontFamily = terminalFontFamily(fontFamily);
         root.classList.add('terminal-view');
         Terminal.strings.promptLabel = t('terminal.inputLabel');
         Terminal.strings.tooMuchOutput = t('terminal.tooMuchOutput');
         this.term = new Terminal({ allowProposedApi: true, fontFamily, fontSize, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
-            theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' },
-            linkHandler: { activate: (_event, uri) => { window.open(uri, '_blank', 'noopener,noreferrer'); } } });
+            theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' } });
         installTerminalUnicode(this.term);
         this.control.dataset.action = 'take-control';
         this.control.append(el('span', '', t("term.control")));
@@ -110,7 +110,7 @@ export class TerminalView implements View {
             event.preventDefault(); event.stopImmediatePropagation();
         }, { signal: this.events.signal });
         this.term.open(this.host);
-        installTerminalPaths(this.term, (path, line, column) => { void this.openPath(path, line, column).catch(this.notice); }, this.events.signal);
+        installTerminalLinks(this.term, target => { void this.openLink(target); }, this.events.signal, this.hostname);
         installTerminalView(this.term);
         installTerminalMetrics(this.term);
         this.resizeDisplay = installTerminalResize(this.term);
@@ -316,6 +316,10 @@ export class TerminalView implements View {
         this.observer.observe(this.host);
         this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
     }
+    private openLink(target: NonNullable<ReturnType<typeof terminalLink>>) {
+        if ('url' in target) window.open(target.url, '_blank', 'noopener,noreferrer');
+        else return this.openPath(target.path, target.line, target.column).catch(this.notice);
+    }
     private async openPath(path: string, line?: number, column?: number) {
         if (path === '~' || path.startsWith('~/')) path = path === '~' ? this.hooks.user.home : join(this.hooks.user.home, path.slice(2));
         else if (!path.startsWith('/')) {
@@ -354,12 +358,11 @@ export class TerminalView implements View {
             lines.push(line.translateToString(false));
         }
         text.textContent = lines.join('\n');
-        let selected: ReturnType<typeof terminalPath>;
+        let selected: ReturnType<typeof terminalLink>;
         const open = button(t('terminal.openInFileBrowser'), undefined, () => {
             if (!selected) return;
-            const { path, line, column } = selected;
             this.closeText();
-            return this.openPath(path, line, column).catch(this.notice);
+            return this.openLink(selected);
         });
         open.dataset.action = 'open-selected-path'; open.disabled = true;
         open.onpointerdown = event => event.preventDefault();
@@ -369,8 +372,10 @@ export class TerminalView implements View {
         document.addEventListener('selectionchange', () => {
             const selection = window.getSelection();
             selected = selection && text.contains(selection.anchorNode) && text.contains(selection.focusNode)
-                ? terminalPath(selection.toString().trim()) : undefined;
+                ? terminalLink(selection.toString().trim(), this.hostname) : undefined;
             open.disabled = !selected;
+            open.textContent = open.title = t(selected && 'url' in selected ? 'terminal.openLink' : 'terminal.openInFileBrowser');
+            open.setAttribute('aria-label', open.title);
         }, { signal: events.signal });
         content.addEventListener('toggle', event => { if (event.newState === 'closed') events.abort(); });
         const { close } = popover(anchor, content);

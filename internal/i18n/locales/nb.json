@@ -726,6 +726,7 @@
     "terminal.exited": "Prosessen avsluttet",
     "terminal.inputLabel": "Terminalinngang",
     "terminal.openInFileBrowser": "Åpne i filutforsker",
+    "terminal.openLink": "Åpne lenke",
     "terminal.openPathHint": "{modifier}+klikk for å åpne",
     "terminal.stopNamed": "Stopp {name} og dets løpende arbeid?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

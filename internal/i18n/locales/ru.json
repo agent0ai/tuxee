@@ -726,6 +726,7 @@
     "terminal.exited": "Процесс завершен",
     "terminal.inputLabel": "Ввод терминала",
     "terminal.openInFileBrowser": "Открыть в файловом браузере",
+    "terminal.openLink": "Открыть ссылку",
     "terminal.openPathHint": "{modifier}+щелчок для открытия",
     "terminal.stopNamed": "Остановить {name} и его работу?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

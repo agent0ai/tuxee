@@ -726,6 +726,7 @@
     "terminal.exited": "התהליך יצא",
     "terminal.inputLabel": "קלט מסוף",
     "terminal.openInFileBrowser": "פתיחה בסייר הקבצים",
+    "terminal.openLink": "פתיחת קישור",
     "terminal.openPathHint": "{modifier}+לחיצה לפתיחה",
     "terminal.stopNamed": "לעצור את {name} ועבודתו הריצה?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

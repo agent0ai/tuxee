@@ -726,6 +726,7 @@
     "terminal.exited": "Quá trình đã thoát",
     "terminal.inputLabel": "Đầu vào đầu cuối",
     "terminal.openInFileBrowser": "Mở trong trình duyệt tệp",
+    "terminal.openLink": "Mở liên kết",
     "terminal.openPathHint": "{modifier}+nhấp để mở",
     "terminal.stopNamed": "Dừng {name} và công việc đang chạy của nó?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

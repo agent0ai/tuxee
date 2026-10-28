@@ -726,6 +726,7 @@
     "terminal.exited": "프로세스가 종료되었습니다.",
     "terminal.inputLabel": "터미널 입력",
     "terminal.openInFileBrowser": "파일 브라우저에서 열기",
+    "terminal.openLink": "링크 열기",
     "terminal.openPathHint": "{modifier}+클릭하여 열기",
     "terminal.stopNamed": "{name} 및 실행 중인 작업을 중지하시겠습니까?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

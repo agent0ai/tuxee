@@ -726,6 +726,7 @@
     "terminal.exited": "Έγινε έξοδος από τη διαδικασία",
     "terminal.inputLabel": "Είσοδος τερματικού",
     "terminal.openInFileBrowser": "Άνοιγμα στην περιήγηση αρχείων",
+    "terminal.openLink": "Άνοιγμα συνδέσμου",
     "terminal.openPathHint": "{modifier}+κλικ για άνοιγμα",
     "terminal.stopNamed": "Να σταματήσει το {name} και η λειτουργία του;",
     "terminal.summary": "PID {pid} · {state} · {directory}",

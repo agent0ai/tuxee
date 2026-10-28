@@ -726,6 +726,7 @@
     "terminal.exited": "Postopek zaključen",
     "terminal.inputLabel": "Terminalni vhod",
     "terminal.openInFileBrowser": "Odpri v brskalniku datotek",
+    "terminal.openLink": "Odpri povezavo",
     "terminal.openPathHint": "{modifier}+klik za odpiranje",
     "terminal.stopNamed": "Ustaviti {name} in njegovo delovanje?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

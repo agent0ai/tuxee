@@ -726,6 +726,7 @@
     "terminal.exited": "فرآیند خارج شد",
     "terminal.inputLabel": "ورودی ترمینال",
     "terminal.openInFileBrowser": "باز کردن در مرورگر فایل",
+    "terminal.openLink": "باز کردن پیوند",
     "terminal.openPathHint": "برای باز کردن {modifier}+کلیک کنید",
     "terminal.stopNamed": "{name} و کار در حال اجرا آن را متوقف کنید؟",
     "terminal.summary": "PID {pid} · {state} · {directory}",

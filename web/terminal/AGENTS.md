@@ -6,7 +6,7 @@ Shared terminal display state adapted from the8020/dev-core at ff0b4bcf076581b59
 
 # Ownership
 
-Canonical headless engine, browser snapshot restore, touch interaction and path-link gestures.
+Canonical headless engine, browser snapshot restore, touch interaction and path/URL link gestures.
 
 # Local Contracts
 
@@ -30,7 +30,11 @@ Release the hold before viewport scrollLines/scrollToLine computes against its s
 
 interaction.ts uses public terminal APIs and screen touch events. One-finger movement scrolls normal-buffer history by measured row height unless an application owns wheel reports. Application mouse modes and alternate-screen cursor keys use xterm's existing wheel encoder. Preserve taps, mouse selection and multi-touch zoom; cancel gesture state on touch cancellation/end and remove listeners on view disposal. This bridges the pinned xterm 6.0 touch regression; reassess when upgrading the matched engines.
 
-paths.ts recognizes xterm paths beginning with `/`, `./`, `../` or `~/`, excluding a standalone `/`; quoted paths retain spaces. Underline paths only on hover through native xterm links, with no permanent overlay; retain pointer activation. Map Unicode and wrapped rows to cell coordinates; exclude URL tokens, bound wrapped-line scans, preserve text selection and defer existence checks until activation. Use Ctrl-click on Linux/Windows and Cmd-click on macOS, including application mouse tracking; consume pointer and compatibility mouse events for the entire gesture before xterm sees them. Ordinary mouse clicks reach the terminal/application. Touch taps open only without application mouse tracking. Cancel on movement (including moving away and back), long presses, extra pointers, Escape or blur; preserve scroll and multi-touch. Hover identifies the platform modifier. The same path parser serves the T text-view selection action, which also accepts explicitly selected spaces.
+paths.ts recognizes paths beginning with `/`, `./`, `../` or `~/`, excluding a standalone `/`, plus explicit `http://`, `https://` and `file://` URLs. Quoted paths retain spaces; file URIs decode once after line/column parsing and accept only an empty host, localhost or the server hostname from the index. Reject malformed escapes, file URI queries/fragments and other hosts/schemes. HTTP(S) ports, queries, fragments, IPv6 hosts and balanced trailing parentheses remain intact; trim surrounding prose punctuation. No bare-domain guessing or URL reachability probes. File existence checks remain deferred until activation.
+
+Underline links only on hover through native xterm rendering. Map Unicode and wrapped rows to cell coordinates and bound wrapped-line scans. state.ts replaces the pinned built-in OSC provider with the shared provider while retaining its synchronous original range reader; reassess on xterm upgrades. Validate OSC destinations with the same scheme/host policy and never reinterpret labels overlapping an unsupported OSC link as detected paths/URLs. Remove xterm’s automatic OSC dashed underline only in the renderer’s scratch cell; preserve explicit SGR underlines/styles and the buffer’s OSC metadata across snapshots. HTTP(S) opens on the user's device in a new tab with noopener/noreferrer; file URIs use Tuxee's existing workspace file-browser operation.
+
+Use Ctrl-click on Linux/Windows and Cmd-click on macOS for both detected and OSC links, including application mouse tracking; consume pointer and compatibility mouse events for the entire gesture before xterm sees them. Ordinary mouse clicks reach the terminal/application. Touch taps open only without application mouse tracking. Cancel on movement (including moving away and back), long presses, extra pointers, Escape or blur; preserve selection, scrolling and multi-touch. Hover identifies the platform modifier and shows the destination for web URLs. The same parser serves the T text-view selection action, which accepts selected paths/file URIs or HTTP(S) URLs, including explicitly selected spaces in paths.
 
 # Work Guidance
 

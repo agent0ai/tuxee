@@ -726,6 +726,7 @@
     "terminal.exited": "Lumabas ang proseso",
     "terminal.inputLabel": "Input ng terminal",
     "terminal.openInFileBrowser": "Buksan sa file browser",
+    "terminal.openLink": "Buksan ang link",
     "terminal.openPathHint": "{modifier}+click para buksan",
     "terminal.stopNamed": "Ihinto ang {name} at ang pagpapatakbo nito?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

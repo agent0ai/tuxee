@@ -726,6 +726,7 @@
     "terminal.exited": "Proces afgesloten",
     "terminal.inputLabel": "Terminalingang",
     "terminal.openInFileBrowser": "Openen in bestandsbrowser",
+    "terminal.openLink": "Link openen",
     "terminal.openPathHint": "{modifier}+klik om te openen",
     "terminal.stopNamed": "{name} en zijn lopende werk stoppen?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

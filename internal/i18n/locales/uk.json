@@ -726,6 +726,7 @@
     "terminal.exited": "Процес завершено",
     "terminal.inputLabel": "Термінальний вхід",
     "terminal.openInFileBrowser": "Відкрити у файловому браузері",
+    "terminal.openLink": "Відкрити посилання",
     "terminal.openPathHint": "{modifier}+клацання для відкриття",
     "terminal.stopNamed": "Зупинити {name} і його запущену роботу?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

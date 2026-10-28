@@ -726,6 +726,7 @@
     "terminal.exited": "プロセスが終了しました",
     "terminal.inputLabel": "端末入力",
     "terminal.openInFileBrowser": "ファイルブラウザーで開く",
+    "terminal.openLink": "リンクを開く",
     "terminal.openPathHint": "{modifier}+クリックで開く",
     "terminal.stopNamed": "{name} とその実行中の作業を停止しますか?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

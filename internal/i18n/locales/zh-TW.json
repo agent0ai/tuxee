@@ -726,6 +726,7 @@
     "terminal.exited": "行程已結束",
     "terminal.inputLabel": "終端機輸入",
     "terminal.openInFileBrowser": "在檔案瀏覽器中開啟",
+    "terminal.openLink": "開啟連結",
     "terminal.openPathHint": "{modifier}+點擊開啟",
     "terminal.stopNamed": "停止 {name} 及其執行中的工作？",
     "terminal.summary": "PID {pid} · {state} · {directory}",

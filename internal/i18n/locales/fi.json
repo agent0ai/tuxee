@@ -726,6 +726,7 @@
     "terminal.exited": "Prosessi lopetettiin",
     "terminal.inputLabel": "Päätteen tulo",
     "terminal.openInFileBrowser": "Avaa tiedostoselaimessa",
+    "terminal.openLink": "Avaa linkki",
     "terminal.openPathHint": "Avaa: {modifier}+napsautus",
     "terminal.stopNamed": "Lopetetaanko {name} ja sen toiminta?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

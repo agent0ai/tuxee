@@ -726,6 +726,7 @@
     "terminal.exited": "Procesas baigtas",
     "terminal.inputLabel": "Terminalo įvestis",
     "terminal.openInFileBrowser": "Atverti failų naršyklėje",
+    "terminal.openLink": "Atverti nuorodą",
     "terminal.openPathHint": "Atverti: {modifier}+spustelėjimas",
     "terminal.stopNamed": "Sustabdyti {name} ir jo veikimą?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

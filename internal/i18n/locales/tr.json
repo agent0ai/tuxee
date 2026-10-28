@@ -726,6 +726,7 @@
     "terminal.exited": "İşlemden çıkıldı",
     "terminal.inputLabel": "Terminal girişi",
     "terminal.openInFileBrowser": "Dosya tarayıcısında aç",
+    "terminal.openLink": "Bağlantıyı aç",
     "terminal.openPathHint": "Açmak için {modifier}+tıklayın",
     "terminal.stopNamed": "{name} ve onun çalışan işi durdurulsun mu?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

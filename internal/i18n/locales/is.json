@@ -726,6 +726,7 @@
     "terminal.exited": "Ferli hætt",
     "terminal.inputLabel": "Inntak skjáhermis",
     "terminal.openInFileBrowser": "Opna í skráavafra",
+    "terminal.openLink": "Opna tengil",
     "terminal.openPathHint": "{modifier}+smelltu til að opna",
     "terminal.stopNamed": "Stöðva {name} og öll verk sem þar eru í gangi?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

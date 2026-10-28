@@ -4,6 +4,26 @@ import { MessageError } from '../message';
 // Snapshots transfer data and never replay historical VT commands.
 // deno-lint-ignore-file no-explicit-any
 import { Unicode11Addon } from '@xterm/addon-unicode11';
+import type { ILinkProvider } from '@xterm/xterm';
+
+// Reuse xterm's OSC 8 ranges while applying the same policy as detected links.
+export function replaceTerminalOscLinks(terminal: any, provider: ILinkProvider, signal: AbortSignal): ILinkProvider {
+  const providers = terminal._core._linkProviderService.linkProviders;
+  const original = providers[0];
+  providers[0] = provider;
+  // Strip OSC's forced dashed style only from the renderer's scratch cell, preserving SGR underlines and buffer metadata.
+  const cell = terminal._core._renderService._renderer.value._rowFactory._workCell;
+  let extended = cell.extended;
+  Object.defineProperty(cell, 'extended', { configurable: true, get: () => extended, set: value => {
+    extended = value.urlId ? value.clone() : value;
+    if (value.urlId) extended.urlId = 0;
+  } });
+  signal.addEventListener('abort', () => {
+    if (providers[0] === provider) providers[0] = original;
+    Object.defineProperty(cell, 'extended', { configurable: true, writable: true, value: extended });
+  }, { once: true });
+  return original;
+}
 
 export function installTerminalUnicode(terminal: any): void {
   terminal.loadAddon(new Unicode11Addon());

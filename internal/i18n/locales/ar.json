@@ -726,6 +726,7 @@
     "terminal.exited": "خرجت العملية",
     "terminal.inputLabel": "المدخلات الطرفية",
     "terminal.openInFileBrowser": "فتح في متصفح الملفات",
+    "terminal.openLink": "فتح الرابط",
     "terminal.openPathHint": "افتح بـ {modifier}+نقر",
     "terminal.stopNamed": "إيقاف {name} وعمله الجاري؟",
     "terminal.summary": "PID {pid} · {state} · {directory}",

@@ -726,6 +726,7 @@
     "terminal.exited": "Proces zakończył się",
     "terminal.inputLabel": "Wprowadzanie do terminala",
     "terminal.openInFileBrowser": "Otwórz w przeglądarce plików",
+    "terminal.openLink": "Otwórz link",
     "terminal.openPathHint": "{modifier}+kliknięcie, aby otworzyć",
     "terminal.stopNamed": "Zatrzymać {name} i jego działającą pracę?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

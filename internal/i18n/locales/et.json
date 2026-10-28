@@ -726,6 +726,7 @@
     "terminal.exited": "Protsess lõpetati",
     "terminal.inputLabel": "Terminali sisend",
     "terminal.openInFileBrowser": "Ava failibrauseris",
+    "terminal.openLink": "Ava link",
     "terminal.openPathHint": "Avamiseks {modifier}+klõps",
     "terminal.stopNamed": "Kas peatada {name} ja selle töö?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

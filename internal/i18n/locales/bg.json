@@ -726,6 +726,7 @@
     "terminal.exited": "Процесът е излязъл",
     "terminal.inputLabel": "Терминален вход",
     "terminal.openInFileBrowser": "Отвори във файловия браузър",
+    "terminal.openLink": "Отвори връзката",
     "terminal.openPathHint": "{modifier}+щракване за отваряне",
     "terminal.stopNamed": "Спиране на {name} и работата му?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

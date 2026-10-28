@@ -726,6 +726,7 @@
     "terminal.exited": "Proses keluar",
     "terminal.inputLabel": "Masukan terminal",
     "terminal.openInFileBrowser": "Buka di penjelajah berkas",
+    "terminal.openLink": "Buka tautan",
     "terminal.openPathHint": "{modifier}+klik untuk membuka",
     "terminal.stopNamed": "Hentikan {name} dan fungsinya?",
     "terminal.summary": "PID {pid} · {state} · {directory}",

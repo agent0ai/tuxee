@@ -726,6 +726,7 @@
     "terminal.exited": "ออกจากกระบวนการแล้ว",
     "terminal.inputLabel": "อินพุตเทอร์มินัล",
     "terminal.openInFileBrowser": "เปิดในตัวเรียกดูไฟล์",
+    "terminal.openLink": "เปิดลิงก์",
     "terminal.openPathHint": "{modifier}+คลิกเพื่อเปิด",
     "terminal.stopNamed": "หยุด {name} และงานที่กำลังรันอยู่ใช่ไหม",
     "terminal.summary": "PID {pid} · {state} · {directory}",

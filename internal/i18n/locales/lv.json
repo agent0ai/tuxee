@@ -726,6 +726,7 @@
     "terminal.exited": "Process ir iziets",
     "terminal.inputLabel": "Termināļa ieeja",
     "terminal.openInFileBrowser": "Atvērt failu pārlūkā",
+    "terminal.openLink": "Atvērt saiti",
     "terminal.openPathHint": "{modifier}+klikšķis, lai atvērtu",
     "terminal.stopNamed": "Vai apturēt {name} un tā darbību?",
     "terminal.summary": "PID {pid} · {state} · {directory}",
