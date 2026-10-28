@@ -675,8 +675,6 @@ h3 {
 .file-footer button[aria-expanded=true], .terminal-footer button[aria-expanded=true] { color: var(--accent); }
 .terminal-footer button[aria-expanded=true] { background: var(--accent-bg); }
 .file-footer button[aria-pressed=true] { color: var(--accent); background: var(--accent-bg); }
-.terminal-path-hints { position: absolute; inset: 0; pointer-events: none; }
-.terminal-path-hint { position: absolute; border-bottom: 1px solid var(--accent); opacity: .7; box-sizing: border-box; }
 .empty {
   padding: 28px 14px;
   text-align: center;

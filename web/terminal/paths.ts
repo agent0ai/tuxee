@@ -55,39 +55,7 @@ export function installTerminalPaths(term: Terminal, open: (path: string, line?:
         hover: () => { screen.title = t('terminal.openPathHint', { modifier: mac ? 'Cmd' : 'Ctrl' }); },
         leave: () => screen.removeAttribute('title'),
     }))) });
-    const overlay = document.createElement('div');
-    overlay.className = 'terminal-path-hints';
-    overlay.setAttribute('aria-hidden', 'true');
-    screen.append(overlay);
-    let frame = 0, timer = 0;
-    const paint = () => {
-        if (timer || frame) return;
-        timer = window.setTimeout(() => { timer = 0; frame = requestAnimationFrame(() => {
-            frame = 0;
-            const buffer = term.buffer.active, top = buffer.viewportY + 1, bottom = top + term.rows - 1;
-            const hints: HTMLElement[] = [], seen = new Set<string>();
-            let wrapped = 0;
-            for (let row = top; row <= bottom; row++) {
-                if (row > top && buffer.getLine(row - 1)?.isWrapped && ++wrapped < 64) continue;
-                wrapped = 0;
-                for (const { range } of terminalPaths(term, row)) {
-                    const key = `${range.start.y}:${range.start.x}:${range.end.y}:${range.end.x}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    for (let y = Math.max(top, range.start.y); y <= Math.min(bottom, range.end.y); y++) {
-                        const start = y === range.start.y ? range.start.x : 1, end = y === range.end.y ? range.end.x : term.cols;
-                        const hint = document.createElement('span'); hint.className = 'terminal-path-hint';
-                        Object.assign(hint.style, { left: `${(start - 1) / term.cols * 100}%`, width: `${(end - start + 1) / term.cols * 100}%`, top: `${(y - top) / term.rows * 100}%`, height: `${100 / term.rows}%` });
-                        hints.push(hint);
-                    }
-                }
-            }
-            overlay.replaceChildren(...hints);
-        }); }, 75);
-    };
-    const renders = [term.onRender(paint), term.onScroll(paint), term.onResize(paint)];
-    signal.addEventListener('abort', () => { clearTimeout(timer); cancelAnimationFrame(frame); renders.forEach(event => event.dispose()); links.dispose(); overlay.remove(); }, { once: true });
-    paint();
+    signal.addEventListener('abort', () => { links.dispose(); screen.removeAttribute('title'); }, { once: true });
     const at = (event: PointerEvent) => {
         const bounds = screen.getBoundingClientRect();
         const x = Math.floor((event.clientX - bounds.left) * term.cols / bounds.width) + 1;

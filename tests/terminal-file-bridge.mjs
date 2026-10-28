@@ -68,6 +68,7 @@ try {
         }, { text, first });
     };
     const openAt = async p => { await page.keyboard.down('Control'); await page.mouse.click(p.x, p.y); await page.keyboard.up('Control'); };
+    const underlined = () => terminal.locator('.xterm-rows span').evaluateAll(nodes => nodes.filter(node => getComputedStyle(node).textDecorationLine.includes('underline')).map(node => node.textContent).join(''));
     assert.deepEqual(await terminal.locator('.terminal-footer > div:last-child button').evaluateAll(nodes => nodes.slice(0, 3).map(n => n.getAttribute('aria-label'))), ['Rename terminal', 'Browse shell folder', 'Reconnect terminal']);
     const pin = page.locator('[data-panel="files"] [data-action="pin"]');
     assert.equal(await pin.getAttribute('title'), 'Pin current folder');
@@ -80,17 +81,22 @@ try {
     await command(`printf '%s\\n' 'Fetched 10.2 MB in 1s (10.4 MB/s)' "Run 'apt list --upgradable'" 'trixie/main /'`);
     const ordinary = ['Fetched 10.2 MB in 1s (10.4 MB/s)', "Run 'apt list --upgradable'", 'trixie/main /'];
     await page.waitForFunction(lines => lines.every(line => [...document.querySelectorAll('[data-panel="term"] .xterm-rows > div')].some(row => row.textContent.trim() === line)), ordinary);
-    await page.waitForTimeout(200);
-    assert.deepEqual(await terminal.evaluate((root, lines) => lines.map(line => {
-        const row = [...root.querySelectorAll('.xterm-rows > div')].find(node => node.textContent.trim() === line).getBoundingClientRect();
-        return [...root.querySelectorAll('.terminal-path-hint')].some(node => {
-            const hint = node.getBoundingClientRect();
-            return hint.top <= row.top + row.height / 2 && hint.bottom > row.top + row.height / 2;
-        });
-    }), ordinary), [false, false, false], 'ordinary command output is not highlighted as paths');
+    for (const text of ['10.2', 'MB/s', 'apt list --upgradable', 'trixie/main']) {
+        const p = await point(text, 1);
+        await page.mouse.move(p.x, p.y);
+        assert.equal(await underlined(), '', 'ordinary command output is not highlighted on hover');
+        assert.equal(await terminal.locator('.xterm-screen').getAttribute('title'), null);
+    }
+    await page.mouse.move(0, 0);
     await command("printf '%s\\n' '\"/root/bridge-fixture/spaced file.txt\":2:3'");
     let p = await point('/root/bridge-fixture/spaced file.txt');
-    await terminal.locator('.terminal-path-hint').first().waitFor();
+    assert.equal(await terminal.locator('.terminal-path-hints').count(), 0, 'paths have no permanent underline overlay');
+    assert.equal(await underlined(), '', 'paths are not underlined before hover');
+    await page.mouse.move(p.x, p.y);
+    assert.ok((await underlined()).includes('/root/bridge-fixture/spaced file.txt'), 'hover underlines the path');
+    await page.mouse.move(0, 0);
+    assert.equal(await underlined(), '', 'leaving the path removes its underline');
+    assert.equal(await terminal.locator('.xterm-screen').getAttribute('title'), null);
     await page.mouse.move(p.x - 20, p.y); await page.mouse.down(); await page.mouse.move(p.x + 20, p.y, { steps: 5 }); await page.mouse.up();
     assert.equal(await page.locator('.file-view').count(), 1, 'text selection must not open a path');
     await page.mouse.click(p.x, p.y);
@@ -248,7 +254,7 @@ try {
         } finally { await otherAPI(`/terminals/${otherTerminal.id}`, 'DELETE'); }
     } finally { await other.close(); }
     assert.deepEqual(errors, []);
-    console.log('PASS pin, footer order, paths, line/column, unsaved edits, cwd, Ctrl/Cmd-click, mouse modes, MC and touch selection');
+    console.log('PASS hover-only underlines, pin, footer order, paths, line/column, unsaved edits, cwd, Ctrl/Cmd-click, mouse modes, MC and touch selection');
 } catch (error) {
     console.error(await page.locator('[data-panel="term"] .xterm-rows > div').allTextContents());
     throw error;
