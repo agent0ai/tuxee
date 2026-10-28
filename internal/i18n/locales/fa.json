@@ -667,6 +667,8 @@
     "term.jumpToTop": "پرش به بالا",
     "term.killAndReset": "کشتن و تنظیم مجدد",
     "term.loading": "در حال بارگیری...",
+    "term.nextInput": "ورودی بعدی",
+    "term.previousInput": "ورودی قبلی",
     "term.reconnectTerminal": "ترمینال را دوباره وصل کنید",
     "term.renameTerminal": "تغییر نام ترمینال",
     "term.resetConfirmationTitle": "ترمینال بازنشانی شود؟",

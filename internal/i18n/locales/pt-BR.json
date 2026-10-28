@@ -667,6 +667,8 @@
     "term.jumpToTop": "Ir para o topo",
     "term.killAndReset": "Encerrar e redefinir",
     "term.loading": "Carregando…",
+    "term.nextInput": "Próxima entrada",
+    "term.previousInput": "Entrada anterior",
     "term.reconnectTerminal": "Reconectar terminal",
     "term.renameTerminal": "Renomear terminal",
     "term.resetConfirmationTitle": "Redefinir terminal?",

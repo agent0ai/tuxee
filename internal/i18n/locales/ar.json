@@ -667,6 +667,8 @@
     "term.jumpToTop": "اذهب إلى الأعلى",
     "term.killAndReset": "قتل وإعادة تعيين",
     "term.loading": "تحميل...",
+    "term.nextInput": "الإدخال التالي",
+    "term.previousInput": "الإدخال السابق",
     "term.reconnectTerminal": "أعد توصيل المحطة",
     "term.renameTerminal": "إعادة تسمية المحطة",
     "term.resetConfirmationTitle": "إعادة تعيين المحطة؟",

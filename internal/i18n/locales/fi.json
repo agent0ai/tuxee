@@ -667,6 +667,8 @@
     "term.jumpToTop": "Hyppää ylös",
     "term.killAndReset": "Tapa ja nollaa",
     "term.loading": "Ladataan...",
+    "term.nextInput": "Seuraava syöte",
+    "term.previousInput": "Edellinen syöte",
     "term.reconnectTerminal": "Liitä pääte uudelleen",
     "term.renameTerminal": "Nimeä pääte uudelleen",
     "term.resetConfirmationTitle": "Nollataanko pääte?",

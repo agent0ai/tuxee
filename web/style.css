@@ -1243,6 +1243,7 @@ h3 {
 .compact .file-list { padding: 0; }
 .compact .file-columns { padding-inline: 8px; }
 .compact .file-footer button, .compact .terminal-footer button { min-width: 28px; min-height: 32px; }
+.compact .terminal-footer > div { gap: 2px; }
 .compact .terminal-input { font-size: 16px; }
 .compact .file-filter { font-size: 16px; }
 .compact .terminal-host > .xterm { padding: 2px 0 0; }

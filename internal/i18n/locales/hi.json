@@ -667,6 +667,8 @@
     "term.jumpToTop": "शीर्ष पर जाएँ",
     "term.killAndReset": "मारो और रीसेट करो",
     "term.loading": "लोड हो रहा है...",
+    "term.nextInput": "अगला इनपुट",
+    "term.previousInput": "पिछला इनपुट",
     "term.reconnectTerminal": "टर्मिनल पुनः कनेक्ट करें",
     "term.renameTerminal": "टर्मिनल का नाम बदलें",
     "term.resetConfirmationTitle": "टर्मिनल रीसेट करें?",

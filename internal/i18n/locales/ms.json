@@ -667,6 +667,8 @@
     "term.jumpToTop": "Pergi ke atas",
     "term.killAndReset": "Tamat dan set semula",
     "term.loading": "Memuatkan...",
+    "term.nextInput": "Input seterusnya",
+    "term.previousInput": "Input sebelumnya",
     "term.reconnectTerminal": "Sambung semula terminal",
     "term.renameTerminal": "Namakan semula terminal",
     "term.resetConfirmationTitle": "Set semula terminal?",

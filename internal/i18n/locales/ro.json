@@ -667,6 +667,8 @@
     "term.jumpToTop": "Sari sus",
     "term.killAndReset": "Ucide și reseta",
     "term.loading": "Încărcare...",
+    "term.nextInput": "Intrarea următoare",
+    "term.previousInput": "Intrarea anterioară",
     "term.reconnectTerminal": "Reconectați terminalul",
     "term.renameTerminal": "Redenumiți terminalul",
     "term.resetConfirmationTitle": "Resetați terminalul?",

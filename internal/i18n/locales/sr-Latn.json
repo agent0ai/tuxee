@@ -667,6 +667,8 @@
     "term.jumpToTop": "Idi na vrh",
     "term.killAndReset": "Završi i resetuj",
     "term.loading": "Učitavanje...",
+    "term.nextInput": "Sledeći unos",
+    "term.previousInput": "Prethodni unos",
     "term.reconnectTerminal": "Ponovo poveži terminal",
     "term.renameTerminal": "Preimenuj terminal",
     "term.resetConfirmationTitle": "Resetovati terminal?",

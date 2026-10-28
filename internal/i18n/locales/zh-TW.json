@@ -667,6 +667,8 @@
     "term.jumpToTop": "跳至頂端",
     "term.killAndReset": "終止並重設",
     "term.loading": "載入中…",
+    "term.nextInput": "下一筆輸入",
+    "term.previousInput": "上一筆輸入",
     "term.reconnectTerminal": "重新連接終端機",
     "term.renameTerminal": "重新命名終端機",
     "term.resetConfirmationTitle": "重設終端機？",

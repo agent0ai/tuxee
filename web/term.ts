@@ -118,7 +118,27 @@ export class TerminalView implements View {
             bottom.disabled = buffer.type !== 'normal' || buffer.viewportY === buffer.baseY;
         };
         const drawer = this.drawer;
+        const history: { text: string; draft: string }[] = [];
+        let historyIndex = 0, liveDraft = '';
+        const browseHistory = (step: number) => {
+            if (historyIndex < history.length) history[historyIndex].draft = drawer.value;
+            else liveDraft = drawer.value;
+            historyIndex = Math.max(0, Math.min(history.length, historyIndex + step));
+            drawer.value = history[historyIndex]?.draft ?? liveDraft;
+            updateHistory();
+            drawer.focus(); drawer.setSelectionRange(drawer.value.length, drawer.value.length);
+        };
+        const previousInput = button(t("term.previousInput"), 'ArrowUp', () => browseHistory(-1));
+        const nextInput = button(t("term.nextInput"), 'ArrowDown', () => browseHistory(1));
+        const historySeparator = el('span', 'terminal-footer-separator', '|');
+        historySeparator.setAttribute('aria-hidden', 'true');
+        const updateHistory = () => {
+            previousInput.hidden = nextInput.hidden = historySeparator.hidden = drawer.hidden;
+            previousInput.disabled = historyIndex === 0;
+            nextInput.disabled = historyIndex === history.length;
+        };
         drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
+        updateHistory();
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', t("term.terminalInputDrawer"));
         drawer.placeholder = t("term.enterSendCtrlEnterInsertShiftEnterNewLine");
@@ -177,7 +197,7 @@ export class TerminalView implements View {
             this.cancelDrawerResize?.();
             drawerGrip.hidden = drawer.hidden = !drawer.hidden;
             toggle.setAttribute('aria-expanded', String(!drawer.hidden));
-            updateDrawerGrip();
+            updateDrawerGrip(); updateHistory();
             if (drawer.hidden) this.term.focus(); else drawer.focus();
         });
         toggle.setAttribute('aria-expanded', 'false');
@@ -189,12 +209,22 @@ export class TerminalView implements View {
             let data = drawer.value.replace(/\r?\n/g, '\r');
             if (this.term.modes.bracketedPasteMode && data) data = '\x1b[200~' + data + '\x1b[201~';
             if (!event.ctrlKey) data += '\r';
-            if (this.input(data)) { drawer.value = ''; this.term.scrollToBottom(); }
+            if (this.input(data)) {
+                const text = drawer.value;
+                if (historyIndex < history.length) history[historyIndex].draft = history[historyIndex].text;
+                else liveDraft = '';
+                if (text && text !== history.at(-1)?.text) {
+                    history.push({ text, draft: text });
+                    if (history.length > 50) history.shift();
+                }
+                historyIndex = history.length; drawer.value = liveDraft;
+                updateHistory(); this.term.scrollToBottom();
+            }
         };
         const text = button(t("term.terminalContentsAsText"), undefined, () => this.showText(text));
         text.textContent = t("term.t"); text.setAttribute('aria-haspopup', 'dialog'); text.setAttribute('aria-expanded', 'false');
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
-        left.append(toggle, text);
+        left.append(toggle, previousInput, nextInput, historySeparator, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
         right.append(button(t("term.renameTerminal"), 'Pencil', () => this.renamePanel()), button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);

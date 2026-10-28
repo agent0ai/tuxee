@@ -667,6 +667,8 @@
     "term.jumpToTop": "跳转到顶部",
     "term.killAndReset": "终止并重置",
     "term.loading": "加载中…",
+    "term.nextInput": "下一条输入",
+    "term.previousInput": "上一条输入",
     "term.reconnectTerminal": "重新连接终端",
     "term.renameTerminal": "重命名终端",
     "term.resetConfirmationTitle": "重置终端？",

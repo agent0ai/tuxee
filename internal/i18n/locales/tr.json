@@ -667,6 +667,8 @@
     "term.jumpToTop": "Yukarıya atla",
     "term.killAndReset": "Öldür ve sıfırla",
     "term.loading": "Yükleniyor...",
+    "term.nextInput": "Sonraki girdi",
+    "term.previousInput": "Önceki girdi",
     "term.reconnectTerminal": "Terminali yeniden bağlayın",
     "term.renameTerminal": "Terminali yeniden adlandır",
     "term.resetConfirmationTitle": "Terminal sıfırlansın mı?",

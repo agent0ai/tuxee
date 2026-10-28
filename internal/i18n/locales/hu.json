@@ -667,6 +667,8 @@
     "term.jumpToTop": "Ugrás a tetejére",
     "term.killAndReset": "Öld meg és állítsd vissza",
     "term.loading": "Terhelés...",
+    "term.nextInput": "Következő bevitel",
+    "term.previousInput": "Előző bevitel",
     "term.reconnectTerminal": "Csatlakoztassa újra a terminált",
     "term.renameTerminal": "Terminál átnevezése",
     "term.resetConfirmationTitle": "Reset terminál?",

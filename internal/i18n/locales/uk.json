@@ -667,6 +667,8 @@
     "term.jumpToTop": "Перейти вгору",
     "term.killAndReset": "Убити і скинути",
     "term.loading": "Завантаження...",
+    "term.nextInput": "Наступне введення",
+    "term.previousInput": "Попереднє введення",
     "term.reconnectTerminal": "Повторно підключіть термінал",
     "term.renameTerminal": "Перейменувати термінал",
     "term.resetConfirmationTitle": "Скинути термінал?",

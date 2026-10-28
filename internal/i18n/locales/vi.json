@@ -667,6 +667,8 @@
     "term.jumpToTop": "Nhảy lên đầu",
     "term.killAndReset": "Giết và thiết lập lại",
     "term.loading": "Đang tải...",
+    "term.nextInput": "Nội dung tiếp theo",
+    "term.previousInput": "Nội dung trước",
     "term.reconnectTerminal": "Kết nối lại terminal",
     "term.renameTerminal": "Đổi tên terminal",
     "term.resetConfirmationTitle": "Đặt lại terminal?",

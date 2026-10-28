@@ -667,6 +667,8 @@
     "term.jumpToTop": "맨 위로 이동",
     "term.killAndReset": "종료 후 초기화",
     "term.loading": "불러오는 중…",
+    "term.nextInput": "다음 입력",
+    "term.previousInput": "이전 입력",
     "term.reconnectTerminal": "터미널 다시 연결",
     "term.renameTerminal": "터미널 이름 바꾸기",
     "term.resetConfirmationTitle": "터미널을 재설정하시겠습니까?",

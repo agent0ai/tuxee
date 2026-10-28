@@ -667,6 +667,8 @@
     "term.jumpToTop": "Ves al principi",
     "term.killAndReset": "Finalitza i restableix",
     "term.loading": "S'està carregant...",
+    "term.nextInput": "Entrada següent",
+    "term.previousInput": "Entrada anterior",
     "term.reconnectTerminal": "Reconnecta el terminal",
     "term.renameTerminal": "Canvia el nom del terminal",
     "term.resetConfirmationTitle": "Voleu restablir el terminal?",

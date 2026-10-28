@@ -667,6 +667,8 @@
     "term.jumpToTop": "Hüppa üles",
     "term.killAndReset": "Tapa ja lähtesta",
     "term.loading": "Laadimine...",
+    "term.nextInput": "Järgmine sisestus",
+    "term.previousInput": "Eelmine sisestus",
     "term.reconnectTerminal": "Ühendage terminal uuesti",
     "term.renameTerminal": "Nimetage terminal ümber",
     "term.resetConfirmationTitle": "Kas lähtestada terminal?",

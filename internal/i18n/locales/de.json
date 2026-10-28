@@ -667,6 +667,8 @@
     "term.jumpToTop": "Zum Anfang springen",
     "term.killAndReset": "Beenden und zurücksetzen",
     "term.loading": "Wird geladen…",
+    "term.nextInput": "Nächste Eingabe",
+    "term.previousInput": "Vorherige Eingabe",
     "term.reconnectTerminal": "Terminal erneut verbinden",
     "term.renameTerminal": "Terminal umbenennen",
     "term.resetConfirmationTitle": "Terminal zurücksetzen?",

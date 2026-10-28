@@ -667,6 +667,8 @@
     "term.jumpToTop": "קפוץ למעלה",
     "term.killAndReset": "הרוג ואפס",
     "term.loading": "טְעִינָה...",
+    "term.nextInput": "הקלט הבא",
+    "term.previousInput": "הקלט הקודם",
     "term.reconnectTerminal": "חבר מחדש את המסוף",
     "term.renameTerminal": "שנה שם מסוף",
     "term.resetConfirmationTitle": "לאפס את המסוף?",

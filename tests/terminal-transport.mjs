@@ -27,9 +27,11 @@ try {
     const bundle = await build({ stdin: { contents: `
         import { TerminalView } from './web/term';
         import { setCSRF } from './web/ui';
+        import { setTranslations } from './web/i18n';
         import { retainedScrollback } from './web/terminal/state';
         window.retainedScrollback = retainedScrollback;
         window.mount = (me, id) => {
+            setTranslations(me.i18n);
             setCSRF(me.csrf);
             const panel = {id:'test',kind:'terminal',terminal:id,path:me.user.home,x:0,y:0,w:4,h:2};
             window.view = new TerminalView(document.querySelector('#terminal'), panel, {user:me.user, defaultDirectory:()=>me.user.home, changed(){}, close(){}, openTerminal(){}});
@@ -402,8 +404,16 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
 
     const toggle = page.getByRole('button', {name:'Toggle terminal input', exact:true});
     const drawer = page.getByRole('textbox', {name:'Terminal input drawer', exact:true});
+    const previousInput = page.getByRole('button', {name:'Previous input', exact:true, includeHidden:true});
+    const nextInput = page.getByRole('button', {name:'Next input', exact:true, includeHidden:true});
+    const historySeparator = page.locator('.terminal-footer > div').first().locator('.terminal-footer-separator');
+    assert.equal(await previousInput.isVisible(), false);
+    assert.equal(await nextInput.isVisible(), false);
+    assert.equal(await historySeparator.isVisible(), false);
     const initialRows = await page.evaluate(() => view.term.rows);
     await toggle.click();
+    assert.ok(await previousInput.isVisible() && await nextInput.isVisible() && await historySeparator.isVisible());
+    assert.ok(await previousInput.isDisabled() && await nextInput.isDisabled());
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
     assert.equal(await drawer.getAttribute('rows'), '3');
@@ -467,15 +477,45 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('DRAWER_TWO'));
     await drawer.fill('draft'); await page.keyboard.press('Shift+Enter'); await page.keyboard.type('line two');
     assert.equal(await drawer.inputValue(), 'draft\nline two');
+    const beforeHistory = sent.filter(Buffer.isBuffer).length;
+    await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf DRAWER_TWO', 'Ctrl+Enter is remembered; empty Enter is not');
+    assert.ok(await drawer.evaluate(node => node === document.activeElement && node.selectionStart === node.value.length));
+    await drawer.fill('printf EDITED_TWO');
+    await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf DRAWER_ONE');
+    assert.ok(await previousInput.isDisabled());
+    await nextInput.focus(); await page.keyboard.press('Enter');
+    assert.equal(await drawer.inputValue(), 'printf EDITED_TWO', 'browsing retains edits to recalled input');
+    await nextInput.click();
+    assert.equal(await drawer.inputValue(), 'draft\nline two', 'newest position restores the live draft');
+    assert.ok(await nextInput.isDisabled());
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeHistory, 'browsing never sends terminal input');
+    await previousInput.click(); await drawer.press('Enter'); await idle();
+    assert.equal(await drawer.inputValue(), 'draft\nline two', 'resending history preserves the live draft');
+    await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf EDITED_TWO');
+    await drawer.press('Enter'); await idle();
+    await previousInput.click(); await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf DRAWER_TWO', 'consecutive repeats deduplicate and sent originals stay intact');
+    await nextInput.click(); await nextInput.click();
     const beforeIME = sent.filter(Buffer.isBuffer).length;
     await drawer.dispatchEvent('keydown', {key:'Enter', isComposing:true});
     assert.equal(sent.filter(Buffer.isBuffer).length, beforeIME);
-    await toggle.click(); await toggle.click();
+    await toggle.click();
+    assert.equal(await previousInput.isVisible(), false);
+    assert.equal(await nextInput.isVisible(), false);
+    assert.equal(await historySeparator.isVisible(), false);
+    await toggle.click();
     assert.equal(await drawer.inputValue(), 'draft\nline two', 'toggle retains draft');
     const beforeRejected = sent.filter(Buffer.isBuffer).length;
     await drawer.fill('界'.repeat(100000)); await page.keyboard.press('Enter');
     assert.equal((await drawer.inputValue()).length, 100000, 'rejected paste preserves draft');
     assert.equal(sent.filter(Buffer.isBuffer).length, beforeRejected, 'rejected paste sends no Enter');
+    await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf EDITED_TWO', 'rejected input never enters history');
+    await nextInput.click();
+    assert.equal((await drawer.inputValue()).length, 100000, 'rejected draft survives browsing');
     await drawer.fill('retained draft');
     holdOutput = true;
     const beforeReconnect = connections;
@@ -494,6 +534,11 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(connections, beforeReconnect + 1);
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
     assert.equal(await drawer.inputValue(), 'retained draft');
+    await previousInput.click();
+    assert.equal(await drawer.inputValue(), 'printf EDITED_TWO', 'history survives reconnect');
+    await nextInput.click();
+    assert.equal(await drawer.inputValue(), 'retained draft');
+    console.log('PASS input history visibility/bounds, exact sent originals, editable recall, live draft, resend, deduplication and rejection/reconnect');
     console.log('PASS text history, no-resize popover, three-line input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
 
     // A real raw-mode TUI receives exact paste framing and Enter bytes.
@@ -514,18 +559,33 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await textButton.click();
     assert.equal((await textContent.textContent()).trimEnd(), 'TUI_TEXT_界');
     await page.keyboard.press('Escape');
-    for (const [text, key] of [['first\n界', 'Enter'], ['second', 'Control+Enter']]) {
+    const longInput = 'first\n界\n' + 'A long prompt with Unicode 🐧 and spaces.\n'.repeat(1000);
+    for (const [text, key] of [[longInput, 'Enter'], ['second', 'Control+Enter']]) {
         await drawer.fill(text); await page.keyboard.press(key); await idle();
         assert.equal(await drawer.inputValue(), '');
     }
+    await previousInput.click(); await previousInput.click();
+    assert.equal(await drawer.inputValue(), longInput, 'history preserves long Unicode text and original newlines without paste framing');
+    await nextInput.click(); await nextInput.click();
     const beforeMeta = sent.length;
     await drawer.fill('keep this draft'); await page.keyboard.press('Meta+Enter'); await idle();
     assert.equal(sent.length, beforeMeta, 'Command+Enter sends no terminal input');
     assert.ok((await drawer.inputValue()).includes('keep this draft'), 'Command+Enter preserves the draft');
-    const bytes = '\x1b[200~first\r界\x1b[201~\r\x1b[200~second\x1b[201~END_RAW';
+    const recent = Array.from({length:52}, (_, i) => `history ${i}`);
+    for (const text of recent) { await drawer.fill(text); await drawer.press('Control+Enter'); await idle(); }
+    await drawer.fill('live draft after history fills');
+    const beforeBoundedHistory = sent.filter(Buffer.isBuffer).length;
+    for (let i = 0; i < 50; i++) await previousInput.click();
+    assert.equal(await drawer.inputValue(), recent[2], 'only the last 50 sent entries are retained');
+    assert.ok(await previousInput.isDisabled());
+    for (let i = 0; i < 50; i++) await nextInput.click();
+    assert.equal(await drawer.inputValue(), 'live draft after history fills');
+    assert.ok(await nextInput.isDisabled());
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeBoundedHistory);
+    const bytes = '\x1b[200~' + longInput.replace(/\n/g, '\r') + '\x1b[201~\r\x1b[200~second\x1b[201~' + recent.map(text => '\x1b[200~' + text + '\x1b[201~').join('') + 'END_RAW';
     await input('END_RAW');
     await page.waitForFunction(hash => document.querySelector('.xterm-rows').textContent.includes('DRAWER_HASH_'+hash), createHash('sha256').update(bytes).digest('hex'));
-    console.log('PASS plain-text TUI snapshot, exact Unicode bracketed paste, Ctrl+Enter paste-only and ignored Command+Enter');
+    console.log('PASS plain-text TUI snapshot, recoverable long Unicode paste, bounded input history, exact bracketed-paste bytes and ignored Command+Enter');
     await input(`for i in {1..6000}; do printf '\\e[48;5;%dm%05d%*s\\e[0m\\r\\n' "$((16+i%216))" "$i" "$((COLUMNS-5))" ''; done; printf 'REFRESH_%s\\n' READY\n`);
     await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'));
     await idle();

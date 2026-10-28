@@ -667,6 +667,8 @@
     "term.jumpToTop": "Spring naar boven",
     "term.killAndReset": "Dood en reset",
     "term.loading": "Laden...",
+    "term.nextInput": "Volgende invoer",
+    "term.previousInput": "Vorige invoer",
     "term.reconnectTerminal": "Sluit de terminal opnieuw aan",
     "term.renameTerminal": "Naam van terminal wijzigen",
     "term.resetConfirmationTitle": "Terminal resetten?",

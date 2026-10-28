@@ -667,6 +667,8 @@
     "term.jumpToTop": "Tumalon sa itaas",
     "term.killAndReset": "Patayin at i-reset",
     "term.loading": "Naglo-load...",
+    "term.nextInput": "Susunod na input",
+    "term.previousInput": "Nakaraang input",
     "term.reconnectTerminal": "Muling ikonekta ang terminal",
     "term.renameTerminal": "Palitan ang pangalan ng terminal",
     "term.resetConfirmationTitle": "I-reset ang terminal?",

@@ -667,6 +667,8 @@
     "term.jumpToTop": "Přejít na začátek",
     "term.killAndReset": "Ukončit a obnovit",
     "term.loading": "Načítání…",
+    "term.nextInput": "Další vstup",
+    "term.previousInput": "Předchozí vstup",
     "term.reconnectTerminal": "Znovu připojit terminál",
     "term.renameTerminal": "Přejmenovat terminál",
     "term.resetConfirmationTitle": "Obnovit terminál?",

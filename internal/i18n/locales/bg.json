@@ -667,6 +667,8 @@
     "term.jumpToTop": "Отидете до върха",
     "term.killAndReset": "Убийте и нулирайте",
     "term.loading": "Зареждане...",
+    "term.nextInput": "Следващ вход",
+    "term.previousInput": "Предишен вход",
     "term.reconnectTerminal": "Свържете отново терминала",
     "term.renameTerminal": "Преименувайте терминала",
     "term.resetConfirmationTitle": "Нулиране на терминала?",

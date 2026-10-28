@@ -667,6 +667,8 @@
     "term.jumpToTop": "Перейти наверх",
     "term.killAndReset": "Завершить и сбросить",
     "term.loading": "Загрузка…",
+    "term.nextInput": "Следующий ввод",
+    "term.previousInput": "Предыдущий ввод",
     "term.reconnectTerminal": "Переподключить терминал",
     "term.renameTerminal": "Переименование терминала",
     "term.resetConfirmationTitle": "Сбросить терминал?",

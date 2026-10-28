@@ -667,6 +667,8 @@
     "term.jumpToTop": "Vai in alto",
     "term.killAndReset": "Termina e reimposta",
     "term.loading": "Caricamento…",
+    "term.nextInput": "Input successivo",
+    "term.previousInput": "Input precedente",
     "term.reconnectTerminal": "Riconnetti terminale",
     "term.renameTerminal": "Rinominare il terminale",
     "term.resetConfirmationTitle": "Reimpostare il terminale?",

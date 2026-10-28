@@ -667,6 +667,8 @@
     "term.jumpToTop": "Hoppa efst",
     "term.killAndReset": "Drepa og endurstilla",
     "term.loading": "Hleður...",
+    "term.nextInput": "Næsta inntak",
+    "term.previousInput": "Fyrra inntak",
     "term.reconnectTerminal": "Endurtengja skjáhermi",
     "term.renameTerminal": "Endurnefna skjáhermi",
     "term.resetConfirmationTitle": "Endurstilla skjáhermi?",

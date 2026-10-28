@@ -667,6 +667,8 @@
     "term.jumpToTop": "Μετάβαση στην κορυφή",
     "term.killAndReset": "Σκοτώστε και επαναφέρετε",
     "term.loading": "Φόρτωση...",
+    "term.nextInput": "Επόμενη εισαγωγή",
+    "term.previousInput": "Προηγούμενη εισαγωγή",
     "term.reconnectTerminal": "Επανασυνδέστε το τερματικό",
     "term.renameTerminal": "Μετονομασία τερματικού",
     "term.resetConfirmationTitle": "Επαναφορά τερματικού;",

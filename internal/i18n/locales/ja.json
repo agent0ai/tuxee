@@ -667,6 +667,8 @@
     "term.jumpToTop": "先頭へジャンプ",
     "term.killAndReset": "終了してリセット",
     "term.loading": "読み込み中…",
+    "term.nextInput": "次の入力",
+    "term.previousInput": "前の入力",
     "term.reconnectTerminal": "端末を再接続",
     "term.renameTerminal": "端末の名前を変更する",
     "term.resetConfirmationTitle": "端末をリセットしますか？",

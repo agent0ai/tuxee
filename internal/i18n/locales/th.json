@@ -667,6 +667,8 @@
     "term.jumpToTop": "ข้ามไปด้านบน",
     "term.killAndReset": "ฆ่าและรีเซ็ต",
     "term.loading": "กำลังโหลด...",
+    "term.nextInput": "ข้อความถัดไป",
+    "term.previousInput": "ข้อความก่อนหน้า",
     "term.reconnectTerminal": "เชื่อมต่อเทอร์มินัลอีกครั้ง",
     "term.renameTerminal": "เปลี่ยนชื่อเทอร์มินัล",
     "term.resetConfirmationTitle": "รีเซ็ตเทอร์มินัลใช่ไหม",

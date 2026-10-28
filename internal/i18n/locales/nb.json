@@ -667,6 +667,8 @@
     "term.jumpToTop": "Hopp til toppen",
     "term.killAndReset": "Drep og tilbakestill",
     "term.loading": "Laster inn...",
+    "term.nextInput": "Neste inndata",
+    "term.previousInput": "Forrige inndata",
     "term.reconnectTerminal": "Koble til terminalen igjen",
     "term.renameTerminal": "Gi nytt navn til terminal",
     "term.resetConfirmationTitle": "Tilbakestille terminalen?",

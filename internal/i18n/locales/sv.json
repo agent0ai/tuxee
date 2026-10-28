@@ -667,6 +667,8 @@
     "term.jumpToTop": "Hoppa till toppen",
     "term.killAndReset": "Döda och återställa",
     "term.loading": "Belastning...",
+    "term.nextInput": "Nästa inmatning",
+    "term.previousInput": "Föregående inmatning",
     "term.reconnectTerminal": "Återanslut terminalen",
     "term.renameTerminal": "Byt namn på terminal",
     "term.resetConfirmationTitle": "Återställa terminalen?",

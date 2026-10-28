@@ -667,6 +667,8 @@
     "term.jumpToTop": "Peršokti į viršų",
     "term.killAndReset": "Nužudyk ir nustatyk iš naujo",
     "term.loading": "Įkeliama...",
+    "term.nextInput": "Kita įvestis",
+    "term.previousInput": "Ankstesnė įvestis",
     "term.reconnectTerminal": "Iš naujo prijunkite terminalą",
     "term.renameTerminal": "Pervardyti terminalą",
     "term.resetConfirmationTitle": "Iš naujo nustatyti terminalą?",

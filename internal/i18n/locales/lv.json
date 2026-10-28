@@ -667,6 +667,8 @@
     "term.jumpToTop": "Pārlēkt uz augšu",
     "term.killAndReset": "Nogalināt un atiestatīt",
     "term.loading": "Notiek ielāde...",
+    "term.nextInput": "Nākamā ievade",
+    "term.previousInput": "Iepriekšējā ievade",
     "term.reconnectTerminal": "Atkārtoti pievienojiet termināli",
     "term.renameTerminal": "Pārdēvēt termināli",
     "term.resetConfirmationTitle": "Vai atiestatīt termināli?",
