@@ -29,25 +29,39 @@ export function editorSearchPanel(view, multipage: () => boolean) {
     const all = button(t('editor.replaceAll'), undefined, () => replaceAll(view));
     const close = button(t('common.close'), 'X', () => closeSearchPanel(view));
     const status = el('span', 'editor-search-status'); status.setAttribute('aria-live', 'polite');
+    status.dir = 'ltr';
+    const error = el('span', 'editor-search-error', t('editor.invalidRegex')); error.setAttribute('aria-live', 'polite');
     const warning = el('div', 'editor-search-warning', t('editor.searchCurrentPage'));
     warning.hidden = !multipage();
     const fields = el('div', 'editor-search-fields'), actions = el('div', 'editor-search-actions');
-    fields.append(find, replace); actions.append(previous, next, current, all, matchCase.wrapper, regex.wrapper, status, close);
+    const navigation = el('div', 'editor-search-navigation'); navigation.append(previous, status, next);
+    fields.append(find, replace); actions.append(navigation, current, all, matchCase.wrapper, regex.wrapper, error, close);
     dom.append(fields, actions, warning);
     let lastQuery = query;
     function refresh() {
-        let count = 0;
+        let count = 0, position = 0;
+        const selection = view.state.selection.main;
         if (lastQuery.valid) {
             const cursor = lastQuery.getCursor(view.state);
-            while (!cursor.next().done) count++;
+            while (!cursor.next().done) {
+                count++;
+                if (cursor.value.from === selection.from && cursor.value.to === selection.to) position = count;
+            }
         }
-        status.textContent = !lastQuery.search ? '' : !lastQuery.valid ? t('editor.invalidRegex') : t('editor.matches', { count });
+        status.textContent = `${position}/${count}`;
+        status.title = t('editor.matches', { count });
+        error.hidden = !lastQuery.search || lastQuery.valid;
         find.setAttribute('aria-invalid', String(!!lastQuery.search && !lastQuery.valid));
         previous.disabled = next.disabled = current.disabled = all.disabled = !count || view.state.readOnly;
     }
     function commit() {
         const nextQuery = new SearchQuery({ search: find.value, replace: replace.value, caseSensitive: matchCase.input.checked, regexp: regex.input.checked, literal: true });
-        if (!nextQuery.eq(lastQuery)) { lastQuery = nextQuery; view.dispatch({ effects: setSearchQuery.of(nextQuery) }); }
+        if (nextQuery.eq(lastQuery)) return;
+        const searchChanged = nextQuery.search !== lastQuery.search || nextQuery.caseSensitive !== lastQuery.caseSensitive || nextQuery.regexp !== lastQuery.regexp;
+        const match = searchChanged && nextQuery.valid ? nextQuery.getCursor(view.state).next() : undefined;
+        const selection = match && !match.done ? { anchor: match.value.from, head: match.value.to } : undefined;
+        lastQuery = nextQuery;
+        view.dispatch({ effects: setSearchQuery.of(nextQuery), selection, scrollIntoView: !!selection });
     }
     for (const control of [find, replace, matchCase.input, regex.input]) control.addEventListener('input', commit);
     dom.addEventListener('keydown', event => {
@@ -63,7 +77,7 @@ export function editorSearchPanel(view, multipage: () => boolean) {
         update(update) {
             const nextQuery = getSearchQuery(update.state);
             if (!nextQuery.eq(lastQuery)) { lastQuery = nextQuery; find.value = nextQuery.search; replace.value = nextQuery.replace; matchCase.input.checked = nextQuery.caseSensitive; regex.input.checked = nextQuery.regexp; }
-            if (update.docChanged || update.startState.readOnly !== update.state.readOnly || update.transactions.some(tr => tr.effects.some(effect => effect.is(setSearchQuery)))) refresh();
+            if (update.docChanged || update.selectionSet || update.startState.readOnly !== update.state.readOnly || update.transactions.some(tr => tr.effects.some(effect => effect.is(setSearchQuery)))) refresh();
         },
     };
 }

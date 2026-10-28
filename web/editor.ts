@@ -62,7 +62,7 @@ export class FileInspector {
     private pagination = el('div', 'inspector-pagination');
     private syntax = el('select', 'syntax-select');
     private saveButton = button(t("editor.saveFile"), 'Save', () => this.save());
-    private searchButton = button(t('editor.searchReplace'), 'Search', () => this.editor && openSearchPanel(this.editor));
+    private searchButton = button(t('editor.searchReplace'), 'Search', () => this.editor && (closeSearchPanel(this.editor) || openSearchPanel(this.editor)));
     private previous = button(t("editor.previousFile"), 'ChevronLeft', () => this.step(-1));
     private next = button(t("editor.nextFile"), 'ChevronRight', () => this.step(1));
     private filePosition = el('span', 'inspector-position');
