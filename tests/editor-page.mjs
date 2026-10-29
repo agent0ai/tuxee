@@ -8,11 +8,22 @@ await build({
     bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/editor-page.mjs'
 });
 const { EditorState, PageDraft, languageFor, pageLimitError } = await import('../.test-state/editor-page.mjs');
+for (const [mode, extensions] of [
+    ['javascript', ['js', 'mjs', 'cjs']], ['typescript', ['ts', 'mts', 'cts']], ['jsx', ['jsx']], ['tsx', ['tsx']],
+    ['json', ['json', 'webmanifest']], ['html', ['html', 'htm']], ['xml', ['xml', 'xsd', 'xsl', 'xslt', 'svg', 'xhtml']],
+    ['css', ['css']], ['python', ['py', 'pyw', 'pyi']], ['sql', ['sql']], ['markdown', ['md', 'markdown', 'mdown', 'mkd']],
+    ['yaml', ['yaml', 'yml']], ['go', ['go']], ['shell', ['sh', 'bash', 'zsh', 'ksh']], ['toml', ['toml']], ['text', ['txt', 'text', 'log']]
+]) for (const extension of extensions) {
+    for (const name of [`file.${extension}`, `file.${extension.toUpperCase()}`, `.config.${extension}`]) assert.equal(languageFor(`/root/${name}`), mode, name);
+    assert.equal(languageFor(`/root/${extension}`), 'text', 'bare language/extension names are not file extensions');
+}
 for (const [path, mode] of [
     ['/root/.bashrc', 'shell'], ['/root/.profile', 'shell'], ['/root/.env', 'shell'],
     ['/root/.config.json', 'json'], ['/root/.thing.unknown', 'text'],
     ['/root/.config/README', 'text'], ['/root/README', 'text'], ['/root/file.md', 'markdown'],
-    ['/root/config.xml', 'xml'], ['/root/config.XML', 'xml']
+    ['/root/config.xml', 'xml'], ['/root/config.XML', 'xml'], ['/root/folder.py/README', 'text'], ['/root/file.', 'text'],
+    ['/root/styles.scss', 'text'], ['/root/data.jsonc', 'text'], ['/root/script.fish', 'text'],
+    ['/root/file.constructor', 'text'], ['/root/file.__proto__', 'text'], ['/root/.constructor', 'shell']
 ]) assert.equal(languageFor(path), mode, path);
 
 for (const [content, valid] of [

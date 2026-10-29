@@ -4,9 +4,14 @@ export const MAX_PAGE_BYTES = 1 << 20, MAX_PAGE_ROWS = 10000, WRAP_COLUMNS = 100
 export type TextPage = { offset: number; end: number; total: number; lineBreaks: number; hash: string };
 
 export function languageFor(path: string): string {
-    const name = path.split('/').pop()!, extension = name.split('.').pop()!.toLowerCase();
-    return ({ js:'javascript', mjs:'javascript', cjs:'javascript', ts:'typescript', jsx:'jsx', tsx:'tsx', json:'json', html:'html', htm:'html', xml:'xml', css:'css', py:'python', sql:'sql', md:'markdown', yaml:'yaml', yml:'yaml', go:'go', sh:'shell', bash:'shell', toml:'toml' } as Record<string,string>)[extension]
-        || (name.startsWith('.') && !name.slice(1).includes('.') ? 'shell' : 'text');
+    const name = path.split('/').pop()!, extension = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';
+    const modes: Record<string,string> = {
+        js:'javascript', mjs:'javascript', cjs:'javascript', ts:'typescript', mts:'typescript', cts:'typescript', jsx:'jsx', tsx:'tsx',
+        json:'json', webmanifest:'json', html:'html', htm:'html', xml:'xml', xsd:'xml', xsl:'xml', xslt:'xml', svg:'xml', xhtml:'xml',
+        css:'css', py:'python', pyw:'python', pyi:'python', sql:'sql', md:'markdown', markdown:'markdown', mdown:'markdown', mkd:'markdown',
+        yaml:'yaml', yml:'yaml', go:'go', sh:'shell', bash:'shell', zsh:'shell', ksh:'shell', toml:'toml'
+    };
+    return Object.hasOwn(modes, extension) ? modes[extension] : name.startsWith('.') && !name.slice(1).includes('.') ? 'shell' : 'text';
 }
 
 export function pageLimitError(content: string): string | undefined {

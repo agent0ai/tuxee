@@ -12,6 +12,8 @@ assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).statu
 const dir = await mkdtemp(fields[5] + '/tuxee-toolbar-');
 const shell = '#!/bin/bash\n# Start the services\nset -e\ncd /root/workspace\nexec /usr/local/bin/spynel serve\nexec /root/.local/bin/codex-bridge --config /root/.config/codex-bridge/config.yaml\necho "# literal" "$HOME" # inline comment\n';
 await writeFile(dir + '/syntax.sh', shell);
+const yaml = await readFile('compose.yaml', 'utf8') + '# YAML comment\n"quoted key": unquoted value\nscalars: [true, false, null, 42, 3.14, "quoted", \'single\']\ndefaults: &defaults {mode: fast}\ncopy: *defaults\ntagged: !!str tagged value\nscript: |\n  echo hello\n';
+await writeFile(dir + '/syntax.yaml', yaml);
 const longLine = 'w'.repeat(2001) + '🙂\r\nlast\n';
 await writeFile(dir + '/wrap.txt', longLine);
 await writeFile(dir + '/paged.txt', ('x'.repeat(500) + '\r\n').repeat(3000));
@@ -79,6 +81,30 @@ try {
  assert.ok(await tool('Save file').isDisabled()); assert.equal(await readFile(dir + '/syntax.sh', 'utf8'), shell);
  await back(); await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
  console.log('PASS shell shebang, comments, commands, options, strings and variables in both themes, syntax switching and unchanged bytes');
+ await open(dir + '/syntax.yaml'); await content.waitFor();
+ assert.equal(await shellSyntax.inputValue(), 'yaml');
+ for (const theme of ['dark', 'light']) {
+  if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+  for (const [kind, texts] of [
+   ['type', ['services', 'tuxee', 'image', 'ROOT_PASSWORD', '"quoted key"', 'mode', '!!str']],
+   ['string', ['agent0ai/tuxee:latest', '${ROOT_PASSWORD-toor}', 'tuxee-state:/var/lib/tuxee', 'unless-stopped', '30s', '"80:80"', 'unquoted value', 'true', 'false', 'null', '42', '3.14', '"quoted"', "'single'", 'fast', 'tagged value', 'echo hello']],
+   ['function', ['&defaults', '*defaults']], ['markup', [':', '-', '[', ']', '{', '}', ',']], ['comment', ['# YAML comment']]
+  ]) for (const text of texts) {
+   const token = content.locator('.code-' + kind).filter({ hasText: text }).first(); await token.waitFor();
+   assert.ok(await token.evaluate(node => getComputedStyle(node).color !== getComputedStyle(node.closest('.cm-content')).color), `${text} needs visible color in ${theme}`);
+  }
+  assert.notEqual(await content.locator('.code-type').first().evaluate(node => getComputedStyle(node).color), await content.locator('.code-string').first().evaluate(node => getComputedStyle(node).color), 'YAML keys and values need distinct colors');
+  await page.screenshot({ path: `test-results/inspector-yaml-${theme}.png` });
+  await shellSyntax.selectOption('text'); await page.waitForFunction(() => !document.querySelector('.cm-content [class*="code-"]'));
+  await shellSyntax.selectOption('yaml'); await content.locator('.code-type').first().waitFor();
+  await shellSyntax.selectOption('markdown'); await page.waitForFunction(() => !document.querySelector('.cm-content .code-type'));
+  assert.equal(await content.locator('.cm-line').first().locator('[class*="code-"]').count(), 0, 'YAML scalar colors must not leak into Markdown prose');
+  await shellSyntax.selectOption('yaml'); await content.locator('.code-type').first().waitFor();
+ }
+ assert.equal((await content.locator('.cm-line').allTextContents()).join('\n'), yaml);
+ assert.ok(await tool('Save file').isDisabled()); assert.equal(await readFile(dir + '/syntax.yaml', 'utf8'), yaml);
+ await back(); await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
+ console.log('PASS YAML keys, plain/quoted/block values, anchors, aliases, tags and punctuation in both themes, syntax switching and unchanged bytes');
  await open(dir + '/wrap.txt'); await content.waitFor();
  assert.ok(await wrap.isChecked(), 'wrapping defaults on');
  assert.equal(await toolbar.locator('select, .inspector-pagination').count(), 0);

@@ -1334,6 +1334,11 @@ h3 {
 .cm-editor .cm-selectionBackground, .cm-focused .cm-selectionBackground { background: var(--accent-bg) !important; }
 .code-keyword, .code-markup { color: #b589ed; } .code-string, .code-monospace { color: #4aa77a; } .code-number { color: #d99152; }
 .code-comment, .code-quote { color: var(--muted); } .code-type, .code-heading, .code-link { color: #639bdc; } .code-function { color: #bd9b43; }
+:root[data-theme=light] .code-keyword, :root[data-theme=light] .code-markup { color: #7953bf; }
+:root[data-theme=light] .code-string, :root[data-theme=light] .code-monospace { color: #187b66; }
+:root[data-theme=light] .code-number { color: #aa5a17; }
+:root[data-theme=light] .code-type, :root[data-theme=light] .code-heading, :root[data-theme=light] .code-link { color: #2866a8; }
+:root[data-theme=light] .code-function { color: #826315; }
 .code-heading, .code-strong { font-weight: 700; }
 .code-emphasis, .code-quote { font-style: italic; }
 .code-link { text-decoration: underline; }

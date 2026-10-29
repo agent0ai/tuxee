@@ -28,13 +28,19 @@ async function languageMode(name: string) {
     if (name === 'xml') return StreamLanguage.define(xml);
     if (['go','shell','toml'].includes(name)) return StreamLanguage.define((await languages[name]())[name]);
     if (name === 'sql') return (await languages.sql()).sql();
-    return (await languages[name]())[`${name}Language`];
+    const language = (await languages[name]())[`${name}Language`];
+    if (name === 'yaml') return [language, syntaxHighlighting(HighlightStyle.define([
+        { tag: tags.content, class: 'code-string' },
+        { tag: tags.labelName, class: 'code-function' },
+        { tag: tags.punctuation, class: 'code-markup' }
+    ], { scope: language }))];
+    return language;
 }
 const highlighting = syntaxHighlighting(HighlightStyle.define([
     { tag: tags.keyword, class: 'code-keyword' }, { tag: [tags.string,tags.regexp], class: 'code-string' },
-    { tag: [tags.number,tags.bool,tags.null], class: 'code-number' }, { tag: [tags.comment,tags.meta], class: 'code-comment' },
-    { tag: [tags.typeName,tags.className,tags.tagName,tags.attributeName], class: 'code-type' },
-    { tag: [tags.definition(tags.variableName),tags.function(tags.variableName),tags.standard(tags.variableName)], class: 'code-function' },
+    { tag: [tags.number,tags.bool,tags.null,tags.color], class: 'code-number' }, { tag: [tags.comment,tags.meta], class: 'code-comment' },
+    { tag: [tags.typeName,tags.className,tags.tagName,tags.attributeName,tags.propertyName,tags.labelName], class: 'code-type' },
+    { tag: [tags.definition(tags.variableName),tags.function(tags.variableName),tags.function(tags.propertyName),tags.standard(tags.variableName)], class: 'code-function' },
     { tag: tags.heading, class: 'code-heading' },
     { tag: [tags.list,tags.processingInstruction,tags.contentSeparator], class: 'code-markup' },
     { tag: tags.monospace, class: 'code-monospace' },
