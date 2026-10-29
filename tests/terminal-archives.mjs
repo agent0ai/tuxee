@@ -196,7 +196,11 @@ try {
     assert.ok((await output(killed.id)).text.includes('KILLED_OUTPUT')); assert.equal((await json(`/terminals/${killed.id}`)).closedAt,undefined);
     const mc=await create("printf 'BEFORE_MC\\n'; mc -u; printf 'BETWEEN_MC\\n'; mc -u; printf 'AFTER_MC\\n'",'Midnight Commander');
     await mount(mc.id);
-    const mcPage=await context.newPage(); mcPage.on('pageerror',error=>errors.push(error.message)); await mcPage.goto(base); await mcPage.locator('.terminal-view[data-state=connected]').waitFor();
+    const mcPage=await context.newPage(); mcPage.on('pageerror',error=>errors.push(error.message));
+    let fitted=false;
+    mcPage.on('websocket',socket=>socket.on('framereceived',({payload})=>{ if(typeof payload==='string'&&JSON.parse(payload).type==='resize-ack') fitted=true; }));
+    await mcPage.goto(base); await mcPage.locator('.terminal-view[data-state=connected]').waitFor();
+    await wait(()=>fitted,'MC initial terminal resize');
     for (const visit of [1,2]) {
         try { await wait(async()=>{ const a=await output(mc.id); return (a?.text.match(/Help/g)||[]).length>=visit; },`real MC visit ${visit} did not render`); }
         catch (error) { await mcPage.screenshot({path:'test-results/terminal-archive-mc-failure.png'}); await writeFile('test-results/terminal-archive-mc-failure.json',JSON.stringify(await output(mc.id))); throw error; }
@@ -235,6 +239,20 @@ try {
     await json(`/terminals/${closedFixture.id}`,'DELETE');
     const liveFixture=await create("printf 'LIVE_LIST\\n'; sleep 1800",'Live list fixture');
     assert.equal((await api(`/terminals/${liveFixture.id}/archive`,'DELETE')).status(),409);
+    const olderClosed=await create("printf 'OLDER_CLOSED\\n'",'Older closed fixture');
+    await ended(olderClosed.id); await json(`/terminals/${olderClosed.id}`,'DELETE');
+    const hour=3600000, now=Date.now(), stamp=hours=>new Date(now-hours*hour).toISOString();
+    for(const [id,times] of [
+        [mc.id,{startedAt:stamp(8),terminatedAt:stamp(4)}],
+        [killed.id,{startedAt:stamp(10),terminatedAt:stamp(3)}],
+        [shutdown.id,{startedAt:stamp(9),terminatedAt:stamp(5)}],
+        [crash.id,{startedAt:stamp(7),foundDeadAt:stamp(2)}],
+        [closedFixture.id,{startedAt:stamp(3)}],
+        [olderClosed.id,{startedAt:stamp(2),terminatedAt:stamp(1),closedAt:stamp(1)}],
+    ]) {
+        const path=folder(id)+'/meta.json', value=JSON.parse(await readFile(path));
+        await writeFile(path,JSON.stringify({...value,...times}));
+    }
     await mount(mc.id);
     const mobile=await context.newPage(); mobile.on('pageerror',error=>errors.push(error.message));
     await mobile.setViewportSize({width:320,height:700});
@@ -256,10 +274,14 @@ try {
                 await inventory.getByRole('tab',{name:catalog[tab],exact:true}).click();
                 const layout=await inventory.evaluate(dialog=>{
                     const body=dialog.querySelector('.modal-body');
-                    return {width:body.clientWidth,scroll:body.scrollWidth,rows:[...dialog.querySelectorAll('.retained-row')].map(row=>({width:row.clientWidth,scroll:row.scrollWidth,times:row.querySelector('.retained-times').textContent,color:getComputedStyle(row.querySelector('.retained-status')).backgroundColor,exited:row.querySelector('.retained-status').dataset.exited}))};
+                    return {width:body.clientWidth,scroll:body.scrollWidth,rows:[...dialog.querySelectorAll('.retained-row')].map(row=>({id:row.dataset.terminalId,width:row.clientWidth,scroll:row.scrollWidth,path:row.querySelector('.retained-directory').textContent,pathWeight:getComputedStyle(row.querySelector('.retained-directory')).fontWeight,pathColor:getComputedStyle(row.querySelector('.retained-directory')).color,nameWeight:getComputedStyle(row.querySelector('.retained-label')).fontWeight,nameColor:getComputedStyle(row.querySelector('.retained-label')).color,times:row.querySelector('.retained-times').textContent,color:getComputedStyle(row.querySelector('.retained-status')).backgroundColor,exited:row.querySelector('.retained-status').dataset.exited}))};
                 });
                 assert.ok(layout.scroll<=layout.width+1,language+theme+tab+JSON.stringify(layout));
+                const chronology=tab==='term.lostTerminals'?[crash.id,killed.id,mc.id,shutdown.id]:[closedFixture.id,olderClosed.id];
+                assert.deepEqual(layout.rows.map(row=>row.id).filter(id=>chronology.includes(id)),chronology);
+                if(tab==='term.lostTerminals') assert.equal(layout.rows[0].id,liveFixture.id,'live terminal uses its start timestamp');
                 for (const row of layout.rows) {
+                    assert.equal(row.path,user.home); assert.equal(row.pathWeight,'400'); assert.ok(Number(row.nameWeight)>=600); assert.notEqual(row.pathColor,row.nameColor);
                     assert.ok(row.scroll<=row.width+1,language+JSON.stringify(row)); assert.ok(!row.times.includes('[!'));
                     assert.equal(row.color,row.exited==='true' ? (theme==='dark'?'rgb(173, 148, 247)':'rgb(121, 83, 191)') : (theme==='dark'?'rgb(54, 207, 167)':'rgb(24, 123, 102)'));
                 }
@@ -290,6 +312,7 @@ try {
     await inventory.getByRole('button',{name:'Close all',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
     assert.equal((await json(`/terminals/${liveFixture.id}`)).exited,false);
+    await wait(()=>inventory.locator('[data-action=all-terminals]').isEnabled(),'bulk cancellation completed');
     const later=await create("sleep 1800",'Not yet displayed');
     const refreshed=listPage.waitForResponse(response=>response.url()===base+'/api/terminals'&&response.request().method()==='GET');
     await listPage.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
@@ -316,6 +339,9 @@ try {
     await wait(async()=> (await json('/terminals')).length===0,'bulk deletion');
     await wait(async()=> !(await inventory.locator('.retained-row').count()),'empty deleted list');
     assert.equal(await inventory.getByRole('button',{name:'Delete all',exact:true}).isDisabled(),true);
+    await inventory.getByText('No closed terminals.',{exact:true}).waitFor();
+    await inventory.getByRole('tab',{name:'Lost terminals',exact:true}).click();
+    await inventory.getByText('No lost terminals.',{exact:true}).waitFor();
     await listPage.close();
     assert.deepEqual(errors,[]);
     console.log('Terminal archives: Unicode/copy, natural exit, shell kill, MC, restart, closed retention, permissions, crash and shutdown passed.');

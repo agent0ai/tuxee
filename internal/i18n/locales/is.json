@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Færa á svæði",
     "app.nameIsTooLong": "Nafnið er of langt",
     "app.newWorkspace": "Nýtt svæði",
-    "app.noRetainedTerminals": "Engir varðveittir skjáhermar.",
     "app.operatingSystem": "Stýrikerfi",
     "app.parallelUploads": "Samhliða upphleðslur",
     "app.plainHTTP": "Ódulkóðað HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Opna tengil",
     "terminal.openPathHint": "{modifier}+smelltu til að opna",
     "terminal.stopNamed": "Stöðva {name} og öll verk sem þar eru í gangi?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Of mikið úttak til að tilkynna, flettu handvirkt að línum til að lesa",
     "tls.cachedUnreadable": "Get ekki lesið opinbert skilríki í skyndiminni: {detail}",
     "tls.cachedUnusable": "Skyndiminni opinbert vottorð er ónothæft: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Rennur út {time}",
     "term.closeAllConfirm": "Loka öllum skráðum útstöðvum ({count})? Keyrandi skipanir og myndræn forrit verða stöðvuð. Vistað úttak verður varðveitt.",
     "term.deleteArchivesConfirm": "Eyða varanlega vistuðu úttaki og innsláttarsögu útstöðva ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Lokaðu útstöðinni áður en þú eyðir vistuðu úttaki hennar."
+    "backend.terminal.archiveMustBeClosed": "Lokaðu útstöðinni áður en þú eyðir vistuðu úttaki hennar.",
+    "term.noLostTerminals": "Engar týndar útstöðvar.",
+    "term.noClosedTerminals": "Engar lokaðar útstöðvar."
   }
 }

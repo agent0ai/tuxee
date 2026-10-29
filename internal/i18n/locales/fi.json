@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Siirrä työtilaan",
     "app.nameIsTooLong": "Nimi on liian pitkä",
     "app.newWorkspace": "Uusi työtila",
-    "app.noRetainedTerminals": "Ei säilytettyjä päätteitä.",
     "app.operatingSystem": "Käyttöjärjestelmä",
     "app.parallelUploads": "Rinnakkaiset lataukset",
     "app.plainHTTP": "Salaamaton HTTP-yhteys",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Avaa linkki",
     "terminal.openPathHint": "Avaa: {modifier}+napsautus",
     "terminal.stopNamed": "Lopetetaanko {name} ja sen toiminta?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Liian paljon ilmoitusta, siirry riveille manuaalisesti lukeaksesi",
     "tls.cachedUnreadable": "Välimuistissa olevaa julkista varmennetta ei voi lukea: {detail}",
     "tls.cachedUnusable": "Välimuistissa oleva julkinen varmenne on käyttökelvoton: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Vanhenee {time}",
     "term.closeAllConfirm": "Suljetaanko kaikki luettelon päätteet ({count})? Käynnissä olevat komennot ja graafiset sovellukset lopetetaan. Tallennetut tulosteet säilyvät.",
     "term.deleteArchivesConfirm": "Poistetaanko päätteiden ({count}) tallennetut tulosteet ja syötehistoria pysyvästi?",
-    "backend.terminal.archiveMustBeClosed": "Sulje pääte ennen tallennetun tulosteen poistamista."
+    "backend.terminal.archiveMustBeClosed": "Sulje pääte ennen tallennetun tulosteen poistamista.",
+    "term.noLostTerminals": "Ei kadonneita päätteitä.",
+    "term.noClosedTerminals": "Ei suljettuja päätteitä."
   }
 }

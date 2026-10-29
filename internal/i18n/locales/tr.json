@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Alana taşı",
     "app.nameIsTooLong": "Ad çok uzun",
     "app.newWorkspace": "Yeni alan",
-    "app.noRetainedTerminals": "Tutulan terminal yok.",
     "app.operatingSystem": "İşletim sistemi",
     "app.parallelUploads": "Paralel yüklemeler",
     "app.plainHTTP": "Şifresiz HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Bağlantıyı aç",
     "terminal.openPathHint": "Açmak için {modifier}+tıklayın",
     "terminal.stopNamed": "{name} ve onun çalışan işi durdurulsun mu?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Duyurulamayacak kadar çok çıktı var, okumak için satırlara manuel olarak gidin",
     "tls.cachedUnreadable": "Önbelleğe alınmış genel sertifika okunamıyor: {detail}",
     "tls.cachedUnusable": "Önbelleğe alınmış genel sertifika kullanılamıyor: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Süresi dolar {time}",
     "term.closeAllConfirm": "Listelenen {count} terminalin tümü kapatılsın mı? Çalışan komutlar ve grafik uygulamalar sonlandırılacak. Kayıtlı çıktı korunacak.",
     "term.deleteArchivesConfirm": "{count} terminalin kayıtlı çıktısı ve girdi geçmişi kalıcı olarak silinsin mi?",
-    "backend.terminal.archiveMustBeClosed": "Kayıtlı çıktısını silmeden önce terminali kapatın."
+    "backend.terminal.archiveMustBeClosed": "Kayıtlı çıktısını silmeden önce terminali kapatın.",
+    "term.noLostTerminals": "Kayıp terminal yok.",
+    "term.noClosedTerminals": "Kapalı terminal yok."
   }
 }

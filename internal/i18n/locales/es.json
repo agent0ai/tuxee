@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Mover al espacio",
     "app.nameIsTooLong": "El nombre es demasiado largo.",
     "app.newWorkspace": "Nuevo espacio",
-    "app.noRetainedTerminals": "No hay terminales retenidos.",
     "app.operatingSystem": "Sistema operativo",
     "app.parallelUploads": "Subidas paralelas",
     "app.plainHTTP": "HTTP sin cifrar",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Abrir enlace",
     "terminal.openPathHint": "{modifier}+clic para abrir",
     "terminal.stopNamed": "¿Detener {name} y su funcionamiento?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Demasiado resultado para anunciar, navegue a las filas manualmente para leer",
     "tls.cachedUnreadable": "No se puede leer el certificado público almacenado en caché: {detail}",
     "tls.cachedUnusable": "El certificado público almacenado en caché no se puede utilizar: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Caduca {time}",
     "term.closeAllConfirm": "¿Cerrar los {count} terminales de la lista? Se terminarán los comandos y aplicaciones gráficas en ejecución. Se conservará la salida guardada.",
     "term.deleteArchivesConfirm": "¿Borrar permanentemente la salida guardada y el historial de entrada de {count} terminales?",
-    "backend.terminal.archiveMustBeClosed": "Cierra el terminal antes de borrar su salida guardada."
+    "backend.terminal.archiveMustBeClosed": "Cierra el terminal antes de borrar su salida guardada.",
+    "term.noLostTerminals": "No hay terminales perdidos.",
+    "term.noClosedTerminals": "No hay terminales cerrados."
   }
 }

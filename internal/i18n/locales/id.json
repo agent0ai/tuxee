@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Pindah ke ruang",
     "app.nameIsTooLong": "Nama terlalu panjang",
     "app.newWorkspace": "Ruang baru",
-    "app.noRetainedTerminals": "Tidak ada terminal yang dipertahankan.",
     "app.operatingSystem": "Sistem operasi",
     "app.parallelUploads": "Unggahan paralel",
     "app.plainHTTP": "Koneksi HTTP tidak terenkripsi",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Buka tautan",
     "terminal.openPathHint": "{modifier}+klik untuk membuka",
     "terminal.stopNamed": "Hentikan {name} dan fungsinya?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Terlalu banyak keluaran untuk diumumkan, navigasikan ke baris secara manual untuk membaca",
     "tls.cachedUnreadable": "Tidak dapat membaca sertifikat publik yang di-cache: {detail}",
     "tls.cachedUnusable": "Sertifikat publik yang di-cache tidak dapat digunakan: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Kedaluwarsa {time}",
     "term.closeAllConfirm": "Tutup semua terminal dalam daftar ({count})? Perintah dan aplikasi grafis yang berjalan akan dihentikan. Keluaran tersimpan tetap dipertahankan.",
     "term.deleteArchivesConfirm": "Hapus permanen keluaran tersimpan dan riwayat masukan dari {count} terminal?",
-    "backend.terminal.archiveMustBeClosed": "Tutup terminal sebelum menghapus keluaran tersimpannya."
+    "backend.terminal.archiveMustBeClosed": "Tutup terminal sebelum menghapus keluaran tersimpannya.",
+    "term.noLostTerminals": "Tidak ada terminal hilang.",
+    "term.noClosedTerminals": "Tidak ada terminal tertutup."
   }
 }

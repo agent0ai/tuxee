@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Mou a un espai",
     "app.nameIsTooLong": "El nom és massa llarg",
     "app.newWorkspace": "Espai nou",
-    "app.noRetainedTerminals": "No hi ha terminals conservats.",
     "app.operatingSystem": "Sistema operatiu",
     "app.parallelUploads": "Pujades simultànies",
     "app.plainHTTP": "HTTP sense xifrar",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Obre l’enllaç",
     "terminal.openPathHint": "{modifier}+clic per obrir",
     "terminal.stopNamed": "Voleu aturar {name} i la feina que hi ha en execució?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Hi ha massa sortida per anunciar-la; aneu a les files manualment per llegir-les",
     "tls.cachedUnreadable": "No es pot llegir el certificat públic de la memòria cau: {detail}",
     "tls.cachedUnusable": "El certificat públic de la memòria cau no es pot fer servir: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Caduca {time}",
     "term.closeAllConfirm": "Voleu tancar tots els {count} terminals de la llista? Es finalitzaran les ordres i les aplicacions gràfiques en execució. Es conservarà la sortida desada.",
     "term.deleteArchivesConfirm": "Voleu suprimir permanentment la sortida desada i l’historial d’entrada de {count} terminals?",
-    "backend.terminal.archiveMustBeClosed": "Tanqueu el terminal abans de suprimir-ne la sortida desada."
+    "backend.terminal.archiveMustBeClosed": "Tanqueu el terminal abans de suprimir-ne la sortida desada.",
+    "term.noLostTerminals": "No hi ha terminals perduts.",
+    "term.noClosedTerminals": "No hi ha terminals tancats."
   }
 }

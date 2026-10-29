@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Pārvietojieties uz darbvietu",
     "app.nameIsTooLong": "Vārds ir pārāk garš",
     "app.newWorkspace": "Jauna darba vieta",
-    "app.noRetainedTerminals": "Nav saglabātu termināļu.",
     "app.operatingSystem": "Operētājsistēma",
     "app.parallelUploads": "Paralēlās augšupielādes",
     "app.plainHTTP": "Nešifrēts HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Atvērt saiti",
     "terminal.openPathHint": "{modifier}+klikšķis, lai atvērtu",
     "terminal.stopNamed": "Vai apturēt {name} un tā darbību?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Pārāk daudz izvades, lai paziņotu. Pārejiet uz rindām manuāli, lai lasītu",
     "tls.cachedUnreadable": "Nevar nolasīt kešatmiņā saglabāto publisko sertifikātu: {detail}",
     "tls.cachedUnusable": "Kešatmiņā saglabātais publiskais sertifikāts nav lietojams: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Derīgs līdz {time}",
     "term.closeAllConfirm": "Aizvērt visus uzskaitītos termināļus ({count})? Darbojošās komandas un grafiskās lietotnes tiks apturētas. Saglabātā izvade paliks.",
     "term.deleteArchivesConfirm": "Neatgriezeniski dzēst termināļu ({count}) saglabāto izvadi un ievades vēsturi?",
-    "backend.terminal.archiveMustBeClosed": "Pirms saglabātās izvades dzēšanas aizveriet termināli."
+    "backend.terminal.archiveMustBeClosed": "Pirms saglabātās izvades dzēšanas aizveriet termināli.",
+    "term.noLostTerminals": "Nav zaudētu termināļu.",
+    "term.noClosedTerminals": "Nav aizvērtu termināļu."
   }
 }

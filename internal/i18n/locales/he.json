@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "העברה למרחב",
     "app.nameIsTooLong": "השם ארוך מדי",
     "app.newWorkspace": "מרחב חדש",
-    "app.noRetainedTerminals": "אין מסופים שמורים.",
     "app.operatingSystem": "מַעֲרֶכֶת הַפעָלָה",
     "app.parallelUploads": "העלאות מקבילות",
     "app.plainHTTP": "HTTP לא מוצפן",
@@ -730,7 +729,7 @@
     "terminal.openLink": "פתיחת קישור",
     "terminal.openPathHint": "{modifier}+לחיצה לפתיחה",
     "terminal.stopNamed": "לעצור את {name} ועבודתו הריצה?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "יותר מדי פלט מכדי להכריז, נווט לשורות באופן ידני כדי לקרוא",
     "tls.cachedUnreadable": "לא ניתן לקרוא אישור ציבורי שמור: {detail}",
     "tls.cachedUnusable": "אישור ציבורי בקובץ שמור אינו שמיש: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "יפוג {time}",
     "term.closeAllConfirm": "לסגור את כל המסופים ברשימה ({count})? פקודות ויישומים גרפיים פעילים יופסקו. הפלט השמור יישאר.",
     "term.deleteArchivesConfirm": "למחוק לצמיתות את הפלט השמור והיסטוריית הקלט של המסופים ({count})?",
-    "backend.terminal.archiveMustBeClosed": "יש לסגור את המסוף לפני מחיקת הפלט השמור שלו."
+    "backend.terminal.archiveMustBeClosed": "יש לסגור את המסוף לפני מחיקת הפלט השמור שלו.",
+    "term.noLostTerminals": "אין מסופים אבודים.",
+    "term.noClosedTerminals": "אין מסופים סגורים."
   }
 }

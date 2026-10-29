@@ -1162,7 +1162,9 @@ async function retainedTerminals() {
     tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t("app.retainedTerminals"));
     let closed = false, busy = false;
     let displayed: TerminalInfo[] = [];
-    const sessions = () => closed ? terminalSessions.filter(info => info.closedAt) : unlistedTerminals();
+    const latest = (info: TerminalInfo) => Date.parse(info.closedAt || info.terminatedAt || info.foundDeadAt || info.startedAt || '') || 0;
+    const sessions = () => (closed ? terminalSessions.filter(info => info.closedAt) : unlistedTerminals())
+        .sort((a, b) => latest(b) - latest(a) || a.id.localeCompare(b.id));
     const activeTab = button(t("term.lostTerminals"), undefined, () => select(false));
     const closedTab = button(t("term.closedArchives"), undefined, () => select(true));
     const all = button('', undefined, () => remove(displayed, true));
@@ -1209,12 +1211,13 @@ async function retainedTerminals() {
         all.title = label; all.setAttribute('aria-label', label);
         all.replaceChildren(icon(closed ? 'Trash2' : 'X'), el('span', '', t('term.all')));
         all.disabled = busy || !entries.length;
-        if (!entries.length) list.append(el('p', 'muted', t("app.noRetainedTerminals")));
+        if (!entries.length) list.append(el('p', 'muted', t(closed ? "term.noClosedTerminals" : "term.noLostTerminals")));
         for (const info of entries) {
             const row = el('div', 'retained-row'), text = el('div'), name = el('strong', 'retained-name');
             row.dataset.terminalId = info.id;
             const dot = el('span', 'retained-status'); dot.dataset.exited = String(info.exited); dot.setAttribute('aria-hidden', 'true');
-            name.append(dot, el('span', '', info.name));
+            const title = el('span'), directory = el('bdi', 'retained-directory', info.directory); directory.dir = 'ltr';
+            title.append(el('span', 'retained-label', info.name), ' ', directory); name.append(dot, title);
             const times = el('small', 'muted retained-times');
             const stamps = [
                 [info.startedAt, 'term.startedAt'],
@@ -1225,8 +1228,14 @@ async function retainedTerminals() {
                 if (times.childNodes.length) times.append(', ');
                 times.append(el('bdi', '', t(key!, { time: `\u2066${date(value)}\u2069` })));
             }
-            text.append(name, times, el('small', 'muted', info.exited ? info.directory : t("terminal.summary", { pid: info.pid, state: t(info.attached ? 'terminal.attached' : 'terminal.detached'), directory: info.directory })));
-            const open = button(t(info.exited ? "term.openArchive" : "app.attach"), undefined, () => { addPanel('terminal', info.directory, info); updateMenuWarnings(); close(); });
+            text.append(name, times);
+            if (!info.exited) text.append(el('small', 'muted', t("terminal.summary", { pid: info.pid, state: t(info.attached ? 'terminal.attached' : 'terminal.detached') })));
+            const open = button(t(info.exited ? "term.openArchive" : "app.attach"), undefined, () => {
+                const panel = addPanel('terminal', info.directory, info);
+                updateMenuWarnings(); close();
+                const view = mounted?.items.get(panel.id)?.view;
+                if (view instanceof TerminalView) return view.focus();
+            });
             const action = button(t(closed ? 'common.delete' : 'common.close'), closed ? 'Trash2' : 'X', () => remove([info]));
             open.disabled = action.disabled = busy;
             row.append(text, open, action); list.append(row);

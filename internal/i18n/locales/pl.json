@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Przenieś na pulpit",
     "app.nameIsTooLong": "Nazwa jest za długa",
     "app.newWorkspace": "Nowy pulpit",
-    "app.noRetainedTerminals": "Brak zachowanych terminali.",
     "app.operatingSystem": "System operacyjny",
     "app.parallelUploads": "Równoległe wysyłanie",
     "app.plainHTTP": "Nieszyfrowane HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Otwórz link",
     "terminal.openPathHint": "{modifier}+kliknięcie, aby otworzyć",
     "terminal.stopNamed": "Zatrzymać {name} i jego działającą pracę?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Za dużo danych wyjściowych do ogłoszenia. Przejdź ręcznie do wierszy, aby je przeczytać",
     "tls.cachedUnreadable": "Nie można odczytać buforowanego certyfikatu publicznego: {detail}",
     "tls.cachedUnusable": "Buforowany certyfikat publiczny nie nadaje się do użytku: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Wygasa {time}",
     "term.closeAllConfirm": "Zamknąć wszystkie terminale z listy ({count})? Uruchomione polecenia i aplikacje graficzne zostaną zakończone. Zapisane wyjście pozostanie.",
     "term.deleteArchivesConfirm": "Trwale usunąć zapisane wyjście i historię wejścia terminali ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Zamknij terminal przed usunięciem jego zapisanego wyjścia."
+    "backend.terminal.archiveMustBeClosed": "Zamknij terminal przed usunięciem jego zapisanego wyjścia.",
+    "term.noLostTerminals": "Brak utraconych terminali.",
+    "term.noClosedTerminals": "Brak zamkniętych terminali."
   }
 }

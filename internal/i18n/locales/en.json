@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Move to desktop",
     "app.nameIsTooLong": "Name is too long",
     "app.newWorkspace": "New desktop",
-    "app.noRetainedTerminals": "No retained terminals.",
     "app.operatingSystem": "Operating system",
     "app.parallelUploads": "Parallel uploads",
     "app.plainHTTP": "Plain HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Open link",
     "terminal.openPathHint": "{modifier}+click to open",
     "terminal.stopNamed": "Stop {name} and its running work?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Too much output to announce, navigate to rows manually to read",
     "tls.cachedUnreadable": "Cannot read cached public certificate: {detail}",
     "tls.cachedUnusable": "Cached public certificate is unusable: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Expires {time}",
     "term.closeAllConfirm": "Close all {count} listed terminals? Running commands and GUI apps will be terminated. Saved output will remain.",
     "term.deleteArchivesConfirm": "Permanently delete saved output and input history for {count} terminals?",
-    "backend.terminal.archiveMustBeClosed": "Close the terminal before deleting its saved output."
+    "backend.terminal.archiveMustBeClosed": "Close the terminal before deleting its saved output.",
+    "term.noLostTerminals": "No lost terminals.",
+    "term.noClosedTerminals": "No closed terminals."
   }
 }

@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Auf Desktop verschieben",
     "app.nameIsTooLong": "Name ist zu lang",
     "app.newWorkspace": "Neuer Desktop",
-    "app.noRetainedTerminals": "Keine beibehaltenen Terminals.",
     "app.operatingSystem": "Betriebssystem",
     "app.parallelUploads": "Parallele Uploads",
     "app.plainHTTP": "Unverschlüsseltes HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Link öffnen",
     "terminal.openPathHint": "Mit {modifier}+Klick öffnen",
     "terminal.stopNamed": "{name} und dessen laufende Vorgänge stoppen?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Zu viel Ausgabe zum Vorlesen; navigieren Sie manuell zu den Zeilen",
     "tls.cachedUnreadable": "Zwischengespeichertes öffentliches Zertifikat kann nicht gelesen werden: {detail}",
     "tls.cachedUnusable": "Zwischengespeichertes öffentliches Zertifikat ist unbrauchbar: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Läuft ab {time}",
     "term.closeAllConfirm": "Alle {count} aufgelisteten Terminals schließen? Laufende Befehle und grafische Apps werden beendet. Gespeicherte Ausgaben bleiben erhalten.",
     "term.deleteArchivesConfirm": "Gespeicherte Ausgaben und Eingabeverläufe von {count} Terminals endgültig löschen?",
-    "backend.terminal.archiveMustBeClosed": "Schließen Sie das Terminal, bevor Sie seine gespeicherte Ausgabe löschen."
+    "backend.terminal.archiveMustBeClosed": "Schließen Sie das Terminal, bevor Sie seine gespeicherte Ausgabe löschen.",
+    "term.noLostTerminals": "Keine verlorenen Terminals.",
+    "term.noClosedTerminals": "Keine geschlossenen Terminals."
   }
 }

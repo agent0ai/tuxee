@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Flyt til område",
     "app.nameIsTooLong": "Navnet er for langt",
     "app.newWorkspace": "Nyt område",
-    "app.noRetainedTerminals": "Ingen bevarede terminaler.",
     "app.operatingSystem": "Operativsystem",
     "app.parallelUploads": "Parallelle uploads",
     "app.plainHTTP": "Ukrypteret HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Åbn link",
     "terminal.openPathHint": "{modifier}+klik for at åbne",
     "terminal.stopNamed": "Stop {name} og dets kørende arbejde?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "For meget output til at annoncere, naviger til rækker manuelt for at læse",
     "tls.cachedUnreadable": "Kan ikke læse cachelagret offentligt certifikat: {detail}",
     "tls.cachedUnusable": "Cachelagt offentligt certifikat er ubrugeligt: ​​{detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Udløber {time}",
     "term.closeAllConfirm": "Luk alle {count} viste terminaler? Kørende kommandoer og grafiske apps afsluttes. Gemt output bevares.",
     "term.deleteArchivesConfirm": "Slet gemt output og inputhistorik for {count} terminaler permanent?",
-    "backend.terminal.archiveMustBeClosed": "Luk terminalen, før du sletter dens gemte output."
+    "backend.terminal.archiveMustBeClosed": "Luk terminalen, før du sletter dens gemte output.",
+    "term.noLostTerminals": "Ingen mistede terminaler.",
+    "term.noClosedTerminals": "Ingen lukkede terminaler."
   }
 }

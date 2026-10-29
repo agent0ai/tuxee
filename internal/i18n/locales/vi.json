@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Chuyển đến vùng",
     "app.nameIsTooLong": "Tên quá dài",
     "app.newWorkspace": "Vùng mới",
-    "app.noRetainedTerminals": "Không có terminal được giữ lại.",
     "app.operatingSystem": "Hệ điều hành",
     "app.parallelUploads": "Tải lên song song",
     "app.plainHTTP": "HTTP không mã hóa",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Mở liên kết",
     "terminal.openPathHint": "{modifier}+nhấp để mở",
     "terminal.stopNamed": "Dừng {name} và công việc đang chạy của nó?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Quá nhiều đầu ra để thông báo, hãy điều hướng đến các hàng theo cách thủ công để đọc",
     "tls.cachedUnreadable": "Không thể đọc chứng chỉ công cộng được lưu trong bộ nhớ đệm: {detail}",
     "tls.cachedUnusable": "Chứng chỉ công cộng được lưu trong bộ nhớ đệm không sử dụng được: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Hết hạn {time}",
     "term.closeAllConfirm": "Đóng tất cả {count} terminal trong danh sách? Các lệnh và ứng dụng đồ họa đang chạy sẽ bị kết thúc. Đầu ra đã lưu sẽ được giữ lại.",
     "term.deleteArchivesConfirm": "Xóa vĩnh viễn đầu ra đã lưu và lịch sử nhập của {count} terminal?",
-    "backend.terminal.archiveMustBeClosed": "Đóng terminal trước khi xóa đầu ra đã lưu."
+    "backend.terminal.archiveMustBeClosed": "Đóng terminal trước khi xóa đầu ra đã lưu.",
+    "term.noLostTerminals": "Không có terminal thất lạc.",
+    "term.noClosedTerminals": "Không có terminal đã đóng."
   }
 }

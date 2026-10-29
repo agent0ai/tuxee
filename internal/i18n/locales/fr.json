@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Déplacer vers l'espace",
     "app.nameIsTooLong": "Le nom est trop long",
     "app.newWorkspace": "Nouvel espace",
-    "app.noRetainedTerminals": "Aucun terminal conservé.",
     "app.operatingSystem": "Système d’exploitation",
     "app.parallelUploads": "Envois simultanés",
     "app.plainHTTP": "HTTP non chiffré",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Ouvrir le lien",
     "terminal.openPathHint": "{modifier}+clic pour ouvrir",
     "terminal.stopNamed": "Arrêter {name} et son travail en cours ?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Trop de résultats à annoncer, accédez manuellement aux lignes pour les lire",
     "tls.cachedUnreadable": "Impossible de lire le certificat public mis en cache : {detail}",
     "tls.cachedUnusable": "Le certificat public mis en cache est inutilisable : {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Expire le {time}",
     "term.closeAllConfirm": "Fermer les {count} terminaux affichés ? Les commandes et applications graphiques en cours seront arrêtées. Les sorties enregistrées seront conservées.",
     "term.deleteArchivesConfirm": "Supprimer définitivement les sorties enregistrées et l’historique de saisie de {count} terminaux ?",
-    "backend.terminal.archiveMustBeClosed": "Fermez le terminal avant de supprimer sa sortie enregistrée."
+    "backend.terminal.archiveMustBeClosed": "Fermez le terminal avant de supprimer sa sortie enregistrée.",
+    "term.noLostTerminals": "Aucun terminal perdu.",
+    "term.noClosedTerminals": "Aucun terminal fermé."
   }
 }

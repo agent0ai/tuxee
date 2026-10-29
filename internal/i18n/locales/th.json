@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "ย้ายไปยังพื้นที่",
     "app.nameIsTooLong": "ชื่อยาวเกินไป",
     "app.newWorkspace": "พื้นที่ใหม่",
-    "app.noRetainedTerminals": "ไม่มีเทอร์มินัลที่เก็บไว้",
     "app.operatingSystem": "ระบบปฏิบัติการ",
     "app.parallelUploads": "การอัปโหลดแบบขนาน",
     "app.plainHTTP": "การเชื่อมต่อ HTTP ที่ไม่ได้เข้ารหัส",
@@ -730,7 +729,7 @@
     "terminal.openLink": "เปิดลิงก์",
     "terminal.openPathHint": "{modifier}+คลิกเพื่อเปิด",
     "terminal.stopNamed": "หยุด {name} และงานที่กำลังรันอยู่ใช่ไหม",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "มีเอาต์พุตมากเกินไปที่จะประกาศ โปรดไปที่แถวด้วยตนเองเพื่ออ่าน",
     "tls.cachedUnreadable": "ไม่สามารถอ่านใบรับรองสาธารณะที่แคชไว้: {detail}",
     "tls.cachedUnusable": "ใบรับรองสาธารณะที่แคชไว้ใช้ไม่ได้: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "หมดอายุ {time}",
     "term.closeAllConfirm": "ปิดเทอร์มินัลทั้งหมดในรายการ ({count}) หรือไม่? คำสั่งและแอปกราฟิกที่ทำงานอยู่จะสิ้นสุดลง ผลลัพธ์ที่บันทึกไว้จะยังคงอยู่",
     "term.deleteArchivesConfirm": "ลบผลลัพธ์ที่บันทึกไว้และประวัติการป้อนข้อมูลของเทอร์มินัล {count} รายการอย่างถาวรหรือไม่?",
-    "backend.terminal.archiveMustBeClosed": "ปิดเทอร์มินัลก่อนลบผลลัพธ์ที่บันทึกไว้"
+    "backend.terminal.archiveMustBeClosed": "ปิดเทอร์มินัลก่อนลบผลลัพธ์ที่บันทึกไว้",
+    "term.noLostTerminals": "ไม่มีเทอร์มินัลที่หายไป",
+    "term.noClosedTerminals": "ไม่มีเทอร์มินัลที่ปิดแล้ว"
   }
 }

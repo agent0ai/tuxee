@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Flytta till arbetsytan",
     "app.nameIsTooLong": "Namnet är för långt",
     "app.newWorkspace": "Ny arbetsyta",
-    "app.noRetainedTerminals": "Inga kvarhållna terminaler.",
     "app.operatingSystem": "Operativsystem",
     "app.parallelUploads": "Parallella uppladdningar",
     "app.plainHTTP": "Okrypterad HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Öppna länk",
     "terminal.openPathHint": "{modifier}+klick för att öppna",
     "terminal.stopNamed": "Stoppa {name} och dess löpande arbete?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "För mycket utdata för att meddela, navigera till rader manuellt för att läsa",
     "tls.cachedUnreadable": "Kan inte läsa cachade offentliga certifikat: {detail}",
     "tls.cachedUnusable": "Cachat offentligt certifikat är oanvändbart: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Upphör {time}",
     "term.closeAllConfirm": "Stäng alla {count} listade terminaler? Aktiva kommandon och grafiska appar avslutas. Sparade utdata behålls.",
     "term.deleteArchivesConfirm": "Radera sparade utdata och inmatningshistorik för {count} terminaler permanent?",
-    "backend.terminal.archiveMustBeClosed": "Stäng terminalen innan du raderar dess sparade utdata."
+    "backend.terminal.archiveMustBeClosed": "Stäng terminalen innan du raderar dess sparade utdata.",
+    "term.noLostTerminals": "Inga förlorade terminaler.",
+    "term.noClosedTerminals": "Inga stängda terminaler."
   }
 }

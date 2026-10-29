@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Переместить на стол",
     "app.nameIsTooLong": "Имя слишком длинное",
     "app.newWorkspace": "Новый стол",
-    "app.noRetainedTerminals": "Никаких сохраненных терминалов.",
     "app.operatingSystem": "Операционная система",
     "app.parallelUploads": "Параллельные загрузки",
     "app.plainHTTP": "HTTP без шифрования",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Открыть ссылку",
     "terminal.openPathHint": "{modifier}+щелчок для открытия",
     "terminal.stopNamed": "Остановить {name} и его работу?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Слишком много вывода для объявления. Чтобы прочитать, перейдите к строкам вручную.",
     "tls.cachedUnreadable": "Невозможно прочитать кэшированный общедоступный сертификат: {detail}.",
     "tls.cachedUnusable": "Кэшированный общедоступный сертификат непригоден для использования: {detail}.",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Истекает {time}",
     "term.closeAllConfirm": "Закрыть все терминалы в списке ({count})? Работающие команды и графические приложения будут завершены. Сохранённый вывод останется.",
     "term.deleteArchivesConfirm": "Навсегда удалить сохранённый вывод и историю ввода терминалов ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Закройте терминал перед удалением его сохранённого вывода."
+    "backend.terminal.archiveMustBeClosed": "Закройте терминал перед удалением его сохранённого вывода.",
+    "term.noLostTerminals": "Нет потерянных терминалов.",
+    "term.noClosedTerminals": "Нет закрытых терминалов."
   }
 }

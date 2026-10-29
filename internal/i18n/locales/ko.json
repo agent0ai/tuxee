@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "작업공간으로 이동",
     "app.nameIsTooLong": "이름이 너무 깁니다.",
     "app.newWorkspace": "새로운 작업공간",
-    "app.noRetainedTerminals": "보유된 터미널이 없습니다.",
     "app.operatingSystem": "운영 체제",
     "app.parallelUploads": "동시 업로드 수",
     "app.plainHTTP": "암호화되지 않은 HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "링크 열기",
     "terminal.openPathHint": "{modifier}+클릭하여 열기",
     "terminal.stopNamed": "{name} 및 실행 중인 작업을 중지하시겠습니까?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "출력이 너무 많아 모두 읽어줄 수 없습니다. 직접 행으로 이동해 읽으세요",
     "tls.cachedUnreadable": "캐시된 공용 인증서를 읽을 수 없습니다: {detail}",
     "tls.cachedUnusable": "캐시된 공개 인증서를 사용할 수 없습니다: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "만료 {time}",
     "term.closeAllConfirm": "목록의 터미널 {count}개를 모두 닫을까요? 실행 중인 명령과 GUI 앱이 종료됩니다. 저장된 출력은 유지됩니다.",
     "term.deleteArchivesConfirm": "터미널 {count}개의 저장된 출력과 입력 기록을 영구 삭제할까요?",
-    "backend.terminal.archiveMustBeClosed": "저장된 출력을 삭제하기 전에 터미널을 닫으세요."
+    "backend.terminal.archiveMustBeClosed": "저장된 출력을 삭제하기 전에 터미널을 닫으세요.",
+    "term.noLostTerminals": "유실된 터미널이 없습니다.",
+    "term.noClosedTerminals": "닫힌 터미널이 없습니다."
   }
 }

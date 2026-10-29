@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Lumipat sa espasyo",
     "app.nameIsTooLong": "Masyadong mahaba ang pangalan",
     "app.newWorkspace": "Bagong espasyo",
-    "app.noRetainedTerminals": "Walang mga nananatiling terminal.",
     "app.operatingSystem": "Sistema ng operasyon",
     "app.parallelUploads": "Mga parallel na pag-upload",
     "app.plainHTTP": "HTTP na walang encryption",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Buksan ang link",
     "terminal.openPathHint": "{modifier}+click para buksan",
     "terminal.stopNamed": "Ihinto ang {name} at ang pagpapatakbo nito?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Masyadong maraming output na iaanunsyo, manu-manong mag-navigate sa mga row para basahin",
     "tls.cachedUnreadable": "Hindi mabasa ang naka-cache na pampublikong sertipiko: {detail}",
     "tls.cachedUnusable": "Ang naka-cache na pampublikong sertipiko ay hindi magagamit: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Mawawalan ng bisa {time}",
     "term.closeAllConfirm": "Isara ang lahat ng nakalistang terminal ({count})? Wawakasan ang mga tumatakbong command at GUI app. Mananatili ang naka-save na output.",
     "term.deleteArchivesConfirm": "Permanenteng burahin ang naka-save na output at kasaysayan ng input ng {count} terminal?",
-    "backend.terminal.archiveMustBeClosed": "Isara ang terminal bago burahin ang naka-save na output nito."
+    "backend.terminal.archiveMustBeClosed": "Isara ang terminal bago burahin ang naka-save na output nito.",
+    "term.noLostTerminals": "Walang nawawalang terminal.",
+    "term.noClosedTerminals": "Walang nakasarang terminal."
   }
 }

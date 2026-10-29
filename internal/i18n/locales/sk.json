@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Presunúť na plochu",
     "app.nameIsTooLong": "Názov je príliš dlhý",
     "app.newWorkspace": "Nová plocha",
-    "app.noRetainedTerminals": "Žiadne zachované terminály.",
     "app.operatingSystem": "Operačný systém",
     "app.parallelUploads": "Súbežné nahrávania",
     "app.plainHTTP": "Nešifrované HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Otvoriť odkaz",
     "terminal.openPathHint": "Otvoriť pomocou {modifier}+kliknutia",
     "terminal.stopNamed": "Zastaviť {name} aj prebiehajúcu prácu?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Príliš veľa výstupu na hlasové oznámenie; na čítanie prejdite na riadky ručne",
     "tls.cachedUnreadable": "Verejný certifikát vo vyrovnávacej pamäti sa nedá čítať: {detail}",
     "tls.cachedUnusable": "Verejný certifikát vo vyrovnávacej pamäti je nepoužiteľný: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Vyprší {time}",
     "term.closeAllConfirm": "Zavrieť všetky uvedené terminály ({count})? Bežiace príkazy a grafické aplikácie sa ukončia. Uložený výstup zostane.",
     "term.deleteArchivesConfirm": "Trvalo zmazať uložený výstup a históriu vstupu terminálov ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Pred zmazaním uloženého výstupu terminál zavrite."
+    "backend.terminal.archiveMustBeClosed": "Pred zmazaním uloženého výstupu terminál zavrite.",
+    "term.noLostTerminals": "Žiadne stratené terminály.",
+    "term.noClosedTerminals": "Žiadne zavreté terminály."
   }
 }

@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Liikuge tööruumi",
     "app.nameIsTooLong": "Nimi on liiga pikk",
     "app.newWorkspace": "Uus tööruum",
-    "app.noRetainedTerminals": "Säilitatud terminale pole.",
     "app.operatingSystem": "Operatsioonisüsteem",
     "app.parallelUploads": "Paralleelsed üleslaadimised",
     "app.plainHTTP": "Krüptimata HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Ava link",
     "terminal.openPathHint": "Avamiseks {modifier}+klõps",
     "terminal.stopNamed": "Kas peatada {name} ja selle töö?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Teatamiseks on liiga palju väljundit, lugemiseks navigeerige ridadele käsitsi",
     "tls.cachedUnreadable": "Vahemällu salvestatud avalikku sertifikaati ei saa lugeda: {detail}",
     "tls.cachedUnusable": "Vahemällu salvestatud avalik sertifikaat on kasutuskõlbmatu: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Aegub {time}",
     "term.closeAllConfirm": "Sulgeda kõik loetletud terminalid ({count})? Töötavad käsud ja graafilised rakendused lõpetatakse. Salvestatud väljund säilib.",
     "term.deleteArchivesConfirm": "Kustutada terminalide ({count}) salvestatud väljund ja sisestusajalugu jäädavalt?",
-    "backend.terminal.archiveMustBeClosed": "Enne salvestatud väljundi kustutamist sulge terminal."
+    "backend.terminal.archiveMustBeClosed": "Enne salvestatud väljundi kustutamist sulge terminal.",
+    "term.noLostTerminals": "Kadunud terminale pole.",
+    "term.noClosedTerminals": "Suletud terminale pole."
   }
 }

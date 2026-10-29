@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "डेस्क पर ले जाएँ",
     "app.nameIsTooLong": "नाम बहुत लंबा है",
     "app.newWorkspace": "नया डेस्क",
-    "app.noRetainedTerminals": "कोई बनाए रखा गया टर्मिनल नहीं.",
     "app.operatingSystem": "ऑपरेटिंग सिस्टम",
     "app.parallelUploads": "समानांतर अपलोड",
     "app.plainHTTP": "अनएन्क्रिप्टेड HTTP कनेक्शन",
@@ -730,7 +729,7 @@
     "terminal.openLink": "लिंक खोलें",
     "terminal.openPathHint": "खोलने के लिए {modifier}+क्लिक करें",
     "terminal.stopNamed": "{name} और उसके चालू कार्य को रोकें?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "घोषणा करने के लिए बहुत अधिक आउटपुट है, पढ़ने के लिए पंक्तियों पर मैन्युअल रूप से नेविगेट करें",
     "tls.cachedUnreadable": "कैश्ड सार्वजनिक प्रमाणपत्र नहीं पढ़ सकता: {detail}",
     "tls.cachedUnusable": "कैश्ड सार्वजनिक प्रमाणपत्र अनुपयोगी है: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "समय-सीमा {time}",
     "term.closeAllConfirm": "सूची के सभी {count} टर्मिनल बंद करें? चल रहे कमांड और ग्राफ़िकल ऐप समाप्त हो जाएँगे। सहेजा गया आउटपुट बना रहेगा।",
     "term.deleteArchivesConfirm": "{count} टर्मिनल का सहेजा गया आउटपुट और इनपुट इतिहास हमेशा के लिए मिटाएँ?",
-    "backend.terminal.archiveMustBeClosed": "सहेजा गया आउटपुट मिटाने से पहले टर्मिनल बंद करें।"
+    "backend.terminal.archiveMustBeClosed": "सहेजा गया आउटपुट मिटाने से पहले टर्मिनल बंद करें।",
+    "term.noLostTerminals": "कोई खोया हुआ टर्मिनल नहीं है।",
+    "term.noClosedTerminals": "कोई बंद टर्मिनल नहीं है।"
   }
 }

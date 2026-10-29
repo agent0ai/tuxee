@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Premesti u prostor",
     "app.nameIsTooLong": "Naziv je predugačak",
     "app.newWorkspace": "Novi prostor",
-    "app.noRetainedTerminals": "Nema sačuvanih terminala.",
     "app.operatingSystem": "Operativni sistem",
     "app.parallelUploads": "Istovremena otpremanja",
     "app.plainHTTP": "Nešifrovani HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Otvori vezu",
     "terminal.openPathHint": "{modifier}+klik za otvaranje",
     "terminal.stopNamed": "Zaustaviti {name} i sve što u njemu radi?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Previše izlaza za čitanje naglas; pređite ručno na redove da biste ih pročitali",
     "tls.cachedUnreadable": "Nije moguće pročitati keširani javni sertifikat: {detail}",
     "tls.cachedUnusable": "Keširani javni sertifikat nije upotrebljiv: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Ističe {time}",
     "term.closeAllConfirm": "Zatvoriti sve navedene terminale ({count})? Aktivne komande i grafičke aplikacije biće prekinute. Sačuvani izlaz će ostati.",
     "term.deleteArchivesConfirm": "Trajno obrisati sačuvani izlaz i istoriju unosa terminala ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Zatvorite terminal pre brisanja njegovog sačuvanog izlaza."
+    "backend.terminal.archiveMustBeClosed": "Zatvorite terminal pre brisanja njegovog sačuvanog izlaza.",
+    "term.noLostTerminals": "Nema izgubljenih terminala.",
+    "term.noClosedTerminals": "Nema zatvorenih terminala."
   }
 }

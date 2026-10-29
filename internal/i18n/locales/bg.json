@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Преместване в плот",
     "app.nameIsTooLong": "Името е твърде дълго",
     "app.newWorkspace": "Нов плот",
-    "app.noRetainedTerminals": "Няма запазени терминали.",
     "app.operatingSystem": "Операционна система",
     "app.parallelUploads": "Паралелни качвания",
     "app.plainHTTP": "Некриптирана HTTP връзка",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Отвори връзката",
     "terminal.openPathHint": "{modifier}+щракване за отваряне",
     "terminal.stopNamed": "Спиране на {name} и работата му?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Твърде много резултат за обявяване, навигирайте до редове ръчно, за да прочетете",
     "tls.cachedUnreadable": "Не може да се прочете кеширания публичен сертификат: {detail}",
     "tls.cachedUnusable": "Кешираният публичен сертификат е неизползваем: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Изтича {time}",
     "term.closeAllConfirm": "Да се затворят ли всички терминали в списъка ({count})? Работещите команди и графични приложения ще бъдат прекратени. Запазеният изход ще остане.",
     "term.deleteArchivesConfirm": "Да се изтрият ли безвъзвратно запазеният изход и историята на въвеждане на терминалите ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Затворете терминала, преди да изтриете запазения му изход."
+    "backend.terminal.archiveMustBeClosed": "Затворете терминала, преди да изтриете запазения му изход.",
+    "term.noLostTerminals": "Няма изгубени терминали.",
+    "term.noClosedTerminals": "Няма затворени терминали."
   }
 }

@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Verplaats naar ruimte",
     "app.nameIsTooLong": "Naam is te lang",
     "app.newWorkspace": "Nieuwe ruimte",
-    "app.noRetainedTerminals": "Geen behouden terminals.",
     "app.operatingSystem": "Besturingssysteem",
     "app.parallelUploads": "Parallelle uploads",
     "app.plainHTTP": "Onversleutelde HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Link openen",
     "terminal.openPathHint": "{modifier}+klik om te openen",
     "terminal.stopNamed": "{name} en zijn lopende werk stoppen?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Te veel uitvoer om aan te kondigen. Navigeer handmatig naar rijen om te lezen",
     "tls.cachedUnreadable": "Kan in de cache opgeslagen openbaar certificaat niet lezen: {detail}",
     "tls.cachedUnusable": "In de cache opgeslagen openbaar certificaat is onbruikbaar: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Verloopt {time}",
     "term.closeAllConfirm": "Alle {count} vermelde terminals sluiten? Actieve opdrachten en grafische apps worden beëindigd. Opgeslagen uitvoer blijft behouden.",
     "term.deleteArchivesConfirm": "Opgeslagen uitvoer en invoergeschiedenis van {count} terminals definitief verwijderen?",
-    "backend.terminal.archiveMustBeClosed": "Sluit de terminal voordat u de opgeslagen uitvoer verwijdert."
+    "backend.terminal.archiveMustBeClosed": "Sluit de terminal voordat u de opgeslagen uitvoer verwijdert.",
+    "term.noLostTerminals": "Geen verloren terminals.",
+    "term.noClosedTerminals": "Geen gesloten terminals."
   }
 }

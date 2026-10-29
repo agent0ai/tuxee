@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "移至工作区",
     "app.nameIsTooLong": "名字太长",
     "app.newWorkspace": "新工作区",
-    "app.noRetainedTerminals": "无保留终端。",
     "app.operatingSystem": "操作系统",
     "app.parallelUploads": "并行上传数",
     "app.plainHTTP": "未加密的 HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "打开链接",
     "terminal.openPathHint": "{modifier}+单击打开",
     "terminal.stopNamed": "停止 {name} 及其正在运行的工作吗？",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "输出过多，无法全部朗读；请手动定位到各行阅读",
     "tls.cachedUnreadable": "无法读取缓存的公共证书：{detail}",
     "tls.cachedUnusable": "缓存的公共证书无法使用：{detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "到期于 {time}",
     "term.closeAllConfirm": "关闭列表中的全部 {count} 个终端？运行中的命令和图形应用将被终止。已保存的输出将保留。",
     "term.deleteArchivesConfirm": "永久删除 {count} 个终端的已保存输出和输入历史？",
-    "backend.terminal.archiveMustBeClosed": "请先关闭终端，再删除其已保存的输出。"
+    "backend.terminal.archiveMustBeClosed": "请先关闭终端，再删除其已保存的输出。",
+    "term.noLostTerminals": "没有丢失的终端。",
+    "term.noClosedTerminals": "没有已关闭的终端。"
   }
 }

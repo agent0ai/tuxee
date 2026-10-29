@@ -367,6 +367,14 @@ export class TerminalView implements View {
         }
         if (!this.disposed) await this.hooks.openFileBrowser(path, line, column);
     }
+    async focus() {
+        this.root.tabIndex = -1;
+        this.root.focus({ preventScroll: true });
+        await this.starting;
+        if (!this.disposed && document.activeElement === this.root) {
+            if (this.display.visible) this.display.focusContent(); else this.focusInput();
+        }
+    }
     private focusInput() { if (this.archiveView) { this.archiveView.querySelector('pre')?.focus({preventScroll:true}); return; } if (this.drawer.hidden) this.term.focus(); else this.drawer.focus({ preventScroll: true }); }
     private showText(anchor: HTMLElement) {
         if (anchor.getAttribute('aria-expanded') === 'true') { this.closeText(); return; }

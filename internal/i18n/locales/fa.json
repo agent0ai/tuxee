@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "انتقال به فضا",
     "app.nameIsTooLong": "نام خیلی طولانی است",
     "app.newWorkspace": "فضای جدید",
-    "app.noRetainedTerminals": "هیچ ترمینال نگهداری نشده",
     "app.operatingSystem": "سیستم عامل",
     "app.parallelUploads": "آپلودهای موازی",
     "app.plainHTTP": "اتصال HTTP رمزگذاری نشده",
@@ -730,7 +729,7 @@
     "terminal.openLink": "باز کردن پیوند",
     "terminal.openPathHint": "برای باز کردن {modifier}+کلیک کنید",
     "terminal.stopNamed": "{name} و کار در حال اجرا آن را متوقف کنید؟",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "خروجی بیش از حد برای اعلام، برای خواندن به صورت دستی به ردیف‌ها بروید",
     "tls.cachedUnreadable": "نمی توان گواهی عمومی ذخیره شده را خواند: {detail}",
     "tls.cachedUnusable": "گواهی عمومی ذخیره شده غیرقابل استفاده است: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "انقضا {time}",
     "term.closeAllConfirm": "همهٔ ترمینال‌های فهرست‌شده ({count}) بسته شوند؟ فرمان‌ها و برنامه‌های گرافیکی در حال اجرا خاتمه می‌یابند. خروجی ذخیره‌شده باقی می‌ماند.",
     "term.deleteArchivesConfirm": "خروجی ذخیره‌شده و سابقهٔ ورودی {count} ترمینال برای همیشه حذف شوند؟",
-    "backend.terminal.archiveMustBeClosed": "پیش از حذف خروجی ذخیره‌شده، ترمینال را ببندید."
+    "backend.terminal.archiveMustBeClosed": "پیش از حذف خروجی ذخیره‌شده، ترمینال را ببندید.",
+    "term.noLostTerminals": "ترمینال گم‌شده‌ای وجود ندارد.",
+    "term.noClosedTerminals": "ترمینال بسته‌شده‌ای وجود ندارد."
   }
 }

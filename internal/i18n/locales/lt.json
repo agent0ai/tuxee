@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Perkelti į erdvę",
     "app.nameIsTooLong": "Vardas per ilgas",
     "app.newWorkspace": "Nauja erdvė",
-    "app.noRetainedTerminals": "Nėra išsaugotų terminalų.",
     "app.operatingSystem": "Operacinė sistema",
     "app.parallelUploads": "Lygiagretus įkėlimas",
     "app.plainHTTP": "Nešifruotas HTTP ryšys",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Atverti nuorodą",
     "terminal.openPathHint": "Atverti: {modifier}+spustelėjimas",
     "terminal.stopNamed": "Sustabdyti {name} ir jo veikimą?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Per daug išvesties, kad būtų galima paskelbti, eikite į eilutes rankiniu būdu, kad galėtumėte skaityti",
     "tls.cachedUnreadable": "Neįmanoma nuskaityti talpykloje esančio viešojo sertifikato: {detail}",
     "tls.cachedUnusable": "Talpykloje saugomas viešasis sertifikatas yra netinkamas naudoti: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Galioja iki {time}",
     "term.closeAllConfirm": "Uždaryti visus išvardytus terminalus ({count})? Veikiančios komandos ir grafinės programos bus nutrauktos. Išsaugota išvestis liks.",
     "term.deleteArchivesConfirm": "Visam laikui ištrinti terminalų ({count}) išsaugotą išvestį ir įvesties istoriją?",
-    "backend.terminal.archiveMustBeClosed": "Prieš ištrindami išsaugotą išvestį uždarykite terminalą."
+    "backend.terminal.archiveMustBeClosed": "Prieš ištrindami išsaugotą išvestį uždarykite terminalą.",
+    "term.noLostTerminals": "Nėra prarastų terminalų.",
+    "term.noClosedTerminals": "Nėra uždarytų terminalų."
   }
 }

@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Перемістити на стіл",
     "app.nameIsTooLong": "Назва задовга",
     "app.newWorkspace": "Новий стіл",
-    "app.noRetainedTerminals": "Немає збережених терміналів.",
     "app.operatingSystem": "Операційна система",
     "app.parallelUploads": "Паралельні завантаження",
     "app.plainHTTP": "HTTP без шифрування",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Відкрити посилання",
     "terminal.openPathHint": "{modifier}+клацання для відкриття",
     "terminal.stopNamed": "Зупинити {name} і його запущену роботу?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Забагато вихідних даних для оголошення, перейдіть до рядків вручну, щоб прочитати",
     "tls.cachedUnreadable": "Неможливо прочитати кешований публічний сертифікат: {detail}",
     "tls.cachedUnusable": "Кешований публічний сертифікат непридатний для використання: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Спливає {time}",
     "term.closeAllConfirm": "Закрити всі термінали зі списку ({count})? Запущені команди та графічні програми буде завершено. Збережений вивід залишиться.",
     "term.deleteArchivesConfirm": "Назавжди видалити збережений вивід та історію введення терміналів ({count})?",
-    "backend.terminal.archiveMustBeClosed": "Закрийте термінал перед видаленням його збереженого виводу."
+    "backend.terminal.archiveMustBeClosed": "Закрийте термінал перед видаленням його збереженого виводу.",
+    "term.noLostTerminals": "Немає втрачених терміналів.",
+    "term.noClosedTerminals": "Немає закритих терміналів."
   }
 }

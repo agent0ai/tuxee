@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Flytt til område",
     "app.nameIsTooLong": "Navnet er for langt",
     "app.newWorkspace": "Nytt område",
-    "app.noRetainedTerminals": "Ingen beholdte terminaler.",
     "app.operatingSystem": "Operativsystem",
     "app.parallelUploads": "Parallelle opplastinger",
     "app.plainHTTP": "Ukryptert HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Åpne lenke",
     "terminal.openPathHint": "{modifier}+klikk for å åpne",
     "terminal.stopNamed": "Stopp {name} og dets løpende arbeid?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "For mye utgang til å kunngjøre, naviger til rader manuelt for å lese",
     "tls.cachedUnreadable": "Kan ikke lese bufret offentlig sertifikat: {detail}",
     "tls.cachedUnusable": "Bufret offentlig sertifikat er ubrukelig: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Utløper {time}",
     "term.closeAllConfirm": "Lukk alle {count} oppførte terminaler? Kjørende kommandoer og grafiske apper avsluttes. Lagrede utdata beholdes.",
     "term.deleteArchivesConfirm": "Slett lagrede utdata og inndatahistorikk for {count} terminaler permanent?",
-    "backend.terminal.archiveMustBeClosed": "Lukk terminalen før du sletter lagrede utdata."
+    "backend.terminal.archiveMustBeClosed": "Lukk terminalen før du sletter lagrede utdata.",
+    "term.noLostTerminals": "Ingen tapte terminaler.",
+    "term.noClosedTerminals": "Ingen lukkede terminaler."
   }
 }

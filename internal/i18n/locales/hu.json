@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Áthelyezés asztalra",
     "app.nameIsTooLong": "A név túl hosszú",
     "app.newWorkspace": "Új asztal",
-    "app.noRetainedTerminals": "Nincsenek megtartott terminálok.",
     "app.operatingSystem": "Operációs rendszer",
     "app.parallelUploads": "Párhuzamos feltöltések",
     "app.plainHTTP": "Titkosítatlan HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Hivatkozás megnyitása",
     "terminal.openPathHint": "Megnyitás: {modifier}+kattintás",
     "terminal.stopNamed": "Leállítja a {name}-t és működését?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Túl sok kimenet a bejelentéshez, az olvasáshoz navigáljon manuálisan a sorokhoz",
     "tls.cachedUnreadable": "A gyorsítótárazott nyilvános tanúsítvány nem olvasható: {detail}",
     "tls.cachedUnusable": "A gyorsítótárazott nyilvános tanúsítvány nem használható: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Lejár: {time}",
     "term.closeAllConfirm": "Bezárja az összes felsorolt terminált ({count})? A futó parancsok és grafikus alkalmazások leállnak. A mentett kimenet megmarad.",
     "term.deleteArchivesConfirm": "Végleg törli a terminálok ({count}) mentett kimenetét és beviteli előzményeit?",
-    "backend.terminal.archiveMustBeClosed": "A mentett kimenet törlése előtt zárja be a terminált."
+    "backend.terminal.archiveMustBeClosed": "A mentett kimenet törlése előtt zárja be a terminált.",
+    "term.noLostTerminals": "Nincsenek elveszett terminálok.",
+    "term.noClosedTerminals": "Nincsenek bezárt terminálok."
   }
 }

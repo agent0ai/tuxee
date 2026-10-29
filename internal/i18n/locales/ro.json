@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "Mută în spațiu",
     "app.nameIsTooLong": "Numele este prea lung",
     "app.newWorkspace": "Nou spațiu",
-    "app.noRetainedTerminals": "Fără terminale reținute.",
     "app.operatingSystem": "Sistem de operare",
     "app.parallelUploads": "Încărcări paralele",
     "app.plainHTTP": "HTTP necriptat",
@@ -730,7 +729,7 @@
     "terminal.openLink": "Deschide linkul",
     "terminal.openPathHint": "{modifier}+clic pentru a deschide",
     "terminal.stopNamed": "Opriți {name} și funcționarea sa?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "Prea multe rezultate pentru a fi anunțate, navigați manual la rânduri pentru a le citi",
     "tls.cachedUnreadable": "Nu se poate citi certificatul public stocat în cache: {detail}",
     "tls.cachedUnusable": "Certificatul public stocat în cache este inutilizabil: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "Expiră {time}",
     "term.closeAllConfirm": "Închizi toate terminalele listate ({count})? Comenzile și aplicațiile grafice active vor fi terminate. Ieșirea salvată va fi păstrată.",
     "term.deleteArchivesConfirm": "Ștergi definitiv ieșirea salvată și istoricul de intrare pentru {count} terminale?",
-    "backend.terminal.archiveMustBeClosed": "Închide terminalul înainte de a-i șterge ieșirea salvată."
+    "backend.terminal.archiveMustBeClosed": "Închide terminalul înainte de a-i șterge ieșirea salvată.",
+    "term.noLostTerminals": "Nu există terminale pierdute.",
+    "term.noClosedTerminals": "Nu există terminale închise."
   }
 }

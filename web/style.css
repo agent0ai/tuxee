@@ -965,11 +965,12 @@ h3 {
   background: var(--surface);
   pointer-events: none;
 }
-.retained-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.retained-header .monitor-tabs { margin: 0; min-width: 0; max-width: 100%; }
+.retained-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.retained-header .monitor-tabs { margin: 0; min-width: 0; max-width: 100%; border-bottom: 0; padding-bottom: 0; }
 .retained-header [role=tab] { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
 .retained-header > button { flex-shrink: 0; margin-inline-start: auto; }
-.retained-name { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.retained-name { display: flex; align-items: baseline; gap: 6px; overflow-wrap: anywhere; }
+.retained-directory { font-weight: 400; color: color-mix(in srgb, var(--accent) 50%, var(--muted)); }
 .retained-status { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--monitor-green); }
 .retained-status[data-exited=true] { background: var(--monitor-purple); }
 .retained-times { overflow-wrap: anywhere; }

@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "デスクに移動",
     "app.nameIsTooLong": "名前が長すぎます",
     "app.newWorkspace": "新しいデスク",
-    "app.noRetainedTerminals": "保持端末はありません。",
     "app.operatingSystem": "オペレーティングシステム",
     "app.parallelUploads": "同時アップロード数",
     "app.plainHTTP": "暗号化なしの HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "リンクを開く",
     "terminal.openPathHint": "{modifier}+クリックで開く",
     "terminal.stopNamed": "{name} とその実行中の作業を停止しますか?",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "読み上げる出力が多すぎます。手動で行に移動して確認してください",
     "tls.cachedUnreadable": "キャッシュされたパブリック証明書を読み取れません: {detail}",
     "tls.cachedUnusable": "キャッシュされたパブリック証明書は使用できません: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "有効期限 {time}",
     "term.closeAllConfirm": "一覧の端末をすべて閉じますか（{count} 件）？実行中のコマンドとGUIアプリは終了します。保存済みの出力は残ります。",
     "term.deleteArchivesConfirm": "端末 {count} 件の保存済み出力と入力履歴を完全に削除しますか？",
-    "backend.terminal.archiveMustBeClosed": "保存済みの出力を削除する前に端末を閉じてください。"
+    "backend.terminal.archiveMustBeClosed": "保存済みの出力を削除する前に端末を閉じてください。",
+    "term.noLostTerminals": "失われた端末はありません。",
+    "term.noClosedTerminals": "閉じた端末はありません。"
   }
 }

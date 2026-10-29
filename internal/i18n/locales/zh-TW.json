@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "移至工作區",
     "app.nameIsTooLong": "名稱過長",
     "app.newWorkspace": "新增工作區",
-    "app.noRetainedTerminals": "沒有保留的終端機。",
     "app.operatingSystem": "作業系統",
     "app.parallelUploads": "同時上傳數",
     "app.plainHTTP": "未加密 HTTP",
@@ -730,7 +729,7 @@
     "terminal.openLink": "開啟連結",
     "terminal.openPathHint": "{modifier}+點擊開啟",
     "terminal.stopNamed": "停止 {name} 及其執行中的工作？",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "輸出過多，無法全部朗讀；請手動移至各行閱讀",
     "tls.cachedUnreadable": "無法讀取快取的公用憑證：{detail}",
     "tls.cachedUnusable": "快取的公用憑證無法使用：{detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "到期於 {time}",
     "term.closeAllConfirm": "關閉清單中的全部 {count} 個終端機？執行中的指令和圖形應用程式將被終止。已儲存的輸出將保留。",
     "term.deleteArchivesConfirm": "永久刪除 {count} 個終端機的已儲存輸出和輸入歷史？",
-    "backend.terminal.archiveMustBeClosed": "請先關閉終端機，再刪除其已儲存的輸出。"
+    "backend.terminal.archiveMustBeClosed": "請先關閉終端機，再刪除其已儲存的輸出。",
+    "term.noLostTerminals": "沒有遺失的終端機。",
+    "term.noClosedTerminals": "沒有已關閉的終端機。"
   }
 }

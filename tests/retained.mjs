@@ -29,6 +29,12 @@ async function openRetained() {
     await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
     await retained.waitFor();
 }
+async function focused(id) {
+    await page.waitForFunction(id => {
+        const view = document.activeElement?.closest('.terminal-view');
+        return view?.dataset.terminal === id && view.closest('.panel').matches(':focus-within');
+    }, id);
+}
 async function warning(count) {
     await page.waitForFunction(count => {
         const control = document.querySelector('.user-menu-button');
@@ -88,11 +94,16 @@ try {
     assert.ok((await row(attached.name).textContent()).includes('Attached'));
     assert.ok((await row(ended.name).textContent()).includes('terminated'));
     assert.equal(await retained.locator('code').count(), 0);
+    assert.equal(await row(lost.name).locator('.retained-directory').textContent(), fields[5]);
+    assert.ok(!(await row(lost.name).locator('small:not(.retained-times)').textContent()).includes(fields[5]));
+    const header = await retained.locator('.retained-header').evaluate(header => ({ width: header.getBoundingClientRect().width, row: header.nextElementSibling.firstElementChild.getBoundingClientRect().width, border: getComputedStyle(header).borderBottomWidth, tabsBorder: getComputedStyle(header.querySelector('.monitor-tabs')).borderBottomWidth }));
+    assert.equal(header.width,header.row); assert.equal(header.border,'1px'); assert.equal(header.tabsBorder,'0px');
     await mkdir('test-results', { recursive: true });
     await page.screenshot({ path: 'test-results/retained-desktop.png' });
     const attachedSaved = page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT');
     await row(lost.name).getByRole('button', { name: 'Connect', exact: true }).click();
     await page.locator(`.terminal-view[data-terminal="${lost.id}"][data-state=connected]`).waitFor();
+    await focused(lost.id);
     await warning(1);
     assert.equal((await attachedSaved).status(), 200);
     assert.equal((await (await api(`/terminals/${lost.id}`)).json()).pid, lost.pid, 'reattach preserves the process');
@@ -100,14 +111,27 @@ try {
     assert.ok((await (await api('/me')).json()).settings.workspaces[0].panels.some(panel => panel.terminal === lost.id));
     await openRetained();
     assert.equal(await row(lost.name).count(), 0);
+    await row(ended.name).getByRole('button',{name:'View',exact:true}).click();
+    await page.locator(`.terminal-view[data-terminal="${ended.id}"] .terminal-archive pre`).waitFor(); await focused(ended.id);
+    await openRetained();
     await row(attached.name).getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 200);
     await terminate(attached.name); await warning(0);
     assert.ok((await (await api(`/terminals/${attached.id}`)).json()).closedAt);
     await terminate(ended.name, true);
-    await retained.getByText('No retained terminals.', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await retained.getByText('No lost terminals.', { exact: true }).waitFor();
+    await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    await row(ended.name).getByRole('button',{name:'View',exact:true}).click();
+    await page.locator(`.terminal-view[data-terminal="${ended.id}"]`).last().locator('.terminal-archive pre').waitFor(); await focused(ended.id);
+    await openRetained(); await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    const archiveRequested = new Promise(resolve => entered = resolve), archiveHeld = new Promise(resolve => release = resolve);
+    await page.route(base+`/api/terminals/${ended.id}/archive`,async route=>{entered(); await archiveHeld; await route.continue();});
+    await row(ended.name).getByRole('button',{name:'View',exact:true}).click(); await archiveRequested;
+    await page.locator(`.terminal-view[data-terminal="${lost.id}"] .xterm-helper-textarea`).focus();
+    release(); await page.locator(`.terminal-view[data-terminal="${ended.id}"]`).last().locator('.terminal-archive pre').waitFor();
+    await focused(lost.id); await page.unroute(base+`/api/terminals/${ended.id}/archive`);
+    console.log('PASS live and archived openings focus their panels; a delayed archive does not steal focus');
     console.log('PASS no timeout setting; warnings exclude inactive workspaces; attach preserves PID; confirmed termination and ended-session cleanup clear badges');
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -118,7 +142,10 @@ try {
     assert.ok(await page.locator('.topbar').evaluate(node => node.scrollWidth <= innerWidth));
     await page.screenshot({ path: 'test-results/retained-mobile-light.png' });
     await openRetained(); await terminate(later.name); await warning(0);
-    await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    await row(later.name).getByRole('button',{name:'View',exact:true}).focus(); await page.keyboard.press('Enter');
+    await page.locator(`.terminal-view[data-terminal="${later.id}"] .terminal-archive pre`).waitFor(); await focused(later.id);
+    await page.screenshot({path:'test-results/retained-mobile-focus.png'});
     // A failed inventory request must warn rather than clear the last known status.
     await page.route(base + '/api/terminals', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Inventory unavailable"}' }));
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));

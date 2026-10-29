@@ -36,7 +36,6 @@
     "app.moveToWorkspace": "نقل إلى مساحة",
     "app.nameIsTooLong": "الاسم طويل جدًا",
     "app.newWorkspace": "مساحة جديدة",
-    "app.noRetainedTerminals": "لا توجد محطات الاحتفاظ بها.",
     "app.operatingSystem": "نظام التشغيل",
     "app.parallelUploads": "التحميلات الموازية",
     "app.plainHTTP": "اتصال HTTP غير مشفر",
@@ -730,7 +729,7 @@
     "terminal.openLink": "فتح الرابط",
     "terminal.openPathHint": "افتح بـ {modifier}+نقر",
     "terminal.stopNamed": "إيقاف {name} وعمله الجاري؟",
-    "terminal.summary": "PID {pid} · {state} · {directory}",
+    "terminal.summary": "PID {pid} · {state}",
     "terminal.tooMuchOutput": "هناك الكثير من المخرجات التي يجب الإعلان عنها، انتقل إلى الصفوف يدويًا لقراءتها",
     "tls.cachedUnreadable": "لا يمكن قراءة الشهادة العامة المخزنة مؤقتًا: {detail}",
     "tls.cachedUnusable": "الشهادة العامة المخزنة مؤقتًا غير قابلة للاستخدام: {detail}",
@@ -785,6 +784,8 @@
     "term.expiresAt": "تنتهي صلاحيتها {time}",
     "term.closeAllConfirm": "إغلاق جميع الطرفيات المدرجة ({count})؟ ستُنهي هذه العملية الأوامر والتطبيقات الرسومية قيد التشغيل. ستبقى المخرجات المحفوظة.",
     "term.deleteArchivesConfirm": "حذف المخرجات المحفوظة وسجل الإدخال نهائيًا للطرفيات التالية: {count}؟",
-    "backend.terminal.archiveMustBeClosed": "أغلق الطرفية قبل حذف مخرجاتها المحفوظة."
+    "backend.terminal.archiveMustBeClosed": "أغلق الطرفية قبل حذف مخرجاتها المحفوظة.",
+    "term.noLostTerminals": "لا توجد طرفيات مفقودة.",
+    "term.noClosedTerminals": "لا توجد طرفيات مغلقة."
   }
 }
