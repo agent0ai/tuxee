@@ -1353,7 +1353,7 @@ h3 {
 .monitor-content { display: flex; flex-direction: column; gap: 12px; }
 .monitor-display { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; cursor: pointer; }
 .settings-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-input[role=switch] { appearance: none; width: 32px; height: 20px; padding: 2px; margin: 0; border-radius: 12px; flex-shrink: 0; cursor: pointer; transition: background .12s; }
+input[role=switch] { appearance: none; direction: inherit; width: 32px; height: 20px; padding: 2px; margin: 0; border-radius: 12px; flex-shrink: 0; cursor: pointer; transition: background .12s; }
 input[role=switch]::before { content: ''; display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .12s; }
 input[role=switch]:checked { background: var(--accent-bg); border-color: var(--accent); }
 input[role=switch]:checked::before { transform: translateX(12px); background: var(--accent); }

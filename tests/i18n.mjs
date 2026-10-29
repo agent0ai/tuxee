@@ -285,11 +285,30 @@ try {
             await tab.waitFor();
             assert.equal(await tab.textContent(), tabName);
             assert.ok(await tab.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${code}: ${tabName} must fit the ${width}px workspace tab`);
-            for (const action of ['Settings', 'RefreshCw']) {
+            for (const action of ['Settings', 'Activity', 'RefreshCw']) {
                 await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).click();
                 await view.locator(`.account-menu [data-action="${action}"]`).click();
                 await view.locator('dialog[open]').waitFor(); await bounds();
                 assert.ok(!(await view.locator('dialog[open]').innerText()).includes('[!'));
+                if (action !== 'RefreshCw') {
+                    const toggle = view.getByRole('switch');
+                    const cdp = await localized.newCDPSession(view);
+                    const { root } = await cdp.send('DOM.getDocument');
+                    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'dialog[open] input[role=switch]' });
+                    const { node } = await cdp.send('DOM.describeNode', { nodeId });
+                    const thumb = node.pseudoElements.find(node => node.pseudoType === 'before');
+                    for (const checked of [false, true]) {
+                        await toggle.setChecked(checked);
+                        await view.waitForFunction(() => !document.querySelector('dialog[open] input[role=switch]').disabled);
+                        await toggle.evaluate(node => Promise.all(node.getAnimations({ subtree: true }).map(animation => animation.finished)));
+                        const track = (await cdp.send('DOM.getBoxModel', { nodeId })).model.border;
+                        const ball = (await cdp.send('DOM.getBoxModel', { backendNodeId: thumb.backendNodeId })).model.border;
+                        const left = ball[0] - track[0], right = track[2] - ball[2];
+                        assert.ok(left > 0 && right > 0 && ball[1] > track[1] && ball[5] < track[5], `${code}/${width}/${action}/${checked}: switch ball stays inside its track`);
+                        assert.equal(left > right, checked !== rtl, `${code}/${width}/${action}/${checked}: switch follows reading direction`);
+                    }
+                    await cdp.detach();
+                }
                 if (action === 'RefreshCw' && width === 320) await view.screenshot({ path: `test-results/i18n-${code}-dialog-mobile.png` });
                 await view.getByRole('button', { name: texts['ui.closeDialog'], exact: true }).click();
             }
