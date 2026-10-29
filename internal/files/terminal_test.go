@@ -75,8 +75,8 @@ func TestTerminalHistoryAndCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	run(Request{Operation: "terminal-prune", Instance: "one", Paths: []string{live}})
-	if _, err := os.Stat(filepath.Join(base, dead)); !os.IsNotExist(err) {
-		t.Fatal("dead terminal folder survived cleanup")
+	if record, err := terminalRecord(base, dead, "one"); err != nil || record.State != "dead" {
+		t.Fatalf("dead archive lost: %+v %v", record, err)
 	}
 	for _, p := range []string{path, filepath.Join(base, other), unknown, link} {
 		if _, err := os.Lstat(p); err != nil {
@@ -84,8 +84,8 @@ func TestTerminalHistoryAndCleanup(t *testing.T) {
 		}
 	}
 	run(Request{Operation: "terminal-prune", Instance: "one"})
-	if _, err := os.Stat(filepath.Join(base, live)); !os.IsNotExist(err) {
-		t.Fatal("last terminal folder survived cleanup")
+	if record, err := terminalRecord(base, live, "one"); err != nil || record.State != "dead" {
+		t.Fatalf("unclosed archive lost: %+v %v", record, err)
 	}
 }
 

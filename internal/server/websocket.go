@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -101,11 +102,61 @@ func terminalOutput(ctx context.Context, connection *websocket.Conn, attachment 
 	}
 }
 
+func terminalArchiveFailure(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	var message *i18n.Error
+	if errors.As(err, &message) && message.Key == "backend.terminal.terminalNotFound" {
+		status = http.StatusNotFound
+	} else if message != nil && message.Key == "backend.terminal.archiveMustBeClosed" {
+		status = http.StatusConflict
+	}
+	failure(w, status, err)
+}
+
 func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *login) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/terminals/")
 	id, action, _ := strings.Cut(path, "/")
+	if action == "archive" && r.Method == "GET" {
+		archive, err := s.Terminals.Archive(r.Context(), session.user, id)
+		if err != nil {
+			terminalArchiveFailure(w, err)
+			return
+		}
+		jsonResponse(w, 200, archive)
+		return
+	}
+	if action == "archive" && r.Method == "DELETE" {
+		if err := s.Terminals.DeleteArchive(r.Context(), session.user, id); err != nil {
+			terminalArchiveFailure(w, err)
+			return
+		}
+		jsonResponse(w, 200, map[string]bool{"ok": true})
+		return
+	}
 	value, err := s.Terminals.Get(session.user, id)
 	if err != nil {
+		if action == "" && r.Method == "GET" {
+			values, listErr := s.Terminals.ArchiveInventory(r.Context(), session.user)
+			if listErr != nil {
+				failure(w, 500, listErr)
+				return
+			}
+			for _, info := range values {
+				if info.ID == id {
+					jsonResponse(w, 200, info)
+					return
+				}
+			}
+		}
+		if action == "" && r.Method == "DELETE" {
+			if closeErr := s.Terminals.CloseArchive(r.Context(), session.user, id); closeErr != nil {
+				terminalArchiveFailure(w, closeErr)
+				return
+			}
+			s.Terminals.PruneHistory(session.user)
+			jsonResponse(w, 200, map[string]bool{"ok": true})
+			return
+		}
 		failure(w, 404, err)
 		return
 	}

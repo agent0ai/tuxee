@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"syscall"
+	"time"
 	"tuxee/internal/i18n"
 )
 
@@ -17,8 +17,21 @@ const InputHistoryEntries = 50
 const InputHistoryEntryBytes = 64 << 10
 const maxInputHistoryJSON = InputHistoryEntries*(6*InputHistoryEntryBytes+3) + 2
 
-type terminalMetadata struct {
-	InstanceID string `json:"instanceId"`
+const DefaultClosedHistoryHours = 168
+const MaxClosedHistoryHours = 876000
+const MaxTerminalArchiveBytes = 6 << 20
+
+type TerminalRecord struct {
+	InstanceID   string     `json:"instanceId"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Directory    string     `json:"directory"`
+	State        string     `json:"state"`
+	StartedAt    *time.Time `json:"startedAt,omitempty"`
+	TerminatedAt *time.Time `json:"terminatedAt,omitempty"`
+	FoundDeadAt  *time.Time `json:"foundDeadAt,omitempty"`
+	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
+	ClosedAt     *time.Time `json:"closedAt,omitempty"`
 }
 
 func terminalID(id string) bool {
@@ -39,7 +52,11 @@ func readTerminalFile(path string, limit int64) ([]byte, error) {
 	if !info.Mode().IsRegular() || info.Size() > limit {
 		return nil, i18n.New("backend.files.invalidWorkerRequest")
 	}
-	return io.ReadAll(io.LimitReader(file, limit+1))
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err == nil && int64(len(data)) > limit {
+		err = i18n.New("backend.files.invalidWorkerRequest")
+	}
+	return data, err
 }
 
 func terminalFiles(ctx context.Context, r Request) (Response, error) {
@@ -55,43 +72,13 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 		state = filepath.Join(home, ".local", "state")
 	}
 	base := filepath.Join(state, "tuxee", "terminals")
-	if r.Operation == "terminal-prune" {
-		for _, id := range r.Paths {
-			if !terminalID(id) {
-				return Response{}, i18n.New("backend.files.invalidWorkerRequest")
-			}
-			if err := prepareTerminalFolder(base, id, r.Instance); err != nil {
-				return Response{}, err
-			}
-		}
-		entries, err := os.ReadDir(base)
-		if errors.Is(err, os.ErrNotExist) {
-			return Response{}, nil
-		}
-		if err != nil {
-			return Response{}, err
-		}
-		for _, entry := range entries {
-			if err := ctx.Err(); err != nil {
-				return Response{}, err
-			}
-			if !entry.IsDir() || !terminalID(entry.Name()) || slices.Contains(r.Paths, entry.Name()) {
-				continue
-			}
-			path := filepath.Join(base, entry.Name())
-			data, err := readTerminalFile(filepath.Join(path, "meta.json"), 4096)
-			var meta terminalMetadata
-			if err != nil || json.Unmarshal(data, &meta) != nil || meta.InstanceID != r.Instance {
-				continue
-			}
-			// shortcut: discard dead sessions; replace with state/expiry transitions when archives ship.
-			if err := os.RemoveAll(path); err != nil {
-				return Response{}, err
-			}
-		}
-		return Response{}, nil
+	if r.Operation == "terminal-prune" || r.Operation == "terminal-list" {
+		return reconcileTerminals(ctx, base, r)
 	}
-	if !terminalID(r.Path) {
+	if r.Operation == "terminal-archive" || r.Operation == "terminal-record" || r.Operation == "terminal-close" || r.Operation == "terminal-delete" {
+		return terminalArchive(base, r)
+	}
+	if r.Operation != "terminal-history" || !terminalID(r.Path) {
 		return Response{}, i18n.New("backend.files.invalidWorkerRequest")
 	}
 	if err := prepareTerminalFolder(base, r.Path, r.Instance); err != nil {
@@ -145,15 +132,15 @@ func prepareTerminalFolder(base, id, instance string) error {
 		return os.ErrPermission
 	}
 	metaPath := filepath.Join(path, "meta.json")
-	data, err := readTerminalFile(metaPath, 4096)
+	data, err := readTerminalFile(metaPath, 16384)
 	if errors.Is(err, os.ErrNotExist) {
-		data, _ = json.Marshal(terminalMetadata{InstanceID: instance})
+		data, _ = json.Marshal(TerminalRecord{InstanceID: instance, ID: id, Name: "Terminal", State: "live"})
 		return replaceFile(metaPath, data)
 	}
 	if err != nil {
 		return err
 	}
-	var meta terminalMetadata
+	var meta TerminalRecord
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
 	}

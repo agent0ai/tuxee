@@ -61,21 +61,22 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
-	ShellCommand            string      `json:"shellCommand,omitempty"`
-	UseTuxeePrompt          *bool       `json:"useTuxeePrompt,omitempty"`
-	DefaultDirectory        string      `json:"defaultDirectory,omitempty"`
-	ServerName              string      `json:"serverName,omitempty"`
-	ServerColor             string      `json:"serverColor,omitempty"`
-	TerminalBackground      string      `json:"terminalBackground,omitempty"`
-	TerminalBackgroundLight string      `json:"terminalBackgroundLight,omitempty"`
-	TerminalFontSize        *int        `json:"terminalFontSize,omitempty"`
-	TerminalFontFamily      string      `json:"terminalFontFamily,omitempty"`
-	UploadConcurrency       *int        `json:"uploadConcurrency,omitempty"`
-	EditorLineWrap          *bool       `json:"editorLineWrap,omitempty"`
-	Theme                   string      `json:"theme"`
-	Current                 string      `json:"current"`
-	Workspaces              []Workspace `json:"workspaces"`
-	Monitoring              *Monitoring `json:"monitoring,omitempty"`
+	ClosedTerminalHistoryHours *int        `json:"closedTerminalHistoryHours,omitempty"`
+	ShellCommand               string      `json:"shellCommand,omitempty"`
+	UseTuxeePrompt             *bool       `json:"useTuxeePrompt,omitempty"`
+	DefaultDirectory           string      `json:"defaultDirectory,omitempty"`
+	ServerName                 string      `json:"serverName,omitempty"`
+	ServerColor                string      `json:"serverColor,omitempty"`
+	TerminalBackground         string      `json:"terminalBackground,omitempty"`
+	TerminalBackgroundLight    string      `json:"terminalBackgroundLight,omitempty"`
+	TerminalFontSize           *int        `json:"terminalFontSize,omitempty"`
+	TerminalFontFamily         string      `json:"terminalFontFamily,omitempty"`
+	UploadConcurrency          *int        `json:"uploadConcurrency,omitempty"`
+	EditorLineWrap             *bool       `json:"editorLineWrap,omitempty"`
+	Theme                      string      `json:"theme"`
+	Current                    string      `json:"current"`
+	Workspaces                 []Workspace `json:"workspaces"`
+	Monitoring                 *Monitoring `json:"monitoring,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -104,6 +105,9 @@ func validateSettings(value *Settings) error {
 }
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
+	if n := value.ClosedTerminalHistoryHours; n != nil && (*n < 0 || *n > files.MaxClosedHistoryHours) {
+		return i18n.New("backend.server.closedHistoryHoursRange", i18n.Vars{"min": 0, "max": files.MaxClosedHistoryHours})
+	}
 	value.ShellCommand = strings.TrimSpace(value.ShellCommand)
 	if len(value.ShellCommand) > maxShellCommandBytes || strings.ContainsAny(value.ShellCommand, "\x00\r\n") {
 		return i18n.New("backend.server.shellCommandLimit", i18n.Vars{"maxBytes": maxShellCommandBytes})

@@ -147,7 +147,7 @@ try {
     const replacement = await info();
     assert.equal(creations, 1); assert.notEqual(replacement.pid, old.pid); assert.equal(replacement.name, old.name);
     assert.ok(await originalDOM.evaluate(node => node.isConnected));
-    assert.equal((await api(`/terminals/${old.id}`)).status(), 404);
+    assert.ok((await (await api(`/terminals/${old.id}`)).json()).closedAt);
     await waitFor(() => run('test', ['-e', `/proc/${old.pid}`]).status !== 0, 'stopped shell survived reset');
     await waitFor(() => run('test', ['-e', `/proc/${appPID}`]).status !== 0, 'GUI process survived reset');
     assert.equal((await (await api('/me')).json()).settings.workspaces[0].panels[0].terminal, replacement.id);
@@ -160,7 +160,7 @@ try {
     console.log('PASS stopped shell and GUI killed; one replacement persists in the same panel, preserving name, draft and neighbor');
 
     await command('exit'); await page.locator('[data-panel="reset"] .terminal-view[data-state=ended]').waitFor();
-    await confirmReset(); await connected();
+    await terminal.getByRole('button', { name: 'Restart', exact: true }).click(); await connected();
     await command("printf 'EXIT_RESET_%s\\n' WORKS");
     await waitFor(async () => (await terminal.locator('.xterm-rows').textContent()).includes('EXIT_RESET_WORKS'), 'exited shell cannot reset');
     const beforeFailure = await info();
@@ -174,7 +174,7 @@ try {
     await confirmReset();
     const restart = terminal.getByRole('button', { name: 'Restart terminal', exact: true });
     await restart.waitFor();
-    assert.equal((await api(`/terminals/${beforeFailure.id}`)).status(), 404);
+    assert.ok((await (await api(`/terminals/${beforeFailure.id}`)).json()).closedAt);
     await page.unroute(base + '/api/terminals'); await restart.click(); await connected();
     await page.route(base + '/api/settings', route => route.request().method() === 'PUT'
         ? route.fulfill({ status: 409, json: { error: 'Test save rejection' } }) : route.continue());
@@ -192,7 +192,7 @@ try {
     await confirmReset(); await pendingDelete.entered;
     await page.locator('[data-panel="reset"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await terminal.waitFor({ state: 'detached' }); await pendingDelete.release();
-    await waitFor(async () => (await api(`/terminals/${closing.id}`)).status() === 404, 'close did not end resetting terminal');
+    await waitFor(async () => Boolean((await (await api(`/terminals/${closing.id}`)).json()).closedAt), 'close did not end resetting terminal');
     await page.unroute(base + `/api/terminals/${closing.id}`);
     assert.equal(creations, beforeClose, 'closing during delete must not create a shell');
     const pendingCreate = await hold('/terminals', 'POST');
@@ -201,7 +201,7 @@ try {
     await page.locator('[data-panel="neighbor"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await neighborView.waitFor({ state: 'detached' }); await pendingCreate.release();
     await waitFor(() => creations === beforeClose + 1, 'held creation did not finish');
-    await waitFor(async () => (await api(`/terminals/${created.at(-1)}`)).status() === 404, 'close leaked pending replacement');
+    await waitFor(async () => Boolean((await (await api(`/terminals/${created.at(-1)}`)).json()).closedAt), 'close leaked pending replacement');
     await page.unroute(base + '/api/terminals');
     assert.deepEqual(errors, []);
     console.log('PASS closing during deletion or creation leaves no replacement shell');

@@ -108,10 +108,10 @@ try {
     await button('Reset terminal', terminal).click(); await button('Kill and reset', dialog('Reset terminal?')).click();
     await waitFor(async () => await terminal.getAttribute('data-state') === 'connected' && await terminal.getAttribute('data-terminal') !== original.id, 'reset terminal');
     let replacement = await terminal.getAttribute('data-terminal'); assert.equal(await cwd(replacement), workspacePath);
-    assert.equal((await api(`/terminals/${original.id}`)).status(), 404);
+    assert.ok((await (await api(`/terminals/${original.id}`)).json()).closedAt);
     assert.equal(await cwd(added.terminal), workspacePath);
     await setDirectory(wsID, '~/other');
-    await api(`/terminals/${replacement}`, 'DELETE'); await button('Restart terminal', terminal).click();
+    await api(`/terminals/${replacement}`, 'DELETE'); await button('Restart', terminal).click();
     await waitFor(async () => await terminal.getAttribute('data-state') === 'connected' && await terminal.getAttribute('data-terminal') !== replacement, 'lost-session restart');
     replacement = await terminal.getAttribute('data-terminal'); assert.equal(await cwd(replacement), otherPath);
     const reconnectPID = (await info(replacement)).pid;

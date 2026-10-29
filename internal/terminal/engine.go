@@ -43,6 +43,7 @@ func NewEngine(cols, rows int) (*Engine, error) {
 	e.loop.Start()
 	e.loop.RunOnLoop(func(vm *goja.Runtime) {
 		e.vm = vm
+		_ = vm.Set("__archiveText", archiveText)
 		_ = vm.Set("__encodeUTF8", func(s string) []byte { return []byte(s) })
 		_ = vm.Set("process", map[string]any{"title": "tuxee"})
 		started := time.Now()

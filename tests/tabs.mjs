@@ -308,7 +308,7 @@ try {
     const killed = page.waitForResponse(response => response.url() === `${base}/api/terminals/${terminalID}` && response.request().method() === 'DELETE');
     await menu.getByRole('menuitem', { name: 'Close', exact: true }).tap();
     assert.equal((await killed).status(), 200);
-    assert.equal((await api(`/terminals/${terminalID}`)).status(), 404);
+    assert.ok((await (await api(`/terminals/${terminalID}`)).json()).closedAt);
     await panel('panel-6').waitFor({ state: 'detached' });
     await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
     assert.equal(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);
