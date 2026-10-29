@@ -410,7 +410,7 @@
     "editor.redo": "Rehacer",
     "editor.regex": "Expresión regular",
     "editor.replaceAll": "Reemplazar todo",
-    "editor.replaceCurrent": "Reemplazar actual",
+    "editor.replaceCurrent": "Reemplazar",
     "editor.replaceText": "Texto de reemplazo",
     "editor.saveAndContinue": "Guardar y continuar",
     "editor.saveChanges": "¿Guardar cambios?",

@@ -410,7 +410,7 @@
     "editor.redo": "Znovu",
     "editor.regex": "Regulární výraz",
     "editor.replaceAll": "Nahradit vše",
-    "editor.replaceCurrent": "Nahradit aktuální",
+    "editor.replaceCurrent": "Nahradit",
     "editor.replaceText": "Nahradit textem",
     "editor.saveAndContinue": "Uložit a pokračovat",
     "editor.saveChanges": "Uložit změny?",

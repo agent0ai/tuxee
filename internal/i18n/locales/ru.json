@@ -410,7 +410,7 @@
     "editor.redo": "Повторить",
     "editor.regex": "Регулярное выражение",
     "editor.replaceAll": "Заменить все",
-    "editor.replaceCurrent": "Заменить текущее",
+    "editor.replaceCurrent": "Заменить",
     "editor.replaceText": "Текст замены",
     "editor.saveAndContinue": "Сохранить и продолжить",
     "editor.saveChanges": "Сохранить изменения?",

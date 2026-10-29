@@ -410,7 +410,7 @@
     "editor.redo": "다시 실행",
     "editor.regex": "정규식",
     "editor.replaceAll": "모두 바꾸기",
-    "editor.replaceCurrent": "현재 항목 바꾸기",
+    "editor.replaceCurrent": "바꾸기",
     "editor.replaceText": "바꿀 텍스트",
     "editor.saveAndContinue": "저장하고 계속",
     "editor.saveChanges": "변경사항을 저장하시겠습니까?",

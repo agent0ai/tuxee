@@ -410,7 +410,7 @@
     "editor.redo": "やり直し",
     "editor.regex": "正規表現",
     "editor.replaceAll": "すべて置換",
-    "editor.replaceCurrent": "現在の一致を置換",
+    "editor.replaceCurrent": "置換",
     "editor.replaceText": "置換後のテキスト",
     "editor.saveAndContinue": "保存して続行",
     "editor.saveChanges": "変更を保存しますか?",

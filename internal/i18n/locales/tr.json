@@ -410,7 +410,7 @@
     "editor.redo": "Yinele",
     "editor.regex": "Düzenli ifade",
     "editor.replaceAll": "Tümünü değiştir",
-    "editor.replaceCurrent": "Geçerliyi değiştir",
+    "editor.replaceCurrent": "Değiştir",
     "editor.replaceText": "Değiştirme metni",
     "editor.saveAndContinue": "Kaydet ve devam et",
     "editor.saveChanges": "Değişiklikler kaydedilsin mi?",

@@ -410,7 +410,7 @@
     "editor.redo": "Tee uudelleen",
     "editor.regex": "Säännöllinen lauseke",
     "editor.replaceAll": "Korvaa kaikki",
-    "editor.replaceCurrent": "Korvaa nykyinen",
+    "editor.replaceCurrent": "Korvaa",
     "editor.replaceText": "Korvaava teksti",
     "editor.saveAndContinue": "Tallenna ja jatka",
     "editor.saveChanges": "Tallennetaanko muutokset?",

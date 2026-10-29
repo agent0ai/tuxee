@@ -410,7 +410,7 @@
     "editor.redo": "Refés",
     "editor.regex": "Expressió regular",
     "editor.replaceAll": "Substitueix-ho tot",
-    "editor.replaceCurrent": "Substitueix l'actual",
+    "editor.replaceCurrent": "Substitueix",
     "editor.replaceText": "Text de substitució",
     "editor.saveAndContinue": "Desa i continua",
     "editor.saveChanges": "Voleu desar els canvis?",

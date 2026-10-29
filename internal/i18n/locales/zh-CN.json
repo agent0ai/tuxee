@@ -410,7 +410,7 @@
     "editor.redo": "重做",
     "editor.regex": "正则表达式",
     "editor.replaceAll": "全部替换",
-    "editor.replaceCurrent": "替换当前项",
+    "editor.replaceCurrent": "替换",
     "editor.replaceText": "替换文本",
     "editor.saveAndContinue": "保存并继续",
     "editor.saveChanges": "保存更改吗？",

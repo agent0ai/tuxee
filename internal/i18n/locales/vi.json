@@ -410,7 +410,7 @@
     "editor.redo": "Làm lại",
     "editor.regex": "Biểu thức chính quy",
     "editor.replaceAll": "Thay thế tất cả",
-    "editor.replaceCurrent": "Thay kết quả hiện tại",
+    "editor.replaceCurrent": "Thay thế",
     "editor.replaceText": "Văn bản thay thế",
     "editor.saveAndContinue": "Lưu và tiếp tục",
     "editor.saveChanges": "Lưu thay đổi?",

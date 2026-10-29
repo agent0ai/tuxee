@@ -410,7 +410,7 @@
     "editor.redo": "از نو",
     "editor.regex": "عبارت منظم",
     "editor.replaceAll": "جایگزینی همه",
-    "editor.replaceCurrent": "جایگزینی مورد فعلی",
+    "editor.replaceCurrent": "جایگزینی",
     "editor.replaceText": "متن جایگزین",
     "editor.saveAndContinue": "ذخیره کنید و ادامه دهید",
     "editor.saveChanges": "تغییرات ذخیره شود؟",

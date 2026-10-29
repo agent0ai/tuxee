@@ -410,7 +410,7 @@
     "editor.redo": "Επανάληψη",
     "editor.regex": "Κανονική έκφραση",
     "editor.replaceAll": "Αντικατάσταση όλων",
-    "editor.replaceCurrent": "Αντικατάσταση τρέχοντος",
+    "editor.replaceCurrent": "Αντικατάσταση",
     "editor.replaceText": "Κείμενο αντικατάστασης",
     "editor.saveAndContinue": "Αποθήκευση και συνέχεια",
     "editor.saveChanges": "Αποθήκευση αλλαγών;",

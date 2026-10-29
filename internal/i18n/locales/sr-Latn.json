@@ -410,7 +410,7 @@
     "editor.redo": "Ponovi",
     "editor.regex": "Regularni izraz",
     "editor.replaceAll": "Zameni sve",
-    "editor.replaceCurrent": "Zameni trenutno",
+    "editor.replaceCurrent": "Zameni",
     "editor.replaceText": "Zamenski tekst",
     "editor.saveAndContinue": "Sačuvaj i nastavi",
     "editor.saveChanges": "Sačuvati izmene?",

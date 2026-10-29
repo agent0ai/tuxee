@@ -1319,11 +1319,12 @@ h3 {
 .editor-search { padding: 5px; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--text); }
 .editor-search-fields { display: flex; gap: 5px; }
 .editor-search-fields textarea { flex: 1; min-width: 0; resize: vertical; }
-.editor-search-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-top: 4px; }
-.editor-search-navigation { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.editor-search-actions { display: flex; align-items: center; gap: 2px; padding-top: 4px; }
+.editor-search-controls { display: flex; flex: 1; min-width: 0; align-items: center; gap: 2px; }
+.editor-search-navigation { display: flex; flex-shrink: 0; align-items: center; gap: 2px; white-space: nowrap; }
 .editor-search-status { min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums; }
-.editor-search-actions button { padding: 4px; }
-.editor-search-actions label { display: flex; align-items: center; gap: 3px; font-size: 11px; }
+.editor-search-actions button, .editor-search-menu .editor-search-navigation button { flex-shrink: 0; padding: 4px 3px; }
+.editor-search-close { margin-inline-start: auto; }
 .editor-search-status, .editor-search-warning, .editor-search-error { font-size: 11px; color: var(--muted); }
 .editor-search-warning { padding-top: 4px; }
 .cm-editor .cm-scroller { font-family: ui-monospace, monospace; overflow: auto; }

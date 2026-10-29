@@ -410,7 +410,7 @@
     "editor.redo": "Gjør om",
     "editor.regex": "Regulært uttrykk",
     "editor.replaceAll": "Erstatt alle",
-    "editor.replaceCurrent": "Erstatt gjeldende",
+    "editor.replaceCurrent": "Erstatt",
     "editor.replaceText": "Erstatningstekst",
     "editor.saveAndContinue": "Lagre og fortsett",
     "editor.saveChanges": "Vil du lagre endringer?",

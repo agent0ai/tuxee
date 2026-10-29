@@ -410,7 +410,7 @@
     "editor.redo": "Újra",
     "editor.regex": "Reguláris kifejezés",
     "editor.replaceAll": "Összes cseréje",
-    "editor.replaceCurrent": "Aktuális cseréje",
+    "editor.replaceCurrent": "Csere",
     "editor.replaceText": "Csereszöveg",
     "editor.saveAndContinue": "Mentés és folytatás",
     "editor.saveChanges": "Menti a változtatásokat?",

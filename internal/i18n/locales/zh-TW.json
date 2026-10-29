@@ -410,7 +410,7 @@
     "editor.redo": "重做",
     "editor.regex": "規則運算式",
     "editor.replaceAll": "全部取代",
-    "editor.replaceCurrent": "取代目前項目",
+    "editor.replaceCurrent": "取代",
     "editor.replaceText": "取代文字",
     "editor.saveAndContinue": "儲存並繼續",
     "editor.saveChanges": "儲存變更？",
