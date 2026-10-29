@@ -1114,7 +1114,10 @@ async function runShortcut(action: string) {
             if (panel) { await closePanel(panel); focusActivePanel(); }
             break;
         }
-        case 'panel.layout': rearrangeWorkspace(); break;
+        case 'panel.layout':
+            if (isCompact()) rearrangeWorkspace();
+            else root.querySelector<HTMLButtonElement>('.layout-cycle')?.click();
+            break;
         case 'audio.mute': toggleMute(); break;
         case 'audio.up': adjustVolume(5); break;
         case 'audio.down': adjustVolume(-5); break;

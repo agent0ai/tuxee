@@ -119,7 +119,19 @@ try {
     assert.equal(await page.locator('[data-panel=files0]').count(), 1);
     assert.equal(await page.locator(`[data-panel="${termID}"]`).count(), 1);
     await hotkey('f'); assert.equal(await page.locator('.file-view').count(), 2);
-    await hotkey('a'); assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), '1');
+    await terminal.focus(); await page.mouse.move(0, 0);
+    await page.evaluate(() => window.shortcutInputs = []);
+    for (const mode of [1, 2, 3, 0]) {
+        await hotkey('a');
+        const arrange = page.locator('.layout-cycle');
+        assert.equal(await arrange.getAttribute('data-mode'), String(mode));
+        assert.equal(await arrange.locator('.layout-label').textContent(), ['Custom', 'Balanced', 'Terminals', 'Files'][mode]);
+        assert.ok(await arrange.evaluate(node => node.classList.contains('expanded')), 'layout shortcut reveals the mode label');
+        await page.waitForFunction(() => document.querySelector('.layout-label')?.getBoundingClientRect().width > 0);
+        assert.equal(await focused(), termID, 'layout shortcut preserves terminal focus');
+        await page.waitForFunction(() => document.querySelector('.layout-label')?.getBoundingClientRect().width === 0);
+    }
+    assert.deepEqual(await page.evaluate(() => window.shortcutInputs), [], 'layout shortcuts must send no PTY bytes');
     await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted');
     await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100%');
     await hotkey('PageDown'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 95%');
@@ -191,6 +203,11 @@ try {
     await page.locator(`[data-panel="${termID}"]`).waitFor({state:'detached'});
     await page.waitForFunction(async id => (await (await fetch(`/api/terminals/${id}`)).json()).exited, terminalID);
     assert.equal(await page.locator('.file-view').count(), 2, 'closing the terminal preserves file panels');
+    await page.setViewportSize({width:390,height:850});
+    await page.locator('#app.compact').waitFor();
+    await hotkey('a');
+    await page.setViewportSize({width:1440,height:900});
+    await page.waitForFunction(() => document.querySelector('.layout-cycle')?.dataset.mode === '1');
     await page.setViewportSize({width:390,height:850});
     await page.locator('#app.compact').waitFor();
     await hotkey('ArrowDown');
