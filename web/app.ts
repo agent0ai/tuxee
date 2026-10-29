@@ -1085,6 +1085,7 @@ function focusActivePanel() {
 }
 async function runShortcut(action: string) {
     const ws = current();
+    const focused = document.activeElement?.closest<HTMLElement>('[data-panel]')?.dataset.panel || ws.active;
     if (action.startsWith('desktop.') && action !== 'desktop.add') {
         const index = settings.workspaces.indexOf(ws), direction = document.documentElement.dir === 'rtl' ? -1 : 1;
         const target = action === 'desktop.previous' ? index - direction : action === 'desktop.next' ? index + direction : Number(action.split('.')[1]) - 1;
@@ -1094,11 +1095,10 @@ async function runShortcut(action: string) {
         return;
     }
     if (action === 'panel.next' || action === 'panel.previous') {
-        const focused = document.activeElement?.closest<HTMLElement>('[data-panel]')?.dataset.panel || ws.active;
         const panels = ws.panels.filter(panel => {
             const node = mounted?.items.get(panel.id)?.node;
             return node && !node.dataset.closing && !node.dataset.moving;
-        });
+        }).sort((a, b) => ws.columns > ws.rows ? a.x - b.x || a.y - b.y : a.y - b.y || a.x - b.x);
         if (!panels.length) return;
         const index = panels.findIndex(panel => panel.id === focused);
         activatePanel(panels[(index + (action === 'panel.next' ? 1 : -1) + panels.length) % panels.length]);
@@ -1108,6 +1108,11 @@ async function runShortcut(action: string) {
         case 'desktop.add': await createWorkspace(); focusActivePanel(); break;
         case 'panel.terminal': addPanel('terminal'); focusActivePanel(); break;
         case 'panel.files': addPanel('files'); focusActivePanel(); break;
+        case 'panel.close': {
+            const panel = ws.panels.find(panel => panel.id === focused);
+            if (panel) { await closePanel(panel); focusActivePanel(); }
+            break;
+        }
         case 'panel.layout': rearrangeWorkspace(); break;
         case 'audio.mute': toggleMute(); break;
         case 'audio.up': adjustVolume(5); break;

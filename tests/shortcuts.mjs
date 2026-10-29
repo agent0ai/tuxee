@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 const bundle = await build({ entryPoints: ['web/shortcuts.ts'], bundle: true, platform: 'node', format: 'esm', write: false });
 const shortcuts = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const defaults = shortcuts.bindings();
-assert.equal(Object.keys(defaults).length, 28);
+assert.equal(Object.keys(defaults).length, 29);
 for (const [id, slots] of Object.entries(defaults)) for (const [index, sequence] of slots.entries()) assert.equal(shortcuts.shortcutConflict(defaults, sequence, id, index), undefined);
 for (const [first, second] of Object.values(defaults)) {
     assert.equal(first.length, 1); assert.ok(first[0].startsWith('Alt+Shift+')); assert.deepEqual(second, []);
@@ -106,6 +106,19 @@ try {
     await page.waitForFunction(() => window.shortcutInputs.length > 0);
     assert.deepEqual(await page.evaluate(() => window.shortcutInputs), [[3]], 'ordinary Ctrl+C remains terminal input');
     await hotkey('f'); assert.equal(await page.locator('.file-view').count(), 2);
+    const fileID = await focused(), filePanel = page.locator(`[data-panel="${fileID}"]`);
+    await filePanel.locator('.file-entry').filter({hasText:'first.txt'}).dblclick();
+    await filePanel.locator('.cm-content').fill('unsaved shortcut edit');
+    await hotkey('w');
+    const discard = page.getByRole('dialog', {name:'Discard changes?', exact:true, includeHidden:true}); await discard.waitFor();
+    await page.keyboard.press('Escape'); await discard.waitFor({state:'detached'});
+    assert.equal(await filePanel.locator('.cm-content').textContent(), 'unsaved shortcut edit');
+    await hotkey('w'); await discard.waitFor(); await discard.getByRole('button', {name:'Discard', exact:true}).click();
+    await filePanel.waitFor({state:'detached'});
+    assert.equal(await readFile(home+'/first.txt', 'utf8'), 'first.txt');
+    assert.equal(await page.locator('[data-panel=files0]').count(), 1);
+    assert.equal(await page.locator(`[data-panel="${termID}"]`).count(), 1);
+    await hotkey('f'); assert.equal(await page.locator('.file-view').count(), 2);
     await hotkey('a'); assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), '1');
     await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted');
     await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100%');
@@ -114,6 +127,7 @@ try {
     for (const [key, title] of [['m','Resource monitor'],['h','About Tuxee'],['s','Settings'],['r','Retained terminals'],['x','Restart Tuxee?']]) {
         await hotkey(key); const dialog = page.getByRole('dialog', { name: title, exact: true }); await dialog.waitFor();
         await hotkey('Enter'); assert.equal(await page.locator('.terminal-view').count(), 1, 'modal must block application shortcuts');
+        await hotkey('w'); assert.equal(await page.locator('.file-view').count(), 2, 'modal must block panel closure');
         await page.keyboard.press('Escape'); await dialog.waitFor({state:'hidden'});
     }
     await page.keyboard.down('Alt'); await page.keyboard.down('Shift'); await page.keyboard.down('s');
@@ -122,7 +136,7 @@ try {
     await page.keyboard.press('Escape');
     const open = async () => { await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Keyboard]').click(); };
     const editor = page.locator('.shortcuts-modal'), recorder = page.locator('.shortcut-record-modal');
-    await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 28);
+    await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 29);
     await editor.locator('[data-shortcut="app.about"] th').dblclick(); await recorder.waitFor();
     await hotkey('h');
     assert.equal(await recorder.locator('output').textContent(), 'Alt+Shift+H');
@@ -172,12 +186,20 @@ try {
     assert.deepEqual((await saved()).shortcuts['app.about'][0], defaults['app.about'][0]);
     await record('app.about'); await recorder.getByRole('button',{name:'Clear',exact:true}).click(); await save();
     await editor.getByRole('button',{name:'Close dialog',exact:true}).click();
+    const terminalID = (await saved()).workspaces.flatMap(ws => ws.panels).find(panel => panel.id === termID).terminal;
+    await terminal.focus(); await hotkey('w');
+    await page.locator(`[data-panel="${termID}"]`).waitFor({state:'detached'});
+    await page.waitForFunction(async id => (await (await fetch(`/api/terminals/${id}`)).json()).exited, terminalID);
+    assert.equal(await page.locator('.file-view').count(), 2, 'closing the terminal preserves file panels');
     await page.setViewportSize({width:390,height:850});
     await page.locator('#app.compact').waitFor();
     await hotkey('ArrowDown');
     assert.equal(await page.locator('.component-tab.active').getAttribute('data-component-name'), await focused());
     await hotkey('ArrowUp');
     assert.equal(await page.locator('.component-tab.active').getAttribute('data-component-name'), await focused());
+    await hotkey('f'); const compactClosed = await focused(); await hotkey('w');
+    await page.locator(`[data-panel="${compactClosed}"]`).waitFor({state:'detached'});
+    assert.equal(await page.locator('.file-view').count(), 2);
     await hotkey('d'); await waitActive('Desktop 11');
     await hotkey('q'); await page.locator('.login-page').waitFor();
     csrf = await login('cs'); await page.reload(); await page.locator('.user-menu-button').waitFor();
@@ -202,6 +224,28 @@ try {
     assert.equal(await recorder.locator('output').textContent(),'Option+Cmd+U'); await save();
     await page.keyboard.press('Escape'); await page.keyboard.press('Meta+Alt+u');
     await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');
+    const checkPanelOrder = async (rectangles, order, width, height) => {
+        await page.goto('about:blank');
+        await page.setViewportSize({width,height});
+        const panels = rectangles.map(([id,x,y,w,h]) => ({id,kind:'files',path:home,x,y,w,h})).reverse();
+        const settings = {...await saved(), current:'ordered', workspaces:[{id:'ordered',name:'Ordered',columns:4,rows:2,active:order[0],panels}]};
+        assert.equal((await api('/settings','PUT',settings)).status(),200);
+        await page.goto(base); await page.locator('.user-menu-button').waitFor();
+        for (const id of [...order.slice(1),order[0]]) {
+            await hotkey('ArrowDown'); assert.equal(await focused(),id,`next at ${width}x${height}`);
+        }
+        for (const id of [...order.slice(1).reverse(),order[0]]) {
+            await hotkey('ArrowUp'); assert.equal(await focused(),id,`previous at ${width}x${height}`);
+        }
+        await page.waitForResponse(response => response.url() === base+'/api/settings' && response.request().method() === 'PUT');
+    };
+    const cells = Array.from({length:8},(_,i) => [String(i+1),Math.floor(i/2),i%2,1,1]);
+    const merged = [['A',0,0,2,1],['B',2,0,2,1],['C',0,1,1,1],['D',1,1,1,1],['E',2,1,1,1],['F',3,1,1,1]];
+    for (const [width,height] of [[1440,900],[900,1440],[390,850]]) {
+        await checkPanelOrder(cells, [...'12345678'], width, height);
+        await checkPanelOrder(merged, [...'ACDBEF'], width, height);
+    }
+    console.log('shortcuts: spatial panel order, merged cells, reverse/wrap, portrait and compact passed');
     for (const file of await readdir('internal/i18n/locales')) {
         const code=file.replace('.json',''), catalog=JSON.parse(await readFile('internal/i18n/locales/'+file,'utf8')).texts;
         await page.goto('about:blank'); csrf=await login(code); await page.goto(base); await page.locator('.user-menu-button').waitFor();
@@ -214,7 +258,7 @@ try {
         console.log(`shortcuts: ${code} labels and compact bounds passed`);
     }
     assert.deepEqual(errors, []);
-    console.log('PASS single-chord Alt+Shift defaults/actions, preserved custom sequences, reordered desktops 1–10, panel focus, audio, modal isolation, recorder/conflicts, both slots, save/cancel/failure, disk/reload/login persistence, Czech and compact themes');
+    console.log('PASS single-chord Alt+Shift defaults/actions, preserved custom sequences, reordered desktops 1–10, spatial panel cycling, panel focus/closure, unsaved-edit protection, terminal termination, audio, modal isolation, recorder/conflicts, both slots, save/cancel/failure, disk/reload/login persistence, Czech and compact themes');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
     run('userdel',['-f',user]); await rm(home,{recursive:true,force:true}); await rm(state,{recursive:true,force:true});

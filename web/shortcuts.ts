@@ -12,6 +12,7 @@ export const shortcutActions = [
     { id: 'panel.previous', label: () => t('shortcuts.previousWindow'), group: 'shortcuts.windows', key: 'ArrowUp' },
     { id: 'panel.terminal', label: () => t('app.addTerminal'), group: 'shortcuts.windows', key: 'Enter' },
     { id: 'panel.files', label: () => t('app.addFileBrowser'), group: 'shortcuts.windows', key: 'KeyF' },
+    { id: 'panel.close', label: () => t('app.closePanel'), group: 'shortcuts.windows', key: 'KeyW' },
     { id: 'panel.layout', label: () => t('app.autoLayout'), group: 'shortcuts.windows', key: 'KeyA' },
     { id: 'audio.mute', label: () => t('shortcuts.toggleMute'), group: 'audio.audio', key: 'KeyV' },
     { id: 'audio.up', label: () => t('shortcuts.volumeUp'), group: 'audio.audio', key: 'PageUp' },
