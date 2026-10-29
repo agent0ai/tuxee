@@ -127,6 +127,64 @@ func TestTerminalArchiveEarlyPreview(t *testing.T) {
 	}
 }
 
+func TestUnusedTerminalClosure(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", "")
+	base := filepath.Join(os.Getenv("HOME"), ".local/state/tuxee/terminals")
+	for _, tc := range []struct {
+		name string
+		used *bool
+	}{
+		{name: "legacy"},
+		{name: "unused", used: new(false)},
+		{name: "used", used: new(true)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := strings.Repeat("c", 24)
+			record := TerminalRecord{State: "live", Used: tc.used}
+			ctx := context.Background()
+			run := func(r Request) {
+				t.Helper()
+				if _, err := terminalFiles(ctx, r); err != nil {
+					t.Fatal(err)
+				}
+			}
+			run(Request{Operation: "terminal-record", Instance: "one", Path: id, Terminal: &record})
+			run(Request{Operation: "terminal-prune", Instance: "one"})
+			meta, err := terminalRecord(base, id, "one")
+			if err != nil || meta.State != "dead" || (meta.Used == nil) != (tc.used == nil) || meta.Used != nil && *meta.Used != *tc.used {
+				t.Fatalf("reconciliation lost usage or unclosed archive: %+v %v", meta, err)
+			}
+			if _, err := terminalFiles(ctx, Request{Operation: "terminal-close", Instance: "two", Path: id}); err == nil {
+				t.Fatal("closed another installation's terminal")
+			}
+			run(Request{Operation: "terminal-close", Instance: "one", Path: id})
+			_, err = os.Stat(filepath.Join(base, id))
+			if tc.used != nil && !*tc.used {
+				if !os.IsNotExist(err) {
+					t.Fatalf("unused closed archive remained: %v", err)
+				}
+				// Cleanup retries removal if closure was interrupted after saving metadata.
+				run(Request{Operation: "terminal-record", Instance: "one", Path: id, Terminal: &record})
+				closed := time.Now().UTC()
+				meta.State, meta.ClosedAt = "closed", &closed
+				if err := saveTerminalRecord(base, meta); err != nil {
+					t.Fatal(err)
+				}
+				run(Request{Operation: "terminal-prune", Instance: "one"})
+				if _, err := os.Stat(filepath.Join(base, id)); !os.IsNotExist(err) {
+					t.Fatal("cleanup retained an unused closed archive")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("discarded used/legacy archive: %v", err)
+				}
+				run(Request{Operation: "terminal-delete", Instance: "one", Path: id})
+			}
+		})
+	}
+}
+
 func TestTerminalLifecycleMetadataAndDelete(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_STATE_HOME", "")

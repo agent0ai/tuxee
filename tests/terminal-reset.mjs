@@ -192,7 +192,7 @@ try {
     await confirmReset(); await pendingDelete.entered;
     await page.locator('[data-panel="reset"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await terminal.waitFor({ state: 'detached' }); await pendingDelete.release();
-    await waitFor(async () => Boolean((await (await api(`/terminals/${closing.id}`)).json()).closedAt), 'close did not end resetting terminal');
+    await waitFor(async () => (await api(`/terminals/${closing.id}`)).status() === 404, 'close did not end resetting terminal');
     await page.unroute(base + `/api/terminals/${closing.id}`);
     assert.equal(creations, beforeClose, 'closing during delete must not create a shell');
     const pendingCreate = await hold('/terminals', 'POST');
@@ -201,7 +201,7 @@ try {
     await page.locator('[data-panel="neighbor"]').getByRole('button', { name: 'Close panel', exact: true }).click();
     await neighborView.waitFor({ state: 'detached' }); await pendingCreate.release();
     await waitFor(() => creations === beforeClose + 1, 'held creation did not finish');
-    await waitFor(async () => Boolean((await (await api(`/terminals/${created.at(-1)}`)).json()).closedAt), 'close leaked pending replacement');
+    await waitFor(async () => (await api(`/terminals/${created.at(-1)}`)).status() === 404, 'close leaked pending replacement');
     await page.unroute(base + '/api/terminals');
     assert.deepEqual(errors, []);
     console.log('PASS closing during deletion or creation leaves no replacement shell');

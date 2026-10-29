@@ -454,7 +454,7 @@ try {
     await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close panel', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     assert.equal((await terminatedPanel).status(), 200);
-    assert.ok((await (await api(`/terminals/${motionTerminalID}`)).json()).closedAt);
+    assert.equal((await api(`/terminals/${motionTerminalID}`)).status(), 404);
     assert.equal(await page.evaluate(() => window.fixedFileNode === document.querySelector('.file-view')), true);
     assert.deepEqual(await fixedFile.boundingBox(), fixedBox);
     check('terminal close stops the process and preserves the file browser already at its automatic width cap');
@@ -677,7 +677,7 @@ try {
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.keyboard.press('Enter');
-    await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.json()).then(info => Boolean(info.closedAt)), portraitTerminal);
+    await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.status === 404), portraitTerminal);
     check('confirmed workspace closure terminates its terminal');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();

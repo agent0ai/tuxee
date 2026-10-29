@@ -102,6 +102,7 @@ type Session struct {
 	foreground   string
 	archiveDirty bool
 	archiveDead  bool
+	used         bool
 }
 
 type Attachment struct {
@@ -226,6 +227,7 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	s := &Session{Display: display, manager: m, user: user, info: Info{StartedAt: &started, ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
 	s.background = background
 	s.foreground = foreground
+	s.used = command != ""
 	if s.info.Name == "" {
 		s.info.Name = "Terminal"
 	}
@@ -484,6 +486,10 @@ func (a *Attachment) Write(ctx context.Context, data []byte) error {
 	}
 	consumed := make(chan error, 1)
 	err := s.enqueueInputLocked(data, consumed)
+	if err == nil && !s.used {
+		s.used = true
+		s.archiveDirty = true
+	}
 	s.mu.Unlock()
 	if err != nil {
 		return err
@@ -652,13 +658,14 @@ func (s *Session) close(explicit bool) {
 		terminated := time.Now().UTC()
 		s.info.TerminatedAt = &terminated
 	}
+	record := s.archiveRecordLocked()
 	s.mu.Unlock()
 	if !wasClosed {
 		s.checkpointLocked()
 	}
 	if explicit && s.manager.HistoryInstance != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := files.Run(ctx, s.user, files.Request{Operation: "terminal-close", Instance: s.manager.HistoryInstance, Path: s.info.ID})
+		_, err := files.Run(ctx, s.user, files.Request{Operation: "terminal-close", Instance: s.manager.HistoryInstance, Path: s.info.ID, Terminal: &record})
 		cancel()
 		if err != nil {
 			log.Printf("terminal archive close %s: %v", s.info.ID, err)

@@ -36,6 +36,14 @@ func TestInputHistoryConcurrentAppendAndClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
+	a, err := s.Attach(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	if err := a.Write(ctx, []byte("\r")); err != nil {
+		t.Fatal(err)
+	}
 	var writers sync.WaitGroup
 	for i := range 12 {
 		writers.Go(func() {

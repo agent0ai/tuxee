@@ -131,7 +131,7 @@ try {
     if (!await tab(2).isVisible()) await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     await tab(2).click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Close desktop', exact: true }).click();
-    await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.json()).then(info => Boolean(info.closedAt)), terminals[2].id);
+    await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.status === 404), terminals[2].id);
     assert.ok(connections(2)[0].closed, 'closing an inactive cached workspace cleans up its connection');
     const beforeReload = sockets.length;
     await page.reload(); await settled(0);

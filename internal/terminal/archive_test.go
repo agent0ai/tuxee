@@ -219,6 +219,106 @@ func TestExplicitCloseAfterNaturalExit(t *testing.T) {
 	}
 }
 
+func TestTerminalUsageRetention(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("credential-dropped worker requires root")
+	}
+	t.Setenv("XDG_STATE_HOME", "")
+	for _, tc := range []struct {
+		name, input, command string
+		ended, failedCapture bool
+	}{
+		{name: "untouched"},
+		{name: "arrow", input: "\x1b[A"},
+		{name: "enter", input: "\r"},
+		{name: "command", command: "sleep 30"},
+		{name: "shutdown", ended: true},
+		{name: "capture-failure", input: "\r", failedCapture: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			user := identity.User{Name: "root", Home: t.TempDir(), Shell: "/bin/sh"}
+			m := NewManager()
+			m.HistoryInstance = "usage-test"
+			defer m.Close()
+			s, err := m.Create(user, user.Home, tc.name, 80, 24, tc.command, "", "", user.Shell, false, "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			a, err := s.Attach(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer a.Close()
+			if err := a.Resize(81, 25); err != nil {
+				t.Fatal(err)
+			}
+			if err := a.Write(ctx, nil); err == nil {
+				t.Fatal("accepted empty input")
+			}
+			observer, err := s.Attach(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := observer.Write(ctx, []byte("x")); err == nil {
+				t.Fatal("accepted observer input")
+			}
+			observer.Close()
+			s.mu.Lock()
+			err = s.inputLocked([]byte("\x1b[0n"))
+			s.mu.Unlock()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.input != "" {
+				if err := a.Write(ctx, []byte(tc.input)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			folder := filepath.Join(user.Home, ".local/state/tuxee/terminals", s.Info().ID)
+			if tc.failedCapture {
+				if err := os.Remove(filepath.Join(folder, "output.json")); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(filepath.Join(folder, "output.json"), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			s.checkpoint()
+			if tc.ended {
+				s.close(false)
+				inventory, err := m.ArchiveInventory(ctx, user)
+				if err != nil || len(inventory) != 1 || inventory[0].ClosedAt != nil {
+					t.Fatalf("unused unclosed archive lost: %+v %v", inventory, err)
+				}
+				if err := m.CloseArchive(ctx, user, s.Info().ID); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				s.Close()
+			}
+			used := tc.input != "" || tc.command != ""
+			data, err := os.ReadFile(filepath.Join(folder, "meta.json"))
+			if !used {
+				if !os.IsNotExist(err) {
+					t.Fatalf("untouched terminal retained: %s %v", data, err)
+				}
+				s.checkpoint()
+			} else {
+				var record files.TerminalRecord
+				if err != nil || json.Unmarshal(data, &record) != nil || record.Used == nil || !*record.Used || record.ClosedAt == nil {
+					t.Fatalf("used terminal not retained: %s %v", data, err)
+				}
+			}
+			inventory, err := m.ArchiveInventory(ctx, user)
+			if err != nil || (len(inventory) == 1) != used {
+				t.Fatalf("incorrect inventory: %+v %v", inventory, err)
+			}
+		})
+	}
+}
+
 func TestArchiveCleanupRegisteredIdentity(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip("credential-dropped worker requires root")

@@ -101,7 +101,7 @@ func reconcileTerminals(ctx context.Context, base string, r Request) (Response, 
 			continue
 		}
 		if r.Operation == "terminal-prune" {
-			if record.State == "closed" && record.ClosedAt != nil && time.Since(*record.ClosedAt).Hours() >= float64(hours) {
+			if record.State == "closed" && record.ClosedAt != nil && (record.Used != nil && !*record.Used || time.Since(*record.ClosedAt).Hours() >= float64(hours)) {
 				if err := os.RemoveAll(filepath.Join(base, record.ID)); err != nil {
 					return Response{}, err
 				}
@@ -173,12 +173,19 @@ func terminalArchive(base string, r Request) (Response, error) {
 		}
 		return Response{}, os.RemoveAll(path)
 	case "terminal-close":
+		// Preserve accepted input even when the final output checkpoint failed.
+		if r.Terminal != nil && r.Terminal.Used != nil && *r.Terminal.Used {
+			record.Used = r.Terminal.Used
+		}
 		if record.State != "closed" {
 			now := time.Now().UTC()
 			record.State, record.ClosedAt = "closed", &now
 			if err := saveTerminalRecord(base, record); err != nil {
 				return Response{}, err
 			}
+		}
+		if record.Used != nil && !*record.Used {
+			return Response{}, os.RemoveAll(path)
 		}
 		return Response{}, nil
 	default:

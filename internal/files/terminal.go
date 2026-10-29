@@ -27,6 +27,7 @@ type TerminalRecord struct {
 	Name         string     `json:"name"`
 	Directory    string     `json:"directory"`
 	State        string     `json:"state"`
+	Used         *bool      `json:"used,omitempty"`
 	StartedAt    *time.Time `json:"startedAt,omitempty"`
 	TerminatedAt *time.Time `json:"terminatedAt,omitempty"`
 	FoundDeadAt  *time.Time `json:"foundDeadAt,omitempty"`

@@ -16,7 +16,8 @@ func (s *Session) archiveRecordLocked() files.TerminalRecord {
 	if s.info.Exited || s.archiveDead || s.closed {
 		state = "dead"
 	}
-	return files.TerminalRecord{ID: s.info.ID, Name: s.info.Name, Directory: s.info.Directory, State: state, StartedAt: s.info.StartedAt, TerminatedAt: s.info.TerminatedAt}
+	used := s.used
+	return files.TerminalRecord{ID: s.info.ID, Name: s.info.Name, Directory: s.info.Directory, State: state, Used: &used, StartedAt: s.info.StartedAt, TerminatedAt: s.info.TerminatedAt}
 }
 
 // The manager lock orders checkpoints, input history and explicit closure.

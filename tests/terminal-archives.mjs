@@ -60,6 +60,35 @@ try {
         settings.workspaces[0].panels=[{id:'primary',kind:'terminal',terminal:id,path:user.home,x:0,y:0,w:4,h:2}];
         await json('/settings','PUT',settings);
     };
+    const usagePage = await context.newPage(); usagePage.on('pageerror', error => errors.push(error.message));
+    for (const used of [false, true]) {
+        const terminal = await create('', used ? 'Arrow input' : 'Untouched');
+        await mount(terminal.id); await usagePage.goto(base);
+        await usagePage.locator('.terminal-view[data-state=connected]').waitFor();
+        await usagePage.locator('.xterm-screen').click();
+        await usagePage.setViewportSize({width:1100,height:800});
+        await usagePage.reload(); await usagePage.locator('.terminal-view[data-state=connected]').waitFor();
+        assert.ok((await output(terminal.id)).text.trim(), 'shell startup produced output');
+        assert.equal(JSON.parse(await readFile(folder(terminal.id)+'/meta.json')).used, false, 'startup, focus, resize and reconnect are not use');
+        if (used) {
+            await usagePage.locator('.xterm-helper-textarea').focus(); await usagePage.keyboard.press('ArrowUp');
+            await wait(async()=>{await output(terminal.id);return JSON.parse(await readFile(folder(terminal.id)+'/meta.json')).used;},'accepted key did not mark terminal used');
+        }
+        const closed = usagePage.waitForResponse(response=>response.url()===base+`/api/terminals/${terminal.id}` && response.request().method()==='DELETE');
+        await usagePage.getByRole('button',{name:'Close panel',exact:true}).click();
+        assert.equal((await closed).status(),200);
+        await usagePage.goto('about:blank');
+        assert.equal((await json('/terminals')).some(info=>info.id===terminal.id),used);
+        if (used) {
+            assert.ok((await json(`/terminals/${terminal.id}`)).closedAt);
+            await json(`/terminals/${terminal.id}/archive`,'DELETE');
+        } else {
+            assert.equal((await api(`/terminals/${terminal.id}`)).status(),404);
+            await assert.rejects(stat(folder(terminal.id)),{code:'ENOENT'});
+        }
+    }
+    await usagePage.close();
+    console.log('PASS unused closure removes files; focus/resize/reload do not count, one arrow key preserves an archive');
     const natural=await create("printf 'UNICODE 界 🦊 é\\n'; for i in $(seq 1 200); do printf '%080d\\n' $i; done; sleep 1");
     await json(`/terminals/${natural.id}/input-history`,'POST',{text:'original\n日本語 🦊'});
     const naturalInfo=await ended(natural.id);

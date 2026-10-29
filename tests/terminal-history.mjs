@@ -154,7 +154,7 @@ try {
     assert.equal(JSON.parse(run('cat', `${folder(users[0], terminal.id)}/meta.json`)).state, 'closed');
     await resetPage.close();
     assert.equal((await a.api(`/terminals/${neighbour.id}`, 'DELETE')).status(), 200);
-    assert.equal(JSON.parse(run('cat', `${folder(users[0], neighbour.id)}/meta.json`)).state, 'closed');
+    assert.equal(exists(folder(users[0], neighbour.id)), false, 'untouched terminal is discarded on close');
     const killed = await create(a);
     await history(a, killed.id, 'before kill');
     run('kill', '-KILL', '--', `-${killed.pid}`);

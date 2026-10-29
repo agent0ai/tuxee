@@ -22,7 +22,7 @@ page.on('response', async response => {
 const terminal = page.locator('.terminal-view'), restart = terminal.getByRole('button', { name: 'Restart terminal', exact: true });
 await mkdir('test-results', { recursive: true });
 try {
-    const response = await api('/terminals', 'POST', { name: 'Lost session fixture', columns: 80, rows: 24 });
+    const response = await api('/terminals', 'POST', { name: 'Lost session fixture', command: 'exec bash', columns: 80, rows: 24 });
     assert.equal(response.status(), 201);
     const lost = await response.json(); created.push(lost.id);
     assert.equal((await api('/settings', 'PUT', {

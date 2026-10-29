@@ -118,7 +118,7 @@ try {
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 200);
     await terminate(attached.name); await warning(0);
-    assert.ok((await (await api(`/terminals/${attached.id}`)).json()).closedAt);
+    assert.equal((await api(`/terminals/${attached.id}`)).status(), 404);
     await terminate(ended.name, true);
     await retained.getByText('No lost terminals.', { exact: true }).waitFor();
     await retained.getByRole('tab',{name:'Closed',exact:true}).click();
@@ -136,7 +136,7 @@ try {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
-    const later = await create('Discovered while menu is closed');
+    const later = await create('Discovered while menu is closed', 'printf later; sleep 300');
     await warning(1);
     assert.ok(await menu.locator('.menu-warning').isVisible());
     assert.ok(await page.locator('.topbar').evaluate(node => node.scrollWidth <= innerWidth));

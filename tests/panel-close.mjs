@@ -58,7 +58,7 @@ async function checkClose(width, height, columns, rows, shapes, closing, expecte
     }
     const settings = (await (await api('/me')).json()).settings;
     assert.deepEqual(settings.workspaces[0].panels.map(({ x, y, w, h }) => [x, y, w, h]), expected);
-    for (const p of panels.filter(p => closing.includes(p.id))) assert.ok((await (await api(`/terminals/${p.terminal}`)).json()).closedAt);
+    for (const p of panels.filter(p => closing.includes(p.id))) assert.equal((await api(`/terminals/${p.terminal}`)).status(), 404);
     await page.waitForTimeout(250);
     if (screenshot) await page.screenshot({ path: `test-results/${screenshot}.png` });
 }
