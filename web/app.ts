@@ -1227,10 +1227,8 @@ async function retainedTerminals() {
         const days = Math.floor(total / 1440), hours = Math.floor(total / 60) % 24, minutes = total % 60;
         return days ? t('term.ageDays', { days, hours, minutes }) : hours ? t('term.ageHours', { hours, minutes }) : t('term.ageMinutes', { minutes });
     };
-    const sessions = () => (closed ? terminalSessions.filter(info => info.closedAt) : unlistedTerminals())
-        .sort((a, b) => latest(b) - latest(a) || a.id.localeCompare(b.id));
-    const activeTab = button(t("term.lostTerminals"), undefined, () => select(false));
-    const closedTab = button(t("term.closedArchives"), undefined, () => select(true));
+    const activeTab = button('', undefined, () => select(false));
+    const closedTab = button('', undefined, () => select(true));
     const all = button('', undefined, () => remove(displayed, true));
     all.dataset.action = 'all-terminals';
     for (const tab of [activeTab, closedTab]) { tab.setAttribute('role', 'tab'); tab.id = id(); tabs.append(tab); }
@@ -1266,12 +1264,18 @@ async function retainedTerminals() {
         } finally { busy = false; paint(); }
     };
     const paint = () => {
+        const lost = unlistedTerminals(), archives = terminalSessions.filter(info => info.closedAt);
+        for (const [tab, label] of [[activeTab, t('term.lostTerminals', { count: lost.length })], [closedTab, t('term.closedArchives', { count: archives.length })]] as const) {
+            tab.textContent = tab.title = label;
+            tab.setAttribute('aria-label', label);
+        }
         activeTab.setAttribute('aria-selected', String(!closed)); closedTab.setAttribute('aria-selected', String(closed));
         activeTab.tabIndex = closed ? -1 : 0; closedTab.tabIndex = closed ? 0 : -1;
         activeTab.disabled = closedTab.disabled = busy;
         list.setAttribute('aria-labelledby', (closed ? closedTab : activeTab).id);
         list.replaceChildren();
-        const entries = displayed = sessions(), label = t(closed ? 'term.deleteAll' : 'term.closeAll');
+        const entries = displayed = (closed ? archives : lost).sort((a, b) => latest(b) - latest(a) || a.id.localeCompare(b.id));
+        const label = t(closed ? 'term.deleteAll' : 'term.closeAll');
         all.title = label; all.setAttribute('aria-label', label);
         all.replaceChildren(icon(closed ? 'Trash2' : 'X'), el('span', '', t('term.all')));
         all.disabled = busy || !entries.length;

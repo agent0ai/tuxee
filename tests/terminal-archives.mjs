@@ -206,9 +206,10 @@ try {
     const openRetained=async()=>{ await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
     await openRetained();
     const dialog=page.getByRole('dialog',{name:'Retained terminals',exact:true});
-    await dialog.getByRole('tab',{name:'Lost terminals',exact:true}).waitFor();
+    await dialog.getByRole('tab').nth(0).waitFor();
+    assert.deepEqual(await dialog.getByRole('tab').allTextContents(),['Lost (0)','Closed (1)']);
     assert.equal(await dialog.locator('.retained-status[data-exited=true]').count(),0);
-    await dialog.getByRole('tab',{name:'Closed',exact:true}).click();
+    await dialog.getByRole('tab').nth(1).click();
     await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'View',exact:true}).waitFor();
     assert.match((await dialog.locator('.retained-times').first().textContent()).replace(/[\u2066\u2069]/g,''),/Started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, closed by user /);
     const spacing=await dialog.locator('.retained-row').first().evaluate(row=>({top:parseFloat(getComputedStyle(row).paddingTop),bottom:parseFloat(getComputedStyle(row).paddingBottom)}));
@@ -297,6 +298,10 @@ try {
     assert.equal((await api(`/terminals/${liveFixture.id}/archive`,'DELETE')).status(),409);
     const olderClosed=await create("printf 'OLDER_CLOSED\\n'",'Older closed fixture');
     await ended(olderClosed.id); await json(`/terminals/${olderClosed.id}`,'DELETE');
+    for (let i=0;i<16;i++) {
+        const counted=await create(`printf 'COUNT_${i}\\n'`,'Count fixture '+i);
+        await ended(counted.id); await json(`/terminals/${counted.id}`,'DELETE');
+    }
     const hour=3600000, now=Date.now(), stamp=hours=>new Date(now-hours*hour).toISOString();
     for(const [id,times] of [
         [mc.id,{startedAt:stamp(100),terminatedAt:stamp(24+8+34/60)}],
@@ -328,12 +333,18 @@ try {
         for (const theme of ['dark','light']) {
             await mobile.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
             for (const tab of ['term.lostTerminals','term.closedArchives']) {
-                await inventory.getByRole('tab',{name:catalog[tab],exact:true}).click();
+                await inventory.getByRole('tab').nth(tab==='term.lostTerminals'?0:1).click();
                 const layout=await inventory.evaluate(dialog=>{
                     const body=dialog.querySelector('.modal-body');
                     return {width:body.clientWidth,scroll:body.scrollWidth,rows:[...dialog.querySelectorAll('.retained-row')].map(row=>({id:row.dataset.terminalId,width:row.clientWidth,scroll:row.scrollWidth,path:row.querySelector('.retained-directory').textContent,pathWeight:getComputedStyle(row.querySelector('.retained-directory')).fontWeight,pathColor:getComputedStyle(row.querySelector('.retained-directory')).color,nameWeight:getComputedStyle(row.querySelector('.retained-label')).fontWeight,nameColor:getComputedStyle(row.querySelector('.retained-label')).color,times:row.querySelector('.retained-times').textContent,color:getComputedStyle(row.querySelector('.retained-status')).backgroundColor,exited:row.querySelector('.retained-status').dataset.exited}))};
                 });
                 assert.ok(layout.scroll<=layout.width+1,language+theme+tab+JSON.stringify(layout));
+                const selected=inventory.getByRole('tab',{selected:true});
+                const countedLabel=catalog[tab].replace('{count}',String(layout.rows.length));
+                assert.equal(await selected.textContent(),countedLabel);
+                assert.equal(await selected.getAttribute('aria-label'),countedLabel);
+                assert.equal(await selected.getAttribute('title'),countedLabel);
+                if(tab==='term.closedArchives') assert.equal(layout.rows.length,18);
                 const chronology=tab==='term.lostTerminals'?[crash.id,killed.id,mc.id,shutdown.id]:[closedFixture.id,olderClosed.id];
                 assert.deepEqual(layout.rows.map(row=>row.id).filter(id=>chronology.includes(id)),chronology);
                 if(tab==='term.lostTerminals') assert.equal(layout.rows[0].id,liveFixture.id,'live terminal uses its start timestamp');
@@ -368,16 +379,18 @@ try {
     assert.equal(await listed(liveFixture.id).getByRole('button',{name:'Connect',exact:true}).count(),1);
     assert.equal(await listed(mc.id).getByRole('button',{name:'View',exact:true}).count(),1);
     assert.equal(await listed(liveFixture.id).locator('button[aria-label="Close"] svg').count(),1);
-    await inventory.getByRole('tab',{name:'Closed',exact:true}).click();
+    await inventory.getByRole('tab').nth(1).click();
+    assert.equal(await inventory.getByRole('tab').nth(1).textContent(),'Closed (18)');
     await listed(closedFixture.id).getByRole('button',{name:'Delete',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
     assert.equal((await api(`/terminals/${closedFixture.id}`)).status(),200);
     await listed(closedFixture.id).getByRole('button',{name:'Delete',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Delete',exact:true}).click();
     await wait(async()=>!(await listed(closedFixture.id).count()),'single archive deletion');
+    assert.equal(await inventory.getByRole('tab').nth(1).textContent(),'Closed (17)');
     assert.equal((await api(`/terminals/${closedFixture.id}/archive`)).status(),404);
     await assert.rejects(stat(folder(closedFixture.id)),{code:'ENOENT'});
-    await inventory.getByRole('tab',{name:'Lost terminals',exact:true}).click();
+    await inventory.getByRole('tab').nth(0).click();
     await inventory.getByRole('button',{name:'Close all',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
     assert.equal((await json(`/terminals/${liveFixture.id}`)).exited,false);
@@ -398,7 +411,7 @@ try {
     await inventory.getByRole('button',{name:'Close all',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Close',exact:true}).click();
     await wait(async()=> !(await inventory.locator('.retained-row').count()),'bulk retry');
-    await inventory.getByRole('tab',{name:'Closed',exact:true}).click();
+    await inventory.getByRole('tab').nth(1).click();
     await listPage.screenshot({path:'test-results/terminal-list-closed-desktop.png'});
     await inventory.getByRole('button',{name:'Delete all',exact:true}).click();
     await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
@@ -407,9 +420,10 @@ try {
     await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Delete',exact:true}).click();
     await wait(async()=> (await json('/terminals')).length===0,'bulk deletion');
     await wait(async()=> !(await inventory.locator('.retained-row').count()),'empty deleted list');
+    assert.deepEqual(await inventory.getByRole('tab').allTextContents(),['Lost (0)','Closed (0)']);
     assert.equal(await inventory.getByRole('button',{name:'Delete all',exact:true}).isDisabled(),true);
     await inventory.getByText('No closed terminals.',{exact:true}).waitFor();
-    await inventory.getByRole('tab',{name:'Lost terminals',exact:true}).click();
+    await inventory.getByRole('tab').nth(0).click();
     await inventory.getByText('No lost terminals.',{exact:true}).waitFor();
     await listPage.close();
     assert.deepEqual(errors,[]);

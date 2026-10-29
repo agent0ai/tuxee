@@ -89,6 +89,7 @@ try {
     await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     release(); await retained.waitFor(); await page.unroute(base + '/api/terminals');
+    assert.deepEqual(await retained.getByRole('tab').allTextContents(), ['Lost (3)', 'Closed (0)']);
     assert.equal(await row(listed.name).count(), 0, 'inactive workspace terminals are already represented');
     assert.equal(await row(lost.name).count(), 1);
     assert.ok((await row(attached.name).textContent()).includes('Attached'));
@@ -121,10 +122,10 @@ try {
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 404);
     await terminate(ended.name, true);
     await retained.getByText('No lost terminals.', { exact: true }).waitFor();
-    await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    await retained.getByRole('tab').nth(1).click();
     await row(ended.name).getByRole('button',{name:'View',exact:true}).click();
     await page.locator(`.terminal-view[data-terminal="${ended.id}"]`).last().locator('.terminal-archive pre').waitFor(); await focused(ended.id);
-    await openRetained(); await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    await openRetained(); await retained.getByRole('tab').nth(1).click();
     const archiveRequested = new Promise(resolve => entered = resolve), archiveHeld = new Promise(resolve => release = resolve);
     await page.route(base+`/api/terminals/${ended.id}/archive`,async route=>{entered(); await archiveHeld; await route.continue();});
     await row(ended.name).getByRole('button',{name:'View',exact:true}).click(); await archiveRequested;
@@ -142,7 +143,7 @@ try {
     assert.ok(await page.locator('.topbar').evaluate(node => node.scrollWidth <= innerWidth));
     await page.screenshot({ path: 'test-results/retained-mobile-light.png' });
     await openRetained(); await terminate(later.name); await warning(0);
-    await retained.getByRole('tab',{name:'Closed',exact:true}).click();
+    await retained.getByRole('tab').nth(1).click();
     await row(later.name).getByRole('button',{name:'View',exact:true}).focus(); await page.keyboard.press('Enter');
     await page.locator(`.terminal-view[data-terminal="${later.id}"] .terminal-archive pre`).waitFor(); await focused(later.id);
     await page.screenshot({path:'test-results/retained-mobile-focus.png'});
