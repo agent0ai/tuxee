@@ -256,6 +256,7 @@ func runUpdate(args []string) (err error) {
 		}
 		return nil
 	}
+	fmt.Println("In progress...")
 	applied, err := client.Apply(ctx, release, target)
 	if err != nil {
 		return err
