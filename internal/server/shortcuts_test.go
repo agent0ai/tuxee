@@ -15,6 +15,7 @@ func TestShortcutSettings(t *testing.T) {
 		{`{"shortcuts":{"app.about":[["Control+Shift+Space","KeyI"],["Meta+F2"]],"audio.mute":[[],[]]}}`, true},
 		{`{"shortcuts":{"app.about":[["Alt+KeyA","Shift+KeyB","Digit1"],[]]}}`, true},
 		{`{"shortcuts":{"panel.close":[["Alt+Shift+KeyW"],[]]}}`, true},
+		{`{"shortcuts":{"desktop.close":[["Alt+Shift+KeyC"],[]]}}`, true},
 		{`{"shortcuts":{"app.about":[["KeyA"],[]]}}`, false},
 		{`{"shortcuts":{"app.about":[["Shift+KeyA"],[]]}}`, false},
 		{`{"shortcuts":{"app.about":[["Control+Escape"],[]]}}`, false},

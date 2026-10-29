@@ -1086,7 +1086,7 @@ function focusActivePanel() {
 async function runShortcut(action: string) {
     const ws = current();
     const focused = document.activeElement?.closest<HTMLElement>('[data-panel]')?.dataset.panel || ws.active;
-    if (action.startsWith('desktop.') && action !== 'desktop.add') {
+    if (action.startsWith('desktop.') && action !== 'desktop.add' && action !== 'desktop.close') {
         const index = settings.workspaces.indexOf(ws), direction = document.documentElement.dir === 'rtl' ? -1 : 1;
         const target = action === 'desktop.previous' ? index - direction : action === 'desktop.next' ? index + direction : Number(action.split('.')[1]) - 1;
         const next = settings.workspaces[(target + settings.workspaces.length) % settings.workspaces.length];
@@ -1106,6 +1106,7 @@ async function runShortcut(action: string) {
     }
     switch (action) {
         case 'desktop.add': await createWorkspace(); focusActivePanel(); break;
+        case 'desktop.close': await closeWorkspace(ws); focusActivePanel(); break;
         case 'panel.terminal': addPanel('terminal'); focusActivePanel(); break;
         case 'panel.files': addPanel('files'); focusActivePanel(); break;
         case 'panel.close': {

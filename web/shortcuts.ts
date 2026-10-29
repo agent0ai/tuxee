@@ -8,6 +8,7 @@ export const shortcutActions = [
     { id: 'desktop.next', label: () => t('shortcuts.nextDesktop'), group: 'app.workspaces', key: 'ArrowRight' },
     ...Array.from({ length: 10 }, (_, i) => ({ id: `desktop.${i + 1}`, label: () => t('app.workspaceNumber', { count: i + 1 }), group: 'app.workspaces', key: `Digit${(i + 1) % 10}` })),
     { id: 'desktop.add', label: () => t('app.newWorkspace'), group: 'app.workspaces', key: 'KeyD' },
+    { id: 'desktop.close', label: () => t('app.closeWorkspace'), group: 'app.workspaces', key: 'KeyC' },
     { id: 'panel.next', label: () => t('shortcuts.nextWindow'), group: 'shortcuts.windows', key: 'ArrowDown' },
     { id: 'panel.previous', label: () => t('shortcuts.previousWindow'), group: 'shortcuts.windows', key: 'ArrowUp' },
     { id: 'panel.terminal', label: () => t('app.addTerminal'), group: 'shortcuts.windows', key: 'Enter' },

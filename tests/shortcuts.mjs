@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 const bundle = await build({ entryPoints: ['web/shortcuts.ts'], bundle: true, platform: 'node', format: 'esm', write: false });
 const shortcuts = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const defaults = shortcuts.bindings();
-assert.equal(Object.keys(defaults).length, 29);
+assert.equal(Object.keys(defaults).length, 30);
 for (const [id, slots] of Object.entries(defaults)) for (const [index, sequence] of slots.entries()) assert.equal(shortcuts.shortcutConflict(defaults, sequence, id, index), undefined);
 for (const [first, second] of Object.values(defaults)) {
     assert.equal(first.length, 1); assert.ok(first[0].startsWith('Alt+Shift+')); assert.deepEqual(second, []);
@@ -136,7 +136,7 @@ try {
     await page.keyboard.press('Escape');
     const open = async () => { await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Keyboard]').click(); };
     const editor = page.locator('.shortcuts-modal'), recorder = page.locator('.shortcut-record-modal');
-    await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 29);
+    await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 30);
     await editor.locator('[data-shortcut="app.about"] th').dblclick(); await recorder.waitFor();
     await hotkey('h');
     assert.equal(await recorder.locator('output').textContent(), 'Alt+Shift+H');
@@ -201,6 +201,17 @@ try {
     await page.locator(`[data-panel="${compactClosed}"]`).waitFor({state:'detached'});
     assert.equal(await page.locator('.file-view').count(), 2);
     await hotkey('d'); await waitActive('Desktop 11');
+    await hotkey('ArrowDown'); await page.locator('.terminal-view[data-state=connected]').waitFor();
+    await page.keyboard.type("printf 'DESKTOP_CLOSE_OK\\n'"); await page.keyboard.press('Enter');
+    await page.locator('.xterm-rows').filter({hasText:'DESKTOP_CLOSE_OK'}).waitFor();
+    const desktopTerminal = (await (await api('/terminals')).json()).find(info => !info.exited); assert.ok(desktopTerminal);
+    await hotkey('c');
+    const closeDesktop = page.getByRole('dialog',{name:'Close Desktop 11?',exact:true,includeHidden:true}); await closeDesktop.waitFor();
+    await page.keyboard.press('Escape'); await closeDesktop.waitFor({state:'detached'}); await waitActive('Desktop 11');
+    assert.equal((await (await api(`/terminals/${desktopTerminal.id}`)).json()).exited,false);
+    await hotkey('c'); await closeDesktop.waitFor(); await closeDesktop.getByRole('button',{name:'Close desktop',exact:true}).click();
+    await waitActive('Desktop 10');
+    await page.waitForFunction(async id => (await (await fetch(`/api/terminals/${id}`)).json()).exited,desktopTerminal.id);
     await hotkey('q'); await page.locator('.login-page').waitFor();
     csrf = await login('cs'); await page.reload(); await page.locator('.user-menu-button').waitFor();
     await open(); assert.equal(await editor.getAttribute('aria-label'),'Zkratky');
@@ -258,7 +269,7 @@ try {
         console.log(`shortcuts: ${code} labels and compact bounds passed`);
     }
     assert.deepEqual(errors, []);
-    console.log('PASS single-chord Alt+Shift defaults/actions, preserved custom sequences, reordered desktops 1–10, spatial panel cycling, panel focus/closure, unsaved-edit protection, terminal termination, audio, modal isolation, recorder/conflicts, both slots, save/cancel/failure, disk/reload/login persistence, Czech and compact themes');
+    console.log('PASS single-chord Alt+Shift defaults/actions, preserved custom sequences, reordered desktops 1–10, spatial panel cycling, panel focus/closure, unsaved-edit protection, terminal termination, confirmed desktop closure, audio, modal isolation, recorder/conflicts, both slots, save/cancel/failure, disk/reload/login persistence, Czech and compact themes');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
     run('userdel',['-f',user]); await rm(home,{recursive:true,force:true}); await rm(state,{recursive:true,force:true});
