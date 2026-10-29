@@ -41,7 +41,7 @@ try {
     const user = await account('a'), other = await account('b');
     await start();
     const env = { ...process.env }; for (const key of ['DISPLAY','XAUTHORITY','DBUS_SESSION_BUS_ADDRESS','XDG_RUNTIME_DIR']) delete env[key];
-    browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'], env });
+    browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'], ignoreDefaultArgs: ['--hide-scrollbars'], env });
     context = await browser.newContext({ viewport: { width: 1280, height: 850 }, permissions:['clipboard-read','clipboard-write'] });
     const login = async (account = user, client = context, language = 'en') => {
         const response = await client.request.post(base + '/api/login', { data: {username:account.name,password:account.password,language}, headers:{'X-Tuxee-Client':'web'} });
@@ -85,11 +85,24 @@ try {
     assert.equal(await page.locator('.terminal-footer:visible [data-action=browse-shell-folder]').count(),0);
     assert.equal(await page.locator('.terminal-footer:visible button').count(),3);
     assert.equal(await page.locator('.terminal-dead-label').textContent(),'Post mortem');
+    for (const size of [13,26]) for (const fraction of [.25,.75]) {
+        const bounds=await page.locator('.terminal-archive pre').evaluate((pre,{size,fraction})=>{
+            pre.style.fontSize=`${size}px`;
+            const style=getComputedStyle(pre), range=document.createRange(); range.selectNodeContents(pre);
+            const width=range.getBoundingClientRect().width+parseFloat(style.paddingLeft)+parseFloat(style.paddingRight)+pre.offsetWidth-pre.clientWidth;
+            pre.style.width=`${width-size*fraction}px`; pre.dispatchEvent(new Event('scroll'));
+            return {overflow:pre.scrollWidth-pre.clientWidth,mode:getComputedStyle(pre).overflowX};
+        },{size,fraction});
+        assert.ok(bounds.overflow>0);
+        assert.equal(bounds.mode,fraction<.5?'hidden':'auto',JSON.stringify({size,fraction,...bounds}));
+    }
+    await page.locator('.terminal-archive pre').evaluate(pre=>{pre.style.width='';pre.style.fontSize='13px';pre.dispatchEvent(new Event('scroll'));});
     await page.locator('.terminal-archive pre').focus(); await page.keyboard.press('Control+a'); await page.keyboard.press('Control+c');
     assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),saved.text);
     await mkdir('test-results',{recursive:true});
     for (const theme of ['dark','light']) for (const width of [1280,390,320]) {
-        settings.theme=theme; await json('/settings','PUT',settings); await page.setViewportSize({width,height:850}); await page.reload(); await page.locator('.terminal-archive pre').waitFor();
+        await page.goto('about:blank'); await page.setViewportSize({width,height:850});
+        settings.theme=theme; await json('/settings','PUT',settings); await page.goto(base); await page.locator('.terminal-archive pre').waitFor();
         if (width<400) assert.ok(await page.locator('.terminal-archive pre').evaluate(p=>{p.scrollLeft=100;return p.scrollLeft>0;}),'fixed columns must scroll horizontally');
         assert.ok(await page.locator('.terminal-archive pre').evaluate(p=>p.scrollHeight>p.clientHeight),'history must scroll vertically');
         await page.getByRole('button',{name:'Jump to top',exact:true}).click();
@@ -104,11 +117,11 @@ try {
         const bounds=await page.locator('.terminal-archive .terminal-footer').evaluate(f=>({width:f.clientWidth,scroll:f.scrollWidth})); assert.ok(bounds.scroll<=bounds.width+1,JSON.stringify(bounds));
         await page.screenshot({path:`test-results/terminal-archive-${theme}-${width}.png`});
     }
-    await page.setViewportSize({width:1280,height:850});
+    await page.goto('about:blank'); await page.setViewportSize({width:1280,height:850});
     const originalLayout=structuredClone(settings);
     Object.assign(settings.workspaces[0].panels[0],{w:2,h:1});
     settings.workspaces.push({id:'destination',name:'Destination',columns:4,rows:2,panels:[]});
-    await json('/settings','PUT',settings);await page.reload();await page.locator('.terminal-archive pre').waitFor();
+    await json('/settings','PUT',settings);await page.goto(base);await page.locator('.terminal-archive pre').waitFor();
     const archiveNode=await page.locator('.terminal-archive').elementHandle();
     await page.locator('[data-panel=primary] .panel-header').dblclick();
     await wait(async()=>await page.locator('[data-panel=primary]').getAttribute('gs-w')==='4','archive header expansion');
@@ -125,7 +138,7 @@ try {
         assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
         assert.equal(await page.locator('.terminal-surface:visible').count(),0);
     }
-    settings=originalLayout;await json('/settings','PUT',settings);await page.reload();await page.locator('.terminal-archive pre').waitFor();
+    await page.goto('about:blank');settings=originalLayout;await json('/settings','PUT',settings);await page.goto(base);await page.locator('.terminal-archive pre').waitFor();
     console.log('PASS archive header expansion, context menus and desktop moves preserve output without live rendering');
     let created = 0;
     page.on('response', response => { if (response.url()===base+'/api/terminals' && response.request().method()==='POST' && response.status()===201) created++; });

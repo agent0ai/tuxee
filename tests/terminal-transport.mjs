@@ -101,6 +101,25 @@ try {
     await rendering.waitFor({state:'detached'});
     console.log('PASS centered Loading... until first snapshot paint, including hidden terminals, in both themes');
     await connected(); await idle();
+    const shortTextButton = page.getByRole('button', {name:'Terminal contents as text', exact:true});
+    await shortTextButton.click();
+    const shortText = page.locator('.terminal-text pre');
+    assert.equal(await page.locator('.terminal-text-actions').count(), 0);
+    assert.ok(await shortText.evaluate(node => node.scrollHeight <= node.clientHeight), 'short output fits without a reserved action bar');
+    const shortBounds = await shortText.boundingBox(), beforeTextInput = sent.filter(Buffer.isBuffer).length;
+    for (const gesture of ['initial', 'bottom', 'drag']) {
+        if (gesture === 'bottom') await shortText.click({position:{x:40,y:shortBounds.height-8}});
+        if (gesture === 'drag') {
+            await page.mouse.move(shortBounds.x+40,shortBounds.y+35); await page.mouse.down();
+            await page.mouse.move(shortBounds.x+200,shortBounds.y+80,{steps:8}); await page.mouse.up();
+        }
+        for (const key of ['Meta+a', 'Control+a']) {
+            await page.keyboard.press(key);
+            assert.deepEqual(await shortText.evaluate(node => [document.activeElement === node, getSelection().toString() === node.textContent]), [true,true]);
+        }
+    }
+    assert.equal(sent.filter(Buffer.isBuffer).length, beforeTextInput, 'text selection never reaches the PTY');
+    await page.keyboard.press('Escape');
     await input("printf 'BINARY_%s\\n' WORKS\n");
     await page.waitForFunction(() => view.term.buffer.active.getLine(view.term.buffer.active.cursorY - 1)?.translateToString().includes('BINARY_WORKS'));
     await idle();

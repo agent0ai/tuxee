@@ -725,8 +725,7 @@ h3 {
 .terminal-input-resize::after { content: ''; position: absolute; inset: 5px 0 auto; height: 1px; }
 .terminal-input-resize:hover::after, .terminal-input-resize.dragging::after { background: var(--accent); }
 .terminal-text.popover-menu { min-width: 0; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; overflow: hidden; }
-.terminal-text pre { display: block; width: 100%; height: calc(100% - 40px); border: 0; border-radius: 0; margin: 0; overflow-y: auto; overflow-x: hidden; white-space: pre; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
-.terminal-text-actions { height: 40px; display: flex; align-items: center; justify-content: flex-end; padding: 0 4px; }
+.terminal-text pre { display: block; width: 100%; height: 100%; border: 0; border-radius: 0; margin: 0; overflow-y: auto; overflow-x: hidden; white-space: pre; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
 .terminal-host {
   position: relative;
   flex: 1;
@@ -735,6 +734,8 @@ h3 {
 }
 .terminal-host > .xterm {
   height: 100%;
+}
+.terminal-host > .xterm, .terminal-archive pre {
   padding: 2px 5px 0;
 }
 .terminal-rendering {
@@ -1129,7 +1130,7 @@ h3 {
   flex: 0 0 auto;
   font-size: 16px;
 }
-.compact-board .terminal-host > .xterm {
+.compact-board .terminal-host > .xterm, .compact-board .terminal-archive pre {
   padding: 4px;
 }
 .compact-board .file-footer {
@@ -1250,7 +1251,7 @@ h3 {
 .compact .terminal-footer > div { gap: 2px; }
 .compact .terminal-input { font-size: 16px; }
 .compact .file-filter { font-size: 16px; }
-.compact .terminal-host > .xterm { padding: 2px 0 0; }
+.compact .terminal-host > .xterm, .compact .terminal-archive pre { padding: 2px 0 0; }
 .panel-header, .add-panel { touch-action: none; }
 .panel-dragging, .panel-settling { z-index: 100 !important; }
 .panel-dragging { pointer-events: none; opacity: .8; will-change: transform; }
@@ -1508,9 +1509,8 @@ pre, code, .process-label small, .login-language {
 :root[dir=rtl] .process-fold[aria-expanded=false] svg { transform: rotate(90deg); }
 
 .terminal-archive { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
-.terminal-archive pre { color: var(--text); line-height: 1; flex: 1; min-height: 0; margin: 0; padding: 8px; overflow: auto; white-space: pre; direction: ltr; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
-.terminal-archive .terminal-footer > div:first-child { min-width: 0; }
+.terminal-archive pre { color: var(--text); line-height: 1; flex: 1; min-height: 0; margin: 0; overflow: auto; white-space: pre; direction: ltr; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
+.terminal-archive .terminal-footer > div:first-child { flex: 1; min-width: 0; }
 .terminal-archive .restart-terminal { color: var(--accent); background: var(--accent-bg); padding-inline: 5px; }
-.terminal-archive .terminal-footer > div:last-child { flex: 1; min-width: 0; justify-content: flex-end; }
 .terminal-archive .terminal-footer button { flex-shrink: 0; }
 .terminal-dead-label { color: var(--warning); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

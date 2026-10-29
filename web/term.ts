@@ -396,28 +396,8 @@ export class TerminalView implements View {
             lines.push(line.translateToString(false));
         }
         text.textContent = lines.join('\n');
-        let selected: ReturnType<typeof terminalLink>;
-        const open = button(t('terminal.openInFileBrowser'), undefined, () => {
-            if (!selected) return;
-            this.closeText();
-            return this.openLink(selected);
-        });
-        open.dataset.action = 'open-selected-path'; open.disabled = true;
-        open.onpointerdown = event => event.preventDefault();
-        const actions = el('div', 'terminal-text-actions'); actions.append(open);
-        content.append(text, actions);
-        const events = new AbortController();
-        document.addEventListener('selectionchange', () => {
-            const selection = window.getSelection();
-            selected = selection && text.contains(selection.anchorNode) && text.contains(selection.focusNode)
-                ? terminalLink(selection.toString().trim(), this.hostname) : undefined;
-            open.disabled = !selected;
-            open.textContent = open.title = t(selected && 'url' in selected ? 'terminal.openLink' : 'terminal.openInFileBrowser');
-            open.setAttribute('aria-label', open.title);
-        }, { signal: events.signal });
-        content.addEventListener('toggle', event => { if (event.newState === 'closed') events.abort(); });
-        const { close } = popover(anchor, content);
-        this.closeText = () => { events.abort(); close(); };
+        content.append(text);
+        ({ close: this.closeText } = popover(anchor, content));
         content.style.left = `${rect.left}px`; content.style.top = `${rect.top}px`;
         text.focus({ preventScroll: true });
         // Keep the spare pixels below the last terminal row so bottom scrolling stays aligned.
@@ -496,7 +476,11 @@ export class TerminalView implements View {
         const footer = el('div', 'terminal-footer'), left = el('div'), right = el('div');
         const top = button(t("term.jumpToTop"), 'ArrowUp', () => { pre.scrollTop = 0; pre.focus({preventScroll:true}); });
         const bottom = button(t("term.jumpToBottom"), 'ArrowDown', () => { pre.scrollTop = pre.scrollHeight; pre.focus({preventScroll:true}); });
-        const updateScroll = this.updateArchiveScroll = () => { top.disabled = pre.scrollTop <= 0; bottom.disabled = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 1; };
+        const updateScroll = this.updateArchiveScroll = () => {
+            // shortcut: tolerate sub-cell metric differences; share exact renderer metrics if visible drift remains.
+            pre.style.overflowX = pre.scrollWidth - pre.clientWidth <= parseFloat(getComputedStyle(pre).fontSize) / 2 ? 'hidden' : 'auto';
+            top.disabled = pre.scrollTop <= 0; bottom.disabled = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 1;
+        };
         pre.textContent = archive?.text || '';
         pre.title = archive?.capturedAt ? new Date(archive.capturedAt).toLocaleString(locale()) : '';
         pre.onscroll = updateScroll;
@@ -510,9 +494,9 @@ export class TerminalView implements View {
                 await this.start();
             })().catch(this.notice).finally(() => { this.resetting = restart.disabled = false; });
         }, 'primary restart-terminal');
-        const separator = el('span', 'terminal-footer-separator', '|'); separator.setAttribute('aria-hidden', 'true');
         const dead = el('span', 'terminal-dead-label', t("term.postMortem")); dead.title = t("term.postMortem");
-        right.append(dead, restart, separator, top, bottom);
+        left.append(dead, restart);
+        right.append(top, bottom);
         footer.append(left, right); view.append(pre, footer); this.terminalPane.append(view); pre.scrollTop = pre.scrollHeight; updateScroll();
     }
     private sessionLost(lost: string | undefined) {
@@ -782,7 +766,7 @@ export class TerminalView implements View {
         this.closeText(); this.resizeDisplay.release();
         this.term.options = { fontSize: size, fontFamily: family };
         const pre = this.archiveView?.querySelector('pre');
-        if (pre) { pre.style.fontSize = `${size}px`; pre.style.fontFamily = family; }
+        if (pre) { pre.style.fontSize = `${size}px`; pre.style.fontFamily = family; this.updateArchiveScroll(); }
         this.resize();
     }
     resize = () => { if (!this.host.checkVisibility()) { this.cancelDrawerResize?.(); this.closeText(); } this.display?.resize(); clearTimeout(this.resizeTimer); this.resizeTimer = setTimeout(() => this.fitSize(), 80); };

@@ -300,31 +300,11 @@ try {
     before = inputs.length;
     await terminal.getByRole('button', { name: 'Terminal contents as text', exact: true }).tap();
     const snapshot = page.locator('.terminal-text pre');
-    await snapshot.evaluate(node => {
-        const start = node.textContent.indexOf('/root/bridge-fixture/sub');
-        const range = document.createRange(); range.setStart(node.firstChild, start); range.setEnd(node.firstChild, start + '/root/bridge-fixture/sub'.length);
-        const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
-    });
-    const openSelection = page.locator('[data-action="open-selected-path"]');
-    await page.waitForFunction(() => !document.querySelector('[data-action="open-selected-path"]')?.disabled);
-    assert.ok(await page.locator('.terminal-text-actions').evaluate(node => node.scrollWidth <= node.clientWidth), 'selection action fits 320px');
-    await page.screenshot({ path: 'test-results/terminal-links-touch.png' });
-    await openSelection.tap();
-    await page.waitForFunction(() => document.querySelector('.component-tab.active')?.dataset.componentName !== 'term');
-    assert.equal(inputs.length, before, 'snapshot selection opening sends no TUI input');
-    termTab = page.locator('[data-component-name="term"]');
-    if (!await termTab.count()) await page.getByRole('button', { name: 'More components' }).click();
-    await termTab.click();
-    await terminal.getByRole('button', { name: 'Terminal contents as text', exact: true }).tap();
-    await page.locator('.terminal-text pre').evaluate(node => {
-        const value = 'http://terminal-link.invalid/tui', start = node.textContent.indexOf(value);
-        const range = document.createRange(); range.setStart(node.firstChild, start); range.setEnd(node.firstChild, start + value.length);
-        const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
-    });
-    await page.getByRole('button', { name: 'Open link', exact: true }).waitFor();
-    before = inputs.length;
-    await openWeb('http://terminal-link.invalid/tui', () => page.getByRole('button', { name: 'Open link', exact: true }).tap());
-    assert.equal(inputs.length, before, 'selected web links send no TUI input');
+    assert.equal(await page.locator('.terminal-text-actions').count(), 0);
+    await page.keyboard.press('Meta+a');
+    assert.equal(await snapshot.evaluate(() => getSelection().toString()), await snapshot.textContent());
+    assert.equal(inputs.length, before, 'snapshot selection sends no TUI input');
+    await page.keyboard.press('Escape');
     const other = await browser.newContext();
     try {
         assert.equal((await other.request.post(base + '/api/login', { data: { username: 'tuxee-bridge-test', password: 'toor' }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
