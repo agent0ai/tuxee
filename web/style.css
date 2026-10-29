@@ -1536,6 +1536,7 @@ pre, code, .process-label small, .login-language {
 .shortcuts-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .shortcuts-table th, .shortcuts-table td { text-align: start; padding: 5px; overflow-wrap: anywhere; }
 .shortcuts-table thead th { color: var(--muted); font-size: 12px; }
+.shortcuts-table thead th:not(:first-child) { text-align: center; }
 .shortcuts-table th:first-child { width: 36%; }
 .shortcuts-table tbody th:not(.shortcuts-group) { font-weight: normal; }
 .shortcuts-table .shortcuts-group { padding-top: 18px; border-bottom: 1px solid var(--line); }
