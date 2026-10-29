@@ -970,7 +970,8 @@ h3 {
 .retained-header [role=tab] { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
 .retained-header > button { flex-shrink: 0; margin-inline-start: auto; }
 .retained-name { display: flex; align-items: baseline; gap: 6px; overflow-wrap: anywhere; }
-.retained-directory { font-weight: 400; color: color-mix(in srgb, var(--accent) 50%, var(--muted)); }
+.retained-directory, .retained-age { font-weight: 400; color: color-mix(in srgb, var(--accent) 50%, var(--muted)); }
+.retained-age { white-space: nowrap; }
 .retained-status { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--monitor-green); }
 .retained-status[data-exited=true] { background: var(--monitor-purple); }
 .retained-times { overflow-wrap: anywhere; }

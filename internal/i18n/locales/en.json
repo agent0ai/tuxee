@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Permanently delete saved output and input history for {count} terminals?",
     "backend.terminal.archiveMustBeClosed": "Close the terminal before deleting its saved output.",
     "term.noLostTerminals": "No lost terminals.",
-    "term.noClosedTerminals": "No closed terminals."
+    "term.noClosedTerminals": "No closed terminals.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}h{minutes}m",
+    "term.ageDays": "{days}d{hours}h{minutes}m"
   }
 }

@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "¿Borrar permanentemente la salida guardada y el historial de entrada de {count} terminales?",
     "backend.terminal.archiveMustBeClosed": "Cierra el terminal antes de borrar su salida guardada.",
     "term.noLostTerminals": "No hay terminales perdidos.",
-    "term.noClosedTerminals": "No hay terminales cerrados."
+    "term.noClosedTerminals": "No hay terminales cerrados.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}d{hours}h{minutes}min"
   }
 }

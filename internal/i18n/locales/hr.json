@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Trajno izbrisati spremljeni izlaz i povijest unosa terminala ({count})?",
     "backend.terminal.archiveMustBeClosed": "Zatvorite terminal prije brisanja njegova spremljenog izlaza.",
     "term.noLostTerminals": "Nema izgubljenih terminala.",
-    "term.noClosedTerminals": "Nema zatvorenih terminala."
+    "term.noClosedTerminals": "Nema zatvorenih terminala.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}d{hours}h{minutes}min"
   }
 }

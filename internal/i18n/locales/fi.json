@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Poistetaanko päätteiden ({count}) tallennetut tulosteet ja syötehistoria pysyvästi?",
     "backend.terminal.archiveMustBeClosed": "Sulje pääte ennen tallennetun tulosteen poistamista.",
     "term.noLostTerminals": "Ei kadonneita päätteitä.",
-    "term.noClosedTerminals": "Ei suljettuja päätteitä."
+    "term.noClosedTerminals": "Ei suljettuja päätteitä.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}pv{hours}h{minutes}min"
   }
 }

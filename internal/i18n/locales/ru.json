@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Навсегда удалить сохранённый вывод и историю ввода терминалов ({count})?",
     "backend.terminal.archiveMustBeClosed": "Закройте терминал перед удалением его сохранённого вывода.",
     "term.noLostTerminals": "Нет потерянных терминалов.",
-    "term.noClosedTerminals": "Нет закрытых терминалов."
+    "term.noClosedTerminals": "Нет закрытых терминалов.",
+    "term.ageMinutes": "{minutes}мин",
+    "term.ageHours": "{hours}ч{minutes}мин",
+    "term.ageDays": "{days}д{hours}ч{minutes}мин"
   }
 }

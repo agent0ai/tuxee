@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Padam output tersimpan dan sejarah input bagi {count} terminal secara kekal?",
     "backend.terminal.archiveMustBeClosed": "Tutup terminal sebelum memadam output tersimpannya.",
     "term.noLostTerminals": "Tiada terminal hilang.",
-    "term.noClosedTerminals": "Tiada terminal ditutup."
+    "term.noClosedTerminals": "Tiada terminal ditutup.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}j{minutes}m",
+    "term.ageDays": "{days}h{hours}j{minutes}m"
   }
 }

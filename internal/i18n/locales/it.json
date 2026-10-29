@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Eliminare definitivamente l’output salvato e la cronologia di input di {count} terminali?",
     "backend.terminal.archiveMustBeClosed": "Chiudi il terminale prima di eliminarne l’output salvato.",
     "term.noLostTerminals": "Nessun terminale perso.",
-    "term.noClosedTerminals": "Nessun terminale chiuso."
+    "term.noClosedTerminals": "Nessun terminale chiuso.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}g{hours}h{minutes}min"
   }
 }

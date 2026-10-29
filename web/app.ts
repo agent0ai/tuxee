@@ -1163,6 +1163,11 @@ async function retainedTerminals() {
     let closed = false, busy = false;
     let displayed: TerminalInfo[] = [];
     const latest = (info: TerminalInfo) => Date.parse(info.closedAt || info.terminatedAt || info.foundDeadAt || info.startedAt || '') || 0;
+    const age = (timestamp: number) => {
+        const total = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+        const days = Math.floor(total / 1440), hours = Math.floor(total / 60) % 24, minutes = total % 60;
+        return days ? t('term.ageDays', { days, hours, minutes }) : hours ? t('term.ageHours', { hours, minutes }) : t('term.ageMinutes', { minutes });
+    };
     const sessions = () => (closed ? terminalSessions.filter(info => info.closedAt) : unlistedTerminals())
         .sort((a, b) => latest(b) - latest(a) || a.id.localeCompare(b.id));
     const activeTab = button(t("term.lostTerminals"), undefined, () => select(false));
@@ -1217,7 +1222,10 @@ async function retainedTerminals() {
             row.dataset.terminalId = info.id;
             const dot = el('span', 'retained-status'); dot.dataset.exited = String(info.exited); dot.setAttribute('aria-hidden', 'true');
             const title = el('span'), directory = el('bdi', 'retained-directory', info.directory); directory.dir = 'ltr';
-            title.append(el('span', 'retained-label', info.name), ' ', directory); name.append(dot, title);
+            title.append(el('span', 'retained-label', info.name), ' ', directory);
+            const timestamp = latest(info);
+            if (timestamp) title.append(' ', el('bdi', 'retained-age', `• ${age(timestamp)}`));
+            name.append(dot, title);
             const times = el('small', 'muted retained-times');
             const stamps = [
                 [info.startedAt, 'term.startedAt'],

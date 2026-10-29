@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "터미널 {count}개의 저장된 출력과 입력 기록을 영구 삭제할까요?",
     "backend.terminal.archiveMustBeClosed": "저장된 출력을 삭제하기 전에 터미널을 닫으세요.",
     "term.noLostTerminals": "유실된 터미널이 없습니다.",
-    "term.noClosedTerminals": "닫힌 터미널이 없습니다."
+    "term.noClosedTerminals": "닫힌 터미널이 없습니다.",
+    "term.ageMinutes": "{minutes}분",
+    "term.ageHours": "{hours}시간{minutes}분",
+    "term.ageDays": "{days}일{hours}시간{minutes}분"
   }
 }

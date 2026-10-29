@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Trvale smazat uložený výstup a historii vstupu terminálů ({count})?",
     "backend.terminal.archiveMustBeClosed": "Před smazáním uloženého výstupu terminál zavřete.",
     "term.noLostTerminals": "Žádné ztracené terminály.",
-    "term.noClosedTerminals": "Žádné zavřené terminály."
+    "term.noClosedTerminals": "Žádné zavřené terminály.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}h{minutes}m",
+    "term.ageDays": "{days}d{hours}h{minutes}m"
   }
 }

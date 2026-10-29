@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "永久刪除 {count} 個終端機的已儲存輸出和輸入歷史？",
     "backend.terminal.archiveMustBeClosed": "請先關閉終端機，再刪除其已儲存的輸出。",
     "term.noLostTerminals": "沒有遺失的終端機。",
-    "term.noClosedTerminals": "沒有已關閉的終端機。"
+    "term.noClosedTerminals": "沒有已關閉的終端機。",
+    "term.ageMinutes": "{minutes}分",
+    "term.ageHours": "{hours}小時{minutes}分",
+    "term.ageDays": "{days}天{hours}小時{minutes}分"
   }
 }

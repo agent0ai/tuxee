@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "خروجی ذخیره‌شده و سابقهٔ ورودی {count} ترمینال برای همیشه حذف شوند؟",
     "backend.terminal.archiveMustBeClosed": "پیش از حذف خروجی ذخیره‌شده، ترمینال را ببندید.",
     "term.noLostTerminals": "ترمینال گم‌شده‌ای وجود ندارد.",
-    "term.noClosedTerminals": "ترمینال بسته‌شده‌ای وجود ندارد."
+    "term.noClosedTerminals": "ترمینال بسته‌شده‌ای وجود ندارد.",
+    "term.ageMinutes": "{minutes}د",
+    "term.ageHours": "{hours}س{minutes}د",
+    "term.ageDays": "{days}ر{hours}س{minutes}د"
   }
 }

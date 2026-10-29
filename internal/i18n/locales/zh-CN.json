@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "永久删除 {count} 个终端的已保存输出和输入历史？",
     "backend.terminal.archiveMustBeClosed": "请先关闭终端，再删除其已保存的输出。",
     "term.noLostTerminals": "没有丢失的终端。",
-    "term.noClosedTerminals": "没有已关闭的终端。"
+    "term.noClosedTerminals": "没有已关闭的终端。",
+    "term.ageMinutes": "{minutes}分",
+    "term.ageHours": "{hours}小时{minutes}分",
+    "term.ageDays": "{days}天{hours}小时{minutes}分"
   }
 }

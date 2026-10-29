@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "למחוק לצמיתות את הפלט השמור והיסטוריית הקלט של המסופים ({count})?",
     "backend.terminal.archiveMustBeClosed": "יש לסגור את המסוף לפני מחיקת הפלט השמור שלו.",
     "term.noLostTerminals": "אין מסופים אבודים.",
-    "term.noClosedTerminals": "אין מסופים סגורים."
+    "term.noClosedTerminals": "אין מסופים סגורים.",
+    "term.ageMinutes": "{minutes}ד",
+    "term.ageHours": "{hours}ש{minutes}ד",
+    "term.ageDays": "{days}י{hours}ש{minutes}ד"
   }
 }

@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Eyða varanlega vistuðu úttaki og innsláttarsögu útstöðva ({count})?",
     "backend.terminal.archiveMustBeClosed": "Lokaðu útstöðinni áður en þú eyðir vistuðu úttaki hennar.",
     "term.noLostTerminals": "Engar týndar útstöðvar.",
-    "term.noClosedTerminals": "Engar lokaðar útstöðvar."
+    "term.noClosedTerminals": "Engar lokaðar útstöðvar.",
+    "term.ageMinutes": "{minutes}mín",
+    "term.ageHours": "{hours}klst{minutes}mín",
+    "term.ageDays": "{days}d{hours}klst{minutes}mín"
   }
 }

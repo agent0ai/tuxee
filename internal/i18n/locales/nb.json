@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Slett lagrede utdata og inndatahistorikk for {count} terminaler permanent?",
     "backend.terminal.archiveMustBeClosed": "Lukk terminalen før du sletter lagrede utdata.",
     "term.noLostTerminals": "Ingen tapte terminaler.",
-    "term.noClosedTerminals": "Ingen lukkede terminaler."
+    "term.noClosedTerminals": "Ingen lukkede terminaler.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}t{minutes}m",
+    "term.ageDays": "{days}d{hours}t{minutes}m"
   }
 }

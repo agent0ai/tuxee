@@ -150,10 +150,18 @@ try {
     console.log('PASS archive header expansion, context menus and desktop moves preserve output without live rendering');
     let created = 0;
     page.on('response', response => { if (response.url()===base+'/api/terminals' && response.request().method()==='POST' && response.status()===201) created++; });
+    await page.route(base+`/api/terminals/${natural.id}`, route=>route.request().method()==='DELETE' ? route.fulfill({status:409,json:{error:'Test archive close failure'}}) : route.continue());
+    await page.getByRole('button',{name:'Restart',exact:true}).click();
+    await page.getByText('Test archive close failure',{exact:true}).waitFor();
+    assert.equal(created,0); assert.equal((await json(`/terminals/${natural.id}`)).closedAt,undefined);
+    assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
+    await page.unroute(base+`/api/terminals/${natural.id}`);
     await page.route(base+'/api/terminals', route=>route.request().method()==='POST' ? route.fulfill({status:409,json:{error:'Test archive create failure'}}) : route.continue());
     await page.getByRole('button',{name:'Restart',exact:true}).click();
     await page.getByText('Test archive create failure',{exact:true}).waitFor();
     assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
+    const restartedArchive=await json(`/terminals/${natural.id}`);
+    assert.ok(restartedArchive.closedAt); assert.equal(restartedArchive.terminatedAt,naturalInfo.terminatedAt);
     await page.unroute(base+'/api/terminals');
     await page.route(base+'/api/settings', route=>route.request().method()==='PUT' ? route.fulfill({status:409,json:{error:'Test archive save failure'}}) : route.continue());
     await page.getByRole('button',{name:'Restart',exact:true}).click();
@@ -165,17 +173,17 @@ try {
     assert.equal(created,1,'retry must save the existing replacement');
     const replacement=(await json('/me')).settings.workspaces[0].panels[0].terminal;
     assert.notEqual(replacement,natural.id); assert.deepEqual(await json(`/terminals/${replacement}/input-history`),[]);
-    assert.deepEqual(await output(natural.id),saved); assert.equal((await json(`/terminals/${natural.id}`)).closedAt,undefined);
+    assert.deepEqual(await output(natural.id),saved); assert.equal((await json(`/terminals/${natural.id}`)).closedAt,restartedArchive.closedAt);
     const openRetained=async()=>{ await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
     await openRetained();
     const dialog=page.getByRole('dialog',{name:'Retained terminals',exact:true});
     await dialog.getByRole('tab',{name:'Lost terminals',exact:true}).waitFor();
-    assert.equal(await dialog.locator('.retained-status[data-exited=true]').count(),1);
-    assert.match((await dialog.locator('.retained-times').first().textContent()).replace(/[\u2066\u2069]/g,''),/Started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, terminated /);
+    assert.equal(await dialog.locator('.retained-status[data-exited=true]').count(),0);
+    await dialog.getByRole('tab',{name:'Closed',exact:true}).click();
+    await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'View',exact:true}).waitFor();
+    assert.match((await dialog.locator('.retained-times').first().textContent()).replace(/[\u2066\u2069]/g,''),/Started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, closed by user /);
     const spacing=await dialog.locator('.retained-row').first().evaluate(row=>({top:parseFloat(getComputedStyle(row).paddingTop),bottom:parseFloat(getComputedStyle(row).paddingBottom)}));
     assert.ok(spacing.top>=14 && spacing.top===spacing.bottom,'uniform first-row padding');
-    const row=dialog.locator('.retained-row').filter({hasText:'Archive fixture'}); await row.getByRole('button',{name:'Close',exact:true}).click();
-    await dialog.getByRole('tab',{name:'Closed',exact:true}).click(); await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'View',exact:true}).waitFor();
     const closedInfo=await json(`/terminals/${natural.id}`);
     assert.equal(Date.parse(closedInfo.expiresAt)-Date.parse(closedInfo.closedAt),168*3600000);
     assert.match(await dialog.locator('.retained-times').textContent(),/closed by user .*Expires /);
@@ -191,6 +199,25 @@ try {
     assert.equal((await api('/settings','PUT',{...settings,closedTerminalHistoryHours:-1})).status(),400);
     assert.equal((await api('/settings','PUT',{...settings,closedTerminalHistoryHours:1.5})).status(),400);
     await page.close();
+    const closing=await create("printf 'CLOSE_DURING_RESTART\\n'",'Closing archive');
+    await ended(closing.id); await mount(closing.id);
+    const closingPage=await context.newPage(); closingPage.on('pageerror',error=>errors.push(error.message));
+    await closingPage.goto(base); await closingPage.locator('.terminal-archive pre').waitFor();
+    let entered, release, replacements=0;
+    const requested=new Promise(resolve=>entered=resolve), held=new Promise(resolve=>release=resolve);
+    closingPage.on('request',request=>{ if(request.url()===base+'/api/terminals' && request.method()==='POST') replacements++; });
+    await closingPage.route(base+`/api/terminals/${closing.id}`,async route=>{
+        if(route.request().method()==='DELETE') { entered(); await held; }
+        await route.continue();
+    });
+    await closingPage.getByRole('button',{name:'Restart',exact:true}).click(); await requested;
+    await closingPage.locator('[data-panel=primary]').getByRole('button',{name:'Close panel',exact:true}).click();
+    await closingPage.locator('.terminal-archive').waitFor({state:'detached'}); release();
+    await wait(async()=>Boolean((await json(`/terminals/${closing.id}`)).closedAt),'close during archive restart');
+    await closingPage.unrouteAll({behavior:'wait'}); await closingPage.close();
+    assert.equal(replacements,0,'closing during archive restart must not create a shell');
+    await json(`/terminals/${closing.id}/archive`,'DELETE');
+    console.log('PASS archive Restart closes old output; close/create/save failures and concurrent panel closure preserve lifecycle');
     const killed=await create("printf 'KILLED_OUTPUT\\n'; sleep 300",'Killed');
     await wait(async()=> (await output(killed.id))?.text.includes('KILLED_OUTPUT'),'kill output'); process.kill(killed.pid,'SIGKILL'); await ended(killed.id);
     assert.ok((await output(killed.id)).text.includes('KILLED_OUTPUT')); assert.equal((await json(`/terminals/${killed.id}`)).closedAt,undefined);
@@ -243,10 +270,10 @@ try {
     await ended(olderClosed.id); await json(`/terminals/${olderClosed.id}`,'DELETE');
     const hour=3600000, now=Date.now(), stamp=hours=>new Date(now-hours*hour).toISOString();
     for(const [id,times] of [
-        [mc.id,{startedAt:stamp(8),terminatedAt:stamp(4)}],
-        [killed.id,{startedAt:stamp(10),terminatedAt:stamp(3)}],
-        [shutdown.id,{startedAt:stamp(9),terminatedAt:stamp(5)}],
-        [crash.id,{startedAt:stamp(7),foundDeadAt:stamp(2)}],
+        [mc.id,{startedAt:stamp(100),terminatedAt:stamp(24+8+34/60)}],
+        [killed.id,{startedAt:stamp(10),terminatedAt:stamp(1.5)}],
+        [shutdown.id,{startedAt:stamp(401*24),terminatedAt:stamp(400*24)}],
+        [crash.id,{startedAt:stamp(7),foundDeadAt:stamp(53/60)}],
         [closedFixture.id,{startedAt:stamp(3)}],
         [olderClosed.id,{startedAt:stamp(2),terminatedAt:stamp(1),closedAt:stamp(1)}],
     ]) {
@@ -255,6 +282,7 @@ try {
     }
     await mount(mc.id);
     const mobile=await context.newPage(); mobile.on('pageerror',error=>errors.push(error.message));
+    await mobile.clock.setFixedTime(now);
     await mobile.setViewportSize({width:320,height:700});
     for (const [index,file] of (await readdir('internal/i18n/locales')).entries()) {
         if (index===20) { console.log('Waiting for the real login rate-limit window before remaining languages.'); await new Promise(resolve=>setTimeout(resolve,60000)); }
@@ -280,6 +308,18 @@ try {
                 const chronology=tab==='term.lostTerminals'?[crash.id,killed.id,mc.id,shutdown.id]:[closedFixture.id,olderClosed.id];
                 assert.deepEqual(layout.rows.map(row=>row.id).filter(id=>chronology.includes(id)),chronology);
                 if(tab==='term.lostTerminals') assert.equal(layout.rows[0].id,liveFixture.id,'live terminal uses its start timestamp');
+                for (const [id,key,vars] of [
+                    [liveFixture.id,'term.ageMinutes',{minutes:0}],
+                    [crash.id,'term.ageMinutes',{minutes:53}],
+                    [killed.id,'term.ageHours',{hours:1,minutes:30}],
+                    [mc.id,'term.ageDays',{days:1,hours:8,minutes:34}],
+                    [shutdown.id,'term.ageDays',{days:400,hours:0,minutes:0}],
+                    [closedFixture.id,'term.ageMinutes',{minutes:0}],
+                    [olderClosed.id,'term.ageHours',{hours:1,minutes:0}],
+                ]) if(layout.rows.some(row=>row.id===id)) {
+                    const expected=catalog[key].replace(/\{(\w+)\}/g,(_,key)=>vars[key]);
+                    assert.equal(await inventory.locator(`[data-terminal-id="${id}"] .retained-age`).textContent(),'• '+expected);
+                }
                 for (const row of layout.rows) {
                     assert.equal(row.path,user.home); assert.equal(row.pathWeight,'400'); assert.ok(Number(row.nameWeight)>=600); assert.notEqual(row.pathColor,row.nameColor);
                     assert.ok(row.scroll<=row.width+1,language+JSON.stringify(row)); assert.ok(!row.times.includes('[!'));

@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Назавжди видалити збережений вивід та історію введення терміналів ({count})?",
     "backend.terminal.archiveMustBeClosed": "Закрийте термінал перед видаленням його збереженого виводу.",
     "term.noLostTerminals": "Немає втрачених терміналів.",
-    "term.noClosedTerminals": "Немає закритих терміналів."
+    "term.noClosedTerminals": "Немає закритих терміналів.",
+    "term.ageMinutes": "{minutes}хв",
+    "term.ageHours": "{hours}год{minutes}хв",
+    "term.ageDays": "{days}д{hours}год{minutes}хв"
   }
 }

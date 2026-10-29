@@ -493,10 +493,14 @@ export class TerminalView implements View {
         pre.title = archive?.capturedAt ? new Date(archive.capturedAt).toLocaleString(locale()) : '';
         pre.onscroll = updateScroll;
         const restart = button(t("term.restartArchive"), undefined, () => {
-            if (this.resetting) return;
+            if (this.disposed || this.closing || this.resetting) return;
             this.resetting = restart.disabled = true;
             this.starting = (async () => {
-                if (this.panel.terminal === terminal) delete this.panel.terminal;
+                if (this.panel.terminal === terminal) {
+                    await terminateTerminal(this.panel);
+                    if (this.disposed || this.closing) return;
+                    delete this.panel.terminal;
+                }
                 if (!this.panel.terminal) this.panel.path = this.hooks.defaultDirectory();
                 else await this.hooks.changed(true);
                 await this.start();

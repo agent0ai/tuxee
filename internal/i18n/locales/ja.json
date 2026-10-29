@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "端末 {count} 件の保存済み出力と入力履歴を完全に削除しますか？",
     "backend.terminal.archiveMustBeClosed": "保存済みの出力を削除する前に端末を閉じてください。",
     "term.noLostTerminals": "失われた端末はありません。",
-    "term.noClosedTerminals": "閉じた端末はありません。"
+    "term.noClosedTerminals": "閉じた端末はありません。",
+    "term.ageMinutes": "{minutes}分",
+    "term.ageHours": "{hours}時間{minutes}分",
+    "term.ageDays": "{days}日{hours}時間{minutes}分"
   }
 }

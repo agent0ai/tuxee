@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Végleg törli a terminálok ({count}) mentett kimenetét és beviteli előzményeit?",
     "backend.terminal.archiveMustBeClosed": "A mentett kimenet törlése előtt zárja be a terminált.",
     "term.noLostTerminals": "Nincsenek elveszett terminálok.",
-    "term.noClosedTerminals": "Nincsenek bezárt terminálok."
+    "term.noClosedTerminals": "Nincsenek bezárt terminálok.",
+    "term.ageMinutes": "{minutes}p",
+    "term.ageHours": "{hours}ó{minutes}p",
+    "term.ageDays": "{days}n{hours}ó{minutes}p"
   }
 }

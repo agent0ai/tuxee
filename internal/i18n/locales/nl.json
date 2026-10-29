@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Opgeslagen uitvoer en invoergeschiedenis van {count} terminals definitief verwijderen?",
     "backend.terminal.archiveMustBeClosed": "Sluit de terminal voordat u de opgeslagen uitvoer verwijdert.",
     "term.noLostTerminals": "Geen verloren terminals.",
-    "term.noClosedTerminals": "Geen gesloten terminals."
+    "term.noClosedTerminals": "Geen gesloten terminals.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}u{minutes}m",
+    "term.ageDays": "{days}d{hours}u{minutes}m"
   }
 }

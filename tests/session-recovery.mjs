@@ -102,13 +102,13 @@ try {
     assert.equal((await api(`/terminals/${original.id}`, 'DELETE')).status(), 200);
     const restart = terminal.getByRole('button', { name: 'Restart', exact: true });
     await restart.waitFor();
-    const denied = page.waitForResponse(r => r.url() === base + '/api/terminals' && r.request().method() === 'POST');
+    const denied = page.waitForResponse(r => r.url() === base + `/api/terminals/${original.id}` && r.request().method() === 'DELETE');
     await restart.click();
     assert.equal((await denied).status(), 403);
     await page.waitForFunction(() => !document.querySelector('.restart-terminal')?.disabled);
     assert.ok(await restart.isVisible());
     assert.equal(await terminal.locator('.terminal-host').isVisible(), false);
-    assert.equal(creations, 1, 'failed mutations must not replay automatically');
+    assert.equal(creations, 0, 'failed archive closure must not create a replacement');
     await page.unroute(base + '/api/connection'); await check();
 
     await page.route(base + '/api/settings', route => route.fulfill({ status: 503, json: { error: 'Save fixture failure' } }), { times: 1 });
@@ -133,7 +133,7 @@ try {
     await page.keyboard.type("printf 'SESSION_%s\\n' 'RECOVERED'"); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('SESSION_RECOVERED'));
     assert.equal(await editor.textContent(), draft);
-    console.log('PASS rejected creation keeps recovery visible; a failed save retries the same shell and restores real input');
+    console.log('PASS rejected archive closure keeps recovery visible; a failed save retries the same shell and restores real input');
 
     const beforeSwitch = saves.length;
     await login(users[1]); await page.bringToFront();

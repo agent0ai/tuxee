@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Kustutada terminalide ({count}) salvestatud väljund ja sisestusajalugu jäädavalt?",
     "backend.terminal.archiveMustBeClosed": "Enne salvestatud väljundi kustutamist sulge terminal.",
     "term.noLostTerminals": "Kadunud terminale pole.",
-    "term.noClosedTerminals": "Suletud terminale pole."
+    "term.noClosedTerminals": "Suletud terminale pole.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}t{minutes}min",
+    "term.ageDays": "{days}p{hours}t{minutes}min"
   }
 }

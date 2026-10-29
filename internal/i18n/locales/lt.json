@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Visam laikui ištrinti terminalų ({count}) išsaugotą išvestį ir įvesties istoriją?",
     "backend.terminal.archiveMustBeClosed": "Prieš ištrindami išsaugotą išvestį uždarykite terminalą.",
     "term.noLostTerminals": "Nėra prarastų terminalų.",
-    "term.noClosedTerminals": "Nėra uždarytų terminalų."
+    "term.noClosedTerminals": "Nėra uždarytų terminalų.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}val{minutes}min",
+    "term.ageDays": "{days}d{hours}val{minutes}min"
   }
 }

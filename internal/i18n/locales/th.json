@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "ลบผลลัพธ์ที่บันทึกไว้และประวัติการป้อนข้อมูลของเทอร์มินัล {count} รายการอย่างถาวรหรือไม่?",
     "backend.terminal.archiveMustBeClosed": "ปิดเทอร์มินัลก่อนลบผลลัพธ์ที่บันทึกไว้",
     "term.noLostTerminals": "ไม่มีเทอร์มินัลที่หายไป",
-    "term.noClosedTerminals": "ไม่มีเทอร์มินัลที่ปิดแล้ว"
+    "term.noClosedTerminals": "ไม่มีเทอร์มินัลที่ปิดแล้ว",
+    "term.ageMinutes": "{minutes}น",
+    "term.ageHours": "{hours}ชม{minutes}น",
+    "term.ageDays": "{days}ว{hours}ชม{minutes}น"
   }
 }

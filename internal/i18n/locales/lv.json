@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Neatgriezeniski dzēst termināļu ({count}) saglabāto izvadi un ievades vēsturi?",
     "backend.terminal.archiveMustBeClosed": "Pirms saglabātās izvades dzēšanas aizveriet termināli.",
     "term.noLostTerminals": "Nav zaudētu termināļu.",
-    "term.noClosedTerminals": "Nav aizvērtu termināļu."
+    "term.noClosedTerminals": "Nav aizvērtu termināļu.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}st{minutes}min",
+    "term.ageDays": "{days}d{hours}st{minutes}min"
   }
 }

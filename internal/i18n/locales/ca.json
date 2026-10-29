@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Voleu suprimir permanentment la sortida desada i l’historial d’entrada de {count} terminals?",
     "backend.terminal.archiveMustBeClosed": "Tanqueu el terminal abans de suprimir-ne la sortida desada.",
     "term.noLostTerminals": "No hi ha terminals perduts.",
-    "term.noClosedTerminals": "No hi ha terminals tancats."
+    "term.noClosedTerminals": "No hi ha terminals tancats.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}d{hours}h{minutes}min"
   }
 }

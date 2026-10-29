@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Permanenteng burahin ang naka-save na output at kasaysayan ng input ng {count} terminal?",
     "backend.terminal.archiveMustBeClosed": "Isara ang terminal bago burahin ang naka-save na output nito.",
     "term.noLostTerminals": "Walang nawawalang terminal.",
-    "term.noClosedTerminals": "Walang nakasarang terminal."
+    "term.noClosedTerminals": "Walang nakasarang terminal.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}o{minutes}m",
+    "term.ageDays": "{days}a{hours}o{minutes}m"
   }
 }

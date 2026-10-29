@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "{count} terminalin kayıtlı çıktısı ve girdi geçmişi kalıcı olarak silinsin mi?",
     "backend.terminal.archiveMustBeClosed": "Kayıtlı çıktısını silmeden önce terminali kapatın.",
     "term.noLostTerminals": "Kayıp terminal yok.",
-    "term.noClosedTerminals": "Kapalı terminal yok."
+    "term.noClosedTerminals": "Kapalı terminal yok.",
+    "term.ageMinutes": "{minutes}dk",
+    "term.ageHours": "{hours}sa{minutes}dk",
+    "term.ageDays": "{days}g{hours}sa{minutes}dk"
   }
 }

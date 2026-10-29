@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "{count} टर्मिनल का सहेजा गया आउटपुट और इनपुट इतिहास हमेशा के लिए मिटाएँ?",
     "backend.terminal.archiveMustBeClosed": "सहेजा गया आउटपुट मिटाने से पहले टर्मिनल बंद करें।",
     "term.noLostTerminals": "कोई खोया हुआ टर्मिनल नहीं है।",
-    "term.noClosedTerminals": "कोई बंद टर्मिनल नहीं है।"
+    "term.noClosedTerminals": "कोई बंद टर्मिनल नहीं है।",
+    "term.ageMinutes": "{minutes}मि",
+    "term.ageHours": "{hours}घं{minutes}मि",
+    "term.ageDays": "{days}दि{hours}घं{minutes}मि"
   }
 }

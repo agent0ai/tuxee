@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Οριστική διαγραφή της αποθηκευμένης εξόδου και του ιστορικού εισόδου των τερματικών ({count});",
     "backend.terminal.archiveMustBeClosed": "Κλείστε το τερματικό πριν διαγράψετε την αποθηκευμένη έξοδό του.",
     "term.noLostTerminals": "Δεν υπάρχουν χαμένα τερματικά.",
-    "term.noClosedTerminals": "Δεν υπάρχουν κλειστά τερματικά."
+    "term.noClosedTerminals": "Δεν υπάρχουν κλειστά τερματικά.",
+    "term.ageMinutes": "{minutes}λ",
+    "term.ageHours": "{hours}ω{minutes}λ",
+    "term.ageDays": "{days}η{hours}ω{minutes}λ"
   }
 }

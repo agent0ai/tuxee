@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Radera sparade utdata och inmatningshistorik för {count} terminaler permanent?",
     "backend.terminal.archiveMustBeClosed": "Stäng terminalen innan du raderar dess sparade utdata.",
     "term.noLostTerminals": "Inga förlorade terminaler.",
-    "term.noClosedTerminals": "Inga stängda terminaler."
+    "term.noClosedTerminals": "Inga stängda terminaler.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}t{minutes}m",
+    "term.ageDays": "{days}d{hours}t{minutes}m"
   }
 }

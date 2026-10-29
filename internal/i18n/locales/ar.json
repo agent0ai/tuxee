@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "حذف المخرجات المحفوظة وسجل الإدخال نهائيًا للطرفيات التالية: {count}؟",
     "backend.terminal.archiveMustBeClosed": "أغلق الطرفية قبل حذف مخرجاتها المحفوظة.",
     "term.noLostTerminals": "لا توجد طرفيات مفقودة.",
-    "term.noClosedTerminals": "لا توجد طرفيات مغلقة."
+    "term.noClosedTerminals": "لا توجد طرفيات مغلقة.",
+    "term.ageMinutes": "{minutes}د",
+    "term.ageHours": "{hours}س{minutes}د",
+    "term.ageDays": "{days}ي{hours}س{minutes}د"
   }
 }

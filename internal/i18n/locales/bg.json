@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Да се изтрият ли безвъзвратно запазеният изход и историята на въвеждане на терминалите ({count})?",
     "backend.terminal.archiveMustBeClosed": "Затворете терминала, преди да изтриете запазения му изход.",
     "term.noLostTerminals": "Няма изгубени терминали.",
-    "term.noClosedTerminals": "Няма затворени терминали."
+    "term.noClosedTerminals": "Няма затворени терминали.",
+    "term.ageMinutes": "{minutes}м",
+    "term.ageHours": "{hours}ч{minutes}м",
+    "term.ageDays": "{days}д{hours}ч{minutes}м"
   }
 }

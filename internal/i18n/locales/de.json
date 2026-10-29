@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Gespeicherte Ausgaben und Eingabeverläufe von {count} Terminals endgültig löschen?",
     "backend.terminal.archiveMustBeClosed": "Schließen Sie das Terminal, bevor Sie seine gespeicherte Ausgabe löschen.",
     "term.noLostTerminals": "Keine verlorenen Terminals.",
-    "term.noClosedTerminals": "Keine geschlossenen Terminals."
+    "term.noClosedTerminals": "Keine geschlossenen Terminals.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}h{minutes}m",
+    "term.ageDays": "{days}T{hours}h{minutes}m"
   }
 }

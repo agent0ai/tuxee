@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Xóa vĩnh viễn đầu ra đã lưu và lịch sử nhập của {count} terminal?",
     "backend.terminal.archiveMustBeClosed": "Đóng terminal trước khi xóa đầu ra đã lưu.",
     "term.noLostTerminals": "Không có terminal thất lạc.",
-    "term.noClosedTerminals": "Không có terminal đã đóng."
+    "term.noClosedTerminals": "Không có terminal đã đóng.",
+    "term.ageMinutes": "{minutes}p",
+    "term.ageHours": "{hours}g{minutes}p",
+    "term.ageDays": "{days}n{hours}g{minutes}p"
   }
 }

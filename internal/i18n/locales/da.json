@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Slet gemt output og inputhistorik for {count} terminaler permanent?",
     "backend.terminal.archiveMustBeClosed": "Luk terminalen, før du sletter dens gemte output.",
     "term.noLostTerminals": "Ingen mistede terminaler.",
-    "term.noClosedTerminals": "Ingen lukkede terminaler."
+    "term.noClosedTerminals": "Ingen lukkede terminaler.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}t{minutes}m",
+    "term.ageDays": "{days}d{hours}t{minutes}m"
   }
 }

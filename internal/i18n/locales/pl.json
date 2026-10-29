@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Trwale usunąć zapisane wyjście i historię wejścia terminali ({count})?",
     "backend.terminal.archiveMustBeClosed": "Zamknij terminal przed usunięciem jego zapisanego wyjścia.",
     "term.noLostTerminals": "Brak utraconych terminali.",
-    "term.noClosedTerminals": "Brak zamkniętych terminali."
+    "term.noClosedTerminals": "Brak zamkniętych terminali.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}godz{minutes}min",
+    "term.ageDays": "{days}d{hours}godz{minutes}min"
   }
 }

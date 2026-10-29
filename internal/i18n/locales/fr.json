@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Supprimer définitivement les sorties enregistrées et l’historique de saisie de {count} terminaux ?",
     "backend.terminal.archiveMustBeClosed": "Fermez le terminal avant de supprimer sa sortie enregistrée.",
     "term.noLostTerminals": "Aucun terminal perdu.",
-    "term.noClosedTerminals": "Aucun terminal fermé."
+    "term.noClosedTerminals": "Aucun terminal fermé.",
+    "term.ageMinutes": "{minutes}min",
+    "term.ageHours": "{hours}h{minutes}min",
+    "term.ageDays": "{days}j{hours}h{minutes}min"
   }
 }

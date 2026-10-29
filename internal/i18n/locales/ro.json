@@ -786,6 +786,9 @@
     "term.deleteArchivesConfirm": "Ștergi definitiv ieșirea salvată și istoricul de intrare pentru {count} terminale?",
     "backend.terminal.archiveMustBeClosed": "Închide terminalul înainte de a-i șterge ieșirea salvată.",
     "term.noLostTerminals": "Nu există terminale pierdute.",
-    "term.noClosedTerminals": "Nu există terminale închise."
+    "term.noClosedTerminals": "Nu există terminale închise.",
+    "term.ageMinutes": "{minutes}m",
+    "term.ageHours": "{hours}h{minutes}m",
+    "term.ageDays": "{days}z{hours}h{minutes}m"
   }
 }
