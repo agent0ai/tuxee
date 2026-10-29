@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "ترمینال بسته‌شده‌ای وجود ندارد.",
     "term.ageMinutes": "{minutes}د",
     "term.ageHours": "{hours}س {minutes}د",
-    "term.ageDays": "{days}ر {hours}س {minutes}د"
+    "term.ageDays": "{days}ر {hours}س {minutes}د",
+    "shortcuts.action": "عمل",
+    "shortcuts.binding": "میانبر {number}",
+    "shortcuts.clear": "پاک کردن",
+    "shortcuts.conflict": "تداخل با: {action}",
+    "shortcuts.invalid": "میانبرهای صفحه‌کلید نامعتبر",
+    "shortcuts.modifierRequired": "با Ctrl، Alt، Cmd/Super یا کلید تابع شروع کنید.",
+    "shortcuts.nextDesktop": "فضای بعدی",
+    "shortcuts.nextWindow": "پنجره بعدی",
+    "shortcuts.pressKeys": "کلیدها را فشار دهید…",
+    "shortcuts.previousDesktop": "فضای قبلی",
+    "shortcuts.previousWindow": "پنجره قبلی",
+    "shortcuts.record": "ثبت میانبر",
+    "shortcuts.recordHint": "حداکثر {max} مرحله. Escape برای لغو.",
+    "shortcuts.title": "میانبرها",
+    "shortcuts.toggleMute": "قطع / وصل صدا",
+    "shortcuts.volumeDown": "کاهش صدا",
+    "shortcuts.volumeUp": "افزایش صدا",
+    "shortcuts.windows": "پنجره‌ها",
+    "shortcuts.space": "فاصله",
+    "shortcuts.unassigned": "تعیین نشده"
   }
 }

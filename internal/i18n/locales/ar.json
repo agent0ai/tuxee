@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "لا توجد طرفيات مغلقة.",
     "term.ageMinutes": "{minutes}د",
     "term.ageHours": "{hours}س {minutes}د",
-    "term.ageDays": "{days}ي {hours}س {minutes}د"
+    "term.ageDays": "{days}ي {hours}س {minutes}د",
+    "shortcuts.action": "الإجراء",
+    "shortcuts.binding": "الاختصار {number}",
+    "shortcuts.clear": "مسح",
+    "shortcuts.conflict": "يتعارض مع: {action}",
+    "shortcuts.invalid": "اختصارات لوحة مفاتيح غير صالحة",
+    "shortcuts.modifierRequired": "ابدأ بـ Ctrl أو Alt أو Cmd/Super أو مفتاح وظيفة.",
+    "shortcuts.nextDesktop": "المساحة التالية",
+    "shortcuts.nextWindow": "النافذة التالية",
+    "shortcuts.pressKeys": "اضغط المفاتيح…",
+    "shortcuts.previousDesktop": "المساحة السابقة",
+    "shortcuts.previousWindow": "النافذة السابقة",
+    "shortcuts.record": "تسجيل اختصار",
+    "shortcuts.recordHint": "الحد الأقصى للخطوات: {max}. Escape للإلغاء.",
+    "shortcuts.title": "الاختصارات",
+    "shortcuts.toggleMute": "كتم / تشغيل الصوت",
+    "shortcuts.volumeDown": "خفض الصوت",
+    "shortcuts.volumeUp": "رفع الصوت",
+    "shortcuts.windows": "النوافذ",
+    "shortcuts.space": "مسافة",
+    "shortcuts.unassigned": "غير معيّن"
   }
 }

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Brak zamkniętych terminali.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}godz {minutes}min",
-    "term.ageDays": "{days}d {hours}godz {minutes}min"
+    "term.ageDays": "{days}d {hours}godz {minutes}min",
+    "shortcuts.action": "Działanie",
+    "shortcuts.binding": "Skrót {number}",
+    "shortcuts.clear": "Wyczyść",
+    "shortcuts.conflict": "Konflikt z: {action}",
+    "shortcuts.invalid": "Nieprawidłowe skróty klawiszowe",
+    "shortcuts.modifierRequired": "Zacznij od Ctrl, Alt, Cmd/Super lub klawisza funkcyjnego.",
+    "shortcuts.nextDesktop": "Następny pulpit",
+    "shortcuts.nextWindow": "Następne okno",
+    "shortcuts.pressKeys": "Naciśnij klawisze…",
+    "shortcuts.previousDesktop": "Poprzedni pulpit",
+    "shortcuts.previousWindow": "Poprzednie okno",
+    "shortcuts.record": "Nagraj skrót",
+    "shortcuts.recordHint": "Maks. liczba kroków: {max}. Escape anuluje.",
+    "shortcuts.title": "Skróty",
+    "shortcuts.toggleMute": "Wycisz / włącz dźwięk",
+    "shortcuts.volumeDown": "Zmniejsz głośność",
+    "shortcuts.volumeUp": "Zwiększ głośność",
+    "shortcuts.windows": "Okna",
+    "shortcuts.space": "Spacja",
+    "shortcuts.unassigned": "Nieprzypisany"
   }
 }

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Немає закритих терміналів.",
     "term.ageMinutes": "{minutes}хв",
     "term.ageHours": "{hours}год {minutes}хв",
-    "term.ageDays": "{days}д {hours}год {minutes}хв"
+    "term.ageDays": "{days}д {hours}год {minutes}хв",
+    "shortcuts.action": "Дія",
+    "shortcuts.binding": "Скорочення {number}",
+    "shortcuts.clear": "Очистити",
+    "shortcuts.conflict": "Конфлікт із: {action}",
+    "shortcuts.invalid": "Неприпустимі клавіатурні скорочення",
+    "shortcuts.modifierRequired": "Почніть із Ctrl, Alt, Cmd/Super або функціональної клавіші.",
+    "shortcuts.nextDesktop": "Наступний стіл",
+    "shortcuts.nextWindow": "Наступне вікно",
+    "shortcuts.pressKeys": "Натисніть клавіші…",
+    "shortcuts.previousDesktop": "Попередній стіл",
+    "shortcuts.previousWindow": "Попереднє вікно",
+    "shortcuts.record": "Записати скорочення",
+    "shortcuts.recordHint": "Максимум кроків: {max}. Escape скасовує.",
+    "shortcuts.title": "Скорочення",
+    "shortcuts.toggleMute": "Вимкнути / увімкнути звук",
+    "shortcuts.volumeDown": "Зменшити гучність",
+    "shortcuts.volumeUp": "Збільшити гучність",
+    "shortcuts.windows": "Вікна",
+    "shortcuts.space": "Пробіл",
+    "shortcuts.unassigned": "Не призначено"
   }
 }

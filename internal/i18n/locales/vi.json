@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Không có terminal đã đóng.",
     "term.ageMinutes": "{minutes}p",
     "term.ageHours": "{hours}g {minutes}p",
-    "term.ageDays": "{days}n {hours}g {minutes}p"
+    "term.ageDays": "{days}n {hours}g {minutes}p",
+    "shortcuts.action": "Thao tác",
+    "shortcuts.binding": "Phím tắt {number}",
+    "shortcuts.clear": "Xóa",
+    "shortcuts.conflict": "Xung đột với: {action}",
+    "shortcuts.invalid": "Phím tắt không hợp lệ",
+    "shortcuts.modifierRequired": "Bắt đầu bằng Ctrl, Alt, Cmd/Super hoặc phím chức năng.",
+    "shortcuts.nextDesktop": "Vùng tiếp",
+    "shortcuts.nextWindow": "Cửa sổ tiếp",
+    "shortcuts.pressKeys": "Nhấn các phím…",
+    "shortcuts.previousDesktop": "Vùng trước",
+    "shortcuts.previousWindow": "Cửa sổ trước",
+    "shortcuts.record": "Ghi phím tắt",
+    "shortcuts.recordHint": "Tối đa {max} bước. Escape để hủy.",
+    "shortcuts.title": "Phím tắt",
+    "shortcuts.toggleMute": "Tắt / bật âm thanh",
+    "shortcuts.volumeDown": "Giảm âm lượng",
+    "shortcuts.volumeUp": "Tăng âm lượng",
+    "shortcuts.windows": "Cửa sổ",
+    "shortcuts.space": "Dấu cách",
+    "shortcuts.unassigned": "Chưa gán"
   }
 }

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "कोई बंद टर्मिनल नहीं है।",
     "term.ageMinutes": "{minutes}मि",
     "term.ageHours": "{hours}घं {minutes}मि",
-    "term.ageDays": "{days}दि {hours}घं {minutes}मि"
+    "term.ageDays": "{days}दि {hours}घं {minutes}मि",
+    "shortcuts.action": "क्रिया",
+    "shortcuts.binding": "शॉर्टकट {number}",
+    "shortcuts.clear": "साफ़ करें",
+    "shortcuts.conflict": "इससे टकराव: {action}",
+    "shortcuts.invalid": "अमान्य कीबोर्ड शॉर्टकट",
+    "shortcuts.modifierRequired": "Ctrl, Alt, Cmd/Super या फ़ंक्शन कुंजी से शुरू करें।",
+    "shortcuts.nextDesktop": "अगला डेस्क",
+    "shortcuts.nextWindow": "अगली विंडो",
+    "shortcuts.pressKeys": "कुंजियाँ दबाएँ…",
+    "shortcuts.previousDesktop": "पिछला डेस्क",
+    "shortcuts.previousWindow": "पिछली विंडो",
+    "shortcuts.record": "शॉर्टकट रिकॉर्ड करें",
+    "shortcuts.recordHint": "अधिकतम {max} चरण। Escape से रद्द करें।",
+    "shortcuts.title": "शॉर्टकट",
+    "shortcuts.toggleMute": "आवाज़ बंद / चालू",
+    "shortcuts.volumeDown": "आवाज़ घटाएँ",
+    "shortcuts.volumeUp": "आवाज़ बढ़ाएँ",
+    "shortcuts.windows": "विंडो",
+    "shortcuts.space": "स्पेस",
+    "shortcuts.unassigned": "असाइन नहीं किया गया"
   }
 }

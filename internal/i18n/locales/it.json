@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nessun terminale chiuso.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}g {hours}h {minutes}min"
+    "term.ageDays": "{days}g {hours}h {minutes}min",
+    "shortcuts.action": "Azione",
+    "shortcuts.binding": "Scorciatoia {number}",
+    "shortcuts.clear": "Cancella",
+    "shortcuts.conflict": "Conflitto con: {action}",
+    "shortcuts.invalid": "Scorciatoie da tastiera non valide",
+    "shortcuts.modifierRequired": "Inizia con Ctrl, Alt, Cmd/Super o un tasto funzione.",
+    "shortcuts.nextDesktop": "Spazio successivo",
+    "shortcuts.nextWindow": "Finestra successiva",
+    "shortcuts.pressKeys": "Premi i tasti…",
+    "shortcuts.previousDesktop": "Spazio precedente",
+    "shortcuts.previousWindow": "Finestra precedente",
+    "shortcuts.record": "Registra scorciatoia",
+    "shortcuts.recordHint": "Fino a {max} passaggi. Escape annulla.",
+    "shortcuts.title": "Scorciatoie",
+    "shortcuts.toggleMute": "Disattiva / attiva audio",
+    "shortcuts.volumeDown": "Abbassa volume",
+    "shortcuts.volumeUp": "Alza volume",
+    "shortcuts.windows": "Finestre",
+    "shortcuts.space": "Spazio",
+    "shortcuts.unassigned": "Non assegnato"
   }
 }

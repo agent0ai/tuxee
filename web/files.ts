@@ -286,7 +286,7 @@ export class FileView implements View {
             if (this.request === request) this.request = undefined;
         }
     }
-    focusOpened() { if (this.inspector) this.inspector.focus(); else this.focus(''); }
+    focusOpened() { this.focus(''); }
     resize() {
         const compact = !!this.root.closest('.compact-board');
         const parent = compact ? this.root : this.root.closest('.panel')!.querySelector('.panel-header')!;
@@ -431,7 +431,8 @@ export class FileView implements View {
         }
         this.paintSelection();
     }
-    private focus(path: string) {
+    focus(path = this.focusedPath) {
+        if (this.inspector) { this.inspector.focus(); return; }
         const rows = [...this.list.querySelectorAll<HTMLElement>('.file-entry')];
         const row = rows.find(row => row.dataset.path === path) || rows[0];
         (row || this.list).focus({ preventScroll: true });
@@ -455,7 +456,7 @@ export class FileView implements View {
         else if (e.key === 'F2' && !this.inTrash) run(() => this.rename());
         else if (e.key === 'F5') run(() => this.refresh());
         else if (e.key === 'Escape' && !this.filter) run(clearFileCut);
-        else if (e.key === 'ContextMenu' || e.shiftKey && e.key === 'F10' || e.key === 'Alt' && !e.ctrlKey) run(() => {
+        else if (e.key === 'ContextMenu' || e.shiftKey && e.key === 'F10') run(() => {
             if (!this.selected.size && entry) { this.selected.add(entry.path); this.paintSelection(); }
             this.menu(this.list.contains(document.activeElement) ? document.activeElement as HTMLElement : this.list);
         });

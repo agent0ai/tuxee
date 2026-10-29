@@ -17,7 +17,8 @@ import { TerminalView, terminateTerminal, TERMINAL_FONT } from './term';
 import { terminalTheme } from './terminal/state';
 import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './transfers';
 import { Monitoring } from './monitor';
-import { audio, audioControl } from './audio';
+import { audio, audioControl, toggleMute, adjustVolume } from './audio';
+import { installShortcuts, openShortcuts } from './shortcuts';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
 import { setFaviconColor } from './favicon';
@@ -363,8 +364,7 @@ function renderChrome() {
             collapseTimer = setTimeout(() => arrange.classList.remove('expanded'), 2000);
         };
         const arrange = button(t("app.rearrangeWorkspace"), 'LayoutPanelTop', () => {
-            cycleLayout(ws, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight);
-            changed(); syncWorkspace(mounted!); updateLayoutButton(true);
+            rearrangeWorkspace();
             clearTimeout(collapseTimer);
             arrange.classList.add('expanded');
             if (!arrange.matches(':hover')) collapseLater();
@@ -784,6 +784,11 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         }
     }, { signal: events.signal });
 }
+function rearrangeWorkspace() {
+    if (!mounted || !current().panels.length) return;
+    cycleLayout(current(), mounted.gridEl.clientWidth, mounted.gridEl.clientHeight);
+    changed(); syncWorkspace(mounted); updateLayoutButton(true);
+}
 function updateLayoutButton(advance = false) {
     const button = root.querySelector<HTMLButtonElement>('.layout-cycle');
     if (!button) return;
@@ -1065,10 +1070,64 @@ function refreshTerminals(): Promise<boolean> {
     return terminalRefresh;
 }
 
+function editShortcuts() {
+    openShortcuts(() => settings.shortcuts, async value => {
+        const previous = settings.shortcuts;
+        settings.shortcuts = value;
+        try { await save(); }
+        catch (error) { settings.shortcuts = previous; throw error; }
+    });
+}
+function focusActivePanel() {
+    const view = mounted?.items.get(current().active)?.view;
+    if (view instanceof TerminalView) void view.focus();
+    else if (view instanceof FileView) view.focus();
+}
+async function runShortcut(action: string) {
+    const ws = current();
+    if (action.startsWith('desktop.') && action !== 'desktop.add') {
+        const index = settings.workspaces.indexOf(ws), direction = document.documentElement.dir === 'rtl' ? -1 : 1;
+        const target = action === 'desktop.previous' ? index - direction : action === 'desktop.next' ? index + direction : Number(action.split('.')[1]) - 1;
+        const next = settings.workspaces[(target + settings.workspaces.length) % settings.workspaces.length];
+        if (/^desktop\.\d+$/.test(action) && target >= settings.workspaces.length) return;
+        if (next) { await switchWorkspace(next.id); focusActivePanel(); }
+        return;
+    }
+    if (action === 'panel.next' || action === 'panel.previous') {
+        const focused = document.activeElement?.closest<HTMLElement>('[data-panel]')?.dataset.panel || ws.active;
+        const panels = ws.panels.filter(panel => {
+            const node = mounted?.items.get(panel.id)?.node;
+            return node && !node.dataset.closing && !node.dataset.moving;
+        });
+        if (!panels.length) return;
+        const index = panels.findIndex(panel => panel.id === focused);
+        activatePanel(panels[(index + (action === 'panel.next' ? 1 : -1) + panels.length) % panels.length]);
+        focusActivePanel(); return;
+    }
+    switch (action) {
+        case 'desktop.add': await createWorkspace(); focusActivePanel(); break;
+        case 'panel.terminal': addPanel('terminal'); focusActivePanel(); break;
+        case 'panel.files': addPanel('files'); focusActivePanel(); break;
+        case 'panel.layout': rearrangeWorkspace(); break;
+        case 'audio.mute': toggleMute(); break;
+        case 'audio.up': adjustVolume(5); break;
+        case 'audio.down': adjustVolume(-5); break;
+        case 'app.monitor': monitoring?.open(); break;
+        case 'app.about': openAbout(); break;
+        case 'app.settings': await openSettings(); break;
+        case 'app.retained': await retainedTerminals(); break;
+        case 'app.shortcuts': editShortcuts(); break;
+        case 'app.restart': await restartTuxee(); break;
+        case 'app.logout': await logout(); break;
+    }
+}
+const disposeShortcuts = installShortcuts(() => settings.shortcuts || {}, () => loggedIn && !loggingOut && !dragging, runShortcut);
+
 function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, string?][] {
     const count = unlistedTerminals().filter(info => !info.exited).length;
     const actions: ReturnType<typeof accountActions> = [
         [t("app.settings"), 'Settings', openSettings],
+        [t("shortcuts.title"), 'Keyboard', editShortcuts],
         [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : '')],
         [t("app.about"), 'Info', openAbout, updates?.warning],
         [t("app.restartTuxee"), 'RefreshCw', restartTuxee], [t("app.logOut"), 'LogOut', logout]
@@ -1442,7 +1501,7 @@ visualViewport?.addEventListener('resize', viewport);
 viewport();
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
-window.addEventListener('pagehide', () => { clearFileCut(); audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
+window.addEventListener('pagehide', () => { disposeShortcuts(); clearFileCut(); audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
     else if (session.uid === user.uid && (!session.language || session.language === translations().language)) setCSRF(session.csrf);

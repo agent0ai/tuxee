@@ -2,6 +2,15 @@ import { t } from './i18n';
 import { button, el, icon, notify, popover } from './ui';
 
 let volume = 100, lastVolume = 100;
+const volumeListeners = new Set<() => void>();
+function setVolume(value: number) {
+    volume = Math.max(0, Math.min(100, value));
+    if (volume > 0) lastVolume = volume;
+    audio.updateVolume();
+    volumeListeners.forEach(update => update());
+}
+export const toggleMute = () => setVolume(volume > 0 ? 0 : lastVolume);
+export const adjustVolume = (delta: number) => setVolume(volume + delta);
 
 export function audioControl() {
     let close = () => {};
@@ -9,13 +18,7 @@ export function audioControl() {
     slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1';
     slider.setAttribute('aria-label', t("audio.audioVolume"));
     slider.setAttribute('aria-orientation', 'vertical');
-    const setVolume = (value: number) => {
-        volume = value;
-        if (volume > 0) lastVolume = volume;
-        audio.updateVolume();
-        update();
-    };
-    const mute = button(t("audio.muteAudio"), 'VolumeX', () => setVolume(volume > 0 ? 0 : lastVolume));
+    const mute = button(t("audio.muteAudio"), 'VolumeX', toggleMute);
     const control = button(t("audio.audio"), 'Volume2', () => {
         if (control.getAttribute('aria-expanded') === 'true') { close(); return; }
         const content = el('div', 'volume-popover');
@@ -37,8 +40,8 @@ export function audioControl() {
         mute.setAttribute('aria-label', mute.title);
     };
     slider.oninput = () => setVolume(slider.valueAsNumber);
-    update();
-    return { control, dispose: () => close() };
+    volumeListeners.add(update); update();
+    return { control, dispose: () => { close(); volumeListeners.delete(update); } };
 }
 
 class UserAudio {

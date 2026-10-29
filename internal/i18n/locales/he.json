@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "אין מסופים סגורים.",
     "term.ageMinutes": "{minutes}ד",
     "term.ageHours": "{hours}ש {minutes}ד",
-    "term.ageDays": "{days}י {hours}ש {minutes}ד"
+    "term.ageDays": "{days}י {hours}ש {minutes}ד",
+    "shortcuts.action": "פעולה",
+    "shortcuts.binding": "קיצור {number}",
+    "shortcuts.clear": "ניקוי",
+    "shortcuts.conflict": "התנגשות עם: {action}",
+    "shortcuts.invalid": "קיצורי מקלדת לא תקינים",
+    "shortcuts.modifierRequired": "יש להתחיל עם Ctrl, Alt, Cmd/Super או מקש פונקציה.",
+    "shortcuts.nextDesktop": "המרחב הבא",
+    "shortcuts.nextWindow": "החלון הבא",
+    "shortcuts.pressKeys": "יש ללחוץ על מקשים…",
+    "shortcuts.previousDesktop": "המרחב הקודם",
+    "shortcuts.previousWindow": "החלון הקודם",
+    "shortcuts.record": "הקלטת קיצור",
+    "shortcuts.recordHint": "עד {max} שלבים. Escape לביטול.",
+    "shortcuts.title": "קיצורי דרך",
+    "shortcuts.toggleMute": "השתקה / ביטול השתקה",
+    "shortcuts.volumeDown": "הנמכת עוצמה",
+    "shortcuts.volumeUp": "הגברת עוצמה",
+    "shortcuts.windows": "חלונות",
+    "shortcuts.space": "רווח",
+    "shortcuts.unassigned": "לא הוקצה"
   }
 }

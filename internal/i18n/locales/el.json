@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Δεν υπάρχουν κλειστά τερματικά.",
     "term.ageMinutes": "{minutes}λ",
     "term.ageHours": "{hours}ω {minutes}λ",
-    "term.ageDays": "{days}η {hours}ω {minutes}λ"
+    "term.ageDays": "{days}η {hours}ω {minutes}λ",
+    "shortcuts.action": "Ενέργεια",
+    "shortcuts.binding": "Συντόμευση {number}",
+    "shortcuts.clear": "Εκκαθάριση",
+    "shortcuts.conflict": "Σύγκρουση με: {action}",
+    "shortcuts.invalid": "Μη έγκυρες συντομεύσεις πληκτρολογίου",
+    "shortcuts.modifierRequired": "Ξεκινήστε με Ctrl, Alt, Cmd/Super ή πλήκτρο λειτουργίας.",
+    "shortcuts.nextDesktop": "Επόμενος χώρος",
+    "shortcuts.nextWindow": "Επόμενο παράθυρο",
+    "shortcuts.pressKeys": "Πατήστε πλήκτρα…",
+    "shortcuts.previousDesktop": "Προηγούμενος χώρος",
+    "shortcuts.previousWindow": "Προηγούμενο παράθυρο",
+    "shortcuts.record": "Καταγραφή συντόμευσης",
+    "shortcuts.recordHint": "Έως {max} βήματα. Το Escape ακυρώνει.",
+    "shortcuts.title": "Συντομεύσεις",
+    "shortcuts.toggleMute": "Σίγαση / επαναφορά ήχου",
+    "shortcuts.volumeDown": "Μείωση έντασης",
+    "shortcuts.volumeUp": "Αύξηση έντασης",
+    "shortcuts.windows": "Παράθυρα",
+    "shortcuts.space": "Διάστημα",
+    "shortcuts.unassigned": "Δεν έχει οριστεί"
   }
 }

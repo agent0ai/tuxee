@@ -1531,3 +1531,19 @@ pre, code, .process-label small, .login-language {
 .terminal-archive .restart-terminal { color: var(--accent); background: var(--accent-bg); padding-inline: 5px; }
 .terminal-archive .terminal-footer button { flex-shrink: 0; }
 .terminal-dead-label { color: var(--warning); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.shortcuts-modal { width: min(820px, calc(100vw - 24px)); }
+.shortcuts-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.shortcuts-table th, .shortcuts-table td { text-align: start; padding: 5px; overflow-wrap: anywhere; }
+.shortcuts-table thead th { color: var(--muted); font-size: 12px; }
+.shortcuts-table th:first-child { width: 36%; }
+.shortcuts-table tbody th:not(.shortcuts-group) { font-weight: normal; }
+.shortcuts-table .shortcuts-group { padding-top: 18px; border-bottom: 1px solid var(--line); }
+.shortcuts-table td button { white-space: normal; width: 100%; min-height: 36px; padding: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.shortcut-recording { display: block; border: 1px solid var(--accent); border-radius: 6px; padding: 20px 12px; text-align: center; overflow-wrap: anywhere; }
+.shortcut-recorder .actions { flex-wrap: wrap; }
+.shortcut-pending { max-width: calc(100vw - 24px); overflow-wrap: anywhere; text-align: center; position: fixed; z-index: 1000; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); pointer-events: none; }
+@media (max-width: 480px) {
+    .shortcuts-table th, .shortcuts-table td { padding: 4px 2px; font-size: 12px; }
+    .shortcuts-table td button { font-size: 11px; }
+}

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Engar lokaðar útstöðvar.",
     "term.ageMinutes": "{minutes}mín",
     "term.ageHours": "{hours}klst {minutes}mín",
-    "term.ageDays": "{days}d {hours}klst {minutes}mín"
+    "term.ageDays": "{days}d {hours}klst {minutes}mín",
+    "shortcuts.action": "Aðgerð",
+    "shortcuts.binding": "Flýtivísir {number}",
+    "shortcuts.clear": "Hreinsa",
+    "shortcuts.conflict": "Árekstur við: {action}",
+    "shortcuts.invalid": "Ógildir flýtivísar",
+    "shortcuts.modifierRequired": "Byrjaðu á Ctrl, Alt, Cmd/Super eða falllykli.",
+    "shortcuts.nextDesktop": "Næsta svæði",
+    "shortcuts.nextWindow": "Næsti gluggi",
+    "shortcuts.pressKeys": "Ýttu á lykla…",
+    "shortcuts.previousDesktop": "Fyrra svæði",
+    "shortcuts.previousWindow": "Fyrri gluggi",
+    "shortcuts.record": "Skrá flýtivísi",
+    "shortcuts.recordHint": "Allt að {max} skref. Escape hættir við.",
+    "shortcuts.title": "Flýtivísar",
+    "shortcuts.toggleMute": "Slökkva / kveikja á hljóði",
+    "shortcuts.volumeDown": "Lækka hljóð",
+    "shortcuts.volumeUp": "Hækka hljóð",
+    "shortcuts.windows": "Gluggar",
+    "shortcuts.space": "Bil",
+    "shortcuts.unassigned": "Óúthlutað"
   }
 }

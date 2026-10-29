@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Ni zaprtih terminalov.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}d {hours}h {minutes}min"
+    "term.ageDays": "{days}d {hours}h {minutes}min",
+    "shortcuts.action": "Dejanje",
+    "shortcuts.binding": "Bližnjica {number}",
+    "shortcuts.clear": "Počisti",
+    "shortcuts.conflict": "Spor z: {action}",
+    "shortcuts.invalid": "Neveljavne tipkovne bližnjice",
+    "shortcuts.modifierRequired": "Začnite s Ctrl, Alt, Cmd/Super ali funkcijsko tipko.",
+    "shortcuts.nextDesktop": "Naslednji prostor",
+    "shortcuts.nextWindow": "Naslednje okno",
+    "shortcuts.pressKeys": "Pritisnite tipke…",
+    "shortcuts.previousDesktop": "Prejšnji prostor",
+    "shortcuts.previousWindow": "Prejšnje okno",
+    "shortcuts.record": "Posnemi bližnjico",
+    "shortcuts.recordHint": "Največ korakov: {max}. Escape prekliče.",
+    "shortcuts.title": "Bližnjice",
+    "shortcuts.toggleMute": "Izklopi / vklopi zvok",
+    "shortcuts.volumeDown": "Zmanjšaj glasnost",
+    "shortcuts.volumeUp": "Povečaj glasnost",
+    "shortcuts.windows": "Okna",
+    "shortcuts.space": "Preslednica",
+    "shortcuts.unassigned": "Ni dodeljeno"
   }
 }

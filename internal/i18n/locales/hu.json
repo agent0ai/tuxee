@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nincsenek bezárt terminálok.",
     "term.ageMinutes": "{minutes}p",
     "term.ageHours": "{hours}ó {minutes}p",
-    "term.ageDays": "{days}n {hours}ó {minutes}p"
+    "term.ageDays": "{days}n {hours}ó {minutes}p",
+    "shortcuts.action": "Művelet",
+    "shortcuts.binding": "Gyorsbillentyű {number}",
+    "shortcuts.clear": "Törlés",
+    "shortcuts.conflict": "Ütközik ezzel: {action}",
+    "shortcuts.invalid": "Érvénytelen gyorsbillentyűk",
+    "shortcuts.modifierRequired": "Kezdje Ctrl, Alt, Cmd/Super vagy funkcióbillentyűvel.",
+    "shortcuts.nextDesktop": "Következő asztal",
+    "shortcuts.nextWindow": "Következő ablak",
+    "shortcuts.pressKeys": "Nyomja meg a billentyűket…",
+    "shortcuts.previousDesktop": "Előző asztal",
+    "shortcuts.previousWindow": "Előző ablak",
+    "shortcuts.record": "Gyorsbillentyű rögzítése",
+    "shortcuts.recordHint": "Legfeljebb {max} lépés. Escape: mégse.",
+    "shortcuts.title": "Gyorsbillentyűk",
+    "shortcuts.toggleMute": "Némítás / hang vissza",
+    "shortcuts.volumeDown": "Hangerő csökkentése",
+    "shortcuts.volumeUp": "Hangerő növelése",
+    "shortcuts.windows": "Ablakok",
+    "shortcuts.space": "Szóköz",
+    "shortcuts.unassigned": "Nincs hozzárendelve"
   }
 }

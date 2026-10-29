@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Tidak ada terminal tertutup.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}j {minutes}m",
-    "term.ageDays": "{days}h {hours}j {minutes}m"
+    "term.ageDays": "{days}h {hours}j {minutes}m",
+    "shortcuts.action": "Tindakan",
+    "shortcuts.binding": "Pintasan {number}",
+    "shortcuts.clear": "Hapus",
+    "shortcuts.conflict": "Bentrok dengan: {action}",
+    "shortcuts.invalid": "Pintasan keyboard tidak valid",
+    "shortcuts.modifierRequired": "Mulai dengan Ctrl, Alt, Cmd/Super atau tombol fungsi.",
+    "shortcuts.nextDesktop": "Ruang berikutnya",
+    "shortcuts.nextWindow": "Jendela berikutnya",
+    "shortcuts.pressKeys": "Tekan tombol…",
+    "shortcuts.previousDesktop": "Ruang sebelumnya",
+    "shortcuts.previousWindow": "Jendela sebelumnya",
+    "shortcuts.record": "Rekam pintasan",
+    "shortcuts.recordHint": "Maksimal {max} langkah. Escape membatalkan.",
+    "shortcuts.title": "Pintasan",
+    "shortcuts.toggleMute": "Bisukan / aktifkan suara",
+    "shortcuts.volumeDown": "Turunkan volume",
+    "shortcuts.volumeUp": "Naikkan volume",
+    "shortcuts.windows": "Jendela",
+    "shortcuts.space": "Spasi",
+    "shortcuts.unassigned": "Belum ditetapkan"
   }
 }

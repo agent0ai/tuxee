@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Aucun terminal fermé.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}j {hours}h {minutes}min"
+    "term.ageDays": "{days}j {hours}h {minutes}min",
+    "shortcuts.action": "Action",
+    "shortcuts.binding": "Raccourci {number}",
+    "shortcuts.clear": "Effacer",
+    "shortcuts.conflict": "Conflit avec : {action}",
+    "shortcuts.invalid": "Raccourcis clavier invalides",
+    "shortcuts.modifierRequired": "Commencez par Ctrl, Alt, Cmd/Super ou une touche de fonction.",
+    "shortcuts.nextDesktop": "Espace suivant",
+    "shortcuts.nextWindow": "Fenêtre suivante",
+    "shortcuts.pressKeys": "Appuyez sur les touches…",
+    "shortcuts.previousDesktop": "Espace précédent",
+    "shortcuts.previousWindow": "Fenêtre précédente",
+    "shortcuts.record": "Enregistrer un raccourci",
+    "shortcuts.recordHint": "Jusqu’à {max} étapes. Échap annule.",
+    "shortcuts.title": "Raccourcis",
+    "shortcuts.toggleMute": "Couper / rétablir le son",
+    "shortcuts.volumeDown": "Baisser le volume",
+    "shortcuts.volumeUp": "Augmenter le volume",
+    "shortcuts.windows": "Fenêtres",
+    "shortcuts.space": "Espace",
+    "shortcuts.unassigned": "Non attribué"
   }
 }

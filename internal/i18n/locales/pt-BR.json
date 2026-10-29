@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nenhum terminal fechado.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}d {hours}h {minutes}min"
+    "term.ageDays": "{days}d {hours}h {minutes}min",
+    "shortcuts.action": "Ação",
+    "shortcuts.binding": "Atalho {number}",
+    "shortcuts.clear": "Limpar",
+    "shortcuts.conflict": "Conflito com: {action}",
+    "shortcuts.invalid": "Atalhos de teclado inválidos",
+    "shortcuts.modifierRequired": "Comece com Ctrl, Alt, Cmd/Super ou uma tecla de função.",
+    "shortcuts.nextDesktop": "Próximo espaço",
+    "shortcuts.nextWindow": "Próxima janela",
+    "shortcuts.pressKeys": "Pressione as teclas…",
+    "shortcuts.previousDesktop": "Espaço anterior",
+    "shortcuts.previousWindow": "Janela anterior",
+    "shortcuts.record": "Gravar atalho",
+    "shortcuts.recordHint": "Até {max} etapas. Escape cancela.",
+    "shortcuts.title": "Atalhos",
+    "shortcuts.toggleMute": "Silenciar / ativar som",
+    "shortcuts.volumeDown": "Diminuir volume",
+    "shortcuts.volumeUp": "Aumentar volume",
+    "shortcuts.windows": "Janelas",
+    "shortcuts.space": "Espaço",
+    "shortcuts.unassigned": "Não atribuído"
   }
 }

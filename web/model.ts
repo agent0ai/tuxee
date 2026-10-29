@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import type { ShortcutBindings } from './shortcuts';
 export type Kind = 'files' | 'terminal';
 export type Panel = {
     id: string;
@@ -22,6 +23,7 @@ export type Workspace = {
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
+    shortcuts?: ShortcutBindings;
     closedTerminalHistoryHours?: number;
     shellCommand?: string;
     useTuxeePrompt?: boolean;

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Ingen lukkede terminaler.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}t {minutes}m",
-    "term.ageDays": "{days}d {hours}t {minutes}m"
+    "term.ageDays": "{days}d {hours}t {minutes}m",
+    "shortcuts.action": "Handling",
+    "shortcuts.binding": "Genvej {number}",
+    "shortcuts.clear": "Ryd",
+    "shortcuts.conflict": "Konflikt med: {action}",
+    "shortcuts.invalid": "Ugyldige tastaturgenveje",
+    "shortcuts.modifierRequired": "Start med Ctrl, Alt, Cmd/Super eller en funktionstast.",
+    "shortcuts.nextDesktop": "Næste område",
+    "shortcuts.nextWindow": "Næste vindue",
+    "shortcuts.pressKeys": "Tryk på taster…",
+    "shortcuts.previousDesktop": "Forrige område",
+    "shortcuts.previousWindow": "Forrige vindue",
+    "shortcuts.record": "Optag genvej",
+    "shortcuts.recordHint": "Op til {max} trin. Escape annullerer.",
+    "shortcuts.title": "Genveje",
+    "shortcuts.toggleMute": "Slå lyd fra / til",
+    "shortcuts.volumeDown": "Lydstyrke ned",
+    "shortcuts.volumeUp": "Lydstyrke op",
+    "shortcuts.windows": "Vinduer",
+    "shortcuts.space": "Mellemrum",
+    "shortcuts.unassigned": "Ikke tildelt"
   }
 }

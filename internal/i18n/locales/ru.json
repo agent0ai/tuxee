@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Нет закрытых терминалов.",
     "term.ageMinutes": "{minutes}мин",
     "term.ageHours": "{hours}ч {minutes}мин",
-    "term.ageDays": "{days}д {hours}ч {minutes}мин"
+    "term.ageDays": "{days}д {hours}ч {minutes}мин",
+    "shortcuts.action": "Действие",
+    "shortcuts.binding": "Сочетание {number}",
+    "shortcuts.clear": "Очистить",
+    "shortcuts.conflict": "Конфликт с: {action}",
+    "shortcuts.invalid": "Недопустимые сочетания клавиш",
+    "shortcuts.modifierRequired": "Начните с Ctrl, Alt, Cmd/Super или функциональной клавиши.",
+    "shortcuts.nextDesktop": "Следующий стол",
+    "shortcuts.nextWindow": "Следующее окно",
+    "shortcuts.pressKeys": "Нажмите клавиши…",
+    "shortcuts.previousDesktop": "Предыдущий стол",
+    "shortcuts.previousWindow": "Предыдущее окно",
+    "shortcuts.record": "Записать сочетание",
+    "shortcuts.recordHint": "Максимум шагов: {max}. Escape отменяет.",
+    "shortcuts.title": "Сочетания клавиш",
+    "shortcuts.toggleMute": "Выключить / включить звук",
+    "shortcuts.volumeDown": "Уменьшить громкость",
+    "shortcuts.volumeUp": "Увеличить громкость",
+    "shortcuts.windows": "Окна",
+    "shortcuts.space": "Пробел",
+    "shortcuts.unassigned": "Не назначено"
   }
 }

@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "No closed terminals.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}h {minutes}m",
-    "term.ageDays": "{days}d {hours}h {minutes}m"
+    "term.ageDays": "{days}d {hours}h {minutes}m",
+    "shortcuts.action": "Action",
+    "shortcuts.binding": "Shortcut {number}",
+    "shortcuts.clear": "Clear",
+    "shortcuts.conflict": "Conflicts with: {action}",
+    "shortcuts.invalid": "Invalid keyboard shortcuts",
+    "shortcuts.modifierRequired": "Start with Ctrl, Alt, Cmd/Super or a function key.",
+    "shortcuts.nextDesktop": "Next desktop",
+    "shortcuts.nextWindow": "Next window",
+    "shortcuts.pressKeys": "Press keys…",
+    "shortcuts.previousDesktop": "Previous desktop",
+    "shortcuts.previousWindow": "Previous window",
+    "shortcuts.record": "Record shortcut",
+    "shortcuts.recordHint": "Up to {max} steps. Escape cancels.",
+    "shortcuts.title": "Shortcuts",
+    "shortcuts.toggleMute": "Mute / unmute",
+    "shortcuts.volumeDown": "Volume down",
+    "shortcuts.volumeUp": "Volume up",
+    "shortcuts.windows": "Windows",
+    "shortcuts.space": "Space",
+    "shortcuts.unassigned": "Unassigned"
   }
 }

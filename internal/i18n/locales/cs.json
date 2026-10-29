@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Žádné zavřené terminály.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}h {minutes}m",
-    "term.ageDays": "{days}d {hours}h {minutes}m"
+    "term.ageDays": "{days}d {hours}h {minutes}m",
+    "shortcuts.action": "Akce",
+    "shortcuts.binding": "Zkratka {number}",
+    "shortcuts.clear": "Vymazat",
+    "shortcuts.conflict": "Koliduje s: {action}",
+    "shortcuts.invalid": "Neplatné klávesové zkratky",
+    "shortcuts.modifierRequired": "Začněte s Ctrl, Alt, Cmd/Super nebo funkční klávesou.",
+    "shortcuts.nextDesktop": "Další plocha",
+    "shortcuts.nextWindow": "Další okno",
+    "shortcuts.pressKeys": "Stiskněte klávesy…",
+    "shortcuts.previousDesktop": "Předchozí plocha",
+    "shortcuts.previousWindow": "Předchozí okno",
+    "shortcuts.record": "Nahrát zkratku",
+    "shortcuts.recordHint": "Maximum kroků: {max}. Escape zruší záznam.",
+    "shortcuts.title": "Zkratky",
+    "shortcuts.toggleMute": "Vypnout / zapnout zvuk",
+    "shortcuts.volumeDown": "Snížit hlasitost",
+    "shortcuts.volumeUp": "Zvýšit hlasitost",
+    "shortcuts.windows": "Okna",
+    "shortcuts.space": "Mezerník",
+    "shortcuts.unassigned": "Nepřiřazeno"
   }
 }

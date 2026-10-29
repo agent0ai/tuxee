@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "No hay terminales cerrados.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}d {hours}h {minutes}min"
+    "term.ageDays": "{days}d {hours}h {minutes}min",
+    "shortcuts.action": "Acción",
+    "shortcuts.binding": "Atajo {number}",
+    "shortcuts.clear": "Borrar",
+    "shortcuts.conflict": "Conflicto con: {action}",
+    "shortcuts.invalid": "Atajos de teclado no válidos",
+    "shortcuts.modifierRequired": "Empieza con Ctrl, Alt, Cmd/Super o una tecla de función.",
+    "shortcuts.nextDesktop": "Espacio siguiente",
+    "shortcuts.nextWindow": "Ventana siguiente",
+    "shortcuts.pressKeys": "Pulsa las teclas…",
+    "shortcuts.previousDesktop": "Espacio anterior",
+    "shortcuts.previousWindow": "Ventana anterior",
+    "shortcuts.record": "Grabar atajo",
+    "shortcuts.recordHint": "Hasta {max} pasos. Escape cancela.",
+    "shortcuts.title": "Atajos",
+    "shortcuts.toggleMute": "Silenciar / activar sonido",
+    "shortcuts.volumeDown": "Bajar volumen",
+    "shortcuts.volumeUp": "Subir volumen",
+    "shortcuts.windows": "Ventanas",
+    "shortcuts.space": "Espacio",
+    "shortcuts.unassigned": "Sin asignar"
   }
 }

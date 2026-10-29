@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Walang nakasarang terminal.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}o {minutes}m",
-    "term.ageDays": "{days}a {hours}o {minutes}m"
+    "term.ageDays": "{days}a {hours}o {minutes}m",
+    "shortcuts.action": "Aksyon",
+    "shortcuts.binding": "Shortcut {number}",
+    "shortcuts.clear": "Burahin",
+    "shortcuts.conflict": "Salungat sa: {action}",
+    "shortcuts.invalid": "Di-wastong mga keyboard shortcut",
+    "shortcuts.modifierRequired": "Magsimula sa Ctrl, Alt, Cmd/Super o function key.",
+    "shortcuts.nextDesktop": "Susunod na espasyo",
+    "shortcuts.nextWindow": "Susunod na window",
+    "shortcuts.pressKeys": "Pindutin ang mga key…",
+    "shortcuts.previousDesktop": "Nakaraang espasyo",
+    "shortcuts.previousWindow": "Nakaraang window",
+    "shortcuts.record": "I-record ang shortcut",
+    "shortcuts.recordHint": "Hanggang {max} hakbang. Escape para kanselahin.",
+    "shortcuts.title": "Mga shortcut",
+    "shortcuts.toggleMute": "I-mute / i-unmute",
+    "shortcuts.volumeDown": "Hinaan ang tunog",
+    "shortcuts.volumeUp": "Lakasan ang tunog",
+    "shortcuts.windows": "Mga window",
+    "shortcuts.space": "Space",
+    "shortcuts.unassigned": "Hindi nakatalaga"
   }
 }

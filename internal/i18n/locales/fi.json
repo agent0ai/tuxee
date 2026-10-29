@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Ei suljettuja päätteitä.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}pv {hours}h {minutes}min"
+    "term.ageDays": "{days}pv {hours}h {minutes}min",
+    "shortcuts.action": "Toiminto",
+    "shortcuts.binding": "Pikanäppäin {number}",
+    "shortcuts.clear": "Tyhjennä",
+    "shortcuts.conflict": "Ristiriita: {action}",
+    "shortcuts.invalid": "Virheelliset pikanäppäimet",
+    "shortcuts.modifierRequired": "Aloita Ctrl-, Alt-, Cmd/Super- tai toimintonäppäimellä.",
+    "shortcuts.nextDesktop": "Seuraava työtila",
+    "shortcuts.nextWindow": "Seuraava ikkuna",
+    "shortcuts.pressKeys": "Paina näppäimiä…",
+    "shortcuts.previousDesktop": "Edellinen työtila",
+    "shortcuts.previousWindow": "Edellinen ikkuna",
+    "shortcuts.record": "Tallenna näppäinyhdistelmä",
+    "shortcuts.recordHint": "Enintään {max} vaihetta. Escape peruuttaa.",
+    "shortcuts.title": "Pikanäppäimet",
+    "shortcuts.toggleMute": "Mykistä / palauta ääni",
+    "shortcuts.volumeDown": "Vähennä äänenvoimakkuutta",
+    "shortcuts.volumeUp": "Lisää äänenvoimakkuutta",
+    "shortcuts.windows": "Ikkunat",
+    "shortcuts.space": "Välilyönti",
+    "shortcuts.unassigned": "Ei määritetty"
   }
 }

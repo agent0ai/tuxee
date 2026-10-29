@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nav aizvērtu termināļu.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}st {minutes}min",
-    "term.ageDays": "{days}d {hours}st {minutes}min"
+    "term.ageDays": "{days}d {hours}st {minutes}min",
+    "shortcuts.action": "Darbība",
+    "shortcuts.binding": "Īsceļš {number}",
+    "shortcuts.clear": "Notīrīt",
+    "shortcuts.conflict": "Konflikts ar: {action}",
+    "shortcuts.invalid": "Nederīgi īsinājumtaustiņi",
+    "shortcuts.modifierRequired": "Sāciet ar Ctrl, Alt, Cmd/Super vai funkciju taustiņu.",
+    "shortcuts.nextDesktop": "Nākamā darbvieta",
+    "shortcuts.nextWindow": "Nākamais logs",
+    "shortcuts.pressKeys": "Nospiediet taustiņus…",
+    "shortcuts.previousDesktop": "Iepriekšējā darbvieta",
+    "shortcuts.previousWindow": "Iepriekšējais logs",
+    "shortcuts.record": "Ierakstīt īsceļu",
+    "shortcuts.recordHint": "Līdz {max} soļiem. Escape atceļ.",
+    "shortcuts.title": "Īsceļi",
+    "shortcuts.toggleMute": "Izslēgt / ieslēgt skaņu",
+    "shortcuts.volumeDown": "Samazināt skaļumu",
+    "shortcuts.volumeUp": "Palielināt skaļumu",
+    "shortcuts.windows": "Logi",
+    "shortcuts.space": "Atstarpe",
+    "shortcuts.unassigned": "Nav piešķirts"
   }
 }

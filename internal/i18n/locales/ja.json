@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "閉じた端末はありません。",
     "term.ageMinutes": "{minutes}分",
     "term.ageHours": "{hours}時間 {minutes}分",
-    "term.ageDays": "{days}日 {hours}時間 {minutes}分"
+    "term.ageDays": "{days}日 {hours}時間 {minutes}分",
+    "shortcuts.action": "操作",
+    "shortcuts.binding": "ショートカット {number}",
+    "shortcuts.clear": "クリア",
+    "shortcuts.conflict": "競合する操作: {action}",
+    "shortcuts.invalid": "無効なキーボードショートカット",
+    "shortcuts.modifierRequired": "Ctrl、Alt、Cmd/Superまたはファンクションキーで始めてください。",
+    "shortcuts.nextDesktop": "次のデスク",
+    "shortcuts.nextWindow": "次のウィンドウ",
+    "shortcuts.pressKeys": "キーを押してください…",
+    "shortcuts.previousDesktop": "前のデスク",
+    "shortcuts.previousWindow": "前のウィンドウ",
+    "shortcuts.record": "ショートカットを記録",
+    "shortcuts.recordHint": "最大{max}ステップ。Escapeでキャンセル。",
+    "shortcuts.title": "ショートカット",
+    "shortcuts.toggleMute": "ミュート切替",
+    "shortcuts.volumeDown": "音量を下げる",
+    "shortcuts.volumeUp": "音量を上げる",
+    "shortcuts.windows": "ウィンドウ",
+    "shortcuts.space": "スペース",
+    "shortcuts.unassigned": "未割り当て"
   }
 }

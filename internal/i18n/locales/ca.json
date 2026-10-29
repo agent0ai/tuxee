@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "No hi ha terminals tancats.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}h {minutes}min",
-    "term.ageDays": "{days}d {hours}h {minutes}min"
+    "term.ageDays": "{days}d {hours}h {minutes}min",
+    "shortcuts.action": "Acció",
+    "shortcuts.binding": "Drecera {number}",
+    "shortcuts.clear": "Esborra",
+    "shortcuts.conflict": "Conflicte amb: {action}",
+    "shortcuts.invalid": "Dreceres de teclat no vàlides",
+    "shortcuts.modifierRequired": "Comença amb Ctrl, Alt, Cmd/Super o una tecla de funció.",
+    "shortcuts.nextDesktop": "Espai següent",
+    "shortcuts.nextWindow": "Finestra següent",
+    "shortcuts.pressKeys": "Prem les tecles…",
+    "shortcuts.previousDesktop": "Espai anterior",
+    "shortcuts.previousWindow": "Finestra anterior",
+    "shortcuts.record": "Enregistra drecera",
+    "shortcuts.recordHint": "Fins a {max} passos. Escape cancel·la.",
+    "shortcuts.title": "Dreceres",
+    "shortcuts.toggleMute": "Silencia / activa el so",
+    "shortcuts.volumeDown": "Abaixa el volum",
+    "shortcuts.volumeUp": "Apuja el volum",
+    "shortcuts.windows": "Finestres",
+    "shortcuts.space": "Espai",
+    "shortcuts.unassigned": "Sense assignar"
   }
 }

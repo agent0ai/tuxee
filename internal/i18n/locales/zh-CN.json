@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "没有已关闭的终端。",
     "term.ageMinutes": "{minutes}分",
     "term.ageHours": "{hours}小时 {minutes}分",
-    "term.ageDays": "{days}天 {hours}小时 {minutes}分"
+    "term.ageDays": "{days}天 {hours}小时 {minutes}分",
+    "shortcuts.action": "操作",
+    "shortcuts.binding": "快捷键 {number}",
+    "shortcuts.clear": "清除",
+    "shortcuts.conflict": "与此操作冲突：{action}",
+    "shortcuts.invalid": "无效的键盘快捷键",
+    "shortcuts.modifierRequired": "以 Ctrl、Alt、Cmd/Super 或功能键开始。",
+    "shortcuts.nextDesktop": "下一个工作区",
+    "shortcuts.nextWindow": "下一个窗口",
+    "shortcuts.pressKeys": "请按键…",
+    "shortcuts.previousDesktop": "上一个工作区",
+    "shortcuts.previousWindow": "上一个窗口",
+    "shortcuts.record": "录制快捷键",
+    "shortcuts.recordHint": "最多 {max} 步。按 Escape 取消。",
+    "shortcuts.title": "快捷键",
+    "shortcuts.toggleMute": "静音 / 取消静音",
+    "shortcuts.volumeDown": "减小音量",
+    "shortcuts.volumeUp": "增大音量",
+    "shortcuts.windows": "窗口",
+    "shortcuts.space": "空格",
+    "shortcuts.unassigned": "未分配"
   }
 }

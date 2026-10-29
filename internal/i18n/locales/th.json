@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "ไม่มีเทอร์มินัลที่ปิดแล้ว",
     "term.ageMinutes": "{minutes}น",
     "term.ageHours": "{hours}ชม {minutes}น",
-    "term.ageDays": "{days}ว {hours}ชม {minutes}น"
+    "term.ageDays": "{days}ว {hours}ชม {minutes}น",
+    "shortcuts.action": "การทำงาน",
+    "shortcuts.binding": "ปุ่มลัด {number}",
+    "shortcuts.clear": "ล้าง",
+    "shortcuts.conflict": "ขัดแย้งกับ: {action}",
+    "shortcuts.invalid": "ปุ่มลัดไม่ถูกต้อง",
+    "shortcuts.modifierRequired": "เริ่มด้วย Ctrl, Alt, Cmd/Super หรือปุ่มฟังก์ชัน",
+    "shortcuts.nextDesktop": "พื้นที่ถัดไป",
+    "shortcuts.nextWindow": "หน้าต่างถัดไป",
+    "shortcuts.pressKeys": "กดปุ่ม…",
+    "shortcuts.previousDesktop": "พื้นที่ก่อนหน้า",
+    "shortcuts.previousWindow": "หน้าต่างก่อนหน้า",
+    "shortcuts.record": "บันทึกปุ่มลัด",
+    "shortcuts.recordHint": "สูงสุด {max} ขั้นตอน กด Escape เพื่อยกเลิก",
+    "shortcuts.title": "ปุ่มลัด",
+    "shortcuts.toggleMute": "ปิด / เปิดเสียง",
+    "shortcuts.volumeDown": "ลดระดับเสียง",
+    "shortcuts.volumeUp": "เพิ่มระดับเสียง",
+    "shortcuts.windows": "หน้าต่าง",
+    "shortcuts.space": "เว้นวรรค",
+    "shortcuts.unassigned": "ยังไม่ได้กำหนด"
   }
 }

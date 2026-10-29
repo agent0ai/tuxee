@@ -239,7 +239,7 @@ try {
     await page.keyboard.press('ArrowDown'); await page.keyboard.press('Space');
     assert.equal(await file.locator('.file-entry[aria-selected=true]').count(), 2);
     const selectedPaths = await file.locator('.file-entry[aria-selected=true]').evaluateAll(rows => rows.map(row => row.dataset.path));
-    await page.keyboard.press('Alt');
+    await page.keyboard.press('Shift+F10');
     await page.locator('.popover-menu').waitFor();
     assert.equal(await page.locator('dialog[open]').count(), 0);
     await page.keyboard.press('ArrowDown');

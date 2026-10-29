@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Inga stängda terminaler.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}t {minutes}m",
-    "term.ageDays": "{days}d {hours}t {minutes}m"
+    "term.ageDays": "{days}d {hours}t {minutes}m",
+    "shortcuts.action": "Åtgärd",
+    "shortcuts.binding": "Genväg {number}",
+    "shortcuts.clear": "Rensa",
+    "shortcuts.conflict": "Konflikt med: {action}",
+    "shortcuts.invalid": "Ogiltiga kortkommandon",
+    "shortcuts.modifierRequired": "Börja med Ctrl, Alt, Cmd/Super eller en funktionstangent.",
+    "shortcuts.nextDesktop": "Nästa arbetsyta",
+    "shortcuts.nextWindow": "Nästa fönster",
+    "shortcuts.pressKeys": "Tryck på tangenter…",
+    "shortcuts.previousDesktop": "Föregående arbetsyta",
+    "shortcuts.previousWindow": "Föregående fönster",
+    "shortcuts.record": "Spela in genväg",
+    "shortcuts.recordHint": "Högst {max} steg. Escape avbryter.",
+    "shortcuts.title": "Genvägar",
+    "shortcuts.toggleMute": "Ljud av / på",
+    "shortcuts.volumeDown": "Sänk volymen",
+    "shortcuts.volumeUp": "Höj volymen",
+    "shortcuts.windows": "Fönster",
+    "shortcuts.space": "Blanksteg",
+    "shortcuts.unassigned": "Inte tilldelad"
   }
 }

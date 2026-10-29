@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Ingen lukkede terminaler.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}t {minutes}m",
-    "term.ageDays": "{days}d {hours}t {minutes}m"
+    "term.ageDays": "{days}d {hours}t {minutes}m",
+    "shortcuts.action": "Handling",
+    "shortcuts.binding": "Snarvei {number}",
+    "shortcuts.clear": "Tøm",
+    "shortcuts.conflict": "Konflikt med: {action}",
+    "shortcuts.invalid": "Ugyldige hurtigtaster",
+    "shortcuts.modifierRequired": "Start med Ctrl, Alt, Cmd/Super eller en funksjonstast.",
+    "shortcuts.nextDesktop": "Neste område",
+    "shortcuts.nextWindow": "Neste vindu",
+    "shortcuts.pressKeys": "Trykk på taster…",
+    "shortcuts.previousDesktop": "Forrige område",
+    "shortcuts.previousWindow": "Forrige vindu",
+    "shortcuts.record": "Ta opp snarvei",
+    "shortcuts.recordHint": "Opptil {max} trinn. Escape avbryter.",
+    "shortcuts.title": "Snarveier",
+    "shortcuts.toggleMute": "Slå lyd av / på",
+    "shortcuts.volumeDown": "Senk volum",
+    "shortcuts.volumeUp": "Øk volum",
+    "shortcuts.windows": "Vinduer",
+    "shortcuts.space": "Mellomrom",
+    "shortcuts.unassigned": "Ikke tilordnet"
   }
 }

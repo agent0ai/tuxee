@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nu există terminale închise.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}h {minutes}m",
-    "term.ageDays": "{days}z {hours}h {minutes}m"
+    "term.ageDays": "{days}z {hours}h {minutes}m",
+    "shortcuts.action": "Acțiune",
+    "shortcuts.binding": "Scurtătură {number}",
+    "shortcuts.clear": "Șterge",
+    "shortcuts.conflict": "Conflict cu: {action}",
+    "shortcuts.invalid": "Scurtături de tastatură nevalide",
+    "shortcuts.modifierRequired": "Începe cu Ctrl, Alt, Cmd/Super sau o tastă funcțională.",
+    "shortcuts.nextDesktop": "Spațiul următor",
+    "shortcuts.nextWindow": "Fereastra următoare",
+    "shortcuts.pressKeys": "Apasă tastele…",
+    "shortcuts.previousDesktop": "Spațiul anterior",
+    "shortcuts.previousWindow": "Fereastra anterioară",
+    "shortcuts.record": "Înregistrează scurtătura",
+    "shortcuts.recordHint": "Cel mult {max} pași. Escape anulează.",
+    "shortcuts.title": "Scurtături",
+    "shortcuts.toggleMute": "Oprește / pornește sunetul",
+    "shortcuts.volumeDown": "Redu volumul",
+    "shortcuts.volumeUp": "Mărește volumul",
+    "shortcuts.windows": "Ferestre",
+    "shortcuts.space": "Spațiu",
+    "shortcuts.unassigned": "Neatribuit"
   }
 }

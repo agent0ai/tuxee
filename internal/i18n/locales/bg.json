@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Няма затворени терминали.",
     "term.ageMinutes": "{minutes}м",
     "term.ageHours": "{hours}ч {minutes}м",
-    "term.ageDays": "{days}д {hours}ч {minutes}м"
+    "term.ageDays": "{days}д {hours}ч {minutes}м",
+    "shortcuts.action": "Действие",
+    "shortcuts.binding": "Пряк път {number}",
+    "shortcuts.clear": "Изчисти",
+    "shortcuts.conflict": "Конфликт с: {action}",
+    "shortcuts.invalid": "Невалидни клавишни комбинации",
+    "shortcuts.modifierRequired": "Започнете с Ctrl, Alt, Cmd/Super или функционален клавиш.",
+    "shortcuts.nextDesktop": "Следващ плот",
+    "shortcuts.nextWindow": "Следващ прозорец",
+    "shortcuts.pressKeys": "Натиснете клавиши…",
+    "shortcuts.previousDesktop": "Предишен плот",
+    "shortcuts.previousWindow": "Предишен прозорец",
+    "shortcuts.record": "Запис на пряк път",
+    "shortcuts.recordHint": "До {max} стъпки. Escape отменя.",
+    "shortcuts.title": "Преки пътища",
+    "shortcuts.toggleMute": "Изключване / включване на звука",
+    "shortcuts.volumeDown": "Намаляване на звука",
+    "shortcuts.volumeUp": "Увеличаване на звука",
+    "shortcuts.windows": "Прозорци",
+    "shortcuts.space": "Интервал",
+    "shortcuts.unassigned": "Не е зададен"
   }
 }

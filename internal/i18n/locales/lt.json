@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Nėra uždarytų terminalų.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}val {minutes}min",
-    "term.ageDays": "{days}d {hours}val {minutes}min"
+    "term.ageDays": "{days}d {hours}val {minutes}min",
+    "shortcuts.action": "Veiksmas",
+    "shortcuts.binding": "Derinys {number}",
+    "shortcuts.clear": "Išvalyti",
+    "shortcuts.conflict": "Konfliktas su: {action}",
+    "shortcuts.invalid": "Netinkami spartieji klavišai",
+    "shortcuts.modifierRequired": "Pradėkite nuo Ctrl, Alt, Cmd/Super arba funkcinio klavišo.",
+    "shortcuts.nextDesktop": "Kita erdvė",
+    "shortcuts.nextWindow": "Kitas langas",
+    "shortcuts.pressKeys": "Paspauskite klavišus…",
+    "shortcuts.previousDesktop": "Ankstesnė erdvė",
+    "shortcuts.previousWindow": "Ankstesnis langas",
+    "shortcuts.record": "Įrašyti derinį",
+    "shortcuts.recordHint": "Iki {max} žingsnių. Escape atšaukia.",
+    "shortcuts.title": "Spartieji klavišai",
+    "shortcuts.toggleMute": "Nutildyti / įjungti garsą",
+    "shortcuts.volumeDown": "Patildyti",
+    "shortcuts.volumeUp": "Pagarsinti",
+    "shortcuts.windows": "Langai",
+    "shortcuts.space": "Tarpas",
+    "shortcuts.unassigned": "Nepriskirta"
   }
 }

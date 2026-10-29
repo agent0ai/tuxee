@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Geen gesloten terminals.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}u {minutes}m",
-    "term.ageDays": "{days}d {hours}u {minutes}m"
+    "term.ageDays": "{days}d {hours}u {minutes}m",
+    "shortcuts.action": "Actie",
+    "shortcuts.binding": "Sneltoets {number}",
+    "shortcuts.clear": "Wissen",
+    "shortcuts.conflict": "Conflict met: {action}",
+    "shortcuts.invalid": "Ongeldige sneltoetsen",
+    "shortcuts.modifierRequired": "Begin met Ctrl, Alt, Cmd/Super of een functietoets.",
+    "shortcuts.nextDesktop": "Volgende ruimte",
+    "shortcuts.nextWindow": "Volgend venster",
+    "shortcuts.pressKeys": "Druk op toetsen…",
+    "shortcuts.previousDesktop": "Vorige ruimte",
+    "shortcuts.previousWindow": "Vorig venster",
+    "shortcuts.record": "Sneltoets opnemen",
+    "shortcuts.recordHint": "Maximaal {max} stappen. Escape annuleert.",
+    "shortcuts.title": "Sneltoetsen",
+    "shortcuts.toggleMute": "Dempen / geluid aan",
+    "shortcuts.volumeDown": "Volume omlaag",
+    "shortcuts.volumeUp": "Volume omhoog",
+    "shortcuts.windows": "Vensters",
+    "shortcuts.space": "Spatie",
+    "shortcuts.unassigned": "Niet toegewezen"
   }
 }

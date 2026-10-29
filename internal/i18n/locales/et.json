@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Suletud terminale pole.",
     "term.ageMinutes": "{minutes}min",
     "term.ageHours": "{hours}t {minutes}min",
-    "term.ageDays": "{days}p {hours}t {minutes}min"
+    "term.ageDays": "{days}p {hours}t {minutes}min",
+    "shortcuts.action": "Toiming",
+    "shortcuts.binding": "Otsetee {number}",
+    "shortcuts.clear": "Tühjenda",
+    "shortcuts.conflict": "Konflikt: {action}",
+    "shortcuts.invalid": "Vigased kiirklahvid",
+    "shortcuts.modifierRequired": "Alusta Ctrl-, Alt-, Cmd/Super- või funktsiooniklahviga.",
+    "shortcuts.nextDesktop": "Järgmine tööruum",
+    "shortcuts.nextWindow": "Järgmine aken",
+    "shortcuts.pressKeys": "Vajuta klahve…",
+    "shortcuts.previousDesktop": "Eelmine tööruum",
+    "shortcuts.previousWindow": "Eelmine aken",
+    "shortcuts.record": "Salvesta otsetee",
+    "shortcuts.recordHint": "Kuni {max} sammu. Escape tühistab.",
+    "shortcuts.title": "Otseteed",
+    "shortcuts.toggleMute": "Vaigista / taasta heli",
+    "shortcuts.volumeDown": "Helitugevus alla",
+    "shortcuts.volumeUp": "Helitugevus üles",
+    "shortcuts.windows": "Aknad",
+    "shortcuts.space": "Tühik",
+    "shortcuts.unassigned": "Määramata"
   }
 }

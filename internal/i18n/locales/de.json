@@ -789,6 +789,26 @@
     "term.noClosedTerminals": "Keine geschlossenen Terminals.",
     "term.ageMinutes": "{minutes}m",
     "term.ageHours": "{hours}h {minutes}m",
-    "term.ageDays": "{days}T {hours}h {minutes}m"
+    "term.ageDays": "{days}T {hours}h {minutes}m",
+    "shortcuts.action": "Aktion",
+    "shortcuts.binding": "Kürzel {number}",
+    "shortcuts.clear": "Leeren",
+    "shortcuts.conflict": "Konflikt mit: {action}",
+    "shortcuts.invalid": "Ungültige Tastenkürzel",
+    "shortcuts.modifierRequired": "Mit Ctrl, Alt, Cmd/Super oder einer Funktionstaste beginnen.",
+    "shortcuts.nextDesktop": "Nächster Desktop",
+    "shortcuts.nextWindow": "Nächstes Fenster",
+    "shortcuts.pressKeys": "Tasten drücken…",
+    "shortcuts.previousDesktop": "Vorheriger Desktop",
+    "shortcuts.previousWindow": "Vorheriges Fenster",
+    "shortcuts.record": "Kürzel aufnehmen",
+    "shortcuts.recordHint": "Bis zu {max} Schritte. Escape bricht ab.",
+    "shortcuts.title": "Tastenkürzel",
+    "shortcuts.toggleMute": "Stumm / Ton an",
+    "shortcuts.volumeDown": "Leiser",
+    "shortcuts.volumeUp": "Lauter",
+    "shortcuts.windows": "Fenster",
+    "shortcuts.space": "Leertaste",
+    "shortcuts.unassigned": "Nicht zugewiesen"
   }
 }
