@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Tambah pengurus fail",
     "app.addTerminal": "Tambah terminal",
     "app.architecture": "Seni bina",
-    "app.attach": "Sambungkan",
+    "app.attach": "Sambung",
     "app.autoLayout": "Susun atur automatik",
     "app.balanced": "Seimbang",
     "app.cannotRestartTuxee": "Tidak dapat memulakan semula Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Sila isi medan ini.",
     "term.restartArchive": "Mula semula",
     "term.closedArchives": "Ditutup",
-    "term.openArchive": "Buka",
+    "term.openArchive": "Lihat",
     "settings.closedTerminalHistory": "Simpan sejarah terminal yang ditutup (jam)",
     "backend.server.closedHistoryHoursRange": "Tempoh penyimpanan mestilah antara {min} dan {max} jam.",
-    "term.postMortem": "Selepas tamat"
+    "term.postMortem": "Selepas tamat",
+    "term.lostTerminals": "Terminal hilang",
+    "term.all": "Semua",
+    "term.closeAll": "Tutup semua",
+    "term.deleteAll": "Padam semua",
+    "term.deleteArchives": "Padam output terminal?",
+    "term.startedAt": "Dimulakan {time}",
+    "term.closedAt": "ditutup pengguna {time}",
+    "term.terminatedAt": "ditamatkan {time}",
+    "term.foundDeadAt": "dikesan mati {time}",
+    "term.expiresAt": "Luput {time}",
+    "term.closeAllConfirm": "Tutup semua terminal yang disenaraikan ({count})? Arahan dan aplikasi grafik yang berjalan akan ditamatkan. Output tersimpan akan dikekalkan.",
+    "term.deleteArchivesConfirm": "Padam output tersimpan dan sejarah input bagi {count} terminal secara kekal?",
+    "backend.terminal.archiveMustBeClosed": "Tutup terminal sebelum memadam output tersimpannya."
   }
 }

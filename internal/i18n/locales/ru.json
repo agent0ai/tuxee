@@ -769,9 +769,22 @@
     "validation.required": "Пожалуйста, заполните это поле.",
     "term.restartArchive": "Перезапустить",
     "term.closedArchives": "Закрытые",
-    "term.openArchive": "Открыть",
+    "term.openArchive": "Просмотр",
     "settings.closedTerminalHistory": "Хранить историю закрытых терминалов (часы)",
     "backend.server.closedHistoryHoursRange": "Срок хранения должен быть от {min} до {max} часов.",
-    "term.postMortem": "После завершения"
+    "term.postMortem": "После завершения",
+    "term.lostTerminals": "Потерянные терминалы",
+    "term.all": "Все",
+    "term.closeAll": "Закрыть все",
+    "term.deleteAll": "Удалить все",
+    "term.deleteArchives": "Удалить вывод терминалов?",
+    "term.startedAt": "Запущен {time}",
+    "term.closedAt": "закрыт пользователем {time}",
+    "term.terminatedAt": "завершён {time}",
+    "term.foundDeadAt": "обнаружен завершённым {time}",
+    "term.expiresAt": "Истекает {time}",
+    "term.closeAllConfirm": "Закрыть все терминалы в списке ({count})? Работающие команды и графические приложения будут завершены. Сохранённый вывод останется.",
+    "term.deleteArchivesConfirm": "Навсегда удалить сохранённый вывод и историю ввода терминалов ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Закройте терминал перед удалением его сохранённого вывода."
   }
 }

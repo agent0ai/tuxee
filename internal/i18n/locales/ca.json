@@ -769,9 +769,22 @@
     "validation.required": "Empleneu aquest camp.",
     "term.restartArchive": "Reinicia",
     "term.closedArchives": "Tancats",
-    "term.openArchive": "Obre",
+    "term.openArchive": "Mostra",
     "settings.closedTerminalHistory": "Conserva l’historial de terminals tancats (hores)",
     "backend.server.closedHistoryHoursRange": "La conservació ha de ser entre {min} i {max} hores.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Terminals perduts",
+    "term.all": "Tots",
+    "term.closeAll": "Tanca’ls tots",
+    "term.deleteAll": "Suprimeix-los tots",
+    "term.deleteArchives": "Voleu suprimir la sortida dels terminals?",
+    "term.startedAt": "Iniciat {time}",
+    "term.closedAt": "tancat per l’usuari {time}",
+    "term.terminatedAt": "finalitzat {time}",
+    "term.foundDeadAt": "detectat aturat {time}",
+    "term.expiresAt": "Caduca {time}",
+    "term.closeAllConfirm": "Voleu tancar tots els {count} terminals de la llista? Es finalitzaran les ordres i les aplicacions gràfiques en execució. Es conservarà la sortida desada.",
+    "term.deleteArchivesConfirm": "Voleu suprimir permanentment la sortida desada i l’historial d’entrada de {count} terminals?",
+    "backend.terminal.archiveMustBeClosed": "Tanqueu el terminal abans de suprimir-ne la sortida desada."
   }
 }

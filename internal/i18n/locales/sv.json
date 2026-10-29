@@ -769,9 +769,22 @@
     "validation.required": "Vänligen fyll i detta fält.",
     "term.restartArchive": "Starta om",
     "term.closedArchives": "Stängda",
-    "term.openArchive": "Öppna",
+    "term.openArchive": "Visa",
     "settings.closedTerminalHistory": "Behåll historik för stängda terminaler (timmar)",
     "backend.server.closedHistoryHoursRange": "Lagringstiden måste vara mellan {min} och {max} timmar.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Förlorade terminaler",
+    "term.all": "Alla",
+    "term.closeAll": "Stäng alla",
+    "term.deleteAll": "Radera alla",
+    "term.deleteArchives": "Radera terminalutdata?",
+    "term.startedAt": "Startad {time}",
+    "term.closedAt": "stängd av användaren {time}",
+    "term.terminatedAt": "avslutad {time}",
+    "term.foundDeadAt": "upptäckt som avslutad {time}",
+    "term.expiresAt": "Upphör {time}",
+    "term.closeAllConfirm": "Stäng alla {count} listade terminaler? Aktiva kommandon och grafiska appar avslutas. Sparade utdata behålls.",
+    "term.deleteArchivesConfirm": "Radera sparade utdata och inmatningshistorik för {count} terminaler permanent?",
+    "backend.terminal.archiveMustBeClosed": "Stäng terminalen innan du raderar dess sparade utdata."
   }
 }

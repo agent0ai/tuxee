@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Добавяне на файлов браузър",
     "app.addTerminal": "Добавете терминал",
     "app.architecture": "Архитектура",
-    "app.attach": "Прикачване",
+    "app.attach": "Свързване",
     "app.autoLayout": "Автооформление",
     "app.balanced": "Балансирано",
     "app.cannotRestartTuxee": "Не може да се рестартира Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Моля, попълнете това поле.",
     "term.restartArchive": "Рестарт",
     "term.closedArchives": "Затворени",
-    "term.openArchive": "Отвори",
+    "term.openArchive": "Преглед",
     "settings.closedTerminalHistory": "Пазене на историята на затворени терминали (часове)",
     "backend.server.closedHistoryHoursRange": "Срокът за съхранение трябва да е от {min} до {max} часа.",
-    "term.postMortem": "След приключване"
+    "term.postMortem": "След приключване",
+    "term.lostTerminals": "Изгубени терминали",
+    "term.all": "Всички",
+    "term.closeAll": "Затвори всички",
+    "term.deleteAll": "Изтрий всички",
+    "term.deleteArchives": "Изтриване на изхода от терминалите?",
+    "term.startedAt": "Стартиран {time}",
+    "term.closedAt": "затворен от потребителя {time}",
+    "term.terminatedAt": "прекратен {time}",
+    "term.foundDeadAt": "открит като спрял {time}",
+    "term.expiresAt": "Изтича {time}",
+    "term.closeAllConfirm": "Да се затворят ли всички терминали в списъка ({count})? Работещите команди и графични приложения ще бъдат прекратени. Запазеният изход ще остане.",
+    "term.deleteArchivesConfirm": "Да се изтрият ли безвъзвратно запазеният изход и историята на въвеждане на терминалите ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Затворете терминала, преди да изтриете запазения му изход."
   }
 }

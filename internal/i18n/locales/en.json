@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Add file browser",
     "app.addTerminal": "Add terminal",
     "app.architecture": "Architecture",
-    "app.attach": "Attach",
+    "app.attach": "Connect",
     "app.autoLayout": "Auto layout",
     "app.balanced": "Balanced",
     "app.cannotRestartTuxee": "Cannot restart Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Please fill out this field.",
     "term.restartArchive": "Restart",
     "term.closedArchives": "Closed",
-    "term.openArchive": "Open",
+    "term.openArchive": "View",
     "settings.closedTerminalHistory": "Keep closed terminals history (hours)",
     "backend.server.closedHistoryHoursRange": "History retention must be between {min} and {max} hours.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Lost terminals",
+    "term.all": "All",
+    "term.closeAll": "Close all",
+    "term.deleteAll": "Delete all",
+    "term.deleteArchives": "Delete terminal output?",
+    "term.startedAt": "Started {time}",
+    "term.closedAt": "closed by user {time}",
+    "term.terminatedAt": "terminated {time}",
+    "term.foundDeadAt": "found dead {time}",
+    "term.expiresAt": "Expires {time}",
+    "term.closeAllConfirm": "Close all {count} listed terminals? Running commands and GUI apps will be terminated. Saved output will remain.",
+    "term.deleteArchivesConfirm": "Permanently delete saved output and input history for {count} terminals?",
+    "backend.terminal.archiveMustBeClosed": "Close the terminal before deleting its saved output."
   }
 }

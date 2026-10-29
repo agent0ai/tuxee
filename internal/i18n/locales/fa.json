@@ -769,9 +769,22 @@
     "validation.required": "لطفا این فیلد را پر کنید",
     "term.restartArchive": "راه‌اندازی مجدد",
     "term.closedArchives": "بسته‌شده",
-    "term.openArchive": "باز کردن",
+    "term.openArchive": "مشاهده",
     "settings.closedTerminalHistory": "نگهداری تاریخچهٔ پایانه‌های بسته‌شده (ساعت)",
     "backend.server.closedHistoryHoursRange": "مدت نگهداری باید بین {min} و {max} ساعت باشد.",
-    "term.postMortem": "پس از پایان"
+    "term.postMortem": "پس از پایان",
+    "term.lostTerminals": "ترمینال‌های گم‌شده",
+    "term.all": "همه",
+    "term.closeAll": "بستن همه",
+    "term.deleteAll": "حذف همه",
+    "term.deleteArchives": "خروجی ترمینال‌ها حذف شود؟",
+    "term.startedAt": "شروع {time}",
+    "term.closedAt": "بسته‌شده توسط کاربر {time}",
+    "term.terminatedAt": "پایان‌یافته {time}",
+    "term.foundDeadAt": "توقف شناسایی شد {time}",
+    "term.expiresAt": "انقضا {time}",
+    "term.closeAllConfirm": "همهٔ ترمینال‌های فهرست‌شده ({count}) بسته شوند؟ فرمان‌ها و برنامه‌های گرافیکی در حال اجرا خاتمه می‌یابند. خروجی ذخیره‌شده باقی می‌ماند.",
+    "term.deleteArchivesConfirm": "خروجی ذخیره‌شده و سابقهٔ ورودی {count} ترمینال برای همیشه حذف شوند؟",
+    "backend.terminal.archiveMustBeClosed": "پیش از حذف خروجی ذخیره‌شده، ترمینال را ببندید."
   }
 }

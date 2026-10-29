@@ -769,9 +769,22 @@
     "validation.required": "กรุณากรอกข้อมูลในช่องนี้",
     "term.restartArchive": "เริ่มใหม่",
     "term.closedArchives": "ปิดแล้ว",
-    "term.openArchive": "เปิด",
+    "term.openArchive": "ดู",
     "settings.closedTerminalHistory": "เก็บประวัติเทอร์มินัลที่ปิดแล้ว (ชั่วโมง)",
     "backend.server.closedHistoryHoursRange": "ระยะเวลาเก็บต้องอยู่ระหว่าง {min} ถึง {max} ชั่วโมง",
-    "term.postMortem": "หลังสิ้นสุด"
+    "term.postMortem": "หลังสิ้นสุด",
+    "term.lostTerminals": "เทอร์มินัลที่หายไป",
+    "term.all": "ทั้งหมด",
+    "term.closeAll": "ปิดทั้งหมด",
+    "term.deleteAll": "ลบทั้งหมด",
+    "term.deleteArchives": "ลบผลลัพธ์เทอร์มินัลหรือไม่?",
+    "term.startedAt": "เริ่ม {time}",
+    "term.closedAt": "ผู้ใช้ปิด {time}",
+    "term.terminatedAt": "สิ้นสุด {time}",
+    "term.foundDeadAt": "พบว่าหยุดทำงาน {time}",
+    "term.expiresAt": "หมดอายุ {time}",
+    "term.closeAllConfirm": "ปิดเทอร์มินัลทั้งหมดในรายการ ({count}) หรือไม่? คำสั่งและแอปกราฟิกที่ทำงานอยู่จะสิ้นสุดลง ผลลัพธ์ที่บันทึกไว้จะยังคงอยู่",
+    "term.deleteArchivesConfirm": "ลบผลลัพธ์ที่บันทึกไว้และประวัติการป้อนข้อมูลของเทอร์มินัล {count} รายการอย่างถาวรหรือไม่?",
+    "backend.terminal.archiveMustBeClosed": "ปิดเทอร์มินัลก่อนลบผลลัพธ์ที่บันทึกไว้"
   }
 }

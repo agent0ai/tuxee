@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Aggiungi browser di file",
     "app.addTerminal": "Aggiungi terminale",
     "app.architecture": "Architettura",
-    "app.attach": "Collega",
+    "app.attach": "Connetti",
     "app.autoLayout": "Layout automatico",
     "app.balanced": "Bilanciato",
     "app.cannotRestartTuxee": "Impossibile riavviare Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Si prega di compilare questo campo.",
     "term.restartArchive": "Riavvia",
     "term.closedArchives": "Chiusi",
-    "term.openArchive": "Apri",
+    "term.openArchive": "Visualizza",
     "settings.closedTerminalHistory": "Conserva cronologia dei terminali chiusi (ore)",
     "backend.server.closedHistoryHoursRange": "La conservazione deve essere tra {min} e {max} ore.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Terminali persi",
+    "term.all": "Tutti",
+    "term.closeAll": "Chiudi tutti",
+    "term.deleteAll": "Elimina tutti",
+    "term.deleteArchives": "Eliminare l’output dei terminali?",
+    "term.startedAt": "Avviato {time}",
+    "term.closedAt": "chiuso dall’utente {time}",
+    "term.terminatedAt": "terminato {time}",
+    "term.foundDeadAt": "rilevato inattivo {time}",
+    "term.expiresAt": "Scade {time}",
+    "term.closeAllConfirm": "Chiudere tutti i {count} terminali elencati? I comandi e le app grafiche in esecuzione verranno terminati. L’output salvato resterà disponibile.",
+    "term.deleteArchivesConfirm": "Eliminare definitivamente l’output salvato e la cronologia di input di {count} terminali?",
+    "backend.terminal.archiveMustBeClosed": "Chiudi il terminale prima di eliminarne l’output salvato."
   }
 }

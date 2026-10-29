@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Dodajte preglednik datoteka",
     "app.addTerminal": "Dodajte terminal",
     "app.architecture": "Arhitektura",
-    "app.attach": "Priključi",
+    "app.attach": "Poveži",
     "app.autoLayout": "Automatski raspored",
     "app.balanced": "Uravnoteženo",
     "app.cannotRestartTuxee": "Ne mogu ponovno pokrenuti Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Molimo ispunite ovo polje.",
     "term.restartArchive": "Ponovno pokreni",
     "term.closedArchives": "Zatvoreni",
-    "term.openArchive": "Otvori",
+    "term.openArchive": "Prikaži",
     "settings.closedTerminalHistory": "Čuvaj povijest zatvorenih terminala (sati)",
     "backend.server.closedHistoryHoursRange": "Vrijeme čuvanja mora biti od {min} do {max} sati.",
-    "term.postMortem": "Nakon završetka"
+    "term.postMortem": "Nakon završetka",
+    "term.lostTerminals": "Izgubljeni terminali",
+    "term.all": "Svi",
+    "term.closeAll": "Zatvori sve",
+    "term.deleteAll": "Izbriši sve",
+    "term.deleteArchives": "Izbrisati izlaz terminala?",
+    "term.startedAt": "Pokrenuto {time}",
+    "term.closedAt": "zatvorio korisnik {time}",
+    "term.terminatedAt": "završeno {time}",
+    "term.foundDeadAt": "otkriven prestanak rada {time}",
+    "term.expiresAt": "Istječe {time}",
+    "term.closeAllConfirm": "Zatvoriti sve navedene terminale ({count})? Aktivne naredbe i grafičke aplikacije bit će prekinute. Spremljeni izlaz ostat će dostupan.",
+    "term.deleteArchivesConfirm": "Trajno izbrisati spremljeni izlaz i povijest unosa terminala ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Zatvorite terminal prije brisanja njegova spremljenog izlaza."
   }
 }

@@ -22,12 +22,16 @@ const MaxClosedHistoryHours = 876000
 const MaxTerminalArchiveBytes = 6 << 20
 
 type TerminalRecord struct {
-	InstanceID string     `json:"instanceId"`
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	Directory  string     `json:"directory"`
-	State      string     `json:"state"`
-	ClosedAt   *time.Time `json:"closedAt,omitempty"`
+	InstanceID   string     `json:"instanceId"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Directory    string     `json:"directory"`
+	State        string     `json:"state"`
+	StartedAt    *time.Time `json:"startedAt,omitempty"`
+	TerminatedAt *time.Time `json:"terminatedAt,omitempty"`
+	FoundDeadAt  *time.Time `json:"foundDeadAt,omitempty"`
+	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
+	ClosedAt     *time.Time `json:"closedAt,omitempty"`
 }
 
 func terminalID(id string) bool {
@@ -71,7 +75,7 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 	if r.Operation == "terminal-prune" || r.Operation == "terminal-list" {
 		return reconcileTerminals(ctx, base, r)
 	}
-	if r.Operation == "terminal-archive" || r.Operation == "terminal-record" || r.Operation == "terminal-close" {
+	if r.Operation == "terminal-archive" || r.Operation == "terminal-record" || r.Operation == "terminal-close" || r.Operation == "terminal-delete" {
 		return terminalArchive(base, r)
 	}
 	if r.Operation != "terminal-history" || !terminalID(r.Path) {

@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Dodaj przeglądarkę plików",
     "app.addTerminal": "Dodaj terminal",
     "app.architecture": "Architektura",
-    "app.attach": "Dołącz",
+    "app.attach": "Połącz",
     "app.autoLayout": "Układ automatyczny",
     "app.balanced": "Zrównoważony",
     "app.cannotRestartTuxee": "Nie można ponownie uruchomić Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Proszę wypełnić to pole.",
     "term.restartArchive": "Uruchom ponownie",
     "term.closedArchives": "Zamknięte",
-    "term.openArchive": "Otwórz",
+    "term.openArchive": "Zobacz",
     "settings.closedTerminalHistory": "Zachowuj historię zamkniętych terminali (godziny)",
     "backend.server.closedHistoryHoursRange": "Czas przechowywania musi wynosić od {min} do {max} godzin.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Utracone terminale",
+    "term.all": "Wszystkie",
+    "term.closeAll": "Zamknij wszystkie",
+    "term.deleteAll": "Usuń wszystkie",
+    "term.deleteArchives": "Usunąć wyjście terminali?",
+    "term.startedAt": "Uruchomiono {time}",
+    "term.closedAt": "zamknięto przez użytkownika {time}",
+    "term.terminatedAt": "zakończono {time}",
+    "term.foundDeadAt": "wykryto zakończenie {time}",
+    "term.expiresAt": "Wygasa {time}",
+    "term.closeAllConfirm": "Zamknąć wszystkie terminale z listy ({count})? Uruchomione polecenia i aplikacje graficzne zostaną zakończone. Zapisane wyjście pozostanie.",
+    "term.deleteArchivesConfirm": "Trwale usunąć zapisane wyjście i historię wejścia terminali ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Zamknij terminal przed usunięciem jego zapisanego wyjścia."
   }
 }

@@ -7,7 +7,7 @@
     "app.addFileBrowser": "إضافة متصفح الملفات",
     "app.addTerminal": "إضافة طرفية",
     "app.architecture": "بنيان",
-    "app.attach": "إرفاق",
+    "app.attach": "اتصال",
     "app.autoLayout": "تخطيط تلقائي",
     "app.balanced": "متوازن",
     "app.cannotRestartTuxee": "لا يمكن إعادة تشغيل Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "يرجى ملء هذا الحقل.",
     "term.restartArchive": "إعادة التشغيل",
     "term.closedArchives": "المغلقة",
-    "term.openArchive": "فتح",
+    "term.openArchive": "عرض",
     "settings.closedTerminalHistory": "الاحتفاظ بسجل الطرفيات المغلقة (ساعات)",
     "backend.server.closedHistoryHoursRange": "يجب أن تكون مدة الاحتفاظ بين {min} و{max} ساعة.",
-    "term.postMortem": "بعد الانتهاء"
+    "term.postMortem": "بعد الانتهاء",
+    "term.lostTerminals": "الطرفيات المفقودة",
+    "term.all": "الكل",
+    "term.closeAll": "إغلاق الكل",
+    "term.deleteAll": "حذف الكل",
+    "term.deleteArchives": "حذف مخرجات الطرفيات؟",
+    "term.startedAt": "بدأت {time}",
+    "term.closedAt": "أغلقها المستخدم {time}",
+    "term.terminatedAt": "انتهت {time}",
+    "term.foundDeadAt": "اكتُشف توقفها {time}",
+    "term.expiresAt": "تنتهي صلاحيتها {time}",
+    "term.closeAllConfirm": "إغلاق جميع الطرفيات المدرجة ({count})؟ ستُنهي هذه العملية الأوامر والتطبيقات الرسومية قيد التشغيل. ستبقى المخرجات المحفوظة.",
+    "term.deleteArchivesConfirm": "حذف المخرجات المحفوظة وسجل الإدخال نهائيًا للطرفيات التالية: {count}؟",
+    "backend.terminal.archiveMustBeClosed": "أغلق الطرفية قبل حذف مخرجاتها المحفوظة."
   }
 }

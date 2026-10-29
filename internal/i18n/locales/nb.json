@@ -769,9 +769,22 @@
     "validation.required": "Vennligst fyll ut dette feltet.",
     "term.restartArchive": "Start på nytt",
     "term.closedArchives": "Lukkede",
-    "term.openArchive": "Åpne",
+    "term.openArchive": "Vis",
     "settings.closedTerminalHistory": "Behold historikk for lukkede terminaler (timer)",
     "backend.server.closedHistoryHoursRange": "Lagringstiden må være mellom {min} og {max} timer.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Tapte terminaler",
+    "term.all": "Alle",
+    "term.closeAll": "Lukk alle",
+    "term.deleteAll": "Slett alle",
+    "term.deleteArchives": "Slett terminalutdata?",
+    "term.startedAt": "Startet {time}",
+    "term.closedAt": "lukket av brukeren {time}",
+    "term.terminatedAt": "avsluttet {time}",
+    "term.foundDeadAt": "funnet stoppet {time}",
+    "term.expiresAt": "Utløper {time}",
+    "term.closeAllConfirm": "Lukk alle {count} oppførte terminaler? Kjørende kommandoer og grafiske apper avsluttes. Lagrede utdata beholdes.",
+    "term.deleteArchivesConfirm": "Slett lagrede utdata og inndatahistorikk for {count} terminaler permanent?",
+    "backend.terminal.archiveMustBeClosed": "Lukk terminalen før du sletter lagrede utdata."
   }
 }

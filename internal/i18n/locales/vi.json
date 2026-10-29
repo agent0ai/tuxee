@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Thêm trình duyệt tập tin",
     "app.addTerminal": "Thêm terminal",
     "app.architecture": "Ngành kiến ​​​​trúc",
-    "app.attach": "Gắn",
+    "app.attach": "Kết nối",
     "app.autoLayout": "Bố cục tự động",
     "app.balanced": "Cân bằng",
     "app.cannotRestartTuxee": "Không thể khởi động lại Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Vui lòng điền vào trường này.",
     "term.restartArchive": "Khởi động lại",
     "term.closedArchives": "Đã đóng",
-    "term.openArchive": "Mở",
+    "term.openArchive": "Xem",
     "settings.closedTerminalHistory": "Giữ lịch sử terminal đã đóng (giờ)",
     "backend.server.closedHistoryHoursRange": "Thời gian lưu phải từ {min} đến {max} giờ.",
-    "term.postMortem": "Sau khi kết thúc"
+    "term.postMortem": "Sau khi kết thúc",
+    "term.lostTerminals": "Terminal thất lạc",
+    "term.all": "Tất cả",
+    "term.closeAll": "Đóng tất cả",
+    "term.deleteAll": "Xóa tất cả",
+    "term.deleteArchives": "Xóa đầu ra terminal?",
+    "term.startedAt": "Bắt đầu {time}",
+    "term.closedAt": "người dùng đóng {time}",
+    "term.terminatedAt": "kết thúc {time}",
+    "term.foundDeadAt": "phát hiện đã dừng {time}",
+    "term.expiresAt": "Hết hạn {time}",
+    "term.closeAllConfirm": "Đóng tất cả {count} terminal trong danh sách? Các lệnh và ứng dụng đồ họa đang chạy sẽ bị kết thúc. Đầu ra đã lưu sẽ được giữ lại.",
+    "term.deleteArchivesConfirm": "Xóa vĩnh viễn đầu ra đã lưu và lịch sử nhập của {count} terminal?",
+    "backend.terminal.archiveMustBeClosed": "Đóng terminal trước khi xóa đầu ra đã lưu."
   }
 }

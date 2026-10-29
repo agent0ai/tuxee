@@ -965,6 +965,15 @@ h3 {
   background: var(--surface);
   pointer-events: none;
 }
+.retained-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.retained-header .monitor-tabs { margin: 0; min-width: 0; max-width: 100%; }
+.retained-header [role=tab] { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
+.retained-header > button { flex-shrink: 0; margin-inline-start: auto; }
+.retained-name { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.retained-status { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--monitor-green); }
+.retained-status[data-exited=true] { background: var(--monitor-purple); }
+.retained-times { overflow-wrap: anywhere; }
+.retained-times:empty { display: none; }
 .retained-row {
   display: flex;
   align-items: center;
@@ -1334,8 +1343,8 @@ h3 {
 .monitor-controls:has(> .monitor-summary[hidden]) { display: none; }
 .monitor-summary { padding: 3px 6px; min-width: 0; border-radius: 8px; }
 .monitor-strip { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.monitor-chip, .monitor-card, .connection-progress { --monitor-purple: #ad94f7; --monitor-green: #36cfa7; }
-:root[data-theme=light] .monitor-chip, :root[data-theme=light] .monitor-card, :root[data-theme=light] .connection-progress { --monitor-purple: #7953bf; --monitor-green: #187b66; }
+.monitor-chip, .monitor-card, .connection-progress, .retained-row { --monitor-purple: #ad94f7; --monitor-green: #36cfa7; }
+:root[data-theme=light] .monitor-chip, :root[data-theme=light] .monitor-card, :root[data-theme=light] .connection-progress, :root[data-theme=light] .retained-row { --monitor-purple: #7953bf; --monitor-green: #187b66; }
 .monitor-chip { display: flex; align-items: center; gap: .4em; min-width: 0; font-size: 18px; }
 .monitor-chip-text { display: flex; flex-direction: column; align-items: flex-start; gap: .12em; min-width: 0; }
 .monitor-label { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .5em; font-weight: 600; line-height: 1.2; letter-spacing: .04em; }

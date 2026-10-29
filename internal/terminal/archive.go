@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 	"tuxee/internal/files"
+	"tuxee/internal/i18n"
 	"tuxee/internal/identity"
 )
 
@@ -15,7 +16,7 @@ func (s *Session) archiveRecordLocked() files.TerminalRecord {
 	if s.info.Exited || s.archiveDead || s.closed {
 		state = "dead"
 	}
-	return files.TerminalRecord{ID: s.info.ID, Name: s.info.Name, Directory: s.info.Directory, State: state}
+	return files.TerminalRecord{ID: s.info.ID, Name: s.info.Name, Directory: s.info.Directory, State: state, StartedAt: s.info.StartedAt, TerminatedAt: s.info.TerminatedAt}
 }
 
 // The manager lock orders checkpoints, input history and explicit closure.
@@ -109,7 +110,7 @@ func (m *Manager) ArchiveInventory(ctx context.Context, user identity.User) ([]I
 }
 
 func archivedInfo(record files.TerminalRecord) Info {
-	return Info{ID: record.ID, Name: record.Name, Directory: record.Directory, Exited: true, ClosedAt: record.ClosedAt}
+	return Info{ID: record.ID, Name: record.Name, Directory: record.Directory, Exited: true, ClosedAt: record.ClosedAt, StartedAt: record.StartedAt, TerminatedAt: record.TerminatedAt, FoundDeadAt: record.FoundDeadAt, ExpiresAt: record.ExpiresAt}
 }
 
 func (m *Manager) Archive(ctx context.Context, user identity.User, id string) (json.RawMessage, error) {
@@ -126,5 +127,15 @@ func (m *Manager) CloseArchive(ctx context.Context, user identity.User, id strin
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	_, err := files.Run(ctx, user, files.Request{Operation: "terminal-close", Instance: m.HistoryInstance, Path: id})
+	return err
+}
+
+func (m *Manager) DeleteArchive(ctx context.Context, user identity.User, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if s := m.sessions[id]; s != nil && s.user.UID == user.UID {
+		return i18n.New("backend.terminal.archiveMustBeClosed")
+	}
+	_, err := files.Run(ctx, user, files.Request{Operation: "terminal-delete", Instance: m.HistoryInstance, Path: id})
 	return err
 }

@@ -769,9 +769,22 @@
     "validation.required": "このフィールドに記入してください。",
     "term.restartArchive": "再起動",
     "term.closedArchives": "閉じた履歴",
-    "term.openArchive": "開く",
+    "term.openArchive": "表示",
     "settings.closedTerminalHistory": "閉じたターミナルの履歴を保持（時間）",
     "backend.server.closedHistoryHoursRange": "保持時間は{min}～{max}時間で指定してください。",
-    "term.postMortem": "終了後"
+    "term.postMortem": "終了後",
+    "term.lostTerminals": "失われた端末",
+    "term.all": "すべて",
+    "term.closeAll": "すべて閉じる",
+    "term.deleteAll": "すべて削除",
+    "term.deleteArchives": "端末の出力を削除しますか？",
+    "term.startedAt": "開始 {time}",
+    "term.closedAt": "ユーザーが閉じた日時 {time}",
+    "term.terminatedAt": "終了 {time}",
+    "term.foundDeadAt": "終了を検出 {time}",
+    "term.expiresAt": "有効期限 {time}",
+    "term.closeAllConfirm": "一覧の端末をすべて閉じますか（{count} 件）？実行中のコマンドとGUIアプリは終了します。保存済みの出力は残ります。",
+    "term.deleteArchivesConfirm": "端末 {count} 件の保存済み出力と入力履歴を完全に削除しますか？",
+    "backend.terminal.archiveMustBeClosed": "保存済みの出力を削除する前に端末を閉じてください。"
   }
 }

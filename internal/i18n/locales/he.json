@@ -7,7 +7,7 @@
     "app.addFileBrowser": "הוסף דפדפן קבצים",
     "app.addTerminal": "הוסף מסוף",
     "app.architecture": "אַדְרִיכָלוּת",
-    "app.attach": "חיבור",
+    "app.attach": "התחברות",
     "app.autoLayout": "פריסה אוטומטית",
     "app.balanced": "מאוזן",
     "app.cannotRestartTuxee": "לא ניתן להפעיל מחדש את Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "אנא מלא שדה זה.",
     "term.restartArchive": "הפעלה מחדש",
     "term.closedArchives": "סגורים",
-    "term.openArchive": "פתיחה",
+    "term.openArchive": "צפייה",
     "settings.closedTerminalHistory": "שמירת היסטוריית מסופים סגורים (שעות)",
     "backend.server.closedHistoryHoursRange": "משך השמירה חייב להיות בין {min} ל־{max} שעות.",
-    "term.postMortem": "לאחר סיום"
+    "term.postMortem": "לאחר סיום",
+    "term.lostTerminals": "מסופים אבודים",
+    "term.all": "הכול",
+    "term.closeAll": "סגירת הכול",
+    "term.deleteAll": "מחיקת הכול",
+    "term.deleteArchives": "למחוק את פלט המסופים?",
+    "term.startedAt": "הופעל {time}",
+    "term.closedAt": "נסגר על ידי המשתמש {time}",
+    "term.terminatedAt": "הסתיים {time}",
+    "term.foundDeadAt": "התגלה כלא פעיל {time}",
+    "term.expiresAt": "יפוג {time}",
+    "term.closeAllConfirm": "לסגור את כל המסופים ברשימה ({count})? פקודות ויישומים גרפיים פעילים יופסקו. הפלט השמור יישאר.",
+    "term.deleteArchivesConfirm": "למחוק לצמיתות את הפלט השמור והיסטוריית הקלט של המסופים ({count})?",
+    "backend.terminal.archiveMustBeClosed": "יש לסגור את המסוף לפני מחיקת הפלט השמור שלו."
   }
 }

@@ -769,9 +769,22 @@
     "validation.required": "Vyplňte toto pole.",
     "term.restartArchive": "Reštartovať",
     "term.closedArchives": "Zatvorené",
-    "term.openArchive": "Otvoriť",
+    "term.openArchive": "Zobraziť",
     "settings.closedTerminalHistory": "Uchovať históriu zatvorených terminálov (hodiny)",
     "backend.server.closedHistoryHoursRange": "Doba uchovania musí byť od {min} do {max} hodín.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Stratené terminály",
+    "term.all": "Všetky",
+    "term.closeAll": "Zavrieť všetky",
+    "term.deleteAll": "Zmazať všetky",
+    "term.deleteArchives": "Zmazať výstup terminálov?",
+    "term.startedAt": "Spustené {time}",
+    "term.closedAt": "zavreté používateľom {time}",
+    "term.terminatedAt": "ukončené {time}",
+    "term.foundDeadAt": "zistené ukončenie {time}",
+    "term.expiresAt": "Vyprší {time}",
+    "term.closeAllConfirm": "Zavrieť všetky uvedené terminály ({count})? Bežiace príkazy a grafické aplikácie sa ukončia. Uložený výstup zostane.",
+    "term.deleteArchivesConfirm": "Trvalo zmazať uložený výstup a históriu vstupu terminálov ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Pred zmazaním uloženého výstupu terminál zavrite."
   }
 }

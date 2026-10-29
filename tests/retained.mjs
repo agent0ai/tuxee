@@ -72,16 +72,26 @@ try {
     assert.equal(await page.locator('[name=closedTerminalHistoryHours]').inputValue(), String(me.settings.closedTerminalHistoryHours ?? 168));
     assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
-    await openRetained();
+    let entered, release;
+    const requested = new Promise(resolve => entered = resolve), held = new Promise(resolve => release = resolve);
+    let delayed = false;
+    await page.route(base + '/api/terminals', async route => {
+        if (route.request().method() === 'GET' && !delayed) { delayed = true; entered(); await held; }
+        await route.continue();
+    });
+    await menu.click(); await requested;
+    await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    release(); await retained.waitFor(); await page.unroute(base + '/api/terminals');
     assert.equal(await row(listed.name).count(), 0, 'inactive workspace terminals are already represented');
     assert.equal(await row(lost.name).count(), 1);
     assert.ok((await row(attached.name).textContent()).includes('Attached'));
-    assert.ok((await row(ended.name).textContent()).includes('Ended'));
+    assert.ok((await row(ended.name).textContent()).includes('terminated'));
     assert.equal(await retained.locator('code').count(), 0);
     await mkdir('test-results', { recursive: true });
     await page.screenshot({ path: 'test-results/retained-desktop.png' });
     const attachedSaved = page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT');
-    await row(lost.name).getByRole('button', { name: 'Attach', exact: true }).click();
+    await row(lost.name).getByRole('button', { name: 'Connect', exact: true }).click();
     await page.locator(`.terminal-view[data-terminal="${lost.id}"][data-state=connected]`).waitFor();
     await warning(1);
     assert.equal((await attachedSaved).status(), 200);

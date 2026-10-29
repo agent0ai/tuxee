@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Bestandsbrowser toevoegen",
     "app.addTerminal": "Terminal toevoegen",
     "app.architecture": "Architectuur",
-    "app.attach": "Koppelen",
+    "app.attach": "Verbinden",
     "app.autoLayout": "Automatische lay-out",
     "app.balanced": "Gebalanceerd",
     "app.cannotRestartTuxee": "Kan Tuxee niet opnieuw opstarten",
@@ -769,9 +769,22 @@
     "validation.required": "Vul dit veld in.",
     "term.restartArchive": "Herstarten",
     "term.closedArchives": "Gesloten",
-    "term.openArchive": "Openen",
+    "term.openArchive": "Bekijken",
     "settings.closedTerminalHistory": "Geschiedenis van gesloten terminals bewaren (uren)",
     "backend.server.closedHistoryHoursRange": "De bewaartijd moet tussen {min} en {max} uur liggen.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Verloren terminals",
+    "term.all": "Alle",
+    "term.closeAll": "Alle sluiten",
+    "term.deleteAll": "Alle verwijderen",
+    "term.deleteArchives": "Terminaluitvoer verwijderen?",
+    "term.startedAt": "Gestart {time}",
+    "term.closedAt": "gesloten door gebruiker {time}",
+    "term.terminatedAt": "beëindigd {time}",
+    "term.foundDeadAt": "als gestopt aangetroffen {time}",
+    "term.expiresAt": "Verloopt {time}",
+    "term.closeAllConfirm": "Alle {count} vermelde terminals sluiten? Actieve opdrachten en grafische apps worden beëindigd. Opgeslagen uitvoer blijft behouden.",
+    "term.deleteArchivesConfirm": "Opgeslagen uitvoer en invoergeschiedenis van {count} terminals definitief verwijderen?",
+    "backend.terminal.archiveMustBeClosed": "Sluit de terminal voordat u de opgeslagen uitvoer verwijdert."
   }
 }

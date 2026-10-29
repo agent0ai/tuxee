@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Pievienot failu pārlūkprogrammu",
     "app.addTerminal": "Pievienojiet termināli",
     "app.architecture": "Arhitektūra",
-    "app.attach": "Pievienot",
+    "app.attach": "Savienot",
     "app.autoLayout": "Automātiskais izkārtojums",
     "app.balanced": "Līdzsvarots",
     "app.cannotRestartTuxee": "Nevar restartēt Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Lūdzu, aizpildiet šo lauku.",
     "term.restartArchive": "Pārstartēt",
     "term.closedArchives": "Aizvērtie",
-    "term.openArchive": "Atvērt",
+    "term.openArchive": "Skatīt",
     "settings.closedTerminalHistory": "Saglabāt aizvērto termināļu vēsturi (stundas)",
     "backend.server.closedHistoryHoursRange": "Glabāšanas laikam jābūt no {min} līdz {max} stundām.",
-    "term.postMortem": "Pēc beigām"
+    "term.postMortem": "Pēc beigām",
+    "term.lostTerminals": "Zaudētie termināļi",
+    "term.all": "Visi",
+    "term.closeAll": "Aizvērt visus",
+    "term.deleteAll": "Dzēst visus",
+    "term.deleteArchives": "Dzēst termināļu izvadi?",
+    "term.startedAt": "Sākts {time}",
+    "term.closedAt": "lietotājs aizvēra {time}",
+    "term.terminatedAt": "beidzies {time}",
+    "term.foundDeadAt": "konstatēta beigšanās {time}",
+    "term.expiresAt": "Derīgs līdz {time}",
+    "term.closeAllConfirm": "Aizvērt visus uzskaitītos termināļus ({count})? Darbojošās komandas un grafiskās lietotnes tiks apturētas. Saglabātā izvade paliks.",
+    "term.deleteArchivesConfirm": "Neatgriezeniski dzēst termināļu ({count}) saglabāto izvadi un ievades vēsturi?",
+    "backend.terminal.archiveMustBeClosed": "Pirms saglabātās izvades dzēšanas aizveriet termināli."
   }
 }

@@ -107,6 +107,8 @@ func terminalArchiveFailure(w http.ResponseWriter, err error) {
 	var message *i18n.Error
 	if errors.As(err, &message) && message.Key == "backend.terminal.terminalNotFound" {
 		status = http.StatusNotFound
+	} else if message != nil && message.Key == "backend.terminal.archiveMustBeClosed" {
+		status = http.StatusConflict
 	}
 	failure(w, status, err)
 }
@@ -121,6 +123,14 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			return
 		}
 		jsonResponse(w, 200, archive)
+		return
+	}
+	if action == "archive" && r.Method == "DELETE" {
+		if err := s.Terminals.DeleteArchive(r.Context(), session.user, id); err != nil {
+			terminalArchiveFailure(w, err)
+			return
+		}
+		jsonResponse(w, 200, map[string]bool{"ok": true})
 		return
 	}
 	value, err := s.Terminals.Get(session.user, id)

@@ -769,9 +769,22 @@
     "validation.required": "Por favor complete este campo.",
     "term.restartArchive": "Reiniciar",
     "term.closedArchives": "Cerrados",
-    "term.openArchive": "Abrir",
+    "term.openArchive": "Ver",
     "settings.closedTerminalHistory": "Guardar historial de terminales cerrados (horas)",
     "backend.server.closedHistoryHoursRange": "La conservación debe estar entre {min} y {max} horas.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Terminales perdidos",
+    "term.all": "Todos",
+    "term.closeAll": "Cerrar todos",
+    "term.deleteAll": "Borrar todos",
+    "term.deleteArchives": "¿Borrar la salida de terminales?",
+    "term.startedAt": "Iniciado {time}",
+    "term.closedAt": "cerrado por el usuario {time}",
+    "term.terminatedAt": "terminado {time}",
+    "term.foundDeadAt": "detectado sin vida {time}",
+    "term.expiresAt": "Caduca {time}",
+    "term.closeAllConfirm": "¿Cerrar los {count} terminales de la lista? Se terminarán los comandos y aplicaciones gráficas en ejecución. Se conservará la salida guardada.",
+    "term.deleteArchivesConfirm": "¿Borrar permanentemente la salida guardada y el historial de entrada de {count} terminales?",
+    "backend.terminal.archiveMustBeClosed": "Cierra el terminal antes de borrar su salida guardada."
   }
 }

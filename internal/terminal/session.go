@@ -54,13 +54,17 @@ func (e Event) Bytes() int {
 }
 
 type Info struct {
-	ClosedAt  *time.Time `json:"closedAt,omitempty"`
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Directory string     `json:"directory"`
-	PID       int        `json:"pid"`
-	Exited    bool       `json:"exited"`
-	Attached  int        `json:"attached"`
+	StartedAt    *time.Time `json:"startedAt,omitempty"`
+	TerminatedAt *time.Time `json:"terminatedAt,omitempty"`
+	FoundDeadAt  *time.Time `json:"foundDeadAt,omitempty"`
+	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
+	ClosedAt     *time.Time `json:"closedAt,omitempty"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Directory    string     `json:"directory"`
+	PID          int        `json:"pid"`
+	Exited       bool       `json:"exited"`
+	Attached     int        `json:"attached"`
 }
 
 type Manager struct {
@@ -218,7 +222,8 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		return failed(err)
 	}
 	slave.Close()
-	s := &Session{Display: display, manager: m, user: user, info: Info{ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
+	started := time.Now().UTC()
+	s := &Session{Display: display, manager: m, user: user, info: Info{StartedAt: &started, ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
 	s.background = background
 	s.foreground = foreground
 	if s.info.Name == "" {
@@ -244,6 +249,10 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		s.mu.Lock()
 		_ = cmd.Wait()
 		s.info.Exited = true
+		if s.info.TerminatedAt == nil {
+			terminated := time.Now().UTC()
+			s.info.TerminatedAt = &terminated
+		}
 		s.mu.Unlock()
 		display.Close()
 		releaseAudio()
@@ -639,6 +648,10 @@ func (s *Session) close(explicit bool) {
 	s.mu.Lock()
 	wasClosed := s.closed
 	s.closed = true
+	if s.info.TerminatedAt == nil {
+		terminated := time.Now().UTC()
+		s.info.TerminatedAt = &terminated
+	}
 	s.mu.Unlock()
 	if !wasClosed {
 		s.checkpointLocked()

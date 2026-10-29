@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Tilføj filbrowser",
     "app.addTerminal": "Tilføj terminal",
     "app.architecture": "Arkitektur",
-    "app.attach": "Tilknyt",
+    "app.attach": "Forbind",
     "app.autoLayout": "Auto layout",
     "app.balanced": "Balanceret",
     "app.cannotRestartTuxee": "Kan ikke genstarte Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Udfyld venligst dette felt.",
     "term.restartArchive": "Genstart",
     "term.closedArchives": "Lukkede",
-    "term.openArchive": "Åbn",
+    "term.openArchive": "Vis",
     "settings.closedTerminalHistory": "Behold lukkede terminalers historik (timer)",
     "backend.server.closedHistoryHoursRange": "Opbevaringstiden skal være mellem {min} og {max} timer.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Mistede terminaler",
+    "term.all": "Alle",
+    "term.closeAll": "Luk alle",
+    "term.deleteAll": "Slet alle",
+    "term.deleteArchives": "Slet terminaloutput?",
+    "term.startedAt": "Startet {time}",
+    "term.closedAt": "lukket af bruger {time}",
+    "term.terminatedAt": "afsluttet {time}",
+    "term.foundDeadAt": "fundet stoppet {time}",
+    "term.expiresAt": "Udløber {time}",
+    "term.closeAllConfirm": "Luk alle {count} viste terminaler? Kørende kommandoer og grafiske apps afsluttes. Gemt output bevares.",
+    "term.deleteArchivesConfirm": "Slet gemt output og inputhistorik for {count} terminaler permanent?",
+    "backend.terminal.archiveMustBeClosed": "Luk terminalen, før du sletter dens gemte output."
   }
 }

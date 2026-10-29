@@ -769,9 +769,22 @@
     "validation.required": "Bitte dieses Feld ausfüllen.",
     "term.restartArchive": "Neustart",
     "term.closedArchives": "Geschlossen",
-    "term.openArchive": "Öffnen",
+    "term.openArchive": "Ansehen",
     "settings.closedTerminalHistory": "Verlauf geschlossener Terminals behalten (Stunden)",
     "backend.server.closedHistoryHoursRange": "Die Aufbewahrung muss zwischen {min} und {max} Stunden liegen.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Verlorene Terminals",
+    "term.all": "Alle",
+    "term.closeAll": "Alle schließen",
+    "term.deleteAll": "Alle löschen",
+    "term.deleteArchives": "Terminalausgabe löschen?",
+    "term.startedAt": "Gestartet {time}",
+    "term.closedAt": "vom Benutzer geschlossen {time}",
+    "term.terminatedAt": "beendet {time}",
+    "term.foundDeadAt": "als beendet erkannt {time}",
+    "term.expiresAt": "Läuft ab {time}",
+    "term.closeAllConfirm": "Alle {count} aufgelisteten Terminals schließen? Laufende Befehle und grafische Apps werden beendet. Gespeicherte Ausgaben bleiben erhalten.",
+    "term.deleteArchivesConfirm": "Gespeicherte Ausgaben und Eingabeverläufe von {count} Terminals endgültig löschen?",
+    "backend.terminal.archiveMustBeClosed": "Schließen Sie das Terminal, bevor Sie seine gespeicherte Ausgabe löschen."
   }
 }

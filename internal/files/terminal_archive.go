@@ -66,7 +66,7 @@ func reconcileTerminals(ctx context.Context, base string, r Request) (Response, 
 		}
 	}
 	hours := DefaultClosedHistoryHours
-	if r.Operation == "terminal-prune" {
+	{
 		settings, _, err := execute(ctx, Request{Operation: "settings-load"}, nil)
 		if err != nil {
 			return Response{}, err
@@ -112,13 +112,21 @@ func reconcileTerminals(ctx context.Context, base string, r Request) (Response, 
 				if slices.Contains(r.Paths, record.ID) {
 					state = "live"
 				}
-				if record.State != state {
+				if record.State != state || state == "dead" && record.TerminatedAt == nil && record.FoundDeadAt == nil {
 					record.State = state
+					if state == "dead" && record.TerminatedAt == nil && record.FoundDeadAt == nil {
+						now := time.Now().UTC()
+						record.FoundDeadAt = &now
+					}
 					if err := saveTerminalRecord(base, record); err != nil {
 						return Response{}, err
 					}
 				}
 			}
+		}
+		if record.ClosedAt != nil {
+			expires := record.ClosedAt.Add(time.Duration(hours) * time.Hour)
+			record.ExpiresAt = &expires
 		}
 		result.Terminals = append(result.Terminals, record)
 	}
@@ -159,6 +167,11 @@ func terminalArchive(base string, r Request) (Response, error) {
 			}
 		}
 		return Response{}, saveTerminalRecord(base, value)
+	case "terminal-delete":
+		if record.State != "closed" || record.ClosedAt == nil {
+			return Response{}, i18n.New("backend.terminal.archiveMustBeClosed")
+		}
+		return Response{}, os.RemoveAll(path)
 	case "terminal-close":
 		if record.State != "closed" {
 			now := time.Now().UTC()

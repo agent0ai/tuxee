@@ -47,6 +47,10 @@ export type User = {
     gid: number;
 };
 export type TerminalInfo = {
+    startedAt?: string;
+    terminatedAt?: string;
+    foundDeadAt?: string;
+    expiresAt?: string;
     closedAt?: string;
     id: string;
     name: string;

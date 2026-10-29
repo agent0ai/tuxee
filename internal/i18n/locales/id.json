@@ -769,9 +769,22 @@
     "validation.required": "Silakan isi kolom ini.",
     "term.restartArchive": "Mulai ulang",
     "term.closedArchives": "Ditutup",
-    "term.openArchive": "Buka",
+    "term.openArchive": "Lihat",
     "settings.closedTerminalHistory": "Simpan riwayat terminal yang ditutup (jam)",
     "backend.server.closedHistoryHoursRange": "Masa penyimpanan harus antara {min} dan {max} jam.",
-    "term.postMortem": "Setelah berakhir"
+    "term.postMortem": "Setelah berakhir",
+    "term.lostTerminals": "Terminal hilang",
+    "term.all": "Semua",
+    "term.closeAll": "Tutup semua",
+    "term.deleteAll": "Hapus semua",
+    "term.deleteArchives": "Hapus keluaran terminal?",
+    "term.startedAt": "Dimulai {time}",
+    "term.closedAt": "ditutup pengguna {time}",
+    "term.terminatedAt": "dihentikan {time}",
+    "term.foundDeadAt": "ditemukan mati {time}",
+    "term.expiresAt": "Kedaluwarsa {time}",
+    "term.closeAllConfirm": "Tutup semua terminal dalam daftar ({count})? Perintah dan aplikasi grafis yang berjalan akan dihentikan. Keluaran tersimpan tetap dipertahankan.",
+    "term.deleteArchivesConfirm": "Hapus permanen keluaran tersimpan dan riwayat masukan dari {count} terminal?",
+    "backend.terminal.archiveMustBeClosed": "Tutup terminal sebelum menghapus keluaran tersimpannya."
   }
 }

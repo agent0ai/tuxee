@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Magdagdag ng file browser",
     "app.addTerminal": "Magdagdag ng terminal",
     "app.architecture": "Arkitektura",
-    "app.attach": "Ikonekta",
+    "app.attach": "Kumonekta",
     "app.autoLayout": "Awtomatikong ayos",
     "app.balanced": "Balanse",
     "app.cannotRestartTuxee": "Hindi ma-restart ang Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Mangyaring punan ang field na ito.",
     "term.restartArchive": "Simulan muli",
     "term.closedArchives": "Nakasara",
-    "term.openArchive": "Buksan",
+    "term.openArchive": "Tingnan",
     "settings.closedTerminalHistory": "Itago ang history ng mga saradong terminal (oras)",
     "backend.server.closedHistoryHoursRange": "Dapat nasa pagitan ng {min} at {max} oras ang pag-iimbak.",
-    "term.postMortem": "Pagkatapos magsara"
+    "term.postMortem": "Pagkatapos magsara",
+    "term.lostTerminals": "Nawalang terminal",
+    "term.all": "Lahat",
+    "term.closeAll": "Isara lahat",
+    "term.deleteAll": "Burahin lahat",
+    "term.deleteArchives": "Burahin ang output ng terminal?",
+    "term.startedAt": "Sinimulan {time}",
+    "term.closedAt": "isinara ng user {time}",
+    "term.terminatedAt": "winakasan {time}",
+    "term.foundDeadAt": "natuklasang patay {time}",
+    "term.expiresAt": "Mawawalan ng bisa {time}",
+    "term.closeAllConfirm": "Isara ang lahat ng nakalistang terminal ({count})? Wawakasan ang mga tumatakbong command at GUI app. Mananatili ang naka-save na output.",
+    "term.deleteArchivesConfirm": "Permanenteng burahin ang naka-save na output at kasaysayan ng input ng {count} terminal?",
+    "backend.terminal.archiveMustBeClosed": "Isara ang terminal bago burahin ang naka-save na output nito."
   }
 }

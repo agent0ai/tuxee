@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Pridėti failų naršyklę",
     "app.addTerminal": "Pridėti terminalą",
     "app.architecture": "Architektūra",
-    "app.attach": "Prijungti",
+    "app.attach": "Prisijungti",
     "app.autoLayout": "Automatinis išdėstymas",
     "app.balanced": "Subalansuotas",
     "app.cannotRestartTuxee": "Nepavyko iš naujo paleisti Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Užpildykite šį lauką.",
     "term.restartArchive": "Paleisti iš naujo",
     "term.closedArchives": "Uždaryti",
-    "term.openArchive": "Atverti",
+    "term.openArchive": "Peržiūrėti",
     "settings.closedTerminalHistory": "Saugoti uždarytų terminalų istoriją (valandos)",
     "backend.server.closedHistoryHoursRange": "Saugojimo laikas turi būti nuo {min} iki {max} valandų.",
-    "term.postMortem": "Po pabaigos"
+    "term.postMortem": "Po pabaigos",
+    "term.lostTerminals": "Prarasti terminalai",
+    "term.all": "Visi",
+    "term.closeAll": "Uždaryti visus",
+    "term.deleteAll": "Ištrinti visus",
+    "term.deleteArchives": "Ištrinti terminalų išvestį?",
+    "term.startedAt": "Paleista {time}",
+    "term.closedAt": "naudotojas uždarė {time}",
+    "term.terminatedAt": "baigta {time}",
+    "term.foundDeadAt": "aptikta pabaiga {time}",
+    "term.expiresAt": "Galioja iki {time}",
+    "term.closeAllConfirm": "Uždaryti visus išvardytus terminalus ({count})? Veikiančios komandos ir grafinės programos bus nutrauktos. Išsaugota išvestis liks.",
+    "term.deleteArchivesConfirm": "Visam laikui ištrinti terminalų ({count}) išsaugotą išvestį ir įvesties istoriją?",
+    "backend.terminal.archiveMustBeClosed": "Prieš ištrindami išsaugotą išvestį uždarykite terminalą."
   }
 }

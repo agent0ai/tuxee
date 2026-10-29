@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Bæta við skráarvafra",
     "app.addTerminal": "Bæta við skjáhermi",
     "app.architecture": "Arkitektúr",
-    "app.attach": "Tengja",
+    "app.attach": "Tengjast",
     "app.autoLayout": "Sjálfvirk skipulag",
     "app.balanced": "Jafnvægi",
     "app.cannotRestartTuxee": "Get ekki endurræst Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Vinsamlegast fylltu út þennan reit.",
     "term.restartArchive": "Endurræsa",
     "term.closedArchives": "Lokaðir",
-    "term.openArchive": "Opna",
+    "term.openArchive": "Skoða",
     "settings.closedTerminalHistory": "Geyma feril lokaðra skjáherma (klst.)",
     "backend.server.closedHistoryHoursRange": "Varðveislutími verður að vera á milli {min} og {max} klukkustunda.",
-    "term.postMortem": "Eftir lok"
+    "term.postMortem": "Eftir lok",
+    "term.lostTerminals": "Týndar útstöðvar",
+    "term.all": "Allar",
+    "term.closeAll": "Loka öllum",
+    "term.deleteAll": "Eyða öllum",
+    "term.deleteArchives": "Eyða úttaki útstöðva?",
+    "term.startedAt": "Ræst {time}",
+    "term.closedAt": "lokað af notanda {time}",
+    "term.terminatedAt": "stöðvað {time}",
+    "term.foundDeadAt": "fannst stöðvað {time}",
+    "term.expiresAt": "Rennur út {time}",
+    "term.closeAllConfirm": "Loka öllum skráðum útstöðvum ({count})? Keyrandi skipanir og myndræn forrit verða stöðvuð. Vistað úttak verður varðveitt.",
+    "term.deleteArchivesConfirm": "Eyða varanlega vistuðu úttaki og innsláttarsögu útstöðva ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Lokaðu útstöðinni áður en þú eyðir vistuðu úttaki hennar."
   }
 }

@@ -769,9 +769,22 @@
     "validation.required": "이 필드를 작성해 주세요.",
     "term.restartArchive": "다시 시작",
     "term.closedArchives": "닫힌 터미널",
-    "term.openArchive": "열기",
+    "term.openArchive": "보기",
     "settings.closedTerminalHistory": "닫힌 터미널 기록 보관 (시간)",
     "backend.server.closedHistoryHoursRange": "보관 기간은 {min}~{max}시간이어야 합니다.",
-    "term.postMortem": "종료 후"
+    "term.postMortem": "종료 후",
+    "term.lostTerminals": "유실된 터미널",
+    "term.all": "모두",
+    "term.closeAll": "모두 닫기",
+    "term.deleteAll": "모두 삭제",
+    "term.deleteArchives": "터미널 출력을 삭제할까요?",
+    "term.startedAt": "시작 {time}",
+    "term.closedAt": "사용자가 닫음 {time}",
+    "term.terminatedAt": "종료 {time}",
+    "term.foundDeadAt": "종료 감지 {time}",
+    "term.expiresAt": "만료 {time}",
+    "term.closeAllConfirm": "목록의 터미널 {count}개를 모두 닫을까요? 실행 중인 명령과 GUI 앱이 종료됩니다. 저장된 출력은 유지됩니다.",
+    "term.deleteArchivesConfirm": "터미널 {count}개의 저장된 출력과 입력 기록을 영구 삭제할까요?",
+    "backend.terminal.archiveMustBeClosed": "저장된 출력을 삭제하기 전에 터미널을 닫으세요."
   }
 }

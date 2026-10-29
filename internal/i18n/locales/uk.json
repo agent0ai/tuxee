@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Додати браузер файлів",
     "app.addTerminal": "Додати термінал",
     "app.architecture": "Архітектура",
-    "app.attach": "Приєднати",
+    "app.attach": "Під’єднати",
     "app.autoLayout": "Автоматичний макет",
     "app.balanced": "Збалансоване",
     "app.cannotRestartTuxee": "Не вдається перезапустити Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Будь ласка, заповніть це поле.",
     "term.restartArchive": "Перезапустити",
     "term.closedArchives": "Закриті",
-    "term.openArchive": "Відкрити",
+    "term.openArchive": "Перегляд",
     "settings.closedTerminalHistory": "Зберігати історію закритих терміналів (години)",
     "backend.server.closedHistoryHoursRange": "Термін зберігання має бути від {min} до {max} годин.",
-    "term.postMortem": "Після завершення"
+    "term.postMortem": "Після завершення",
+    "term.lostTerminals": "Втрачені термінали",
+    "term.all": "Усі",
+    "term.closeAll": "Закрити всі",
+    "term.deleteAll": "Видалити всі",
+    "term.deleteArchives": "Видалити вивід терміналів?",
+    "term.startedAt": "Запущено {time}",
+    "term.closedAt": "закрито користувачем {time}",
+    "term.terminatedAt": "завершено {time}",
+    "term.foundDeadAt": "виявлено завершення {time}",
+    "term.expiresAt": "Спливає {time}",
+    "term.closeAllConfirm": "Закрити всі термінали зі списку ({count})? Запущені команди та графічні програми буде завершено. Збережений вивід залишиться.",
+    "term.deleteArchivesConfirm": "Назавжди видалити збережений вивід та історію введення терміналів ({count})?",
+    "backend.terminal.archiveMustBeClosed": "Закрийте термінал перед видаленням його збереженого виводу."
   }
 }

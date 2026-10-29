@@ -7,7 +7,7 @@
     "app.addFileBrowser": "फ़ाइल ब्राउज़र जोड़ें",
     "app.addTerminal": "टर्मिनल जोड़ें",
     "app.architecture": "वास्तुकला",
-    "app.attach": "जोड़ें",
+    "app.attach": "कनेक्ट करें",
     "app.autoLayout": "ऑटो लेआउट",
     "app.balanced": "संतुलित",
     "app.cannotRestartTuxee": "Tuxee पुनः प्रारंभ नहीं किया जा सकता",
@@ -769,9 +769,22 @@
     "validation.required": "कृपया इस क्षेत्र को भरें।",
     "term.restartArchive": "फिर शुरू करें",
     "term.closedArchives": "बंद",
-    "term.openArchive": "खोलें",
+    "term.openArchive": "देखें",
     "settings.closedTerminalHistory": "बंद टर्मिनलों का इतिहास रखें (घंटे)",
     "backend.server.closedHistoryHoursRange": "इतिहास रखने का समय {min} से {max} घंटे के बीच होना चाहिए।",
-    "term.postMortem": "समापन के बाद"
+    "term.postMortem": "समापन के बाद",
+    "term.lostTerminals": "खोए टर्मिनल",
+    "term.all": "सभी",
+    "term.closeAll": "सभी बंद करें",
+    "term.deleteAll": "सभी मिटाएँ",
+    "term.deleteArchives": "टर्मिनल आउटपुट मिटाएँ?",
+    "term.startedAt": "शुरू {time}",
+    "term.closedAt": "उपयोगकर्ता ने बंद किया {time}",
+    "term.terminatedAt": "समाप्त {time}",
+    "term.foundDeadAt": "बंद मिला {time}",
+    "term.expiresAt": "समय-सीमा {time}",
+    "term.closeAllConfirm": "सूची के सभी {count} टर्मिनल बंद करें? चल रहे कमांड और ग्राफ़िकल ऐप समाप्त हो जाएँगे। सहेजा गया आउटपुट बना रहेगा।",
+    "term.deleteArchivesConfirm": "{count} टर्मिनल का सहेजा गया आउटपुट और इनपुट इतिहास हमेशा के लिए मिटाएँ?",
+    "backend.terminal.archiveMustBeClosed": "सहेजा गया आउटपुट मिटाने से पहले टर्मिनल बंद करें।"
   }
 }

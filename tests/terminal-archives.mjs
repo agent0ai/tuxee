@@ -62,7 +62,12 @@ try {
     };
     const natural=await create("printf 'UNICODE 界 🦊 é\\n'; for i in $(seq 1 200); do printf '%080d\\n' $i; done; sleep 1");
     await json(`/terminals/${natural.id}/input-history`,'POST',{text:'original\n日本語 🦊'});
-    await ended(natural.id);
+    const naturalInfo=await ended(natural.id);
+    assert.ok(natural.startedAt && naturalInfo.terminatedAt);
+    assert.equal(naturalInfo.startedAt,natural.startedAt); assert.equal(naturalInfo.foundDeadAt,undefined);
+    assert.ok(Date.parse(naturalInfo.terminatedAt)>=Date.parse(natural.startedAt));
+    assert.equal((await api(`/terminals/${natural.id}/archive`,'DELETE')).status(),409);
+
     const saved=await output(natural.id); assert.ok(saved.text.includes('UNICODE 界 🦊 é')); assert.equal(saved.version,2);
     assert.deepEqual(JSON.parse(await readFile(folder(natural.id)+'/input-history.json')),['original\n日本語 🦊']);
     for (const file of ['meta.json','input-history.json','output.txt','output.json']) {
@@ -72,6 +77,9 @@ try {
     for (const suffix of ['', '/archive']) assert.equal((await second.request.get(`${base}/api/terminals/${natural.id}${suffix}`)).status(),404);
     assert.equal((await second.request.delete(`${base}/api/terminals/${natural.id}`,{headers:{'X-Tuxee-CSRF':otherCSRF,'X-Tuxee-Client':'web'}})).status(),404);
     assert.equal((await context.request.delete(`${base}/api/terminals/${natural.id}`,{headers:{'X-Tuxee-Client':'web'}})).status(),403);
+    assert.equal((await second.request.delete(`${base}/api/terminals/${natural.id}/archive`,{headers:{'X-Tuxee-CSRF':otherCSRF,'X-Tuxee-Client':'web'}})).status(),404);
+    assert.equal((await context.request.delete(`${base}/api/terminals/${natural.id}/archive`,{headers:{'X-Tuxee-Client':'web'}})).status(),403);
+    assert.equal((await api(`/terminals/${natural.id}/archive`,'DELETE')).status(),409);
     await second.close();
     await chmod(folder(natural.id)+'/meta.json',0);
     for (const [path,method] of [[`/terminals/${natural.id}/archive`,'GET'],[`/terminals/${natural.id}`,'DELETE']]) {
@@ -161,16 +169,25 @@ try {
     const openRetained=async()=>{ await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
     await openRetained();
     const dialog=page.getByRole('dialog',{name:'Retained terminals',exact:true});
+    await dialog.getByRole('tab',{name:'Lost terminals',exact:true}).waitFor();
+    assert.equal(await dialog.locator('.retained-status[data-exited=true]').count(),1);
+    assert.match((await dialog.locator('.retained-times').first().textContent()).replace(/[\u2066\u2069]/g,''),/Started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, terminated /);
     const spacing=await dialog.locator('.retained-row').first().evaluate(row=>({top:parseFloat(getComputedStyle(row).paddingTop),bottom:parseFloat(getComputedStyle(row).paddingBottom)}));
     assert.ok(spacing.top>=14 && spacing.top===spacing.bottom,'uniform first-row padding');
     const row=dialog.locator('.retained-row').filter({hasText:'Archive fixture'}); await row.getByRole('button',{name:'Close',exact:true}).click();
-    await dialog.getByRole('tab',{name:'Closed',exact:true}).click(); await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'Open',exact:true}).waitFor();
+    await dialog.getByRole('tab',{name:'Closed',exact:true}).click(); await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'View',exact:true}).waitFor();
+    const closedInfo=await json(`/terminals/${natural.id}`);
+    assert.equal(Date.parse(closedInfo.expiresAt)-Date.parse(closedInfo.closedAt),168*3600000);
+    assert.match(await dialog.locator('.retained-times').textContent(),/closed by user .*Expires /);
+    assert.equal(await dialog.locator('.retained-row button[aria-label="Delete"] svg').count(),1);
     assert.ok((await json(`/terminals/${natural.id}`)).closedAt); assert.deepEqual(await output(natural.id),saved);
     await page.keyboard.press('Escape');
     await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Settings',exact:true}).click();
     const retention=page.locator('[name=closedTerminalHistoryHours]'); assert.equal(await retention.inputValue(),'168'); await retention.fill('72');
     await page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Save',exact:true}).click();
     await wait(async()=> (await json('/me')).settings.closedTerminalHistoryHours===72,'retention save');
+    const changedExpiry=await json(`/terminals/${natural.id}`);
+    assert.equal(Date.parse(changedExpiry.expiresAt)-Date.parse(changedExpiry.closedAt),72*3600000);
     assert.equal((await api('/settings','PUT',{...settings,closedTerminalHistoryHours:-1})).status(),400);
     assert.equal((await api('/settings','PUT',{...settings,closedTerminalHistoryHours:1.5})).status(),400);
     await page.close();
@@ -181,7 +198,8 @@ try {
     await mount(mc.id);
     const mcPage=await context.newPage(); mcPage.on('pageerror',error=>errors.push(error.message)); await mcPage.goto(base); await mcPage.locator('.terminal-view[data-state=connected]').waitFor();
     for (const visit of [1,2]) {
-        await wait(async()=>{ const a=await output(mc.id); return (a?.text.match(/Help/g)||[]).length>=visit; },'real MC did not render');
+        try { await wait(async()=>{ const a=await output(mc.id); return (a?.text.match(/Help/g)||[]).length>=visit; },`real MC visit ${visit} did not render`); }
+        catch (error) { await mcPage.screenshot({path:'test-results/terminal-archive-mc-failure.png'}); await writeFile('test-results/terminal-archive-mc-failure.json',JSON.stringify(await output(mc.id))); throw error; }
         await mcPage.locator('.xterm-helper-textarea').focus(); await mcPage.keyboard.press('F10');
     }
     await ended(mc.id); await mcPage.locator('.terminal-archive').waitFor();
@@ -202,29 +220,103 @@ try {
     await mount(shutdown.id); await stop(); await start(); csrf=await login();
     assert.equal((await json('/me')).settings.workspaces[0].panels[0].terminal,shutdown.id);
     assert.ok((await output(shutdown.id)).text.includes('SHUTDOWN_OUTPUT')); assert.equal((await json(`/terminals/${shutdown.id}`)).closedAt,undefined);
+    const shutdownInfo=await json(`/terminals/${shutdown.id}`); assert.ok(shutdownInfo.terminatedAt); assert.equal(shutdownInfo.foundDeadAt,undefined);
     const crash=await create("printf 'CRASH_CHECKPOINT\\n'; sleep 300",'Crash');
     await wait(async()=>{try{return (await disk(crash.id)).text.includes('CRASH_CHECKPOINT');}catch{return false;}},'periodic checkpoint missing');
     await stop('SIGKILL'); await start(); csrf=await login();
     assert.ok((await output(crash.id)).text.includes('CRASH_CHECKPOINT')); assert.equal((await json(`/terminals/${crash.id}`)).closedAt,undefined);
+    const crashInfo=await json(`/terminals/${crash.id}`); assert.ok(crashInfo.foundDeadAt); assert.equal(crashInfo.terminatedAt,undefined); assert.equal(crashInfo.startedAt,crash.startedAt);
     const metadata=JSON.parse(await readFile(folder(natural.id)+'/meta.json')); metadata.closedAt=new Date(Date.now()-169*3600000).toISOString();
     await writeFile(folder(natural.id)+'/meta.json',JSON.stringify(metadata));
     csrf=await login(); assert.equal((await api(`/terminals/${natural.id}`)).status(),404);
     assert.ok((await output(crash.id)).text.includes('CRASH_CHECKPOINT'),'unclosed archives must never expire');
     const registry=JSON.parse(await readFile(state+'/state/terminal-accounts.json')); assert.equal(registry[user.name],user.uid); assert.equal(registry[other.name],other.uid);
+    const closedFixture=await create("printf 'DELETE_ME\\n'; sleep 300",'Closed list fixture');
+    await json(`/terminals/${closedFixture.id}`,'DELETE');
+    const liveFixture=await create("printf 'LIVE_LIST\\n'; sleep 1800",'Live list fixture');
+    assert.equal((await api(`/terminals/${liveFixture.id}/archive`,'DELETE')).status(),409);
     await mount(mc.id);
     const mobile=await context.newPage(); mobile.on('pageerror',error=>errors.push(error.message));
     await mobile.setViewportSize({width:320,height:700});
     for (const [index,file] of (await readdir('internal/i18n/locales')).entries()) {
         if (index===20) { console.log('Waiting for the real login rate-limit window before remaining languages.'); await new Promise(resolve=>setTimeout(resolve,60000)); }
-        const language=file.replace('.json',''); csrf=await login(user,context,language);
+        const language=file.replace('.json',''), catalog=JSON.parse(await readFile('internal/i18n/locales/'+file)).texts; csrf=await login(user,context,language);
         await mobile.goto(base); await mobile.locator('.terminal-archive pre').waitFor();
         assert.equal(await mobile.locator('.terminal-archive select').count(),0);
         const bounds=await mobile.locator('.terminal-archive .terminal-footer').evaluate(f=>({width:f.clientWidth,scroll:f.scrollWidth}));
         assert.ok(bounds.scroll<=bounds.width+1,language+': '+JSON.stringify(bounds));
         assert.equal(await mobile.locator('.terminal-archive pre').textContent(),mcArchive.text);
         if (['ar','cs'].includes(language)) await mobile.screenshot({path:`test-results/terminal-archive-${language}-320.png`});
+        await mobile.getByRole('button',{name:catalog['app.userMenu'],exact:true}).click();
+        await mobile.getByRole('menuitem',{name:catalog['app.retainedTerminals'],exact:true}).click();
+        const inventory=mobile.getByRole('dialog',{name:catalog['app.retainedTerminals'],exact:true});
+        for (const theme of ['dark','light']) {
+            await mobile.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+            for (const tab of ['term.lostTerminals','term.closedArchives']) {
+                await inventory.getByRole('tab',{name:catalog[tab],exact:true}).click();
+                const layout=await inventory.evaluate(dialog=>{
+                    const body=dialog.querySelector('.modal-body');
+                    return {width:body.clientWidth,scroll:body.scrollWidth,rows:[...dialog.querySelectorAll('.retained-row')].map(row=>({width:row.clientWidth,scroll:row.scrollWidth,times:row.querySelector('.retained-times').textContent,color:getComputedStyle(row.querySelector('.retained-status')).backgroundColor,exited:row.querySelector('.retained-status').dataset.exited}))};
+                });
+                assert.ok(layout.scroll<=layout.width+1,language+theme+tab+JSON.stringify(layout));
+                for (const row of layout.rows) {
+                    assert.ok(row.scroll<=row.width+1,language+JSON.stringify(row)); assert.ok(!row.times.includes('[!'));
+                    assert.equal(row.color,row.exited==='true' ? (theme==='dark'?'rgb(173, 148, 247)':'rgb(121, 83, 191)') : (theme==='dark'?'rgb(54, 207, 167)':'rgb(24, 123, 102)'));
+                }
+                if (['en','ar','cs','pl'].includes(language)) await mobile.screenshot({path:`test-results/terminal-list-${language}-${theme}-${tab.split('.').at(-1)}-320.png`});
+            }
+        }
+        await mobile.keyboard.press('Escape');
     }
     await mobile.close();
+    csrf=await login();
+    const listPage=await context.newPage(); listPage.on('pageerror',error=>errors.push(error.message)); await listPage.goto(base); await listPage.locator('.terminal-archive pre').waitFor();
+    await listPage.getByRole('button',{name:'User menu',exact:true}).click(); await listPage.getByRole('menuitem',{name:'Retained terminals',exact:true}).click();
+    const inventory=listPage.getByRole('dialog',{name:'Retained terminals',exact:true}); await inventory.waitFor();
+    const listed=id=>inventory.locator(`[data-terminal-id="${id}"]`);
+    assert.equal(await listed(liveFixture.id).getByRole('button',{name:'Connect',exact:true}).count(),1);
+    assert.equal(await listed(mc.id).getByRole('button',{name:'View',exact:true}).count(),1);
+    assert.equal(await listed(liveFixture.id).locator('button[aria-label="Close"] svg').count(),1);
+    await inventory.getByRole('tab',{name:'Closed',exact:true}).click();
+    await listed(closedFixture.id).getByRole('button',{name:'Delete',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal((await api(`/terminals/${closedFixture.id}`)).status(),200);
+    await listed(closedFixture.id).getByRole('button',{name:'Delete',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Delete',exact:true}).click();
+    await wait(async()=>!(await listed(closedFixture.id).count()),'single archive deletion');
+    assert.equal((await api(`/terminals/${closedFixture.id}/archive`)).status(),404);
+    await assert.rejects(stat(folder(closedFixture.id)),{code:'ENOENT'});
+    await inventory.getByRole('tab',{name:'Lost terminals',exact:true}).click();
+    await inventory.getByRole('button',{name:'Close all',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal((await json(`/terminals/${liveFixture.id}`)).exited,false);
+    const later=await create("sleep 1800",'Not yet displayed');
+    const refreshed=listPage.waitForResponse(response=>response.url()===base+'/api/terminals'&&response.request().method()==='GET');
+    await listPage.evaluate(()=>document.dispatchEvent(new Event('visibilitychange'))); await refreshed;
+    assert.equal(await listed(later.id).count(),0);
+    // One failed item must not hide successful closures or stop the remaining batch.
+    await listPage.route(base+`/api/terminals/${crash.id}`,route=>route.request().method()==='DELETE'?route.fulfill({status:409,json:{error:'Expected batch close failure'}}):route.continue());
+    await inventory.getByRole('button',{name:'Close all',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Close',exact:true}).click();
+    await wait(async()=> (await json(`/terminals/${liveFixture.id}`)).closedAt,'bulk closure');
+    await listPage.getByText('Expected batch close failure',{exact:true}).waitFor();
+    assert.equal((await json(`/terminals/${later.id}`)).exited,false,'All must use only the displayed list');
+    assert.equal((await json(`/terminals/${crash.id}`)).closedAt,undefined);
+    await listPage.unroute(base+`/api/terminals/${crash.id}`);
+    await inventory.getByRole('button',{name:'Close all',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Close all',exact:true}).getByRole('button',{name:'Close',exact:true}).click();
+    await wait(async()=> !(await inventory.locator('.retained-row').count()),'bulk retry');
+    await inventory.getByRole('tab',{name:'Closed',exact:true}).click();
+    await listPage.screenshot({path:'test-results/terminal-list-closed-desktop.png'});
+    await inventory.getByRole('button',{name:'Delete all',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.ok((await json('/terminals')).length>0);
+    await inventory.getByRole('button',{name:'Delete all',exact:true}).click();
+    await listPage.getByRole('dialog',{name:'Delete terminal output?',exact:true}).getByRole('button',{name:'Delete',exact:true}).click();
+    await wait(async()=> (await json('/terminals')).length===0,'bulk deletion');
+    await wait(async()=> !(await inventory.locator('.retained-row').count()),'empty deleted list');
+    assert.equal(await inventory.getByRole('button',{name:'Delete all',exact:true}).isDisabled(),true);
+    await listPage.close();
     assert.deepEqual(errors,[]);
     console.log('Terminal archives: Unicode/copy, natural exit, shell kill, MC, restart, closed retention, permissions, crash and shutdown passed.');
 } catch (error) {

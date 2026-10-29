@@ -126,3 +126,77 @@ func TestTerminalArchiveEarlyPreview(t *testing.T) {
 		t.Fatalf("discarded early preview output: %s", data)
 	}
 }
+
+func TestTerminalLifecycleMetadataAndDelete(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", "")
+	base := filepath.Join(os.Getenv("HOME"), ".local/state/tuxee/terminals")
+	id := strings.Repeat("b", 24)
+	ctx := context.Background()
+	run := func(r Request) Response {
+		t.Helper()
+		response, err := terminalFiles(ctx, r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	started := time.Now().UTC().Add(-time.Minute)
+	record := TerminalRecord{State: "live", StartedAt: &started}
+	run(Request{Operation: "terminal-record", Instance: "one", Path: id, Terminal: &record})
+	remove := Request{Operation: "terminal-delete", Instance: "one", Path: id}
+	if _, err := terminalFiles(ctx, remove); err == nil {
+		t.Fatal("deleted live terminal")
+	}
+	run(Request{Operation: "terminal-prune", Instance: "one", Paths: []string{id}})
+	meta, _ := terminalRecord(base, id, "one")
+	if !meta.StartedAt.Equal(started) || meta.FoundDeadAt != nil {
+		t.Fatalf("live metadata: %+v", meta)
+	}
+	run(Request{Operation: "terminal-prune", Instance: "one"})
+	meta, _ = terminalRecord(base, id, "one")
+	if meta.FoundDeadAt == nil || meta.TerminatedAt != nil {
+		t.Fatalf("unknown death: %+v", meta)
+	}
+	found := *meta.FoundDeadAt
+	run(Request{Operation: "terminal-prune", Instance: "one"})
+	meta, _ = terminalRecord(base, id, "one")
+	if !meta.FoundDeadAt.Equal(found) {
+		t.Fatal("changed discovery timestamp")
+	}
+	if _, err := terminalFiles(ctx, remove); err == nil {
+		t.Fatal("deleted unclosed dead terminal")
+	}
+	run(Request{Operation: "terminal-close", Instance: "one", Path: id})
+	meta, _ = terminalRecord(base, id, "one")
+	for _, hours := range []int{168, 72, 0} {
+		settings, _ := json.Marshal(map[string]int{"closedTerminalHistoryHours": hours})
+		if _, _, err := execute(ctx, Request{Operation: "settings-save", Settings: settings}, nil); err != nil {
+			t.Fatal(err)
+		}
+		list := run(Request{Operation: "terminal-list", Instance: "one"}).Terminals
+		if len(list) != 1 || !list[0].ExpiresAt.Equal(meta.ClosedAt.Add(time.Duration(hours)*time.Hour)) {
+			t.Fatalf("wrong current expiry: %+v", list)
+		}
+	}
+	foreign := remove
+	foreign.Instance = "two"
+	if _, err := terminalFiles(ctx, foreign); err == nil {
+		t.Fatal("cross-installation deletion")
+	}
+	run(remove)
+	if _, err := os.Stat(filepath.Join(base, id)); !os.IsNotExist(err) {
+		t.Fatal("archive folder remained")
+	}
+	if _, err := terminalFiles(ctx, Request{Operation: "terminal-close", Instance: "one", Path: id}); err == nil {
+		t.Fatal("late close recreated deleted archive")
+	}
+	terminated := time.Now().UTC()
+	record.State, record.TerminatedAt = "dead", &terminated
+	run(Request{Operation: "terminal-record", Instance: "one", Path: id, Terminal: &record})
+	run(Request{Operation: "terminal-prune", Instance: "one"})
+	meta, _ = terminalRecord(base, id, "one")
+	if !meta.TerminatedAt.Equal(terminated) || meta.FoundDeadAt != nil {
+		t.Fatalf("known death became discovered death: %+v", meta)
+	}
+}

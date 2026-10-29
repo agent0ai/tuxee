@@ -7,7 +7,7 @@
     "app.addFileBrowser": "Adăugați browser de fișiere",
     "app.addTerminal": "Adăugați terminal",
     "app.architecture": "Arhitectură",
-    "app.attach": "Atașează",
+    "app.attach": "Conectare",
     "app.autoLayout": "Aspect automat",
     "app.balanced": "Echilibrat",
     "app.cannotRestartTuxee": "Nu se poate reporni Tuxee",
@@ -769,9 +769,22 @@
     "validation.required": "Vă rugăm să completați acest câmp.",
     "term.restartArchive": "Repornește",
     "term.closedArchives": "Închise",
-    "term.openArchive": "Deschide",
+    "term.openArchive": "Vezi",
     "settings.closedTerminalHistory": "Păstrează istoricul terminalelor închise (ore)",
     "backend.server.closedHistoryHoursRange": "Perioada de păstrare trebuie să fie între {min} și {max} ore.",
-    "term.postMortem": "Post mortem"
+    "term.postMortem": "Post mortem",
+    "term.lostTerminals": "Terminale pierdute",
+    "term.all": "Toate",
+    "term.closeAll": "Închide toate",
+    "term.deleteAll": "Șterge toate",
+    "term.deleteArchives": "Ștergi ieșirea terminalelor?",
+    "term.startedAt": "Pornit {time}",
+    "term.closedAt": "închis de utilizator {time}",
+    "term.terminatedAt": "terminat {time}",
+    "term.foundDeadAt": "găsit oprit {time}",
+    "term.expiresAt": "Expiră {time}",
+    "term.closeAllConfirm": "Închizi toate terminalele listate ({count})? Comenzile și aplicațiile grafice active vor fi terminate. Ieșirea salvată va fi păstrată.",
+    "term.deleteArchivesConfirm": "Ștergi definitiv ieșirea salvată și istoricul de intrare pentru {count} terminale?",
+    "backend.terminal.archiveMustBeClosed": "Închide terminalul înainte de a-i șterge ieșirea salvată."
   }
 }

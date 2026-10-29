@@ -769,9 +769,22 @@
     "validation.required": "Συμπληρώστε αυτό το πεδίο.",
     "term.restartArchive": "Επανεκκίνηση",
     "term.closedArchives": "Κλειστά",
-    "term.openArchive": "Άνοιγμα",
+    "term.openArchive": "Προβολή",
     "settings.closedTerminalHistory": "Διατήρηση ιστορικού κλειστών τερματικών (ώρες)",
     "backend.server.closedHistoryHoursRange": "Η διατήρηση πρέπει να είναι μεταξύ {min} και {max} ωρών.",
-    "term.postMortem": "Μετά τον τερματισμό"
+    "term.postMortem": "Μετά τον τερματισμό",
+    "term.lostTerminals": "Χαμένα τερματικά",
+    "term.all": "Όλα",
+    "term.closeAll": "Κλείσιμο όλων",
+    "term.deleteAll": "Διαγραφή όλων",
+    "term.deleteArchives": "Διαγραφή εξόδου τερματικών;",
+    "term.startedAt": "Έναρξη {time}",
+    "term.closedAt": "κλείσιμο από χρήστη {time}",
+    "term.terminatedAt": "τερματισμός {time}",
+    "term.foundDeadAt": "εντοπίστηκε ανενεργό {time}",
+    "term.expiresAt": "Λήγει {time}",
+    "term.closeAllConfirm": "Να κλείσουν όλα τα τερματικά της λίστας ({count}); Οι ενεργές εντολές και εφαρμογές γραφικού περιβάλλοντος θα τερματιστούν. Η αποθηκευμένη έξοδος θα διατηρηθεί.",
+    "term.deleteArchivesConfirm": "Οριστική διαγραφή της αποθηκευμένης εξόδου και του ιστορικού εισόδου των τερματικών ({count});",
+    "backend.terminal.archiveMustBeClosed": "Κλείστε το τερματικό πριν διαγράψετε την αποθηκευμένη έξοδό του."
   }
 }

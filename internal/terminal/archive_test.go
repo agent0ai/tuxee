@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"tuxee/internal/files"
@@ -192,9 +193,29 @@ func TestExplicitCloseAfterNaturalExit(t *testing.T) {
 	if err != nil || len(inventory) != 1 || inventory[0].ClosedAt == nil {
 		t.Fatalf("explicit close was lost: %+v %v", inventory, err)
 	}
+	info := inventory[0]
+	if info.StartedAt == nil || info.TerminatedAt == nil || info.TerminatedAt.Before(*info.StartedAt) || info.FoundDeadAt != nil || info.ExpiresAt == nil {
+		t.Fatalf("incorrect lifecycle metadata: %+v", info)
+	}
 	archive, err := m.Archive(context.Background(), user, s.Info().ID)
 	if err != nil || !strings.Contains(string(archive), "final") {
 		t.Fatalf("final output lost: %s %v", archive, err)
+	}
+	var pending sync.WaitGroup
+	pending.Add(1)
+	go func() {
+		defer pending.Done()
+		for range 5 {
+			s.checkpoint()
+			s.Close()
+		}
+	}()
+	if err := m.DeleteArchive(context.Background(), user, info.ID); err != nil {
+		t.Fatal(err)
+	}
+	pending.Wait()
+	if records, err := m.ArchiveInventory(context.Background(), user); err != nil || len(records) != 0 {
+		t.Fatalf("late lifecycle calls recreated deleted archive: %+v %v", records, err)
 	}
 }
 
