@@ -83,7 +83,7 @@ func main() {
 	}
 }
 func help() {
-	fmt.Println(`Tuxee - the most convenient linux for servers and agents.
+	fmt.Println(`Tuxee - the most convenient Linux for servers and agents.
 
   tuxee serve [options]                   Run in the foreground
   tuxee healthcheck [serve options]       Probe the configured local listener

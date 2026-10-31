@@ -110,7 +110,7 @@ try {
         assert.equal(await updates.count(), 1);
         assert.ok(await updates.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-processes')), 'Updates is the third Tips section');
         await updateImage.scrollIntoViewIfNeeded(); await updateImage.evaluate(node => node.decode());
-        assert.deepEqual(await updateImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1186, 1226]);
+        assert.deepEqual(await updateImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1036, 1128]);
         assert.equal(await updates.locator('[data-shortcut="app.about"] kbd').textContent(), 'Alt+Shift+H');
         for (const tip of [processes, updates]) assert.ok(await tip.evaluate(node => {
             const copy = node.querySelector('.howto-detail').getBoundingClientRect(), image = node.querySelector('img').getBoundingClientRect();

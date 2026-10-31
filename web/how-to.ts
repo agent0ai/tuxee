@@ -234,7 +234,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const updates = el('section', 'howto-tip-updates'), updatesCopy = el('div', 'howto-detail');
             updatesCopy.append(el('h4', '', t('howto.updatesTitle')),
                 el('p', '', t('howto.updatesBody', { about: t('app.about') })), shortcuts('app.about'));
-            updates.append(updatesCopy, screenshot(updatesImage, t('howto.updatesScreenshot'), 1186, 1226));
+            updates.append(updatesCopy, screenshot(updatesImage, t('howto.updatesScreenshot'), 1036, 1128));
             const keyboard = el('section', 'howto-detail howto-tip-shortcuts'), keyboardBody = el('p');
             const shortcutControl = el('span', 'howto-inline-control');
             shortcutControl.append(icon('Keyboard'), el('span', '', t('shortcuts.title')));

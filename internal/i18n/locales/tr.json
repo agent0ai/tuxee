@@ -62,7 +62,7 @@
     "app.stopAllTerminalsInThisWorkspace": "Bu alandaki tüm terminaller durdurulsun mu?",
     "app.systemInformation": "Sistem bilgisi",
     "app.systemInformationIsUnavailable": "Sistem bilgileri kullanılamıyor",
-    "app.tagline": "Tuxee - sunucular ve aracılar için en uygun linux.",
+    "app.tagline": "Tuxee - sunucular ve aracılar için en uygun Linux.",
     "app.takeControl": "Kontrolü ele alın",
     "app.terminalBackground": "Terminalin arka planı",
     "app.terminals": "Terminaller",
