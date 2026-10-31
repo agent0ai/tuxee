@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"tuxee/internal/files"
 	"tuxee/internal/i18n"
 
 	"github.com/coder/websocket"
@@ -116,6 +117,34 @@ func terminalArchiveFailure(w http.ResponseWriter, err error) {
 func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *login) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/terminals/")
 	id, action, _ := strings.Cut(path, "/")
+	if action == "input-draft" {
+		var input *files.TerminalDraft
+		switch r.Method {
+		case "GET":
+		case "PUT":
+			if err := decode(w, r, &input, files.MaxInputDraftJSON); err != nil || input == nil {
+				failure(w, 400, i18n.New("backend.server.invalidRequestBody"))
+				return
+			}
+		default:
+			failure(w, 405, i18n.New("backend.server.methodNotAllowed"))
+			return
+		}
+		draft, err := s.Terminals.InputDraft(r.Context(), session.user, id, input)
+		if err != nil {
+			var message *i18n.Error
+			if errors.As(err, &message) && message.Key == "term.inputDraftChanged" {
+				failure(w, 409, err)
+			} else if message != nil && message.Key == "backend.terminal.inputIsTooLarge" {
+				failure(w, 400, err)
+			} else {
+				terminalArchiveFailure(w, err)
+			}
+			return
+		}
+		jsonResponse(w, 200, draft)
+		return
+	}
 	if action == "archive" && r.Method == "GET" {
 		archive, err := s.Terminals.Archive(r.Context(), session.user, id)
 		if err != nil {

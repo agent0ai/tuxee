@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "מצב בקרת מסוף לא חוקי",
     "term.invalidTerminalError": "שגיאת מסוף לא חוקית",
     "term.invalidTerminalMessage": "הודעת מסוף לא חוקית",
+    "term.inputDraftChanged": "הטיוטה השתנתה בכרטיסייה או במכשיר אחר. יש להעתיק את הטקסט לפני טעינה מחדש.",
     "term.invalidTerminalOutputFrame": "מסגרת פלט מסוף לא חוקית",
     "term.invalidTerminalSize": "גודל מסוף לא חוקי",
     "term.jumpToBottom": "קפוץ למטה",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Недійсний стан керування терміналом",
     "term.invalidTerminalError": "Недійсна помилка терміналу",
     "term.invalidTerminalMessage": "Недійсне повідомлення терміналу",
+    "term.inputDraftChanged": "Чернетку змінено в іншій вкладці або на іншому пристрої. Скопіюйте текст перед перезавантаженням сторінки.",
     "term.invalidTerminalOutputFrame": "Недійсний вихідний кадр терміналу",
     "term.invalidTerminalSize": "Недійсний розмір терміналу",
     "term.jumpToBottom": "Стрибок вниз",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Netinkama terminalo valdymo būsena",
     "term.invalidTerminalError": "Neteisinga terminalo klaida",
     "term.invalidTerminalMessage": "Neteisingas terminalo pranešimas",
+    "term.inputDraftChanged": "Juodraštis pakeistas kitame skirtuke ar įrenginyje. Prieš įkeldami iš naujo, nukopijuokite tekstą.",
     "term.invalidTerminalOutputFrame": "Netinkamas terminalo išvesties rėmelis",
     "term.invalidTerminalSize": "Netinkamas terminalo dydis",
     "term.jumpToBottom": "Peršokti į apačią",

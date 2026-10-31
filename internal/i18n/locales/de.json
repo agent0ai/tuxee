@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Ungültiger Terminal-Steuerzustand",
     "term.invalidTerminalError": "Ungültiger Terminalfehler",
     "term.invalidTerminalMessage": "Ungültige Terminalnachricht",
+    "term.inputDraftChanged": "Der Entwurf wurde in einem anderen Tab oder auf einem anderen Gerät geändert. Kopiere deinen Text vor dem Neuladen.",
     "term.invalidTerminalOutputFrame": "Ungültiger Terminal-Ausgaberahmen",
     "term.invalidTerminalSize": "Ungültige Terminalgröße",
     "term.jumpToBottom": "Zum Ende springen",

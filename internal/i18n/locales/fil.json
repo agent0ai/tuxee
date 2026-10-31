@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Di-wastong estado ng kontrol sa terminal",
     "term.invalidTerminalError": "Di-wastong error sa terminal",
     "term.invalidTerminalMessage": "Di-wastong terminal na mensahe",
+    "term.inputDraftChanged": "Nabago ang draft sa ibang tab o device. Kopyahin ang teksto mo bago mag-reload.",
     "term.invalidTerminalOutputFrame": "Di-wastong terminal output frame",
     "term.invalidTerminalSize": "Di-wastong laki ng terminal",
     "term.jumpToBottom": "Tumalon sa ibaba",

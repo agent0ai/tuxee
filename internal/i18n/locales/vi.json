@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Trạng thái điều khiển terminal không hợp lệ",
     "term.invalidTerminalError": "Lỗi terminal không hợp lệ",
     "term.invalidTerminalMessage": "Thông báo terminal không hợp lệ",
+    "term.inputDraftChanged": "Bản nháp đã thay đổi ở thẻ hoặc thiết bị khác. Hãy sao chép văn bản trước khi tải lại.",
     "term.invalidTerminalOutputFrame": "Khung đầu ra terminal không hợp lệ",
     "term.invalidTerminalSize": "Kích thước terminal không hợp lệ",
     "term.jumpToBottom": "Nhảy xuống dưới cùng",

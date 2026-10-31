@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "สถานะการควบคุมเทอร์มินัลไม่ถูกต้อง",
     "term.invalidTerminalError": "ข้อผิดพลาดของเทอร์มินัลไม่ถูกต้อง",
     "term.invalidTerminalMessage": "ข้อความเทอร์มินัลไม่ถูกต้อง",
+    "term.inputDraftChanged": "ฉบับร่างถูกเปลี่ยนในแท็บหรืออุปกรณ์อื่น คัดลอกข้อความของคุณก่อนโหลดใหม่",
     "term.invalidTerminalOutputFrame": "เฟรมเอาท์พุตเทอร์มินัลไม่ถูกต้อง",
     "term.invalidTerminalSize": "ขนาดเทอร์มินัลไม่ถูกต้อง",
     "term.jumpToBottom": "ข้ามไปด้านล่าง",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Neplatný stav ovládání terminálu",
     "term.invalidTerminalError": "Neplatná chybová zpráva terminálu",
     "term.invalidTerminalMessage": "Neplatná zpráva terminálu",
+    "term.inputDraftChanged": "Koncept se změnil na jiné kartě nebo zařízení. Před obnovením si zkopírujte text.",
     "term.invalidTerminalOutputFrame": "Neplatný rámec výstupu terminálu",
     "term.invalidTerminalSize": "Neplatná velikost terminálu",
     "term.jumpToBottom": "Přejít na konec",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Ogiltigt terminalkontrolltillstånd",
     "term.invalidTerminalError": "Ogiltigt terminalfel",
     "term.invalidTerminalMessage": "Ogiltigt terminalmeddelande",
+    "term.inputDraftChanged": "Utkastet har ändrats på en annan flik eller enhet. Kopiera din text innan du laddar om.",
     "term.invalidTerminalOutputFrame": "Ogiltig terminalutgångsram",
     "term.invalidTerminalSize": "Ogiltig terminalstorlek",
     "term.jumpToBottom": "Hoppa till botten",

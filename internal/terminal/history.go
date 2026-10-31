@@ -9,6 +9,19 @@ import (
 	"tuxee/internal/identity"
 )
 
+// InputDraft shares the archive lock so saves cannot race closure or deletion.
+func (m *Manager) InputDraft(ctx context.Context, user identity.User, id string, draft *files.TerminalDraft) (*files.TerminalDraft, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if session := m.sessions[id]; session != nil && session.user.UID != user.UID {
+		return nil, i18n.New("backend.terminal.terminalNotFound")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	response, err := files.Run(ctx, user, files.Request{Operation: "terminal-draft", Instance: m.HistoryInstance, Path: id, Draft: draft})
+	return response.Draft, err
+}
+
 // PruneHistory reconciles this installation's user folders with its live sessions.
 func (m *Manager) PruneHistory(user identity.User) {
 	if m.HistoryInstance == "" {

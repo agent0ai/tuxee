@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Ógilt stjórnástand skjáhermis",
     "term.invalidTerminalError": "Ógild villuskilaboð skjáhermis",
     "term.invalidTerminalMessage": "Ógild skilaboð skjáhermis",
+    "term.inputDraftChanged": "Drögunum var breytt á öðrum flipa eða tæki. Afritaðu textann áður en þú endurhleður.",
     "term.invalidTerminalOutputFrame": "Ógildur úttaksrammi skjáhermis",
     "term.invalidTerminalSize": "Ógild stærð skjáhermis",
     "term.jumpToBottom": "Hoppa til botns",

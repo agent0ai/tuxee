@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Nieprawidłowy stan kontroli terminala",
     "term.invalidTerminalError": "Nieprawidłowy błąd terminala",
     "term.invalidTerminalMessage": "Nieprawidłowy komunikat terminala",
+    "term.inputDraftChanged": "Szkic zmieniono w innej karcie lub na innym urządzeniu. Skopiuj tekst przed odświeżeniem.",
     "term.invalidTerminalOutputFrame": "Nieprawidłowa ramka wyjściowa terminala",
     "term.invalidTerminalSize": "Nieprawidłowy rozmiar terminala",
     "term.jumpToBottom": "Skocz na dół",

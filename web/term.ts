@@ -1,5 +1,6 @@
 import { t, errorText, locale } from './i18n';
 import { TerminalDisplay } from './display';
+import { TerminalInputDraft } from './terminal-draft';
 import { Terminal } from '@xterm/xterm';
 import { installTerminalView, installTerminalMetrics, installTerminalUnicode, installTerminalResize, terminalDimensions, restoreTerminal, terminalTheme, setTerminalBackground, retainedScrollback, MAX_SNAPSHOT_BYTES } from './terminal/state';
 import { installTerminalTouch } from './terminal/interaction';
@@ -58,6 +59,7 @@ export class TerminalView implements View {
     private surface = el('div', 'terminal-surface');
     private host = el('div', 'terminal-host');
     private drawer = el('textarea', 'terminal-input');
+    private draft: TerminalInputDraft;
     private historySaved = Promise.resolve();
     private loadHistory: (terminal: string) => Promise<void>;
     private cancelDrawerResize?: () => void;
@@ -148,7 +150,7 @@ export class TerminalView implements View {
             if (!draft) return;
             to.push(historyIndex === history.length ? snapshot() : liveDraft);
             historyIndex = history.length; liveDraft = draft; restore(draft);
-            editGroup = ''; updateHistory();
+            editGroup = ''; updateHistory(); this.draft.changed();
         };
         drawer.onbeforeinput = event => {
             if (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
@@ -165,7 +167,7 @@ export class TerminalView implements View {
                 }
                 redo.length = 0; editGroup = grouped ? type : ''; editTime = performance.now();
             }
-            historyIndex = history.length; liveDraft = after; updateHistory();
+            historyIndex = history.length; liveDraft = after; updateHistory(); this.draft.changed();
         };
         drawer.onblur = drawer.oncompositionend = () => { editGroup = ''; };
         const browseHistory = (step: number) => {
@@ -191,10 +193,10 @@ export class TerminalView implements View {
             catch (error) { if (!this.disposed) this.notice(error); }
             if (this.disposed || this.panel.terminal !== terminal) return;
             history.splice(0, history.length, ...saved);
-            historyIndex = history.length; liveDraft = snapshot(); editGroup = '';
+            historyIndex = history.length; restore(liveDraft); editGroup = '';
             updateHistory();
         };
-        drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false;
+        drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false; drawer.readOnly = true;
         updateHistory();
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', t("term.terminalInputDrawer"));
@@ -251,13 +253,22 @@ export class TerminalView implements View {
             setDrawerHeight(event.key === 'Home' ? 0 : event.key === 'End' ? this.surface.clientHeight - 72 : drawer.offsetHeight + (event.key === 'ArrowUp' ? step : -step));
         };
         const toggle = button(t("term.toggleTerminalInput"), 'TextCursorInput', () => {
+            if (!this.draft.ready) return;
             this.cancelDrawerResize?.();
             drawerGrip.hidden = drawer.hidden = !drawer.hidden;
             toggle.setAttribute('aria-expanded', String(!drawer.hidden));
             updateDrawerGrip(); updateHistory();
+            this.draft.changed();
             if (drawer.hidden) this.term.focus(); else drawer.focus();
         });
         toggle.setAttribute('aria-expanded', 'false');
+        this.draft = new TerminalInputDraft(() => ({ text: liveDraft.text, open: !drawer.hidden }), saved => {
+            liveDraft = { text: saved.text, start: saved.text.length, end: saved.text.length, direction: 'none' };
+            restore(liveDraft);
+            drawerGrip.hidden = drawer.hidden = !saved.open;
+            toggle.setAttribute('aria-expanded', String(saved.open));
+            updateDrawerGrip(); updateHistory();
+        }, this.notice, this.events.signal);
         drawer.onkeydown = event => {
             if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                 if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229 || event.repeat ||
@@ -305,7 +316,7 @@ export class TerminalView implements View {
                     });
                 }
                 historyIndex = history.length; restore(liveDraft); editGroup = '';
-                updateHistory(); this.term.scrollToBottom();
+                updateHistory(); this.draft.changed(); this.term.scrollToBottom();
             }
         };
         const text = button(t("term.terminalContentsAsText"), undefined, () => this.showText(text));
@@ -496,6 +507,7 @@ export class TerminalView implements View {
             if (this.disposed || this.closing || this.resetting) return;
             this.resetting = restart.disabled = true;
             this.starting = (async () => {
+                await this.draft.flush();
                 if (this.panel.terminal === terminal) {
                     await terminateTerminal(this.panel);
                     if (this.disposed || this.closing) return;
@@ -564,6 +576,9 @@ export class TerminalView implements View {
         this.name = info.name;
         this.hooks.title?.(info.name); this.display.rename(info.name);
         this.root.dataset.terminal = info.id;
+        await this.draft.load(info.id);
+        if (this.disposed || this.closing) return;
+        this.drawer.readOnly = !this.draft.ready;
         if (info.exited) { await this.showArchive(info.id); return; }
         this.archiveView?.remove(); this.archiveView = undefined; this.updateArchiveScroll = () => {};
         this.ended = false;
@@ -807,7 +822,10 @@ export class TerminalView implements View {
         const info = await api<TerminalInfo>(`/terminals/${this.panel.terminal}`, 'PATCH', { name });
         this.name = info.name; this.hooks.title?.(info.name); this.display.rename(info.name);
     }
-    async canClose() { await this.historySaved; return true; }
+    async canClose() {
+        await this.historySaved;
+        return await this.draft.flush() || await confirmAction(t("editor.discardChanges"), t("term.terminalInputDrawer"), t("editor.discard"));
+    }
     async close() {
         this.closing = true; this.socket?.close();
         await this.starting;
@@ -820,6 +838,8 @@ export class TerminalView implements View {
         this.starting = this.starting.then(async () => {
             if (this.disposed || this.closing) return;
             if (!await confirmAction(t("term.resetConfirmationTitle"), t("term.resetConsequences"), t("term.killAndReset"))) return;
+            if (this.disposed || this.closing) return;
+            await this.draft.flush();
             if (this.disposed || this.closing) return;
             const lost = this.panel.terminal;
             clearTimeout(this.reconnect);

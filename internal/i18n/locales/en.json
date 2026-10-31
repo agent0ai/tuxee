@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Invalid terminal control state",
     "term.invalidTerminalError": "Invalid terminal error",
     "term.invalidTerminalMessage": "Invalid terminal message",
+    "term.inputDraftChanged": "Draft changed in another tab or device. Copy your text before reloading.",
     "term.invalidTerminalOutputFrame": "Invalid terminal output frame",
     "term.invalidTerminalSize": "Invalid terminal size",
     "term.jumpToBottom": "Jump to bottom",

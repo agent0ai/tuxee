@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Stato di controllo del terminale non valido",
     "term.invalidTerminalError": "Errore terminale non valido",
     "term.invalidTerminalMessage": "Messaggio terminale non valido",
+    "term.inputDraftChanged": "La bozza è cambiata in un’altra scheda o su un altro dispositivo. Copia il testo prima di ricaricare.",
     "term.invalidTerminalOutputFrame": "Frame di output del terminale non valido",
     "term.invalidTerminalSize": "Dimensioni del terminale non valide",
     "term.jumpToBottom": "Vai in fondo",

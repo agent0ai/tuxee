@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Nevažeće stanje kontrole terminala",
     "term.invalidTerminalError": "Greška nevažećeg terminala",
     "term.invalidTerminalMessage": "Nevažeća poruka terminala",
+    "term.inputDraftChanged": "Skica je promijenjena u drugoj kartici ili na drugom uređaju. Kopirajte tekst prije ponovnog učitavanja.",
     "term.invalidTerminalOutputFrame": "Nevažeći izlazni okvir terminala",
     "term.invalidTerminalSize": "Nevažeća veličina terminala",
     "term.jumpToBottom": "Skoči na dno",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Ongeldige terminalbesturingsstatus",
     "term.invalidTerminalError": "Ongeldige terminalfout",
     "term.invalidTerminalMessage": "Ongeldig terminalbericht",
+    "term.inputDraftChanged": "Het concept is gewijzigd op een ander tabblad of apparaat. Kopieer je tekst voordat je herlaadt.",
     "term.invalidTerminalOutputFrame": "Ongeldig terminaluitvoerframe",
     "term.invalidTerminalSize": "Ongeldige terminalgrootte",
     "term.jumpToBottom": "Spring naar beneden",

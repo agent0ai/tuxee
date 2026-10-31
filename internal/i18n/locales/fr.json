@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "État de contrôle du terminal invalide",
     "term.invalidTerminalError": "Erreur de terminal invalide",
     "term.invalidTerminalMessage": "Message de terminal invalide",
+    "term.inputDraftChanged": "Le brouillon a changé dans un autre onglet ou sur un autre appareil. Copiez votre texte avant de recharger.",
     "term.invalidTerminalOutputFrame": "Trame de sortie du terminal invalide",
     "term.invalidTerminalSize": "Taille de terminal invalide",
     "term.jumpToBottom": "Aller en bas",

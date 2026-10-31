@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Neispravno stanje kontrole terminala",
     "term.invalidTerminalError": "Neispravna greška terminala",
     "term.invalidTerminalMessage": "Neispravna poruka terminala",
+    "term.inputDraftChanged": "Nacrt je promenjen na drugoj kartici ili uređaju. Kopirajte tekst pre ponovnog učitavanja.",
     "term.invalidTerminalOutputFrame": "Neispravan izlazni okvir terminala",
     "term.invalidTerminalSize": "Neispravna veličina terminala",
     "term.jumpToBottom": "Idi na dno",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Virheellinen päätteen ohjaustila",
     "term.invalidTerminalError": "Virheellinen päätevirhe",
     "term.invalidTerminalMessage": "Virheellinen pääteviesti",
+    "term.inputDraftChanged": "Luonnosta muutettiin toisella välilehdellä tai laitteella. Kopioi tekstisi ennen uudelleenlatausta.",
     "term.invalidTerminalOutputFrame": "Virheellinen päätteen lähtökehys",
     "term.invalidTerminalSize": "Virheellinen päätteen koko",
     "term.jumpToBottom": "Hyppää alas",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Érvénytelen terminálvezérlési állapot",
     "term.invalidTerminalError": "Érvénytelen terminálhiba",
     "term.invalidTerminalMessage": "Érvénytelen terminálüzenet",
+    "term.inputDraftChanged": "A piszkozat másik lapon vagy eszközön megváltozott. Újratöltés előtt másold ki a szövegedet.",
     "term.invalidTerminalOutputFrame": "Érvénytelen terminál kimeneti keret",
     "term.invalidTerminalSize": "Érvénytelen terminálméret",
     "term.jumpToBottom": "Ugrás lefelé",

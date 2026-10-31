@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "अमान्य टर्मिनल नियंत्रण स्थिति",
     "term.invalidTerminalError": "अमान्य टर्मिनल त्रुटि",
     "term.invalidTerminalMessage": "अमान्य टर्मिनल संदेश",
+    "term.inputDraftChanged": "ड्राफ़्ट किसी दूसरे टैब या डिवाइस पर बदल गया है। दोबारा लोड करने से पहले अपना टेक्स्ट कॉपी करें।",
     "term.invalidTerminalOutputFrame": "अमान्य टर्मिनल आउटपुट फ़्रेम",
     "term.invalidTerminalSize": "अमान्य टर्मिनल आकार",
     "term.jumpToBottom": "नीचे की ओर कूदें",

@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "حالة التحكم الطرفية غير صالحة",
     "term.invalidTerminalError": "خطأ طرفي غير صالح",
     "term.invalidTerminalMessage": "رسالة طرفية غير صالحة",
+    "term.inputDraftChanged": "تغيّرت المسودة في علامة تبويب أو جهاز آخر. انسخ نصك قبل إعادة التحميل.",
     "term.invalidTerminalOutputFrame": "إطار الإخراج الطرفي غير صالح",
     "term.invalidTerminalSize": "حجم المحطة الطرفية غير صالح",
     "term.jumpToBottom": "اذهب إلى الأسفل",

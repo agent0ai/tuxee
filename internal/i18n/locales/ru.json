@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Неверное состояние управления терминалом",
     "term.invalidTerminalError": "Неверная ошибка терминала",
     "term.invalidTerminalMessage": "Неверное сообщение терминала",
+    "term.inputDraftChanged": "Черновик изменён в другой вкладке или на другом устройстве. Скопируйте текст перед перезагрузкой страницы.",
     "term.invalidTerminalOutputFrame": "Неверный выходной кадр терминала",
     "term.invalidTerminalSize": "Неверный размер терминала",
     "term.jumpToBottom": "Перейти вниз",

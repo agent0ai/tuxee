@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Keadaan kawalan terminal tidak sah",
     "term.invalidTerminalError": "Ralat terminal tidak sah",
     "term.invalidTerminalMessage": "Mesej terminal tidak sah",
+    "term.inputDraftChanged": "Draf berubah dalam tab atau peranti lain. Salin teks anda sebelum memuat semula.",
     "term.invalidTerminalOutputFrame": "Bingkai output terminal tidak sah",
     "term.invalidTerminalSize": "Saiz terminal tidak sah",
     "term.jumpToBottom": "Pergi ke bawah",

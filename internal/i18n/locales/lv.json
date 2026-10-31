@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Nederīgs termināļa vadības stāvoklis",
     "term.invalidTerminalError": "Nederīga termināļa kļūda",
     "term.invalidTerminalMessage": "Nederīgs termināļa ziņojums",
+    "term.inputDraftChanged": "Melnraksts mainīts citā cilnē vai ierīcē. Pirms pārlādēšanas nokopējiet tekstu.",
     "term.invalidTerminalOutputFrame": "Nederīgs termināļa izvades rāmis",
     "term.invalidTerminalSize": "Nederīgs termināļa izmērs",
     "term.jumpToBottom": "Pārlēkt uz leju",

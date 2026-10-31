@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "終端機控制狀態無效",
     "term.invalidTerminalError": "終端機錯誤資料無效",
     "term.invalidTerminalMessage": "終端機訊息無效",
+    "term.inputDraftChanged": "草稿已在其他分頁或裝置上變更。重新載入前請複製您的文字。",
     "term.invalidTerminalOutputFrame": "終端機輸出框架無效",
     "term.invalidTerminalSize": "終端機大小無效",
     "term.jumpToBottom": "跳至底端",

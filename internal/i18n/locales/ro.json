@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Stare de control terminal nevalidă",
     "term.invalidTerminalError": "Eroare de terminal nevalidă",
     "term.invalidTerminalMessage": "Mesaj terminal nevalid",
+    "term.inputDraftChanged": "Ciorna a fost modificată în altă filă sau pe alt dispozitiv. Copiați textul înainte de reîncărcare.",
     "term.invalidTerminalOutputFrame": "Cadru de ieșire terminal nevalid",
     "term.invalidTerminalSize": "Dimensiunea terminalului nevalidă",
     "term.jumpToBottom": "Sari in jos",

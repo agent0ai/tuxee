@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Neveljavno stanje nadzora terminala",
     "term.invalidTerminalError": "Neveljavna napaka terminala",
     "term.invalidTerminalMessage": "Neveljavno terminalsko sporočilo",
+    "term.inputDraftChanged": "Osnutek je bil spremenjen na drugem zavihku ali napravi. Pred ponovnim nalaganjem kopirajte besedilo.",
     "term.invalidTerminalOutputFrame": "Neveljaven izhodni okvir terminala",
     "term.invalidTerminalSize": "Neveljavna velikost terminala",
     "term.jumpToBottom": "Skoči na dno",

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
@@ -36,6 +37,19 @@ func TestInputHistoryConcurrentAppendAndClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
+	var savedDrafts atomic.Int32
+	var draftWriters sync.WaitGroup
+	for i := range 8 {
+		draftWriters.Go(func() {
+			if _, err := m.InputDraft(ctx, user, s.Info().ID, &files.TerminalDraft{Text: "draft " + strconv.Itoa(i), Open: true}); err == nil {
+				savedDrafts.Add(1)
+			}
+		})
+	}
+	draftWriters.Wait()
+	if savedDrafts.Load() != 1 {
+		t.Fatalf("conflicting saves accepted: %d", savedDrafts.Load())
+	}
 	a, err := s.Attach(ctx)
 	if err != nil {
 		t.Fatal(err)

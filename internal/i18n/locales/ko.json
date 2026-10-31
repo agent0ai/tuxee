@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "잘못된 터미널 제어 상태",
     "term.invalidTerminalError": "잘못된 터미널 오류",
     "term.invalidTerminalMessage": "잘못된 터미널 메시지",
+    "term.inputDraftChanged": "다른 탭이나 기기에서 초안이 변경되었습니다. 새로고침하기 전에 텍스트를 복사하세요.",
     "term.invalidTerminalOutputFrame": "잘못된 터미널 출력 프레임",
     "term.invalidTerminalSize": "잘못된 터미널 크기",
     "term.jumpToBottom": "맨 아래로 이동",

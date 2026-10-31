@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Estat de control del terminal no vàlid",
     "term.invalidTerminalError": "Error del terminal no vàlid",
     "term.invalidTerminalMessage": "Missatge del terminal no vàlid",
+    "term.inputDraftChanged": "L’esborrany ha canviat en una altra pestanya o dispositiu. Copieu el text abans de recarregar.",
     "term.invalidTerminalOutputFrame": "Trama de sortida del terminal no vàlida",
     "term.invalidTerminalSize": "Mida del terminal no vàlida",
     "term.jumpToBottom": "Ves al final",

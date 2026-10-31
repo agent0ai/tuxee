@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Vale terminali juhtimisolek",
     "term.invalidTerminalError": "Kehtetu terminali viga",
     "term.invalidTerminalMessage": "Vigane terminali teade",
+    "term.inputDraftChanged": "Mustand muutus teisel vahekaardil või seadmes. Kopeeri tekst enne uuesti laadimist.",
     "term.invalidTerminalOutputFrame": "Vale terminali väljundraam",
     "term.invalidTerminalSize": "Vale terminali suurus",
     "term.jumpToBottom": "Hüppa alla",

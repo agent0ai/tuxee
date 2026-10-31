@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Невалидно състояние на контрол на терминала",
     "term.invalidTerminalError": "Грешка в невалиден терминал",
     "term.invalidTerminalMessage": "Невалидно терминално съобщение",
+    "term.inputDraftChanged": "Черновата е променена в друг раздел или устройство. Копирайте текста си преди презареждане.",
     "term.invalidTerminalOutputFrame": "Невалидна изходна рамка на терминала",
     "term.invalidTerminalSize": "Невалиден размер на терминала",
     "term.jumpToBottom": "Скочи до дъното",

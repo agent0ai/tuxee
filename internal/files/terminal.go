@@ -73,6 +73,9 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 		state = filepath.Join(home, ".local", "state")
 	}
 	base := filepath.Join(state, "tuxee", "terminals")
+	if r.Operation == "terminal-draft" {
+		return terminalDraft(base, r)
+	}
 	if r.Operation == "terminal-prune" || r.Operation == "terminal-list" {
 		return reconcileTerminals(ctx, base, r)
 	}

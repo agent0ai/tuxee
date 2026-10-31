@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Geçersiz terminal kontrol durumu",
     "term.invalidTerminalError": "Geçersiz terminal hatası",
     "term.invalidTerminalMessage": "Geçersiz terminal mesajı",
+    "term.inputDraftChanged": "Taslak başka bir sekmede veya cihazda değişti. Yenilemeden önce metninizi kopyalayın.",
     "term.invalidTerminalOutputFrame": "Geçersiz terminal çıkış çerçevesi",
     "term.invalidTerminalSize": "Geçersiz terminal boyutu",
     "term.jumpToBottom": "En alta atla",

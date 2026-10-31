@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Ugyldig terminalkontrolltilstand",
     "term.invalidTerminalError": "Ugyldig terminalfeil",
     "term.invalidTerminalMessage": "Ugyldig terminalmelding",
+    "term.inputDraftChanged": "Utkastet er endret i en annen fane eller på en annen enhet. Kopier teksten før du laster inn på nytt.",
     "term.invalidTerminalOutputFrame": "Ugyldig terminalutgangsramme",
     "term.invalidTerminalSize": "Ugyldig terminalstørrelse",
     "term.jumpToBottom": "Hopp til bunnen",

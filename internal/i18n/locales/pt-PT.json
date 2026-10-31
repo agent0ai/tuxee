@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Estado de controlo do terminal inválido",
     "term.invalidTerminalError": "Erro do terminal inválido",
     "term.invalidTerminalMessage": "Mensagem do terminal inválida",
+    "term.inputDraftChanged": "O rascunho foi alterado noutro separador ou dispositivo. Copie o texto antes de recarregar.",
     "term.invalidTerminalOutputFrame": "Trama de saída do terminal inválida",
     "term.invalidTerminalSize": "Tamanho do terminal inválido",
     "term.jumpToBottom": "Ir para o fim",

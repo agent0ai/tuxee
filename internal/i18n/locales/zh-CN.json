@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "终端控制状态无效",
     "term.invalidTerminalError": "无效终端错误",
     "term.invalidTerminalMessage": "终端消息无效",
+    "term.inputDraftChanged": "草稿已在其他标签页或设备上更改。重新加载前请复制您的文本。",
     "term.invalidTerminalOutputFrame": "终端输出帧无效",
     "term.invalidTerminalSize": "终端尺寸无效",
     "term.jumpToBottom": "跳到底部",

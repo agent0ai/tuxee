@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "وضعیت کنترل ترمینال نامعتبر است",
     "term.invalidTerminalError": "خطای ترمینال نامعتبر است",
     "term.invalidTerminalMessage": "پیام ترمینال نامعتبر است",
+    "term.inputDraftChanged": "پیش‌نویس در برگه یا دستگاه دیگری تغییر کرده است. پیش از بارگذاری مجدد، متن خود را کپی کنید.",
     "term.invalidTerminalOutputFrame": "قاب خروجی ترمینال نامعتبر است",
     "term.invalidTerminalSize": "اندازه ترمینال نامعتبر است",
     "term.jumpToBottom": "پرش به پایین",

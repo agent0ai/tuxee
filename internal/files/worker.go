@@ -21,6 +21,7 @@ import (
 )
 
 type Request struct {
+	Draft       *TerminalDraft  `json:"draft,omitempty"`
 	Terminal    *TerminalRecord `json:"terminal,omitempty"`
 	Archive     json.RawMessage `json:"archive,omitempty"`
 	Instance    string          `json:"instance,omitempty"`
@@ -60,6 +61,7 @@ type Entry struct {
 }
 
 type Response struct {
+	Draft     *TerminalDraft   `json:"draft,omitempty"`
 	Terminals []TerminalRecord `json:"terminals,omitempty"`
 	Archive   json.RawMessage  `json:"archive,omitempty"`
 	History   []string         `json:"history,omitempty"`

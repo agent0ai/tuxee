@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Estado de control de terminal no válido",
     "term.invalidTerminalError": "Error de terminal no válido",
     "term.invalidTerminalMessage": "Mensaje de terminal no válido",
+    "term.inputDraftChanged": "El borrador cambió en otra pestaña o dispositivo. Copia tu texto antes de recargar.",
     "term.invalidTerminalOutputFrame": "Marco de salida de terminal no válido",
     "term.invalidTerminalSize": "Tamaño de terminal no válido",
     "term.jumpToBottom": "Saltar al fondo",

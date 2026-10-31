@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Status kontrol terminal tidak valid",
     "term.invalidTerminalError": "Kesalahan terminal tidak valid",
     "term.invalidTerminalMessage": "Pesan terminal tidak valid",
+    "term.inputDraftChanged": "Draf berubah di tab atau perangkat lain. Salin teks Anda sebelum memuat ulang.",
     "term.invalidTerminalOutputFrame": "Bingkai keluaran terminal tidak valid",
     "term.invalidTerminalSize": "Ukuran terminal tidak valid",
     "term.jumpToBottom": "Lompat ke bawah",

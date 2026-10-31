@@ -682,6 +682,7 @@
     "term.invalidTerminalControlState": "Μη έγκυρη κατάσταση ελέγχου τερματικού",
     "term.invalidTerminalError": "Μη έγκυρο σφάλμα τερματικού",
     "term.invalidTerminalMessage": "Μη έγκυρο μήνυμα τερματικού",
+    "term.inputDraftChanged": "Το πρόχειρο άλλαξε σε άλλη καρτέλα ή συσκευή. Αντιγράψτε το κείμενό σας πριν την επαναφόρτωση.",
     "term.invalidTerminalOutputFrame": "Μη έγκυρο πλαίσιο εξόδου ακροδεκτών",
     "term.invalidTerminalSize": "Μη έγκυρο μέγεθος τερματικού",
     "term.jumpToBottom": "Μετάβαση προς τα κάτω",
