@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -22,7 +23,7 @@ async function login() {
 let csrf = await login();
 const original = (await (await context.request.get(base + '/api/me')).json()).settings;
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), sockets = [], terminals = [], errors = [];
+const page = await appPage(context), sockets = [], terminals = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('websocket', socket => {
     if (!/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) return;

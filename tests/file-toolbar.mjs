@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -28,7 +29,7 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
+const page = await appPage(context), errors = []; page.on('pageerror', error => errors.push(error.message));
 page.setDefaultTimeout(10000);
 const file = page.locator('.file-view'), more = file.getByRole('button', { name: 'File actions', exact: true }), menu = page.locator('.menu-actions.popover-menu');
 const names = ['Parent directory', 'Home directory', 'Trash bin', 'Refresh files', 'New folder', 'New file', 'Upload files', 'Download selected', 'Cut', 'Copy', 'Paste', 'Open terminal here'];

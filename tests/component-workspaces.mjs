@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -21,7 +22,7 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
 const response = await api('/terminals', 'POST', { directory: dir, name: 'Keep running', columns: 80, rows: 24 });
 assert.equal(response.status(), 201); const terminal = await response.json();
 const sessions = [terminal.id];
-const page = await context.newPage(), errors = [], sockets = [];
+const page = await appPage(context), errors = [], sockets = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('websocket', socket => { if (socket.url().includes(`/terminals/${terminal.id}/ws`)) sockets.push(socket); });
 page.setDefaultTimeout(10000);

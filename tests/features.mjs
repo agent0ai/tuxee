@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -41,7 +42,7 @@ await api('/terminals','POST',{directory:home,name:'Detached regression',columns
 const promptSession=await(await api('/terminals','POST',{directory:home,name:'Prompt',columns:80,rows:24})).json();
 const settings={theme:'dark',current:'features',workspaces:[{id:'features',name:'Features',columns:4,rows:2,active:'files',panels:[{id:'files',kind:'files',path:dir,x:0,y:0,w:2,h:2},...Array.from({length:4},(_,i)=>({id:`terminal-${i}`,terminal:i===0?promptSession.id:undefined,kind:'terminal',path:home,x:2+i%2,y:Math.floor(i/2),w:1,h:1}))]}]};
 assert.equal((await api('/settings','PUT',settings)).status(),200);
-const page=await context.newPage(),errors=[],external=[];page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(!request.url().startsWith(base)&&!['data:','blob:','chrome-extension:','chrome:'].includes(new URL(request.url()).protocol))external.push(request.url())});
+const page=await appPage(context),errors=[],external=[];page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(!request.url().startsWith(base)&&!['data:','blob:','chrome-extension:','chrome:'].includes(new URL(request.url()).protocol))external.push(request.url())});
 const check=message=>console.log('PASS '+message),file=page.locator('.file-view').first(),row=name=>file.locator('.file-entry').filter({has:page.locator('.file-name span',{hasText:new RegExp('^'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')})});
 async function openedName() { return (await file.locator('..').locator('.path-input').inputValue()).split('/').pop(); }
 async function processStopped(pid) {

@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -21,7 +22,7 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), errors = [];
+const page = await appPage(context), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const file = page.locator('[data-panel=files]'), transfer = file.locator('.transfer').last(), progress = transfer.locator('progress');
 const row = name => file.locator('.file-entry').filter({ has: page.locator('.file-name span', { hasText: new RegExp('^' + name.replaceAll('.', '\\.') + '$') }) });

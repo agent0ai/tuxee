@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +15,7 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), sessions = [], errors = [];
+const page = await appPage(context), sessions = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 async function create(name, command) {
     const response = await api('/terminals', 'POST', { name, command, columns: 80, rows: 24 });

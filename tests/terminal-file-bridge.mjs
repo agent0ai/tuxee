@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
@@ -36,7 +37,7 @@ const login = await context.request.post(base + '/api/login', { data: { username
 assert.equal(login.status(), 200);
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage();
+const page = await appPage(context);
 page.setDefaultTimeout(8000);
 const errors = [], inputs = [];
 page.on('websocket', socket => socket.on('framesent', ({ payload }) => { if (Buffer.isBuffer(payload)) inputs.push(payload); }));

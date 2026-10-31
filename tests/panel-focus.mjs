@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -33,7 +34,7 @@ try {
         { id: 'terminal', kind: 'terminal', path: home, x: 2, y: 0, w: 2, h: 2 }
     ] }] };
     assert.equal((await context.request.put(base + '/api/settings', { data: settings, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } })).status(), 200);
-    const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
+    const page = await appPage(context), errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(base);
     const terminal = page.locator('[data-panel="terminal"]'), files = page.locator('[data-panel="files"]');
     await terminal.locator('.terminal-view[data-state="connected"]').waitFor();

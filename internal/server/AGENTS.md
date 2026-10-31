@@ -32,6 +32,8 @@ Close marks the service unavailable before revoking logins. While shutting down,
 
 Terminal lifetime has no timeout setting. Optional `closedTerminalHistoryHours` is archive retention after explicit closure only: absent/null defaults to 168, integers 0–876000 are accepted, and zero is preserved. Ignore legacy `idleHours` when loading settings and accept/drop it on save, so existing clients and saved layouts remain usable. Never include it in returned or newly persisted settings.
 
+Optional `howToSeen` is a boolean in the existing user-owned `~/.config/tuxee/settings.json`. Absent/false means the browser should show the How to guide after login; true suppresses automatic opening across browsers, logouts and restarts. Use the ordinary authenticated, CSRF-protected atomic settings save; it grants no permissions and never changes terminal lifetime.
+
 Optional `serverName` is a per-user display label in the existing user-owned `~/.config/tuxee/settings.json`. Normalize surrounding whitespace on load and save; reject NUL and more than 64 UTF-16 code units, matching the browser input's maxlength. Empty names are omitted from persisted/returned JSON and use the hostname in the UI. Keep aliases authenticated; the public index and `/api/system` retain the real hostname. This setting never changes the Linux hostname.
 
 Optional `serverColor` in the same per-user settings stores the top-bar color marker. Accept only `#RRGGBB` hex colors or empty/absent values for the theme default; omit empty values when saving/returning JSON. Keep validation shared between load and save and never accept arbitrary CSS.

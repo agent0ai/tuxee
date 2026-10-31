@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -32,7 +33,7 @@ try {
     const me = await (await context.request.get(base + '/api/me')).json();
     originalSettings = me.settings;
     api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
-    const page = await context.newPage(), errors = [], failures = [];
+    const page = await appPage(context), errors = [], failures = [];
     page.on('pageerror', error => errors.push(error.message));
     page.setDefaultTimeout(10000);
     await mkdir('test-results', { recursive: true });

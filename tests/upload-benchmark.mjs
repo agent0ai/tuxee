@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -33,7 +34,7 @@ try {
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'benchmark', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 5 }, workspaces: [
         { id: 'benchmark', name: 'Benchmark', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: fixture, x: 0, y: 0, w: 2, h: 2 }] },
     ] })).status(), 200);
-    const page = await context.newPage(), errors = [];
+    const page = await appPage(context), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base); await page.locator('.file-list').waitFor();
     await page.evaluate(() => {

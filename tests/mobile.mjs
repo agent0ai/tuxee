@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -31,7 +32,7 @@ assert.equal((await api('/settings', 'PUT', {
     ] }],
 })).status(), 200);
 await context.clearCookies();
-const page = await context.newPage(), errors = [], created = new Set([terminal.id]);
+const page = await appPage(context), errors = [], created = new Set([terminal.id]);
 page.on('pageerror', error => errors.push(error.message));
 page.on('response', async response => {
     if (response.url() === base + '/api/terminals' && response.request().method() === 'POST' && response.ok()) {

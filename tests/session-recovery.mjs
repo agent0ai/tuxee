@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -54,7 +55,7 @@ try {
             { id: 'terminal', kind: 'terminal', terminal: original.id, path: users[0].home, x: 2, y: 0, w: 2, h: 2 },
         ] }],
     })).status(), 200);
-    const page = await context.newPage(), errors = [], saves = [];
+    const page = await appPage(context), errors = [], saves = [];
     let documents = 0, creations = 0;
     page.on('pageerror', error => errors.push(error.message));
     page.on('request', request => {
@@ -70,7 +71,7 @@ try {
     const editor = page.locator('.cm-content');
     await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('unsaved');
     const originalEditor = await editor.elementHandle(), draft = await editor.textContent();
-    const other = await context.newPage();
+    const other = await appPage(context);
     await other.goto(base);
     const login = async user => {
         assert.equal(await other.evaluate(async ({ name, password }) => (await fetch('/api/login', {

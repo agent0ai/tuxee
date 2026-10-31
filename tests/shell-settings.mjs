@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -40,7 +41,7 @@ try {
     const create = async () => { const response = await api('/terminals', 'POST', { columns: 80, rows: 24 }); assert.equal(response.status(), 201); return response.json(); };
     const first = await create();
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'shells', workspaces: [{ id: 'shells', name: 'Shells', columns: 4, rows: 2, active: 'first', panels: [{ id: 'first', kind: 'terminal', terminal: first.id, path: home, x: 0, y: 0, w: 2, h: 2 }] }] })).status(), 200);
-    page = await context.newPage(); page.setDefaultTimeout(10000);
+    page = await appPage(context); page.setDefaultTimeout(10000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
     const shell = dialog.getByLabel('Shell command', { exact: true });

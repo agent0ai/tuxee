@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -57,7 +58,7 @@ try {
     api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
     const saved = await api('/settings', 'PUT', { ...settings, current: 'size', workspaces: [{ id: 'size', name: 'Size', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: dir, x: 0, y: 0, w: 4, h: 2 }] }] });
     assert.equal(saved.status(), 200, saved.ok() ? '' : await saved.text());
-    const page = await context.newPage(), errors = [];
+    const page = await appPage(context), errors = [];
     page.on('pageerror', error => errors.push(error.message)); page.setDefaultTimeout(10000);
     await page.goto(base);
     const row = name => page.locator('.file-entry').filter({ has: page.locator('.file-name', { hasText: new RegExp(`^${name}$`) }) });

@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -104,7 +105,7 @@ try {
         const base = test.base || `https://${test.host}:${proxy.address().port}`;
         const encrypted = base.startsWith('https:');
         const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 950 } });
-        const page = await context.newPage(), errors = [], connected = [];
+        const page = await appPage(context), errors = [], connected = [];
         page.on('pageerror', error => errors.push(error.message));
         page.on('websocket', socket => { assert.ok(socket.url().startsWith(encrypted ? 'wss://' : 'ws://')); socket.on('framereceived', () => connected.push(socket.url())); });
         await page.goto(base);

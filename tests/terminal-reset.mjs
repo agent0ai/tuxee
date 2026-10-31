@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import { Power, RefreshCw } from 'lucide';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -18,7 +19,7 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), created = [], errors = [], mutations = [], sockets = [];
+const page = await appPage(context), created = [], errors = [], mutations = [], sockets = [];
 let creations = 0;
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => {

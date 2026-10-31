@@ -21,6 +21,7 @@ import { audio, audioControl, toggleMute, adjustVolume } from './audio';
 import { installShortcuts, openShortcuts } from './shortcuts';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
+import { openHowTo } from './how-to';
 import { setFaviconColor } from './favicon';
 import { locale, t, errorText, translations, setTranslations, rememberLanguage, type Translations } from './i18n';
 import { preventFileNavigation } from './file-drag';
@@ -121,6 +122,7 @@ function setColorMarker(color?: string) {
     setFaviconColor(loggedIn ? color : undefined);
 }
 function showLogin() {
+    document.querySelector<HTMLDialogElement>('.howto-modal')?.close();
     clearFileCut();
     audio.available(false);
     updates?.dispose(); updates = undefined;
@@ -250,6 +252,7 @@ async function load(signal?: AbortSignal) {
     updates?.dispose(); updates = new Updates(updateMenuWarnings);
     void refreshTerminals();
     prepareDownloads();
+    if (!settings.howToSeen) void showHowTo().catch(notify);
 }
 function isCompact() { return innerWidth < 760 || innerHeight < 480; }
 function mountWorkspace(ws: Workspace): Mounted {
@@ -1142,7 +1145,18 @@ function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, s
         [t("app.restartTuxee"), 'RefreshCw', restartTuxee], [t("app.logOut"), 'LogOut', logout]
     ];
     if (monitoring) actions.unshift([t("app.resourceMonitor"), 'Activity', () => monitoring?.open()]);
+    actions.unshift([t('howto.title'), 'BookOpen', showHowTo]);
     return actions;
+}
+async function showHowTo() {
+    const value = settings;
+    const dialog = openHowTo(value.shortcuts);
+    if (value.howToSeen) return;
+    await new Promise<void>(resolve => dialog.addEventListener('close', () => resolve(), { once: true }));
+    if (!loggedIn || settings !== value || value.howToSeen) return;
+    value.howToSeen = true;
+    try { await save(); }
+    catch (error) { value.howToSeen = false; throw error; }
 }
 function setMenuWarning(control: HTMLElement, warning: string) {
     control.querySelector('.menu-warning')?.remove();

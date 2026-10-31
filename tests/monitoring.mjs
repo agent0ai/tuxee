@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -23,7 +24,7 @@ const all='/all',aggregate=initial.networks.find(item=>item.name===all),active=i
 assert.ok(aggregate);assert.equal(aggregate.received,active.reduce((sum,item)=>sum+item.received,0));assert.equal(aggregate.sent,active.reduce((sum,item)=>sum+item.sent,0));
 for(const key of ['receiveRate','sendRate'])assert.equal(aggregate[key],active.some(item=>item[key]===null)?null:active.reduce((sum,item)=>sum+item[key],0));
 const network=initial.networks.find(item=>item.name!==all&&item.name!=='lo'&&item.state==='up')?.name||initial.networks.find(item=>item.name!==all).name;
-const page=await context.newPage(),errors=[],external=[];let polls=0;
+const page=await appPage(context),errors=[],external=[];let polls=0;
 page.on('pageerror',error=>errors.push(error.message));
 page.on('request',request=>{if(request.url()===base+'/api/metrics')polls++;if(!request.url().startsWith(base)&&!['data:','blob:'].includes(new URL(request.url()).protocol))external.push(request.url());});
 const check=text=>console.log('PASS '+text),summary=page.locator('.topbar .monitor-summary'),dialog=page.getByRole('dialog',{name:'Resource monitor',exact:true});

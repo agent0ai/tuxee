@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -60,7 +61,7 @@ try {
         ] }] })).status(), 200);
     }
     await writeFile(`${users[0].home}/draft.txt`, 'original\n');
-    const pages = await Promise.all(contexts.map(context => context.newPage())), [page, other] = pages, errors = [];
+    const pages = await Promise.all(contexts.map(context => appPage(context))), [page, other] = pages, errors = [];
     for (const p of pages) p.on('pageerror', error => errors.push(error.message));
     await Promise.all(pages.map(p => p.goto(base)));
     for (const p of pages) await p.locator('.terminal-view[data-state=connected]').waitFor();

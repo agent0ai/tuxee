@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -52,7 +53,7 @@ try {
         panels: [{ id, kind: 'terminal', terminal: terminals[i].id, path: home, x: 0, y: 0, w: 4, h: 2 }] })) };
     const fixture = await api('/settings', 'PUT', settings);
     assert.equal(fixture.status(), 200, await fixture.text());
-    const page = await context.newPage(), errors = [];
+    const page = await appPage(context), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     page.setDefaultTimeout(10000);
     const surface = color => page.waitForFunction(color => [...document.querySelectorAll('.xterm')].length > 0 && [...document.querySelectorAll('.xterm')].every(node => getComputedStyle(node).backgroundColor === color), color);

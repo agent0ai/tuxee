@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -34,7 +35,7 @@ assert.equal((await context.request.post(base + '/api/login', { data: { username
 let me = await (await context.request.get(base + '/api/me')).json();
 const originalSettings = me.settings;
 const api = (path, method, data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), errors = [];
+const page = await appPage(context), errors = [];
 let connectionRequests = 0, documentRequests = 0;
 let releaseConnection = () => {};
 let releaseSession = () => {};

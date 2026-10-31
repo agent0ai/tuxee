@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -38,7 +39,7 @@ await chown(largePath, a.uid, a.gid);
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', '--ignore-certificate-errors'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
-const page = await context.newPage();
+const page = await appPage(context);
 const external = [];
 context.on('request', request => { if (!request.url().startsWith(base + '/') && !request.url().startsWith('data:'))
     external.push(request.url()); });
@@ -700,7 +701,7 @@ try {
     const token = (await loginResponse.json()).csrf;
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverName, undefined);
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.serverColor, undefined);
-    const otherPage = await other.newPage(); await otherPage.goto(base); await otherPage.locator('.topbar').waitFor();
+    const otherPage = await appPage(other); await otherPage.goto(base); await otherPage.locator('.topbar').waitFor();
     await checkFavicon(undefined, otherPage);
     assert.equal((await (await other.request.get(`${base}/api/me`)).json()).settings.uploadConcurrency, undefined);
     const denied = await other.request.post(`${base}/api/files`, { data: { operation: 'list', path: `${a.home}/tuxee-fixtures` }, headers: { 'X-Tuxee-CSRF': token } });

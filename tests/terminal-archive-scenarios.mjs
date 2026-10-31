@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -98,7 +99,7 @@ try {
         run(['exec','-i',container,'tee',`${home}/${name}.txt`],text);
         exec('chown',user+':'+user,`${home}/${name}.txt`);
     }
-    await mkdir('test-results',{recursive:true}); await login(); page=await context.newPage();
+    await mkdir('test-results',{recursive:true}); await login(); page=await appPage(context);
     page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));
     page.on('request',request=>{if(request.url()===base+'/api/settings' && request.method()==='PUT')settingsWrites.add(request);});
     page.on('requestfinished',request=>settingsWrites.delete(request));page.on('requestfailed',request=>settingsWrites.delete(request));

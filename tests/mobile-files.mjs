@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -26,7 +27,7 @@ const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const settings = { theme: 'dark', current: 'selection', workspaces: [{ id: 'selection', name: 'Selection', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: dir, x: 0, y: 0, w: 4, h: 2 }] }] };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
-const page = await context.newPage(), errors = [];
+const page = await appPage(context), errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const touch = await context.newCDPSession(page);
 const file = page.locator('.file-view'), list = file.locator('.file-list');

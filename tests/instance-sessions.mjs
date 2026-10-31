@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -59,7 +60,7 @@ const checkTerminal = async index => {
 try {
     await context.addCookies([{ name: 'tuxee_session', value: 'unrelated-legacy-cookie', url: bases[0] }]);
     for (let i = 0; i < 2; i++) {
-        const page = await context.newPage(); pages.push(page);
+        const page = await appPage(context); pages.push(page);
         page.on('pageerror', error => errors.push(error.message));
         await page.goto(bases[i]); await login(i);
         const id = await page.locator('.terminal-view[data-state=connected]').first().getAttribute('data-terminal');

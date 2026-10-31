@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -60,7 +61,7 @@ try {
         settings.workspaces[0].panels=[{id:'primary',kind:'terminal',terminal:id,path:user.home,x:0,y:0,w:4,h:2}];
         await json('/settings','PUT',settings);
     };
-    const usagePage = await context.newPage(); usagePage.on('pageerror', error => errors.push(error.message));
+    const usagePage = await appPage(context); usagePage.on('pageerror', error => errors.push(error.message));
     for (const used of [false, true]) {
         const terminal = await create('', used ? 'Arrow input' : 'Untouched');
         await mount(terminal.id); await usagePage.goto(base);
@@ -116,7 +117,7 @@ try {
     }
     await chmod(folder(natural.id)+'/meta.json',0o600);
     await mount(natural.id);
-    const page=await context.newPage(); page.on('pageerror',error=>errors.push(error.message)); page.setDefaultTimeout(10000);
+    const page=await appPage(context); page.on('pageerror',error=>errors.push(error.message)); page.setDefaultTimeout(10000);
     await page.goto(base); await page.locator('.terminal-archive pre').waitFor();
     assert.equal(await page.locator('.terminal-archive pre').textContent(),saved.text);
     assert.equal(await page.locator('.terminal-footer:visible [data-action=browse-shell-folder]').count(),0);
@@ -231,7 +232,7 @@ try {
     await page.close();
     const closing=await create("printf 'CLOSE_DURING_RESTART\\n'",'Closing archive');
     await ended(closing.id); await mount(closing.id);
-    const closingPage=await context.newPage(); closingPage.on('pageerror',error=>errors.push(error.message));
+    const closingPage=await appPage(context); closingPage.on('pageerror',error=>errors.push(error.message));
     await closingPage.goto(base); await closingPage.locator('.terminal-archive pre').waitFor();
     let entered, release, replacements=0;
     const requested=new Promise(resolve=>entered=resolve), held=new Promise(resolve=>release=resolve);
@@ -253,7 +254,7 @@ try {
     assert.ok((await output(killed.id)).text.includes('KILLED_OUTPUT')); assert.equal((await json(`/terminals/${killed.id}`)).closedAt,undefined);
     const mc=await create("printf 'BEFORE_MC\\n'; mc -u; printf 'BETWEEN_MC\\n'; mc -u; printf 'AFTER_MC\\n'",'Midnight Commander');
     await mount(mc.id);
-    const mcPage=await context.newPage(); mcPage.on('pageerror',error=>errors.push(error.message));
+    const mcPage=await appPage(context); mcPage.on('pageerror',error=>errors.push(error.message));
     let fitted=false;
     mcPage.on('websocket',socket=>socket.on('framereceived',({payload})=>{ if(typeof payload==='string'&&JSON.parse(payload).type==='resize-ack') fitted=true; }));
     await mcPage.goto(base); await mcPage.locator('.terminal-view[data-state=connected]').waitFor();
@@ -315,7 +316,7 @@ try {
         await writeFile(path,JSON.stringify({...value,...times}));
     }
     await mount(mc.id);
-    const mobile=await context.newPage(); mobile.on('pageerror',error=>errors.push(error.message));
+    const mobile=await appPage(context); mobile.on('pageerror',error=>errors.push(error.message));
     await mobile.clock.setFixedTime(now);
     await mobile.setViewportSize({width:320,height:700});
     for (const [index,file] of (await readdir('internal/i18n/locales')).entries()) {
@@ -372,7 +373,7 @@ try {
     }
     await mobile.close();
     csrf=await login();
-    const listPage=await context.newPage(); listPage.on('pageerror',error=>errors.push(error.message)); await listPage.goto(base); await listPage.locator('.terminal-archive pre').waitFor();
+    const listPage=await appPage(context); listPage.on('pageerror',error=>errors.push(error.message)); await listPage.goto(base); await listPage.locator('.terminal-archive pre').waitFor();
     await listPage.getByRole('button',{name:'User menu',exact:true}).click(); await listPage.getByRole('menuitem',{name:'Retained terminals',exact:true}).click();
     const inventory=listPage.getByRole('dialog',{name:'Retained terminals',exact:true}); await inventory.waitFor();
     const listed=id=>inventory.locator(`[data-terminal-id="${id}"]`);

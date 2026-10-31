@@ -8,6 +8,31 @@ import (
 	"testing"
 )
 
+func TestHowToSeenSettings(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"howToSeen":null}`, `{"howToSeen":false}`, `{"howToSeen":true}`, `{"howToSeen":"true"}`, `{"howToSeen":1}`} {
+		settings := Settings{Theme: "dark", Workspaces: []Workspace{}}
+		err := json.Unmarshal([]byte(raw), &settings)
+		invalid := raw == `{"howToSeen":"true"}` || raw == `{"howToSeen":1}`
+		if (err != nil) != invalid {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		if invalid {
+			continue
+		}
+		if err := migrateSettings(&settings); err != nil {
+			t.Fatal(err)
+		}
+		if settings.HowToSeen != (raw == `{"howToSeen":true}`) {
+			t.Fatalf("wrong first-visit flag: %s", raw)
+		}
+		encoded, err := json.Marshal(settings)
+		var restored Settings
+		if err != nil || json.Unmarshal(encoded, &restored) != nil || !reflect.DeepEqual(settings, restored) {
+			t.Fatalf("guide preference did not round-trip: %s", encoded)
+		}
+	}
+}
+
 func TestEditorLineWrapSettings(t *testing.T) {
 	for _, value := range []string{"null", "true", "false", `"false"`, "0", "[]"} {
 		var settings Settings

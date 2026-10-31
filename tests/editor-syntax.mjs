@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -60,7 +61,7 @@ try {
     assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
     const { csrf } = await (await context.request.get(base + '/api/me')).json();
     assert.equal((await context.request.put(base + '/api/settings', { data: { theme: 'dark', current: 'syntax', workspaces: [{ id: 'syntax', name: 'Syntax', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: home, x: 0, y: 0, w: 4, h: 2 }] }] }, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } })).status(), 200);
-    const page = await context.newPage(); page.setDefaultTimeout(10000);
+    const page = await appPage(context); page.setDefaultTimeout(10000);
     page.on('pageerror', error => report.errors.push(error.message));
     page.on('request', request => { if (!request.url().startsWith(base) && /^https?:/.test(request.url())) report.errors.push(`External request: ${request.url()}`); });
     await page.goto(base);

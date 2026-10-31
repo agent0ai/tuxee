@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -23,7 +24,7 @@ assert.equal((await context.request.get(base + '/api/processes')).status(), 401)
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const me = await (await context.request.get(base + '/api/me')).json(), original = me.settings;
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
-const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
+const page = await appPage(context), errors = []; page.on('pageerror', error => errors.push(error.message));
 let requests = 0, lastRefresh = 0, lastKillResponse = 0;
 page.on('request', request => { if (request.method() === 'GET' && request.url().includes('/api/processes')) { requests++; lastRefresh = performance.now(); } });
 page.on('response', response => { if (response.request().method() === 'POST' && response.url() === base + '/api/processes') lastKillResponse = performance.now(); });

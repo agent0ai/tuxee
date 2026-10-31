@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -60,7 +61,7 @@ try {
     });
     browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'cs-CZ' });
-    const page = await context.newPage(); page.setDefaultTimeout(10000);
+    const page = await appPage(context); page.setDefaultTimeout(10000);
     const errors = [], languageRequests = [];
     context.on('page', tab => tab.on('pageerror', error => errors.push(error.message)));
     page.on('pageerror', error => errors.push(error.message));
@@ -81,7 +82,7 @@ try {
     assert.ok(languageCookie && languageCookie.value === 'cs' && !languageCookie.httpOnly && languageCookie.sameSite === 'Strict');
     const instance = (await readFile(state + '/state/instance-id', 'utf8')).trim();
     assert.equal(languageCookie.name, 'tuxee_language_' + instance);
-    const tab = await context.newPage(); await tab.goto(base);
+    const tab = await appPage(context); await tab.goto(base);
     await tab.getByRole('button', { name: 'Přihlásit se', exact: true }).waitFor();
     await tab.reload(); await tab.getByRole('button', { name: 'Přihlásit se', exact: true }).waitFor();
     await tab.setViewportSize({ width: 390, height: 740 });

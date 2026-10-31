@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import './shared-layout.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -21,7 +22,7 @@ const neighborResponse = await api('/terminals', 'POST', { directory: '/tmp', na
 assert.equal(neighborResponse.status(), 201);
 const neighbor = await neighborResponse.json();
 const addedTerminals = [];
-const page = await context.newPage(), errors = [];
+const page = await appPage(context), errors = [];
 let terminalResizes = 0;
 page.on('websocket', socket => socket.on('framesent', ({payload}) => {
     if (typeof payload === 'string' && JSON.parse(payload).type === 'resize') terminalResizes++;

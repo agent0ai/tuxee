@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -67,7 +68,7 @@ try {
             return send.call(this, value);
         };
     });
-    const page = await context.newPage(); page.setDefaultTimeout(10000);
+    const page = await appPage(context); page.setDefaultTimeout(10000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(base); await page.locator('.user-menu-button').waitFor();
     const hotkey = key => page.keyboard.press(`Alt+Shift+${key}`);

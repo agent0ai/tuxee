@@ -61,6 +61,7 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
+	HowToSeen                  bool                  `json:"howToSeen,omitempty"`
 	Shortcuts                  map[string][][]string `json:"shortcuts,omitempty"`
 	ClosedTerminalHistoryHours *int                  `json:"closedTerminalHistoryHours,omitempty"`
 	ShellCommand               string                `json:"shellCommand,omitempty"`

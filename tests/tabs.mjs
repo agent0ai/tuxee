@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -35,7 +36,7 @@ const settings = {
     ],
 };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
-const page = await context.newPage(), errors = [], external = [], sockets = [];
+const page = await appPage(context), errors = [], external = [], sockets = [];
 page.on('websocket', socket => sockets.push(socket));
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => {

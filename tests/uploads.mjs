@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -30,7 +31,7 @@ const settings = { theme: 'dark', current: 'uploads', monitoring: { hidden: true
     ] },
 ] };
 assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
-const page = await context.newPage(), errors = [], external = [], published = [], lists = [];
+const page = await appPage(context), errors = [], external = [], published = [], lists = [];
 const terminalInputs = [];
 page.on('websocket', socket => {
     if (/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) socket.on('framesent', frame => {

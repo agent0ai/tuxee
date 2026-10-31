@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
@@ -92,7 +93,7 @@ await context.addInitScript(() => {
         return start.call(this, when, ...args);
     };
 });
-const page = await context.newPage(), errors = [], sockets = [];
+const page = await appPage(context), errors = [], sockets = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('framenavigated', frame => { if (frame === page.mainFrame()) sockets.length = 0; });
 page.on('websocket', socket => {
@@ -302,7 +303,7 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
     await page.waitForTimeout(300);
     await (await soundMenu('Mute')).click();
     await poll(async () => !(await audioProcesses()).some(p => p.cmd.includes('/pacat')), 'mute must stop capture before the autoplay check');
-    const blocked = await context.newPage(), inspector = await context.newCDPSession(blocked);
+    const blocked = await appPage(context), inspector = await context.newCDPSession(blocked);
     let blockedSockets = 0;
     blocked.on('websocket', socket => { if (socket.url().endsWith('/api/audio')) blockedSockets++; });
     await blocked.goto(base);

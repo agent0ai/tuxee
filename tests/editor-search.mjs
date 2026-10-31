@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -46,7 +47,7 @@ try {
     const { csrf } = await (await context.request.get(base + '/api/me')).json();
     const settings = { theme: 'dark', current: 'search', workspaces: [{ id: 'search', name: 'Search', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: home, x: 0, y: 0, w: 4, h: 2 }] }] };
     assert.equal((await context.request.put(base + '/api/settings', { data: settings, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } })).status(), 200);
-    const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
+    const page = await appPage(context), errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(base); const path = page.getByRole('textbox', { name: 'File or directory path', exact: true });
     const open = async file => {
         const read = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'read' && response.request().postDataJSON()?.path === file);
@@ -202,7 +203,7 @@ try {
     assert.deepEqual(errors, []);
     const czech = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     assert.equal((await czech.request.post(base + '/api/login', { data: { username: user, password, language: 'cs' }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
-    const cs = await czech.newPage(); await cs.goto(base);
+    const cs = await appPage(czech); await cs.goto(base);
     const csPath = cs.getByRole('textbox', { name: 'Cesta k souboru nebo adresáři', exact: true });
     await csPath.fill(first); await csPath.press('Enter'); await cs.locator('.cm-content').waitFor();
     await cs.getByRole('button', { name: 'Najít a nahradit', exact: true }).click();
@@ -219,7 +220,7 @@ try {
     await czech.close();
     const arabic = await browser.newContext({ viewport: { width: 320, height: 844 } });
     assert.equal((await arabic.request.post(base + '/api/login', { data: { username: user, password, language: 'ar' }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
-    const ar = await arabic.newPage(); await ar.goto(base);
+    const ar = await appPage(arabic); await ar.goto(base);
     await ar.locator('.path-input').fill(first); await ar.locator('.path-input').press('Enter'); await ar.locator('.cm-content').waitFor();
     await ar.locator('.cm-content').click(); await ar.keyboard.press('Control+f');
     const arSearch = ar.locator('.editor-search'); await arSearch.waitFor();
@@ -233,7 +234,7 @@ try {
     for (const language of ['fr', 'uk']) {
         const translated = await browser.newContext({ viewport: { width: 320, height: 844 } });
         assert.equal((await translated.request.post(base + '/api/login', { data: { username: user, password, language }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
-        const localized = await translated.newPage(); await localized.goto(base);
+        const localized = await appPage(translated); await localized.goto(base);
         await localized.locator('.path-input').fill(large); await localized.locator('.path-input').press('Enter'); await localized.locator('.inspector-pagination').waitFor();
         assert.ok(await localized.locator('.inspector-footer').evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${language} paginated footer fits`);
         await localized.screenshot({ path: `test-results/inspector-footer-${language}.png` });

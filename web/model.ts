@@ -23,6 +23,7 @@ export type Workspace = {
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
+    howToSeen?: boolean;
     shortcuts?: ShortcutBindings;
     closedTerminalHistoryHours?: number;
     shellCommand?: string;

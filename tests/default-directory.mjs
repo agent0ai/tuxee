@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -45,7 +46,7 @@ try {
     const saved = async () => (await (await api('/me')).json()).settings;
     const info = async id => (await api(`/terminals/${id}`)).json();
     const cwd = async id => run('runuser', ['-u', user, '--', 'readlink', `/proc/${(await info(id)).pid}/cwd`]);
-    page = await context.newPage(); page.setDefaultTimeout(10000);
+    page = await appPage(context); page.setDefaultTimeout(10000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
     const menuitem = name => page.getByRole('menuitem', { name, exact: true });

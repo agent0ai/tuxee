@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -69,7 +70,7 @@ try {
         { id: 'terminal', kind: 'terminal', terminal: terminal.id, path: home(users[0]), x: 0, y: 0, w: 4, h: 2 }
     ] }] };
     assert.equal((await a.api('/settings', 'PUT', settings)).status(), 200);
-    const page = await a.context.newPage(); page.on('pageerror', error => errors.push(error.message));
+    const page = await appPage(a.context); page.on('pageerror', error => errors.push(error.message));
     const connected = async page => page.locator('.terminal-view[data-state=connected]').waitFor();
     await page.goto(base); await connected(page);
     const drawer = page.locator('.terminal-input');
@@ -102,7 +103,7 @@ try {
     assert.equal(run('su', '-s', '/bin/sh', users[1], '-c', `test ! -r '${folder(users[0], terminal.id)}/input-history.json' && printf isolated`), 'isolated');
     console.log('PASS private files, multiline/Unicode reload, terminal/account isolation, CSRF and entry-size bounds');
 
-    const second = await client(0), phone = await second.context.newPage();
+    const second = await client(0), phone = await appPage(second.context);
     await phone.goto(base); await phone.locator('.terminal-view[data-state=viewing]').waitFor();
     await phone.locator('[data-action=take-control]').click();
     await connected(phone);
@@ -140,7 +141,7 @@ try {
     assert.equal((await history(a, terminal.id)).at(-1), ": 'before logout'", 'logout must flush live history');
     console.log('PASS file ownership, Unicode, reload, another device, logout, account/terminal isolation, CSRF, bounds and concurrent appends');
 
-    const resetPage = await a.context.newPage(); await resetPage.goto(base); await connected(resetPage);
+    const resetPage = await appPage(a.context); await resetPage.goto(base); await connected(resetPage);
     await resetPage.getByRole('button', { name: 'Toggle terminal input', exact: true }).click();
     await resetPage.locator('.terminal-input').fill('unsent draft');
     await resetPage.getByRole('button', { name: 'Reset terminal', exact: true }).click();
@@ -164,7 +165,7 @@ try {
     const afterKill = await create(a);
     assert.ok(exists(folder(users[0], killed.id)), 'lost unclosed archive: killed');
     const exited = await create(a);
-    const socketPage = await a.context.newPage();
+    const socketPage = await appPage(a.context);
     await socketPage.goto(base + '/health');
     await socketPage.evaluate(async id => {
         await new Promise((resolve, reject) => {

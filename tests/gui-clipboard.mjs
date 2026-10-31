@@ -1,3 +1,4 @@
+import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
@@ -46,7 +47,7 @@ try {
         { id: 'files', kind: 'files', path: home, x: 0, y: 0, w: 1, h: 2 },
         { id: 'shell', kind: 'terminal', terminal: terminal.id, path: home, x: 1, y: 0, w: 3, h: 2 },
     ] }] })).status(), 200);
-    const page = await context.newPage(), errors = [], uploads = [];
+    const page = await appPage(context), errors = [], uploads = [];
     page.setDefaultTimeout(20000); page.on('pageerror', error => errors.push(error.message));
     page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/api/upload')) uploads.push(request.url()); });
     const viewer = { connections: [], reject: 0, stall: 0 }, clipboardEvents = { connections: [], reject: 0, stall: 0 };
@@ -281,7 +282,7 @@ try {
     console.log('PASS uploaded file clipboard, GUI file copy metadata and same-server file paste without upload');
 
     // A second view may own the shell while the first still controls its GUI.
-    const other = await context.newPage(); await other.goto(base);
+    const other = await appPage(context); await other.goto(base);
     await other.locator('[data-panel=shell] .terminal-view[data-state=viewing]').waitFor();
     await other.locator('[data-panel=shell]').getByRole('button', { name: 'Take control', exact: true }).click();
     await other.locator('[data-panel=shell] .terminal-view[data-state=connected]').waitFor();
@@ -388,7 +389,7 @@ with open("${home}/interrupts", "ab", buffering=0) as output:
     assert.equal(await page.evaluate(() => !!navigator.clipboard), false);
     await canvas.focus(); await page.keyboard.press('Control+a'); await page.keyboard.press('Control+C');
     await view.getByRole('button', { name: 'Copy to device', exact: true }).click();
-    const clipboard = await context.newPage(); await clipboard.goto(base + '/health');
+    const clipboard = await appPage(context); await clipboard.goto(base + '/health');
     assert.equal(await clipboard.evaluate(() => navigator.clipboard.readText()), 'insecure copy');
     await clipboard.evaluate(() => navigator.clipboard.writeText('insecure paste 🦊'));
     await page.bringToFront(); await canvas.focus(); await page.keyboard.press('Control+a'); await page.keyboard.press('Control+V');
