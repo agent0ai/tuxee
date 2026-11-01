@@ -129,12 +129,16 @@ try {
         const saved = (await (await api('/me')).json()).settings;
         assert.equal((await api('/settings', 'PUT', { ...saved, uploadConcurrency: count })).status(), 200);
         await page.goto(base); await terminal.locator('[data-state=connected]').waitFor();
-        assert.equal(await (await openUploadSettings()).inputValue(), count === 3 ? '4' : '8');
+        assert.equal(await (await openUploadSettings()).inputValue(), String(count));
         await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, count);
+        await openUploadSettings();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await page.getByRole('dialog', { name: 'Settings', exact: true }).waitFor({ state: 'detached' });
         assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, count);
     }
     await saveUploadSettings(4);
-    check('legacy upload limits display the next available choice without changing saved settings on cancellation');
+    check('saved upload limits survive both cancellation and unrelated Settings saves');
     await page.evaluate(() => {
         window.batchCount = 0; window.maxTransfers = 0;
         new MutationObserver(records => {

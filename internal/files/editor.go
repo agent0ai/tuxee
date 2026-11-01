@@ -31,6 +31,7 @@ type EditorEdit struct {
 }
 type EditorState struct {
 	Path      string           `json:"path"`
+	Version   string           `json:"version,omitempty"`
 	Positions []EditorPosition `json:"positions"`
 	Index     int              `json:"index"`
 	Anchor    int              `json:"anchor"`
@@ -182,9 +183,11 @@ func editorOperation(ctx context.Context, r Request) (Response, error) {
 		if err := state.validate(); err != nil {
 			return Response{}, err
 		}
-		if _, err := readText(ctx, r.Path, 0, ""); err != nil {
+		value, err := readText(ctx, r.Path, 0, "")
+		if err != nil {
 			return Response{}, err
 		}
+		state.Version = value.Version
 		if err := clearEditor(dir); err != nil {
 			return Response{}, err
 		}
@@ -243,7 +246,11 @@ func editorOperation(ctx context.Context, r Request) (Response, error) {
 		if r.Editor.Path != state.Path {
 			return Response{}, os.ErrInvalid
 		}
+		if r.Page != nil && r.Editor.Version != state.Version {
+			state.Version = ""
+		}
 		r.Editor.Edits = state.Edits
+		r.Editor.Version = state.Version
 		if r.Page != nil {
 			breaks, err := validateTextPage(r.Content)
 			if err != nil {
@@ -280,6 +287,9 @@ func editorOperation(ctx context.Context, r Request) (Response, error) {
 		}
 		return Response{Editor: r.Editor}, writeEditorState(dir, r.Editor)
 	case "editor-save":
+		if r.Mode != "" && r.Mode != "overwrite" && r.Mode != "copy" {
+			return Response{}, i18n.New("backend.files.invalidWorkerRequest")
+		}
 		if len(state.Edits) == 0 {
 			return Response{Editor: &state}, nil
 		}
@@ -317,7 +327,7 @@ func editorOperation(ctx context.Context, r Request) (Response, error) {
 		if page.End < total && page.End > page.Offset {
 			state.Positions = append(state.Positions, EditorPosition{Offset: page.End, Line: positions[state.Index].Line + currentBreaks})
 		}
-		if err := saveEditor(ctx, dir, &state); err != nil {
+		if err := saveEditor(ctx, dir, &state, r.Mode); err != nil {
 			return Response{}, err
 		}
 		state.Edits = []EditorEdit{}
@@ -393,10 +403,13 @@ func snapshotEditor(ctx context.Context, path, destination string) error {
 	if err = out.Sync(); err != nil {
 		return err
 	}
+	if err = textUnchanged(source, path, info); err != nil {
+		return err
+	}
 	return os.Rename(out.Name(), destination)
 }
 
-func saveEditor(ctx context.Context, dir *os.File, state *EditorState) error {
+func saveEditor(ctx context.Context, dir *os.File, state *EditorState, mode string) error {
 	source, err := os.OpenFile(fdPath(dir, "base"), os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
 	if err != nil {
 		return err
@@ -409,25 +422,6 @@ func saveEditor(ctx context.Context, dir *os.File, state *EditorState) error {
 	if !original.Mode().IsRegular() {
 		return os.ErrInvalid
 	}
-	real, err := filepath.EvalSymlinks(state.Path)
-	if err != nil {
-		return err
-	}
-	target, err := os.OpenFile(real, os.O_RDWR|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
-	if err != nil {
-		return err
-	}
-	defer target.Close()
-	if err = unix.Flock(int(target.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return err
-	}
-	info, err := target.Stat()
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() {
-		return os.ErrInvalid
-	}
 	total, end := original.Size(), int64(0)
 	for _, edit := range state.Edits {
 		if edit.Page.Offset < end || edit.Page.End < edit.Page.Offset || edit.Page.End > original.Size() || edit.Bytes < 0 || edit.Bytes > MaxTextSize {
@@ -436,7 +430,7 @@ func saveEditor(ctx context.Context, dir *os.File, state *EditorState) error {
 		total += edit.Bytes - (edit.Page.End - edit.Page.Offset)
 		end = edit.Page.End
 	}
-	_, err = replaceText(ctx, target, real, info, total, func(out io.Writer) (int64, error) {
+	write := func(out io.Writer) (int64, error) {
 		var written, offset int64
 		buffer := make([]byte, 128<<10)
 		for _, edit := range state.Edits {
@@ -461,6 +455,84 @@ func saveEditor(ctx context.Context, dir *os.File, state *EditorState) error {
 		}
 		n, err := io.CopyBuffer(out, &contextReader{ctx, io.NewSectionReader(source, offset, original.Size()-offset)}, buffer)
 		return written + n, err
-	})
-	return err
+	}
+	real, err := filepath.EvalSymlinks(state.Path)
+	if mode == "copy" || mode == "overwrite" && errors.Is(err, os.ErrNotExist) {
+		staged, err := os.CreateTemp(filepath.Dir(state.Path), ".tuxee-edit-*")
+		if err != nil {
+			return err
+		}
+		defer staged.Close()
+		defer os.Remove(staged.Name())
+		written, err := write(staged)
+		if err != nil {
+			return err
+		}
+		if written != total {
+			return i18n.New("backend.files.incompleteFileSave")
+		}
+		if err := staged.Sync(); err != nil {
+			return err
+		}
+		path, err := createDestination(ctx, state.Path, false, mode == "copy", func(path string) error {
+			if mode == "copy" && path == state.Path {
+				return os.ErrExist
+			}
+			return unix.Renameat2(unix.AT_FDCWD, staged.Name(), unix.AT_FDCWD, path, unix.RENAME_NOREPLACE)
+		})
+		if errors.Is(err, os.ErrExist) {
+			return errTextChanged
+		}
+		if err != nil {
+			return err
+		}
+		info, err := staged.Stat()
+		if err != nil {
+			return err
+		}
+		state.Path, state.Version = path, textFileVersion(info)
+		return nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return errTextChanged
+	}
+	if err != nil {
+		return err
+	}
+	if mode != "overwrite" {
+		info, err := os.Stat(real)
+		if errors.Is(err, os.ErrNotExist) || err == nil && state.Version != textFileVersion(info) {
+			return errTextChanged
+		}
+		if err != nil {
+			return err
+		}
+	}
+	target, err := os.OpenFile(real, os.O_RDWR|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return errTextChanged
+	}
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+	if err = unix.Flock(int(target.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		return err
+	}
+	info, err := target.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return os.ErrInvalid
+	}
+	if mode != "overwrite" && state.Version != textFileVersion(info) {
+		return errTextChanged
+	}
+	saved, err := replaceText(ctx, target, real, info, total, write)
+	if err != nil {
+		return err
+	}
+	state.Version = textFileVersion(saved)
+	return nil
 }

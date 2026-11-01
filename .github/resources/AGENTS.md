@@ -13,7 +13,7 @@ duplicate screenshot or infographic originals in `../../assets/`.
 # Local Contracts
 
 Use WebP for every image and thumbnail. Preserve image content and aspect ratio.
-Full screenshots retain their original dimensions; the metrics infographic is 1000 pixels wide.
+Full images retain their dimensions; no image type has a separate width requirement.
 Thumbnails are at most 640 pixels wide. The README displays
 thumbnails, alternating image/text sides, and links each to its full image with
 `target="_blank"` and `rel="noopener noreferrer"`.

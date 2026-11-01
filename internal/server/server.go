@@ -616,6 +616,10 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 	defer func() { <-s.fileSlots }()
 	response, err := files.Run(r.Context(), session.user, input)
 	if err != nil {
+		if input.Operation == "editor-save" && i18n.Describe(err).Key == "backend.files.fileChangedReopenItBeforeEditing" {
+			failure(w, http.StatusConflict, err)
+			return
+		}
 		failure(w, 400, err)
 		return
 	}

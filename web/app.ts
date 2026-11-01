@@ -1362,12 +1362,12 @@ async function openSettings() {
     retention.name = 'closedTerminalHistoryHours'; retention.value = String(settings.closedTerminalHistoryHours ?? 168);
     const retentionLabel = el('label', 'field'); retentionLabel.append(el('span', 'settings-label', t("settings.closedTerminalHistory")), retention);
     const uploads = el('select');
-    const uploadOptions = [1, 2, 4, 8, 16, 32, 64];
+    const uploadOptions = [...new Set([1, 2, 4, 8, 16, 32, 64, settings.uploadConcurrency ?? 4])].sort((a, b) => a - b);
     for (const n of uploadOptions) {
         const option = el('option', '', n === 4 ? t("settings.defaultUploadConcurrency", { count: n }) : String(n));
         option.value = String(n); uploads.append(option);
     }
-    uploads.value = String(uploadOptions.find(n => n >= (settings.uploadConcurrency ?? 4)));
+    uploads.value = String(settings.uploadConcurrency ?? 4);
     const uploadsLabel = el('label', 'field'); uploadsLabel.append(el('span', 'settings-label', t("app.parallelUploads")), uploads);
     const tls = await api('/tls');
     const https = location.protocol === 'https:';

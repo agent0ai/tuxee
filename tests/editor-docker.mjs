@@ -66,7 +66,7 @@ try {
         if (text) await page.keyboard.insertText(text); else await page.keyboard.press('Backspace');
     };
     const saved = async () => {
-        const response = page.waitForResponse(r => r.url().endsWith('/api/files') && r.request().postDataJSON()?.operation === 'editor-save');
+        const response = page.waitForResponse(r => r.url().endsWith('/api/files') && r.request().postDataJSON()?.operation === 'editor-save' && r.status() === 200);
         const start = performance.now(); await page.getByRole('button', { name: 'Save file', exact: true }).click();
         assert.equal((await response).status(), 200); await ready();
         await until(() => page.getByRole('button', { name: 'Save file', exact: true }).isDisabled(), 'save completion');
@@ -136,10 +136,13 @@ try {
     await page.setViewportSize({ width: 1440, height: 950 }); await page.goto(base); await ready();
     assert.equal(await content.textContent(), 'first🙂');
     exec('chmod', '440', file);
-    await editor('save', {}, 'files', 400); assert.equal(diskHash(file), originalHash);
+    await editor('save', {}, 'files', 409);
+    await editor('save', { mode: 'overwrite' }, 'files', 400); assert.equal(diskHash(file), originalHash);
     assert.equal((await editor('load')).editor.edits.length, edits.length);
     exec('chmod', '640', file); put(file, 'external replacement');
-    report.saveMs = await saved();
+    await editor('save', {}, 'files', 409);
+    const overwrite = page.getByRole('dialog', { name: 'File changed', exact: true }).getByRole('button', { name: 'Overwrite', exact: true }).click();
+    report.saveMs = await saved(); await overwrite;
     assert.equal(diskHash(file), patchedHash(original, edits), 'first multi-page Save lost bytes');
     assert.equal(exec('stat', '-c', '%U:%a', file), user + ':640');
     assert.equal(exec('ls', '-A', folder), 'session.json');
@@ -151,7 +154,7 @@ try {
     assert.equal(await page.locator('.inspector-page').textContent(), 'Page 1');
     assert.ok((await content.textContent()).startsWith('RRRR'));
     await page.goto('about:blank');
-    console.log('PASS large multi-page saves, permission-failure preservation, last-save-wins, repeated growth/deletion and logout flushing');
+    console.log('PASS large multi-page saves, permission-failure preservation, explicit overwrite, repeated growth/deletion and logout flushing');
 
     const shortPath = `${home}/rows.txt`, short = Buffer.from('short🙂\r\nrow-é\n'.repeat(150000)), rowEdits = [], positions = [];
     put(shortPath, short); exec('chown', user + ':' + user, shortPath);

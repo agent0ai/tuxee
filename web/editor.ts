@@ -1,7 +1,7 @@
 import { errorText, locale, t } from './i18n';
 import { Compartment, EditorView, EditorState, lineNumbers, history, historyKeymap, defaultKeymap, keymap, bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting, StreamLanguage, tags, languages, search, openSearchPanel, closeSearchPanel } from './vendor/code-editor/library.js';
 import { xml } from './vendor/code-editor/xml.js';
-import { api, button, confirmAction, el, notify, popover, scopeNotifications } from './ui';
+import { api, APIError, button, confirmAction, el, modal, notify, popover, scopeNotifications } from './ui';
 import { fittingHeaderItemCount } from './overflow';
 import { download } from './transfers';
 import type { DraggedFile } from './file-drag';
@@ -165,7 +165,7 @@ export class FileInspector {
         this.checkpointPromise = (async () => {
             try {
                 const value = await this.operation('checkpoint', data);
-                this.session = value.editor;
+                this.session = { ...value.editor, version: session.version };
                 this.controls();
             } catch (error) { this.pending = true; this.contentPending ||= content; throw error; }
         })();
@@ -407,6 +407,21 @@ export class FileInspector {
             }
         }
     }
+    private saveConflict() {
+        return new Promise<'overwrite' | 'copy' | undefined>(resolve => {
+            const content = el('div', 'form');
+            content.append(el('p', 'muted confirmation-message', t('editor.conflictMessage', { path: `\u2068${this.file.path}\u2069` })));
+            const actions = el('div', 'actions'), { dialog } = modal(t('editor.fileChanged'), content);
+            dialog.classList.add('editor-conflict');
+            const choose = (mode?: 'overwrite' | 'copy') => { resolve(mode); dialog.close(); };
+            const copy = button(t('editor.saveCopy'), undefined, () => choose('copy'), 'primary');
+            actions.append(button(t('editor.overwrite'), undefined, () => choose('overwrite')), copy, button(t('common.cancel'), undefined, () => choose()));
+            content.append(actions); copy.focus();
+            const abort = () => dialog.close();
+            this.events.signal.addEventListener('abort', abort, { once: true });
+            dialog.addEventListener('close', () => { this.events.signal.removeEventListener('abort', abort); resolve(undefined); }, { once: true });
+        });
+    }
     private async save() {
         if (!this.editor || !this.dirty || this.saving || this.loading) return;
         const content = this.draft!.content(), editor = this.editor;
@@ -414,13 +429,29 @@ export class FileInspector {
         editor.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(true)) });
         try {
             await this.checkpoint();
-            const result = await this.operation('save');
+            let result, mode: 'overwrite' | 'copy' | undefined;
+            for (;;) {
+                try { result = await this.operation('save', { mode }); break; }
+                catch (error) {
+                    if (!(error instanceof APIError) || error.status !== 409 || this.events.signal.aborted) throw error;
+                    mode = await this.saveConflict();
+                    if (!mode || this.events.signal.aborted) return;
+                }
+            }
             if (this.events.signal.aborted) return;
             this.session = result.editor;
             this.positions = this.session!.positions; this.pageIndex = this.session!.index;
             this.page = result.page || this.page;
             this.original = content;
             this.draft = new PageDraft(content, editor.state);
+            if (mode === 'copy') {
+                const path = this.session!.path;
+                this.files[this.index] = { ...this.file, path, name: path.split('/').pop()! };
+                this.controls();
+                await this.closed(path);
+                notify(t('editor.savedCopy', { path }), this.host);
+                return;
+            }
             this.controls(); this.scheduleCheckpoint();
             notify(t("editor.saved"), this.host);
         } finally {

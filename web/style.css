@@ -233,6 +233,8 @@ h3 {
   line-height: 1.6;
 }
 .confirmation-message { white-space: pre-line; }
+.editor-conflict .confirmation-message { overflow-wrap: anywhere; }
+.editor-conflict .actions { flex-wrap: wrap; }
 .form > .primary {
   align-self: flex-end;
 }

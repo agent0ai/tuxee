@@ -8,21 +8,21 @@ Authenticated HTTP API, application sessions, per-user settings, and WebSocket t
 
 Own HTTP routing and session revocation. Delegate filesystem syscalls to files, account checks to identity, process discovery/signals to processes, and all terminal lifetime/control to terminal.
 
+# Local Contracts
+
 Terminal sessions own GUI lifetime. After the existing terminal UID check, `GET /api/terminals/{id}/display` returns the running display's temporary VNC password; it never starts a display. Its `/ws` suffix bridges the private Unix VNC socket through authenticated, same-origin binary WebSocket frames. `/api/terminals/{id}/display/window` accepts POST to activate and DELETE to request a normal window close; both require CSRF and a window ID from that display. Accept no caller-provided destination. Logout revokes transports while retaining the terminal and applications.
 
-Ping VNC WebSockets every 20 seconds with an eight-second pong deadline, matching terminal liveness. On failure, cancel both bridge directions and release only that viewer; preserve the terminal, X display and applications. Clipboard transport remains independent, with its existing 30-second ping/five-second deadline.
+Use periodic WebSocket pings with bounded pong deadlines to detect failed terminal, VNC and clipboard connections. On VNC failure, cancel both bridge directions and release only that viewer; preserve the terminal, X display and applications. Clipboard transport recovers independently. `websocket.go` and `desktop.go` own the current timing values; their exact intervals are implementation tuning, not protocol compatibility requirements.
 
 Terminal `/display/clipboard/events` streams XFixes version/local notifications through an authenticated same-origin WebSocket; require Origin and revoke on logout. `/display/clipboard?version=N` reads only that current clipboard version. CSRF-protected POST `/display/clipboard` accepts one bounded text, base64 PNG or absolute Linux file list; POST `/display/drop` accepts files plus display coordinates and a window from that terminal. Both reuse terminal UID admission. Limit clipboard/drop payload operations to two server-wide before reading bodies, bound JSON to the owning data limits, and impose 30-second HTTP deadlines. X11 reads/drops also have ten-second cancellation. No caller-supplied X endpoint, UID, command or privileged filesystem access.
 
 `GET /api/audio` subscribes only to the authenticated Linux UID's shared audio manager. Require the shared origin/session admission plus explicit WebSocket Origin; accept no source, UID or client audio/input messages. Send 960-frame packets of 48 kHz stereo signed 16-bit little-endian PCM with an 8-byte little-endian sample position; omit digital silence. Bound writes to 250 ms and ping during silence. Disconnect/logout releases that browser subscription; the last listener stops shared capture without terminating applications. `/api/me` reports optional audio-runtime availability. There is no per-terminal audio route.
 
-# Local Contracts
-
 `POST /api/login` accepts `{username, password, language}` directly. Credentials are transient PAM input; HTTPS protects login and session traffic. Keep application-level credential encryption and key storage out of this path.
 
 The authenticated index embeds one complete, safely JSON-escaped English-fallback/selected-language dictionary; the anonymous index and `/api/language` expose only the explicit `loginTranslations` key list. Keep the public projection independent of application texts and preserve the merged dictionary in a non-executable JSON element, with the selected document language/direction, `private, no-store` and `Vary: Accept-Encoding, Cookie`; preserve the executable script CSP hash. Read the browser-managed `tuxee_language_<instance-id>` preference only for anonymous pages. Login accepts the displayed language and freezes its merged bundle for that session; terminal creation takes its language from this authenticated snapshot, never a caller-supplied terminal language or current preference cookie; authenticated index, `/api/me` and `/api/language` use the same snapshot, regardless of cookie/query changes. `/api/connection` includes session language so other tabs reload when login replacement changes it. Anonymous `/api/language` refreshes catalogs for explicit selection. API failures retain diagnostic `error` and add structured `text: {key, vars}`; streaming/download status must retain the same metadata.
 
-The files API also admits `editor-open`, `editor-load`, `editor-read`, `editor-checkpoint`, `editor-save` and `editor-close`. Require an existing file-browser panel in the authenticated user's saved settings; derive the instance from the server, never the request. Serialize editor operations and settings changes through settingsMu so late requests cannot recreate removed panels. Delegate storage and permissions to the user worker. Reconcile orphan editor folders after successful settings saves and on `/api/me`; cleanup failures are logged and retried on the next reconciliation without failing the settings save. Internal `editor-prune` is never a public file operation.
+The files API also admits `editor-open`, `editor-load`, `editor-read`, `editor-checkpoint`, `editor-save` and `editor-close`. `editor-save` accepts an omitted mode, `overwrite` or `copy`; the worker owns validation/publication. Source conflicts return 409, preserving drafts; copy success includes the resulting editor path. Require an existing file-browser panel in the authenticated user's saved settings; derive the instance from the server, never the request. Serialize editor operations and settings changes through settingsMu so late requests cannot recreate removed panels. Delegate storage and permissions to the user worker. Reconcile orphan editor folders after successful settings saves and on `/api/me`; cleanup failures are logged and retried on the next reconciliation without failing the settings save. Internal `editor-prune` is never a public file operation.
 
 The files API admits `trash`, `trash-list`, `trash-restore`, `trash-delete` and `trash-empty` through the existing authenticated, CSRF-protected worker/file-slot path. The worker owns discovery and metadata validation; accept no client trash-root override. File panels may persist the exact virtual path `trash:///`; terminal panels still require filesystem paths.
 
@@ -58,7 +58,7 @@ Optional `shortcuts` uses the existing per-user `~/.config/tuxee/settings.json` 
 
 Optional `editorLineWrap` is a per-user editor display preference. Absent/null means enabled; explicit false must round-trip through saved/returned settings. It changes no file contents or page limits.
 
-Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 64 on load/save, preserving legacy values between the browser's power-of-two choices. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; the server independently limits shared file operations to 64 and rejects excess operations with 429.
+Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 64 on load/save. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; the server independently limits shared file operations to 64 and rejects excess operations with 429.
 
 `POST /api/upload?path=…&unique=true` streams a size-declared file through the credential-dropped worker and returns its actual `path`. The worker owns collision naming; the HTTP layer must not pre-check or retry destinations. Omitted/false unique keeps explicit no-overwrite behavior for New file. Directory upload preparation uses the existing files API's mkdir with unique or parents flags.
 
@@ -100,6 +100,8 @@ Owned `GET /api/terminals/{id}/input-history` returns the terminal’s drawer st
 
 Terminal DELETE reports guardian cleanup failure and retains the server session/metadata; do not claim termination or delete archives while processes remain owned. Runtime shutdown closes browser access and detaches terminal controllers.
 
+Content APIs use the same authenticated user worker. File-operation JSON is bounded at 8 MiB to accommodate escaped 1 MiB editor pages, including their original byte ranges and hashes. Inline previews allow only selected image/PDF/audio/video MIME types, never HTML/SVG. The /api/preview/{filename}?path= route carries the original filename in its URL and Content-Disposition for native viewers. Responses are private/no-store, use same-origin frames with restrictive CSP, and support validated single byte ranges plus HEAD. The main CSP permits local frames/media for those previews.
+
 # Work Guidance
 
 Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.
@@ -116,7 +118,8 @@ Run `go test ./internal/server` for direct/proxied origin/CSRF/logout admission 
 
 HTTPS redirect checks cover preserved URLs, invalid/oversized headers, plaintext isolation, idle clients, HTTP/2, TLS-ALPN certificate challenges and shutdown. The real-system test follows the redirect through the built binary.
 
-Content APIs use the same authenticated user worker. File-operation JSON is bounded at 8 MiB to accommodate escaped 1 MiB editor pages, including their original byte ranges and hashes. Inline previews allow only selected image/PDF/audio/video MIME types, never HTML/SVG. The /api/preview/{filename}?path= route carries the original filename in its URL and Content-Disposition for native viewers. Responses are private/no-store, use same-origin frames with restrictive CSP, and support validated single byte ranges plus HEAD. The main CSP permits local frames/media for those previews. Test malformed/suffix/open-ended ranges and active-content exclusions.
+Test malformed/suffix/open-ended ranges and active-content exclusions.
+
 
 # Child DOX Index
 

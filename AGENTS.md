@@ -66,6 +66,7 @@ Default section order:
 - Do not duplicate rules across many files unless each scope needs a local version
 - Delete stale notes instead of explaining history
 - Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
+- Give exceptions a concrete requirement or compatibility rationale; do not turn incidental implementation choices into permanent rules.
 
 ## Closeout
 
@@ -87,7 +88,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - Keep anonymous login responses stable across releases from this change onward: no system hostname, executable version, application bundle, full catalogs, dependency metadata or application CSP hashes before authentication. Freeze the small login page, public branding and API response contract; enforce its checked-in response baseline. Preserve authenticated titles, color markers, About/system information and terminal behavior. See [the login contract](web/login/AGENTS.md) and [server admission](internal/server/AGENTS.md). This reduces release fingerprinting, not HTTP/TLS or behavioral identification.
 
 - Terminal-survival experiments use a separate worktree and disposable Docker containers. Minimize native helper disk size and private/PSS memory without removing lifecycle or permission checks. Prefer only process/PTY ownership and a Unix socket inside each existing terminal metadata directory, discovered without a separate catalog; keep I/O, buffering and resizing in Tuxee when feasible. Measure crash recovery, backpressure and responsiveness before changing the production lifecycle contract. [The keeper experiment](experiments/terminal-keeper/AGENTS.md) owns the prototype and its measured limitations.
-- The full keeper PoC must preserve terminals and GUI/audio applications across Tuxee crashes, updates and runtime restarts, while retaining existing rendering, keyboard/mouse and latency behavior. Keep the native helper generic and its protocol compatible with workers from older Tuxee versions; prefer evolving Go code over replacing running helpers. Explicit terminal/workspace closure still terminates owned jobs. A Linux/container restart still ends processes. [The keeper contract](internal/keeper/AGENTS.md) owns the persistent-runtime boundary.
+- The persistent terminal runtime must preserve terminals and GUI/audio applications across Tuxee crashes, updates and runtime restarts, while retaining existing rendering, keyboard/mouse and latency behavior. Keep the native helper generic and its protocol compatible with workers from older Tuxee versions; prefer evolving Go code over replacing running helpers. Explicit terminal/workspace closure still terminates owned jobs. A Linux/container restart still ends processes. [The keeper contract](internal/keeper/AGENTS.md) owns the persistent-runtime boundary.
 
 - Use `main` as the primary Git branch.
 - Root `LICENSE` uses Agent Zero's MIT license with Tuxee's repository URL (`https://github.com/agent0ai/tuxee`); preserve separate third-party licenses and reuse notices.
@@ -117,27 +118,11 @@ When the user requests a durable behavior change, record it here or in the relev
 - Only file browsers and terminals are components. Terminals lazily start their own X display when an application connects; the terminal icon/name is the first header button, followed only while GUI windows exist by a pipe and window buttons. Show the selected item’s name, collapse other items to icons and put excess windows in the existing three-dot overflow menu. When the optional audio runtime is available, audio is on by default. Use one browser-local audio volume control beside the theme switcher, with a compact vertical slider and mute/unmute; GUI window menus contain only window actions. The active GUI window has a chevron menu with Close; right-click opens the same menu and preserves application save/cancel prompts. Release empty display runtimes, return to the plain terminal header and restart lazily on the next GUI command. Preserve the shell and GUI across navigation/logout, and terminate both on explicit terminal closure. Remove the separate GUI launcher/component/API. Use Debian Trixie slim, minimal TigerVNC/Matchbox and locally bundled noVNC; keep Dockerfile builds usable and verify memory, real inputs and screenshots.
 - Share one private PulseAudio runtime per Linux user across every terminal and GUI app, independent of X11 lifetime. Start it on the first audio connection. Use one shared capture per user and one mixed stream per browser, including retained terminals outside mounted workspaces. Omit only digital silence while preserving timing and first/quiet samples. UI mute/zero volume disconnects that browser; the last listener stops capture. Keep other users isolated and end the runtime after the last terminal ends. Minimize audio's Docker footprint through measured runtime builds; verify real playback and lifecycle before accepting a smaller dependency set.
 
-## Child DOX Index
-
-- [experiments/AGENTS.md](experiments/AGENTS.md): Isolated prototypes and reproducible measurements before production integration.
-
-- [.github/AGENTS.md](.github/AGENTS.md): Version-tag releases, daily stable-image rebuilds, commit notes, GitHub/Docker Hub publication, sponsorship configuration and README resources.
-
-- [internal/AGENTS.md](internal/AGENTS.md): Linux identity, file operations, terminal lifecycle, transport, TLS, and service implementation.
-- [web/AGENTS.md](web/AGENTS.md): Embedded frontend and browser dependency builds.
-- [tests/AGENTS.md](tests/AGENTS.md): Real-system and browser integration checks.
-- [third_party/AGENTS.md](third_party/AGENTS.md): Verbatim bundled dependency licenses.
-- [docker/AGENTS.md](docker/AGENTS.md): Docker runtime files, example configuration and startup-folder documentation.
-- [docs/AGENTS.md](docs/AGENTS.md): Installation, releases and user/developer documentation.
-- [assets/AGENTS.md](assets/AGENTS.md): Original logo artwork and its optimized UI/README copies.
-- Root owns README.md, LICENSE, CONTRIBUTING.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
-
-
 ## Tuxee purpose and requested scope
 
 - Build a Linux management helper delivered as a Go binary serving HTTP/HTTPS and an embedded web UI with a file manager, terminals, and user configuration.
-- Current phase: a built and locally validated prototype. The user has authorized local builds, dedicated Linux test users, browser testing, and isolated service lifecycle checks.
-- Investigate reuse of `the8020/https`, `the8020/dev-core`, and `the8020/kernel` for automatic certificates, HTTPS routing, and retained terminals.
+- The user has authorized local builds, dedicated Linux test users, browser testing, and isolated service lifecycle checks.
+- Preserve the upstream reuse and provenance recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for automatic certificates, retained terminals and frontend dependencies.
 - Authenticate with real Linux usernames/passwords. Terminals and file operations must run with that user's UID, GID, and supplementary groups so Linux enforces permissions.
 - Each server has a persistent random 128-bit ID in its state directory's `instance-id`, generated atomically under the CLI's state lock before serving. Reuse it across restarts/upgrades and reject unreadable or malformed existing IDs. Session cookie names include this ID so separate instances on one browser hostname can stay logged in independently; hostname and port are not instance identities. Keep the ID when restoring an installation; remove it from a stopped clone intended to become a separate instance. Login sessions themselves remain in memory.
 - Keep named terminal tabs and their running processes across navigation, disconnect, and web logout. Never expire terminals because of inactivity or detachment; logout revokes browser access independently. Warn in Retained terminals and on the hamburger button about running sessions absent from every workspace, with explicit reattach/terminate actions.
@@ -168,8 +153,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## GitHub authentication
 
-- When an explicitly requested GitHub operation requires authentication, use an already exported, non-empty `GITHUB_TOKEN` if one is available.
-- Otherwise, locate the applicable `.env` file in the active repository or its enclosing project/workspace and import only `GITHUB_TOKEN` into the environment for that operation. Check these applicable `.env` files before reporting that GitHub credentials are unavailable.
+- Follow inherited workspace instructions for GitHub credential discovery and precedence. Check applicable repository and enclosing workspace `.env` files before reporting that credentials are unavailable; import only `GITHUB_TOKEN` for the authorized operation.
 - Treat `.env` files and token values as secrets. Never display, print, log, quote, diff, commit, or otherwise expose their contents or values in tool output.
 - Never put `GITHUB_TOKEN` in a remote URL, a command-line argument, or persistent Git configuration. Keep it scoped to the authenticated operation and use a non-persistent credential mechanism.
 - Do not modify the `.env` file while loading the token.
@@ -181,7 +165,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Verification
 
-- Go 1.26.10 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`. Use a process-local `umask 022` for builds and cross-user test fixtures so generated executables and shared fixtures are readable/executable by credential-dropped workers; do not change host configuration.
+- Go 1.26.10 or newer and PAM development headers are required. Use the workspace toolchain at `.tools/go/bin/go` for local checks. Use a process-local `umask 022` for builds and cross-user test fixtures so generated executables and shared fixtures are readable/executable by credential-dropped workers; do not change host configuration.
 - Build the embedded frontend and terminal engine with `npm run build`, then the native guardian with `make -C internal/keeper/native` (musl-tools required); build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/`, `internal/terminal/engine.js` and `internal/keeper/keeper.bin` are generated and ignored by Git. Run the frontend and guardian builds before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
 - Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:gui`, `npm run test:gui-clipboard`, `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:clipboard`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features`, `npm run test:monitoring` and `npm run test:processes` for frontend checks; run browser suites sequentially.
@@ -191,7 +175,9 @@ When the user requests a durable behavior change, record it here or in the relev
 
 Distribution verification: run `npm run test:installer`, `npm run test:updates`, `go test ./internal/update`, `python3 tests/setup.py` as root (see tests/AGENTS.md for the versioned server fixture), and `python3 .github/release-notes.py --self-test`. The update browser suite starts an isolated server and restores user settings. Use actionlint for `.github/workflows/release.yml`; actual Docker/registry publication requires CI.
 
-## Prototype contracts
+Report verification against the tested commit and environment, including skips. Use the actual Actions run for release/publication evidence. Local fixtures do not establish live systemd behavior, public Internet ACME validation, physical-device behavior or production readiness. Workspace-specific facilities belong in inherited workspace instructions.
+
+## Runtime contracts
 
 - Prefer public TLS-ALPN-01 through public port 443 on any local listener, with persistent local-CA fallback when no valid public certificate exists. Keep retrying public renewal; do not default HSTS on.
 - Native process credentials enforce Linux permissions. Passwords are transient authentication input only.
@@ -200,9 +186,17 @@ Distribution verification: run `npm run test:installer`, `npm run test:updates`,
 - Running processes survive Tuxee crashes, updates and service restarts through native guardians. Preserve workspace terminal IDs and reconnect the existing processes; show post-mortem output only after actual process loss. Store bounded post-mortem output as searchable UTF-8 text, without compression or colors; match the terminal text view’s background and single text color, preserving fixed columns with horizontal and vertical scrolling. Keep one chronological `output.txt`: shell output, the last useful fullscreen frame from each application visit, then subsequent shell output. Do not offer separate shell/application buffers or pad shell output with unused screen rows. The English footer status is `Post mortem` in the semantic warning color, immediately before the highlighted Restart action. Archive header clicks must not reveal the live renderer or loader. Preview archives must contain captured command/application output, never explanatory placeholder text. Explicit Close and terminal Restart start closed-history retention (default 168 hours); natural exit, kills and Linux/container shutdown leave unclosed archives. Restart creates a new terminal and preserves the old archive when used. Explicit closure discards new terminals that never accepted user input or a creation command; preserve legacy archives with unknown usage and every unclosed archive.
 - Test with dedicated users, ports, and services; do not alter host SSH or unrelated repositories.
 
-## Current implementation boundary
+## Child DOX Index
 
-- Implemented and locally validated: PAM/per-user workers, filesystem operations, canonical retained PTYs, TLS lifecycle, HTTP/WebSocket sessions, bundled frontend with docking/files/mobile workspaces, and service CLI. A full amd64 Dockerfile build and its binary are checked for startup, PAM login and terminal archives. Isolated Docker checks cover CLI re-exec, server SIGKILL and graceful/hard container restarts with retained output and workspace IDs. Arm64 runtime verification remains separate.
-- Release/update fixtures, daily-check scheduling, live binary-replacement helper/PTY continuity and Chromium update notices are locally verified. Tag workflows and Docker Hub publication still need a real CI run.
-- Backend race tests, real PAM/HTTP/WebSocket integration, Chromium desktop/mobile/portrait/ultrawide flows, transfer memory/cancellation, interactive terminal recovery, unit verification and installation safety pass. docs/guide.md documents exact commands and limits.
-- This workspace has root and Chromium but PID 1 is `tail`, not systemd. A separate Docker sandbox is available through the socket and localhost forwarding helper documented in the workspace AGENTS.md. Live systemd execution and public Internet ACME validation remain unverified. The prototype is not production-reviewed.
+- [experiments/AGENTS.md](experiments/AGENTS.md): Isolated prototypes and reproducible measurements before production integration.
+
+- [.github/AGENTS.md](.github/AGENTS.md): Version-tag releases, daily stable-image rebuilds, commit notes, GitHub/Docker Hub publication, sponsorship configuration and README resources.
+
+- [internal/AGENTS.md](internal/AGENTS.md): Linux identity, file operations, terminal lifecycle, transport, TLS, and service implementation.
+- [web/AGENTS.md](web/AGENTS.md): Embedded frontend and browser dependency builds.
+- [tests/AGENTS.md](tests/AGENTS.md): Real-system/browser fixture isolation, prerequisites and suite selection.
+- [third_party/AGENTS.md](third_party/AGENTS.md): Verbatim bundled dependency licenses.
+- [docker/AGENTS.md](docker/AGENTS.md): Docker runtime files, example configuration and startup-folder documentation.
+- [docs/AGENTS.md](docs/AGENTS.md): Installation, releases and user/developer documentation.
+- [assets/AGENTS.md](assets/AGENTS.md): Original logo artwork and its optimized UI/README copies.
+- Root owns README.md, LICENSE, CONTRIBUTING.md, install.sh, build/package configuration, CLI entrypoint, Dockerfile, compose.yaml and third-party notices.
