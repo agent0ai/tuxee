@@ -63,6 +63,7 @@ type Entry struct {
 }
 
 type Response struct {
+	Results   []Response       `json:"results,omitempty"`
 	Editor    *EditorState     `json:"editor,omitempty"`
 	Original  *string          `json:"original,omitempty"`
 	Draft     *TerminalDraft   `json:"draft,omitempty"`
@@ -146,6 +147,35 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
+	if len(r.Paths) > 0 && (r.Operation == "trash" || r.Operation == "trash-restore" || r.Operation == "trash-delete" || r.Operation == "delete" || r.Operation == "copy" || r.Operation == "move" || r.Operation == "chmod" || r.Operation == "stat") {
+		if len(r.Paths) > 10000 {
+			return response, nil, i18n.New("backend.files.invalidWorkerRequest")
+		}
+		paths := r.Paths
+		r.Paths = nil
+		destination := r.Destination
+		if (r.Operation == "copy" || r.Operation == "move") && (!filepath.IsAbs(destination) || strings.ContainsRune(destination, 0)) {
+			return response, nil, i18n.New("backend.files.destinationMustBeAbsolute")
+		}
+		for _, path := range paths {
+			if err := ctx.Err(); err != nil {
+				return response, nil, err
+			}
+			r.Path = path
+			if r.Operation == "copy" || r.Operation == "move" {
+				r.Destination = filepath.Join(destination, filepath.Base(path))
+			}
+			result, _, err := execute(ctx, r, nil)
+			if err != nil {
+				result.Error, result.Text = err.Error(), i18n.Describe(err)
+			}
+			response.Results = append(response.Results, result)
+			if err != nil {
+				break
+			}
+		}
+		return response, nil, nil
+	}
 	if strings.HasPrefix(r.Operation, "editor-") {
 		response, err := editorOperation(ctx, r)
 		return response, nil, err

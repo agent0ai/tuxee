@@ -1,5 +1,5 @@
 import { locale, errorText, t } from './i18n';
-import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, focusPanelChrome } from './ui';
+import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, focusPanelChrome } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
@@ -664,9 +664,11 @@ export class FileView implements View {
         });
         if (choice === undefined) return;
         const operation = inTrash ? 'trash-delete' : choice ? 'delete' : 'trash';
+        await this.trashOperation(operation, t(operation === 'trash' ? 'files.moveToBin' : 'files.deletePermanently'), entries);
+    }
+    private async trashOperation(operation: string, name: string, entries: Entry[]) {
         try {
-            for (const entry of entries)
-                await api('/files', 'POST', { operation, path: entry.path }, this.events.signal);
+            await this.fileOperation(name, { operation, paths: operation === 'trash-empty' ? [] : entries.map(entry => entry.path) });
         }
         finally {
             this.refreshTrash(entries);
@@ -679,14 +681,12 @@ export class FileView implements View {
     private async restore() {
         const entries = this.chosen();
         if (!entries.length) return;
-        try { for (const entry of entries) await api('/files', 'POST', { operation: 'trash-restore', path: entry.path }, this.events.signal); }
-        finally { this.refreshTrash(entries); }
+        await this.trashOperation('trash-restore', t("files.restore"), entries);
     }
     private async emptyTrash() {
         const entries = this.entries;
         if (!await confirmAction(t("files.emptyTrashBin"), t("files.permanentlyDeleteEverythingInTheTrashBin"), t("files.emptyBin"))) return;
-        try { await api('/files', 'POST', { operation: 'trash-empty' }, this.events.signal); }
-        finally { this.refreshTrash(entries); }
+        await this.trashOperation('trash-empty', t("files.emptyBin"), entries);
     }
     private async downloadSelected() {
         const entries = this.chosen();
@@ -704,24 +704,33 @@ export class FileView implements View {
         if (this.disposed || this.inspector || path !== this.panel.path) return;
         if (!this.pasteInput(data)) this.notice(t("files.noTuxeeFilesOnTheClipboard"));
     }
+    private async fileOperation(name: string, request: { operation: string; paths: string[]; destination?: string; mode?: string }, settled?: (path: string, error?: unknown) => void) {
+        const results = [];
+        await trackOperation(name, request.paths.length || 1, async (signal, progress) => {
+            let response;
+            try { response = await api('/files', 'POST', request, AbortSignal.any([signal, this.events.signal])); }
+            catch (error) {
+                // A worker failure can lose the results after some moves already committed.
+                for (const path of request.paths) settled?.(path, error instanceof APIError ? new Error(error.message) : error);
+                throw error;
+            }
+            for (const [index, result] of (response.results ?? [response]).entries()) {
+                const error = result.error ? new APIError(errorText(result), 400) : undefined;
+                settled?.(request.paths[index], error);
+                if (error) throw error;
+                results.push(result);
+                progress(index + 1);
+            }
+        }, this.root);
+        return results;
+    }
     private async transfer(entries: DraggedFile[], path: string, operation: 'copy' | 'move', settled?: (path: string, error?: unknown) => void) {
         if (!path.startsWith('/')) throw new Error(t("files.useAnAbsoluteDestinationPath"));
         entries = entries.filter(entry => operation !== 'move' || entry.path !== join(path, entry.name));
         if (!entries.length) return [];
-        const paths: string[] = [];
         try {
-            await trackOperation(operation === 'copy' ? t("common.copy") : t("files.move"), entries.length, async (signal, progress) => {
-                for (const [index, entry] of entries.entries()) {
-                    signal.throwIfAborted();
-                    let result: { path: string };
-                    try { result = await api('/files', 'POST', { operation, path: entry.path, destination: join(path, entry.name) }, signal); }
-                    catch (error) { settled?.(entry.path, error); throw error; }
-                    settled?.(entry.path);
-                    paths.push(result.path);
-                    progress(index + 1);
-                }
-            }, this.root);
-            return paths;
+            const results = await this.fileOperation(operation === 'copy' ? t("common.copy") : t("files.move"), { operation, paths: entries.map(entry => entry.path), destination: path }, settled);
+            return results.map(result => result.path);
         } finally {
             await Promise.all([...instances].map(view => view.refresh().catch(() => {})));
         }
@@ -799,8 +808,7 @@ export class FileView implements View {
     private async properties() {
         const paths = this.chosen().map(entry => entry.path);
         if (!paths.length) paths.push(this.panel.path);
-        const entries = [];
-        for (const path of paths) entries.push((await api('/files', 'POST', { operation: 'stat', path })).entry);
+        const entries = (await this.fileOperation(t("common.properties"), { operation: 'stat', paths })).map(result => result.entry);
         if (this.disposed) return;
         const common = (get: (entry: any) => unknown) => entries.every(entry => get(entry) === get(entries[0])) ? String(get(entries[0])) : undefined;
         const content = el('div', 'form'), details = el('dl', 'properties');
@@ -826,7 +834,7 @@ export class FileView implements View {
         const permissions = el('div', 'permissions-row');
         permissions.append(label, button(t("files.apply"), undefined, async () => {
             if (!input.reportValidity()) return;
-            try { for (const entry of entries) await api('/files', 'POST', { operation: 'chmod', path: entry.path, mode: input.value }); close(); }
+            try { await this.fileOperation(t("common.permissions"), { operation: 'chmod', paths, mode: input.value }); close(); }
             finally { await this.refresh(); }
         }, 'primary'));
         content.append(details, permissions);

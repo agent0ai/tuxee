@@ -157,6 +157,63 @@ try {
     await row('mounted.txt').waitFor({ state: 'detached' }); await row('folder').waitFor({ state: 'detached' });
     for (const root of [trash, volumeTrash]) for (const sub of ['files', 'info']) assert.deepEqual(await readdir(root + '/' + sub), []);
     assert.ok(await button('Restore').isDisabled()); assert.ok(await button('Empty bin').isDisabled());
+    // A large selection uses one worker request and shows status before it finishes.
+    const uploads = home + '/uploads';
+    await mkdir(uploads); await chown(uploads, uid, gid);
+    for (let i = 0; i < 87; i++) {
+        const path = `${uploads}/file-${String(i).padStart(3, '0')}.txt`;
+        await writeFile(path, `content ${i}`); await chown(path, uid, gid);
+    }
+    await button('Home directory').click(); await row('uploads').dblclick();
+    await row('file-000.txt').waitFor(); await list.press('Control+a'); await list.press('Delete');
+    let release, mutations = 0;
+    const held = new Promise(resolve => { release = resolve; });
+    const holdTrash = async route => {
+        const data = route.request().postDataJSON();
+        if (data?.operation === 'trash') {
+            mutations++; assert.equal(data.paths.length, 87);
+            await held;
+        }
+        await route.continue();
+    };
+    await page.route('**/api/files', holdTrash);
+    const completed = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'trash');
+    await confirmation.getByRole('button', { name: 'Move to bin', exact: true }).click();
+    const progress = page.locator('[data-panel=files] .transfer').last();
+    await progress.waitFor();
+    assert.match(await progress.innerText(), /Move to bin/);
+    assert.equal(await progress.locator('progress').getAttribute('value'), null, 'pending operation must animate without claiming completion');
+    assert.equal((await readdir(uploads)).length, 87);
+    const start = performance.now(); release();
+    assert.equal((await completed).status(), 200);
+    await file.getByText('Empty folder', { exact: true }).waitFor();
+    assert.equal(mutations, 1); assert.equal((await readdir(uploads)).length, 0);
+    console.log(`PASS 87-file trash: one request, immediate local status, ${Math.round(performance.now() - start)} ms after release`);
+    for (let i = 0; i < 87; i++) assert.equal(await readFile(`${trash}/files/file-${String(i).padStart(3, '0')}.txt`, 'utf8'), `content ${i}`);
+    await page.unroute('**/api/files', holdTrash);
+    await button('Trash bin').click(); await row('file-000.txt').waitFor();
+    await list.press('Control+a'); await button('Restore').click();
+    await file.getByText('Empty folder', { exact: true }).waitFor();
+    assert.equal((await readdir(uploads)).length, 87);
+    assert.deepEqual(await readdir(trash + '/info'), []);
+    await button('Home directory').click(); await row('uploads').dblclick();
+    await row('file-000.txt').waitFor(); await list.press('Control+a');
+    const propertyRequests = [];
+    const recordProperties = request => {
+        if (!request.url().endsWith('/api/files')) return;
+        const data = request.postDataJSON();
+        if (['stat', 'chmod'].includes(data?.operation)) propertyRequests.push(data);
+    };
+    page.on('request', recordProperties);
+    await button('Properties').click();
+    const properties = page.getByRole('dialog', { name: 'Properties', exact: true });
+    await properties.getByRole('textbox', { name: 'Permissions', exact: true }).fill('640');
+    await properties.getByRole('button', { name: 'Apply', exact: true }).click();
+    await properties.waitFor({ state: 'detached' });
+    page.off('request', recordProperties);
+    assert.deepEqual(propertyRequests.map(request => [request.operation, request.paths.length]), [['stat', 87], ['chmod', 87]]);
+    for (const name of await readdir(uploads)) assert.equal((await lstat(uploads + '/' + name)).mode & 0o777, 0o640);
+    console.log('PASS 87-file Properties and permission changes each use one request');
     // Narrow overflow entries retain their disabled state with no selection.
     await button('Home directory').click(); await row('locked').waitFor();
     await file.locator('..').evaluate(node => node.style.width = '180px');

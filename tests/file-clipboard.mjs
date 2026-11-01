@@ -108,6 +108,44 @@ try {
     assert.equal(await readlink(dst + '/folder/link'), '../alpha.txt');
     console.log('PASS menu copy/paste shares keyboard metadata and copies directories with symlinks');
 
+    const bulk = Array.from({ length: 87 }, (_, i) => `bulk-${String(i).padStart(3, '0')}.txt`);
+    for (const name of bulk) await put(src + '/' + name, name);
+    await source.getByRole('button', { name: 'Refresh files', exact: true }).click();
+    await row(source, bulk[0]).waitFor();
+    for (const operation of ['copy', 'move']) {
+        await row(source, bulk[0]).click(); await row(source, bulk.at(-1)).click({ modifiers: ['Shift'] });
+        let release;
+        const held = new Promise(resolve => { release = resolve; });
+        const hold = async route => {
+            if (route.request().postDataJSON()?.operation === operation) await held;
+            await route.continue();
+        };
+        await page.route('**/api/files', hold);
+        const before = mutations.length;
+        const completed = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === operation);
+        if (operation === 'copy') await page.keyboard.down('Control');
+        await row(source, bulk[0]).locator('.file-name').dragTo(destination.locator('.file-columns'));
+        if (operation === 'copy') await page.keyboard.up('Control');
+        const progress = destination.locator('.transfer').last();
+        await progress.waitFor();
+        assert.equal(await progress.locator('progress').getAttribute('value'), null);
+        const start = performance.now(); release();
+        assert.equal((await completed).status(), 200);
+        await row(destination, bulk.at(-1)).waitFor();
+        assert.equal(mutations.length - before, 1, `${operation} must use one request`);
+        assert.equal(mutations.at(-1).paths.length, 87);
+        console.log(`PASS 87-file drag ${operation}: one request, immediate status, ${Math.round(performance.now() - start)} ms after release`);
+        for (const name of bulk) {
+            assert.equal(await readFile(dst + '/' + name, 'utf8'), name);
+            if (operation === 'copy') assert.equal(await readFile(src + '/' + name, 'utf8'), name);
+            else await assert.rejects(readFile(src + '/' + name), { code: 'ENOENT' });
+            await rm(dst + '/' + name);
+        }
+        await page.unroute('**/api/files', hold);
+        await destination.getByRole('button', { name: 'Refresh files', exact: true }).click();
+        await row(destination, bulk[0]).waitFor({ state: 'detached' });
+    }
+
     await ready(); await select(['a-move.txt', 'b-conflict.txt', 'c-tail.txt']); await page.keyboard.press('Control+X');
     const cut = await payload(); assert.equal(cut.data.action, 'cut');
     assert.equal(await source.locator('.file-cut').count(), 3);
@@ -126,6 +164,26 @@ try {
     await page.getByText('This cut has ended. Cut the files again.', { exact: true }).last().waitFor();
     assert.equal(mutations.length, beforeConsumed); assert.equal(await readFile(src + '/a-move.txt', 'utf8'), 'new file at old path');
     console.log('PASS partial cut failure, collision preservation, retry of remaining items and consumed-cut protection');
+
+    for (const name of ['uncertain-a.txt', 'uncertain-b.txt']) await put(src + '/' + name, name);
+    await source.getByRole('button', { name: 'Refresh files', exact: true }).click(); await ready();
+    await select(['uncertain-a.txt', 'uncertain-b.txt']); await page.keyboard.press('Control+X');
+    const loseResults = async route => {
+        if (route.request().postDataJSON()?.operation !== 'move') return route.continue();
+        const response = await route.fetch(); assert.equal(response.status(), 200);
+        await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'worker stopped before returning results' }) });
+    };
+    await page.route('**/api/files', loseResults);
+    await paste(destination);
+    await destination.locator('.transfer.failed').last().getByText(/worker stopped/).waitFor();
+    await page.unroute('**/api/files', loseResults);
+    await eventually(async () => assert.equal(await source.locator('.file-cut').count(), 0));
+    const beforeUncertainRetry = mutations.length;
+    await put(src + '/uncertain-a.txt', 'new source'); await paste(destination); await pause(200);
+    assert.equal(mutations.length, beforeUncertainRetry);
+    assert.equal(await readFile(src + '/uncertain-a.txt', 'utf8'), 'new source');
+    assert.equal(await readFile(dst + '/uncertain-a.txt', 'utf8'), 'uncertain-a.txt');
+    console.log('PASS lost batch results never replay possibly completed cuts');
 
     await ready(); await select(['alpha.txt']); await page.keyboard.press('Control+X'); await page.keyboard.press('Control+C');
     assert.equal((await payload()).data.action, 'copy'); assert.equal(await source.locator('.file-cut').count(), 0);
@@ -190,7 +248,7 @@ try {
     const blocked = new Promise(resolve => release = resolve);
     await page.route('**/api/files', async route => {
         const data = route.request().postDataJSON();
-        if (data.operation === 'move' && data.path === src + '/cancel.txt') { heldRoute = route; release(); }
+        if (data.operation === 'move' && data.paths?.includes(src + '/cancel.txt')) { heldRoute = route; release(); }
         else await route.continue();
     });
     await select(['cancel.txt']); await page.keyboard.press('Control+X');
