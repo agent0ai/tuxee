@@ -17,8 +17,8 @@ terminals. Also available as a standalone web interface for existing Linux serve
 <table>
   <tr>
     <td width="50%" align="center" valign="middle">
-      <a href=".github/resources/screenshots/lightweight-metrics.jpg" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/lightweight-metrics-thumb.jpg" alt="Tuxee metrics infographic: 0% CPU, 10 MB RAM, 60 MB Docker image and 1 second startup time" width="100%">
+      <a href=".github/resources/screenshots/lightweight-metrics.webp" target="_blank" rel="noopener noreferrer">
+        <img src=".github/resources/screenshots/lightweight-metrics-thumb.webp" alt="Tuxee metrics infographic: 0% CPU, 20 MB RAM, 60 MB Docker image and 1 second startup time" width="100%">
       </a>
     </td>
     <td width="50%" valign="middle">
