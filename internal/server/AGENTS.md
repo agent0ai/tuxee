@@ -94,6 +94,8 @@ Keep frontend protocol and real-system tests in sync. Do not weaken shared owner
 
 # Verification
 
+Credential-dropped update-worker, restart-permission and real PTY fixtures require root and skip explicitly otherwise. Run `go test ./internal/server` as root as well as unprivileged; an ordinary-user pass alone does not cover these paths.
+
 `TUXEE_SYSTEM_TEST=1 go test -race ./internal/server -run TestDisplayKeepalive` completes real VNC authentication, checks healthy idle connections and missing-pong disconnection, and verifies applications survive viewer loss. Requires `tuxee-Xvnc` and `xterm` on PATH.
 
 Instance-cookie tests share one HTTP cookie jar across two server ports and verify exact-name admission, legacy-cookie rejection and logout/session isolation. CLI tests cover ID persistence, independent directories, private permissions and malformed/read-failure preservation. `tests/instance-sessions.mjs` checks real login/PTY/restart behavior across two Docker runtimes.

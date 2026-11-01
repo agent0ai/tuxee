@@ -67,6 +67,9 @@ func updateTestWorker() {
 
 func updateServer(t *testing.T, user identity.User, fixture updateFixture) (*Server, string) {
 	t.Helper()
+	if os.Geteuid() != 0 {
+		t.Skip("credential-dropped worker requires root")
+	}
 	// Direct /tmp child lets credential-dropped workers traverse the fixture.
 	dir, err := os.MkdirTemp("", "tuxee-update-api-")
 	if err != nil {

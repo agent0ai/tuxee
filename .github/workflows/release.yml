@@ -59,6 +59,7 @@ jobs:
           go build -ldflags='-X main.version=0.2.1' -o bin/tuxee-setup ./cmd/tuxee
           sudo env TUXEE_SETUP_TEST_BINARY="$PWD/bin/tuxee-setup" python3 tests/setup.py
           go test ./internal/... ./cmd/... ./tests
+          sudo env GOMAXPROCS=2 "$(command -v go)" test -p 2 ./internal/... ./cmd/... ./tests
           sudo env TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 "$(command -v go)" test -p 2 ./internal/identity ./tests
           go vet ./internal/... ./cmd/... ./tests
           python3 .github/release-notes.py --self-test

@@ -135,6 +135,9 @@ func TestGuardianDeathWakesWaiters(t *testing.T) {
 
 func fixture(t testing.TB, script string) (*Client, *Job, identity.User, string) {
 	t.Helper()
+	if os.Geteuid() != 0 {
+		t.Skip("credential-dropped worker requires root")
+	}
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	u, err := identity.Lookup(os.Getenv("USER"))
 	if err != nil {

@@ -28,6 +28,8 @@ Prefer generic, bounded primitives needed by current callers. Avoid embedding pr
 
 # Verification
 
+The shared client/benchmark fixture requires root to launch credential-dropped workers; skip it explicitly otherwise. Run `go test ./internal/keeper` as root for helper coverage. Elevated-descendant cleanup additionally requires `TUXEE_SYSTEM_TEST=1` and the dedicated `tuxee-poc-desktop` account.
+
 Run package tests with real PTYs and native helpers, including server-client SIGKILL, journal/checkpoint recovery, malformed protocol, peer permissions, descriptor leaks, process cleanup and byte-exact relays. Run the existing terminal, GUI/audio and browser regression suites after integration; keep browser suites sequential.
 
 # Child DOX Index
