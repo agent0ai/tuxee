@@ -2,6 +2,11 @@ import { t } from './i18n';
 
 export const MAX_PAGE_BYTES = 1 << 20, MAX_PAGE_ROWS = 10000, WRAP_COLUMNS = 1000;
 export type TextPage = { offset: number; end: number; total: number; lineBreaks: number; hash: string };
+export type EditorSession = {
+    path: string; positions: { offset: number; line: number }[]; index: number;
+    anchor: number; head: number; top: number; left: number; syntax: string;
+    edits: { page: TextPage; bytes: number; lineBreaks: number }[];
+};
 
 export function languageFor(path: string): string {
     const name = path.split('/').pop()!, extension = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';

@@ -55,7 +55,11 @@ const tool = name => toolbar.getByRole('button', { name, exact: true });
 const tools = page.getByRole('dialog', { name: 'File tools', exact: true });
 const requests = [];
 page.on('request', request => { if (request.url() === base + '/api/files') requests.push(request.postDataJSON()); });
-async function open(target) { await path.fill(target); await path.press('Enter'); }
+async function open(target, waitForReplacement = true) {
+ const [previous] = await file.locator('.file-inspector').elementHandles();
+ await path.fill(target); await path.press('Enter');
+ if (previous) { if (waitForReplacement) await page.waitForFunction(node => !node.isConnected, previous); await previous.dispose(); }
+}
 async function back(parent = dir) {
  await tool('Back to files').click(); await file.locator('.file-inspector').waitFor({ state: 'detached' });
  assert.equal(await path.inputValue(), parent);
@@ -127,15 +131,15 @@ try {
  await wrapped(false); await tool('Undo').click();
  assert.equal(await readFile(dir + '/wrap.txt', 'utf8'), longLine);
  await back(); await open(dir + '/syntax.sh'); await content.waitFor(); assert.equal(await wrap.isChecked(), false);
- await page.reload(); await file.locator('.file-entry').first().waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.equal(await wrap.isChecked(), false, 'false survives reload');
+ await page.reload(); await content.waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.equal(await wrap.isChecked(), false, 'false survives reload');
  const rejectWrap = route => route.request().method() === 'PUT' ? route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'wrap setting rejected' }) }) : route.continue();
- await page.route('**/api/settings', rejectWrap); await wrap.check();
+ await page.route('**/api/settings', rejectWrap); await wrap.click();
  await file.locator('..').locator('.toast').filter({ hasText: 'wrap setting rejected' }).waitFor();
  await page.waitForFunction(() => !document.querySelector('.inspector-footer input').disabled);
  assert.equal(await wrap.isChecked(), false, 'failed save restores wrapping');
  await page.unroute('**/api/settings', rejectWrap);
  await back(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.equal(await wrap.isChecked(), false, 'failed save restores the next-file preference');
- await wrapped(true); await page.reload(); await file.locator('.file-entry').first().waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.ok(await wrap.isChecked(), 'true survives reload');
+ await wrapped(true); await page.reload(); await content.waitFor(); await open(dir + '/wrap.txt'); await content.waitFor(); assert.ok(await wrap.isChecked(), 'true survives reload');
  await back(); await open(dir + '/paged.txt'); await content.waitFor();
  assert.equal(await footer.locator('.inspector-size').textContent(), '1.4M');
  assert.ok(await footer.locator('.inspector-info > .file-footer-separator').isVisible());
@@ -175,20 +179,20 @@ try {
  await page.keyboard.press('Control+Shift+z'); assert.ok(await tool('Redo').isDisabled());
  await mkdir('test-results', { recursive: true }); await page.screenshot({ path: 'test-results/inspector-editor-desktop.png' });
  await edited(' unsaved');
- await open(dir + '/copies/other.txt');
+ await open(dir + '/copies/other.txt', false);
  await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
  assert.equal(await path.inputValue(), dir + '/alpha.txt'); assert.match(await content.textContent(), /unsaved$/);
- await open(dir + '/missing'); await file.locator('..').getByText(/no such file/).waitFor();
+ await open(dir + '/missing', false); await file.locator('..').getByText(/no such file/).waitFor();
  assert.match(await content.textContent(), /unsaved$/, 'failed navigation preserves draft');
  await path.press('Escape'); assert.equal(await path.inputValue(), dir + '/alpha.txt');
- await open(dir + '/copies/other.txt');
+ await open(dir + '/copies/other.txt', false);
  await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).getByRole('button', { name: 'Discard', exact: true }).click();
  await page.waitForFunction(() => document.querySelector('.cm-content')?.textContent === 'other file');
  assert.equal(await path.inputValue(), dir + '/copies/other.txt'); await back(dir + '/copies');
  await open(dir + '/search-only/readable.txt'); await content.waitFor();
  assert.equal(await content.textContent(), 'direct access');
  assert.ok(!requests.some(request => request.operation === 'list' && request.path === dir + '/search-only'), 'direct opening does not require a parent listing');
- await open(dir + '/search-only');
+ await open(dir + '/search-only', false);
  await file.locator('..').locator('.toast').filter({ hasText: /permission denied/ }).waitFor();
  assert.equal(await content.textContent(), 'direct access', 'unreadable parent preserves the open file');
  assert.equal(await file.locator('.file-inspector').evaluate(node => node.inert), false, 'failed navigation restores interaction');

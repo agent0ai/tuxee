@@ -3,6 +3,7 @@ import { api, ask, bindContextMenu, button, confirmAction, el, icon, modal, noti
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
+import type { EditorSession } from './editor-page';
 import { fittingHeaderItemCount } from './overflow';
 import { folderSize } from './file-size';
 import { compactSize } from './monitor-values';
@@ -242,7 +243,15 @@ export class FileView implements View {
         const observer = new ResizeObserver(fitActions); observer.observe(actions); fitActions();
         this.events.signal.addEventListener('abort', () => { observer.disconnect(); this.closeMenu(); }, { once: true });
         this.paintSelection();
-        this.navigate(this.pathInput.value).catch(this.notice);
+        this.restoreEditor().catch(this.notice);
+    }
+    private async restoreEditor() {
+        await this.hooks.changed(true);
+        if (this.disposed || this.request || this.inspector) return;
+        const { editor } = await api('/files', 'POST', { operation: 'editor-load', editorId: this.panel.id }, this.events.signal);
+        if (this.disposed || this.request || this.inspector) return;
+        if (editor) await this.openFile({ path: editor.path, name: editor.path.split('/').pop(), directory: false } as Entry, undefined, undefined, undefined, editor);
+        else await this.navigate(this.pathInput.value);
     }
     private notice = (value: unknown) => notify(value, this.root);
     private showPath = (path: string, dirty = false) => {
@@ -254,7 +263,7 @@ export class FileView implements View {
     };
     async openPath(path: string, line?: number, column?: number): Promise<boolean> {
         if (path === trashPath) {
-            if (this.inspector) await this.inspector.leave(async () => { if (await this.navigate(path)) { this.inspector?.dispose(); this.inspector = undefined; this.showPath(path); } });
+            if (this.inspector) await this.inspector.leave(async () => { if (await this.navigate(path)) { await this.inspector?.discard(); this.inspector?.dispose(); this.inspector = undefined; this.showPath(path); } });
             else await this.navigate(path);
             return this.panel.path === path && !this.inspector;
         }
@@ -269,6 +278,7 @@ export class FileView implements View {
                     if (request.signal.aborted || this.disposed) return;
                     this.request = undefined;
                     if (!await this.navigate(entry.path)) return;
+                    await this.inspector?.discard();
                     this.inspector?.dispose(); this.inspector = undefined;
                     this.showPath(this.panel.path);
                     opened = true;
@@ -716,30 +726,40 @@ export class FileView implements View {
             await Promise.all([...instances].map(view => view.refresh().catch(() => {})));
         }
     }
-    private async openFile(entry = this.single(), signal?: AbortSignal, line?: number, column?: number): Promise<boolean> {
+    private async openFile(entry = this.single(), signal?: AbortSignal, line?: number, column?: number, restored?: EditorSession): Promise<boolean> {
         if (!signal) this.request?.abort();
         if (entry.directory) return !!await this.navigate(entry.path, '');
-        if (this.inspector && !await this.inspector.canClose()) return false;
-        if (this.disposed || signal?.aborted) return false;
-        if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) { await this.archiveDialog(true, entry); return true; }
-        this.request?.abort(); this.request = undefined;
-        const parent = entry.path.split('/').slice(0, -1).join('/') || '/';
-        const files = parent === this.panel.path ? this.visibleEntries().filter(file => !file.directory) : [];
-        if (!files.some(file => file.path === entry.path)) files.push(entry);
-        if (parent !== this.panel.path) {
-            this.panel.path = parent; this.entries = []; this.selected.clear(); this.filter = this.filterInput.value = '';
-            this.hooks.changed();
-        }
-        this.inspector?.dispose();
-        this.inspector = new FileInspector(this.root, files, entry.path, async path => {
-            if (!await this.navigate(path.split('/').slice(0, -1).join('/') || '/')) return;
-            const restoreFocus = document.activeElement === document.body || this.root.contains(document.activeElement);
-            this.inspector?.dispose(); this.inspector = undefined; this.showPath(this.panel.path);
-            if (restoreFocus) this.focus(path);
-        }, this.showPath, this.hooks, line, column);
-        return true;
+        const open = async () => {
+            if (this.disposed || signal?.aborted) return false;
+            if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) { await this.archiveDialog(true, entry); return true; }
+            this.request?.abort(); this.request = undefined;
+            const parent = entry.path.split('/').slice(0, -1).join('/') || '/';
+            const files = parent === this.panel.path ? this.visibleEntries().filter(file => !file.directory) : [];
+            if (!files.some(file => file.path === entry.path)) files.push(entry);
+            if (parent !== this.panel.path) {
+                this.panel.path = parent; this.entries = []; this.selected.clear(); this.filter = this.filterInput.value = '';
+                this.hooks.changed();
+            }
+            await this.hooks.changed(true);
+            if (this.disposed) return false;
+            await this.inspector?.discard();
+            this.inspector?.dispose();
+            this.inspector = new FileInspector(this.root, files, entry.path, async path => {
+                if (!await this.navigate(path.split('/').slice(0, -1).join('/') || '/')) return;
+                await this.inspector?.discard();
+                const restoreFocus = document.activeElement === document.body || this.root.contains(document.activeElement);
+                this.inspector?.dispose(); this.inspector = undefined; this.showPath(this.panel.path);
+                if (restoreFocus) this.focus(path);
+            }, this.showPath, this.hooks, this.panel.id, line, column, restored);
+            return true;
+        };
+        if (!this.inspector) return open();
+        let opened = false;
+        await this.inspector.leave(async () => { opened = await open(); });
+        return opened;
     }
     canClose = () => this.inspector?.canClose() ?? Promise.resolve(true);
+    canLeave = () => this.inspector?.canLeave() ?? Promise.resolve(true);
     private async archiveDialog(extract = false, entry?: Entry) {
         const entries = extract ? [entry || this.single()] : this.chosen();
         if (!entries.length) throw new Error(t("file.clipboard.selectFilesFirst"));

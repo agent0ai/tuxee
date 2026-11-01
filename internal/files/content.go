@@ -225,47 +225,58 @@ func saveText(ctx context.Context, path, content, version string, page *TextPage
 	if int64(len(data)) != page.End-page.Offset || textVersion(data) != page.Hash {
 		return Response{}, errTextChanged
 	}
-	staged, err := os.CreateTemp(filepath.Dir(real), ".tuxee-edit-*")
-	if err != nil {
-		return Response{}, err
-	}
-	defer os.Remove(staged.Name())
-	defer staged.Close()
 	// A page is a replacement range: retain the complete prefix and suffix.
 	source := io.MultiReader(io.NewSectionReader(file, 0, page.Offset), strings.NewReader(content), io.NewSectionReader(file, page.End, info.Size()-page.End))
-	written, err := io.CopyBuffer(staged, &contextReader{ctx, source}, make([]byte, 128<<10))
 	total := info.Size() - (page.End - page.Offset) + int64(len(content))
-	if err != nil {
-		return Response{}, err
-	}
-	if written != total {
-		return Response{}, i18n.New("backend.files.incompleteFileSave")
-	}
-	stat := info.Sys().(*syscall.Stat_t)
-	if err = staged.Chown(int(stat.Uid), int(stat.Gid)); err != nil {
-		return Response{}, err
-	}
-	if err = staged.Chmod(info.Mode().Perm()); err != nil {
-		return Response{}, err
-	}
-	if err = preserveAttributes(file, staged); err != nil {
-		return Response{}, err
-	}
-	if err = staged.Sync(); err != nil {
-		return Response{}, err
-	}
-	if err = ctx.Err(); err != nil {
-		return Response{}, err
-	}
-	if err = textUnchanged(file, real, info); err != nil {
-		return Response{}, err
-	}
-	if err = os.Rename(staged.Name(), real); err != nil {
-		return Response{}, err
-	}
-	saved, err := staged.Stat()
+	saved, err := replaceText(ctx, file, real, info, total, func(out io.Writer) (int64, error) {
+		return io.CopyBuffer(out, &contextReader{ctx, source}, make([]byte, 128<<10))
+	})
 	if err != nil {
 		return Response{}, err
 	}
 	return Response{Path: path, Version: textFileVersion(saved), Page: &TextPage{Offset: page.Offset, End: page.Offset + int64(len(content)), Total: total, LineBreaks: breaks, Hash: textVersion([]byte(content))}}, nil
+}
+
+// Both direct page writes and staged editor saves share permission/attribute/commit handling.
+func replaceText(ctx context.Context, file *os.File, real string, info os.FileInfo, total int64, write func(io.Writer) (int64, error)) (os.FileInfo, error) {
+	staged, err := os.CreateTemp(filepath.Dir(real), ".tuxee-edit-*")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(staged.Name())
+	defer staged.Close()
+	written, err := write(staged)
+	if err != nil {
+		return nil, err
+	}
+	if written != total {
+		return nil, i18n.New("backend.files.incompleteFileSave")
+	}
+	stat := info.Sys().(*syscall.Stat_t)
+	if err = staged.Chown(int(stat.Uid), int(stat.Gid)); err != nil {
+		return nil, err
+	}
+	if err = staged.Chmod(info.Mode().Perm()); err != nil {
+		return nil, err
+	}
+	if err = preserveAttributes(file, staged); err != nil {
+		return nil, err
+	}
+	if err = staged.Sync(); err != nil {
+		return nil, err
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err = textUnchanged(file, real, info); err != nil {
+		return nil, err
+	}
+	if err = os.Rename(staged.Name(), real); err != nil {
+		return nil, err
+	}
+	saved, err := staged.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return saved, nil
 }

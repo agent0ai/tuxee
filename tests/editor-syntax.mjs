@@ -69,7 +69,7 @@ try {
     const paint = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const open = async name => {
         const file = `${home}/${name}`;
-        const read = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'read' && response.request().postDataJSON()?.path === file);
+        const read = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'editor-read');
         await path.fill(file); await path.press('Enter'); await read;
         await page.locator('.inspector-body[aria-busy="false"] .cm-content').waitFor(); await paint();
     };

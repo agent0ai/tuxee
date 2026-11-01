@@ -79,6 +79,7 @@ export type View = {
     dispose: () => void;
     resize?: () => void;
     canClose?: () => Promise<boolean>;
+    canLeave?: () => Promise<boolean>;
 };
 export const id = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 export const join = (path: string, name: string) => `${path.replace(/\/$/, '')}/${name}`;

@@ -5,7 +5,7 @@ import { api, button, confirmAction, el, notify, popover, scopeNotifications } f
 import { fittingHeaderItemCount } from './overflow';
 import { download } from './transfers';
 import type { DraggedFile } from './file-drag';
-import { languageFor, PageDraft, pageLimitError, type TextPage } from './editor-page';
+import { languageFor, PageDraft, pageLimitError, type TextPage, type EditorSession } from './editor-page';
 import type { Hooks } from './model';
 import { compactSize } from './monitor-values';
 import { ImageViewer, isImage } from './image-viewer';
@@ -87,7 +87,12 @@ export class FileInspector {
     private page?: TextPage;
     private positions = [{ offset: 0, line: 1 }];
     private pageIndex = 0;
-    private version = '';
+    private original = '';
+    private checkpointTimer?: ReturnType<typeof setTimeout>;
+    private checkpointPromise?: Promise<void>;
+    private pending = false;
+    private contentPending = false;
+    private session?: EditorSession;
     private dirty = false;
     private saving = false;
     private loading = false;
@@ -96,14 +101,15 @@ export class FileInspector {
     private request?: AbortController;
     private events = new AbortController();
     private index: number;
-    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void, private preferences: Pick<Hooks, 'editorLineWrap' | 'setEditorLineWrap'>, private targetLine?: number, private targetColumn?: number) {
+    constructor(private host: HTMLElement, private files: DraggedFile[], path: string, private closed: (path: string) => Promise<void>, private changed: (path: string, dirty: boolean) => void, private preferences: Pick<Hooks, 'editorLineWrap' | 'setEditorLineWrap'>, private panelID: string, private targetLine?: number, private targetColumn?: number, restored?: EditorSession) {
+        this.session = restored;
         if (mediaKind(path)) this.files = files.filter(file => mediaKind(file.name));
         this.index = this.files.findIndex(file => file.path === path);
         scopeNotifications(this.root, host);
         this.root.tabIndex = -1;
         this.syntax.setAttribute('aria-label', t("editor.syntax"));
         for (const name of modes) { const option = el('option', '', name === 'text' ? t('editor.plainText') : name === 'shell' ? t('app.shell') : name); option.value = name; this.syntax.append(option); }
-        this.syntax.onchange = () => this.setLanguage().catch(error => notify(error, host));
+        this.syntax.onchange = () => { this.scheduleCheckpoint(); this.setLanguage().catch(error => notify(error, host)); };
         this.pageLabel.setAttribute('aria-live', 'polite');
         this.filePosition.setAttribute('aria-live', 'polite');
         this.separator.setAttribute('aria-hidden', 'true');
@@ -125,13 +131,65 @@ export class FileInspector {
             else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!this.editor || !closeSearchPanel(this.editor)) this.close().catch(error => notify(error, host)); }
             else if (this.media && !["INPUT","SELECT","BUTTON"].includes((event.target as Element).tagName) && ["ArrowLeft",'ArrowRight'].includes(event.key)) { event.preventDefault(); this.step((event.key === 'ArrowLeft' ? -1 : 1) * (document.documentElement.dir === 'rtl' ? -1 : 1)).catch(error => notify(error, host)); }
         };
-        window.addEventListener('beforeunload', event => { if (this.dirty) event.preventDefault(); }, { signal: this.events.signal });
-        this.load().catch(error => notify(error, host));
+        window.addEventListener('beforeunload', event => { if (this.contentPending || this.checkpointPromise) { void this.checkpoint().catch(() => {}); event.preventDefault(); } }, { signal: this.events.signal });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) void this.checkpoint().catch(error => notify(error, host)); }, { signal: this.events.signal });
+        this.load().catch(error => {
+            if (this.events.signal.aborted) return;
+            this.loading = false;
+            this.body.replaceChildren(el('div', 'empty', errorText(error)));
+            this.controls();
+        });
     }
     private get file() { return this.files[this.index]; }
     focus() { if (this.editor) this.editor.focus(); else if (this.imageViewer) this.imageViewer.focus(); else this.root.focus(); }
-    canClose = async () => !this.root.inert && !this.saving && (!this.dirty || await confirmAction(t("editor.discardChanges"), this.file.name, t("editor.discard")));
+    canClose = async () => !this.root.inert && !this.saving && !this.loading && (!this.dirty || await confirmAction(t("editor.discardChanges"), this.file.name, t("editor.discard")));
+    private operation(operation: string, data = {}, signal = this.events.signal) {
+        return api('/files', 'POST', { operation: 'editor-' + operation, editorId: this.panelID, ...data }, signal);
+    }
+    private scheduleCheckpoint(content = false) {
+        if (!this.session || this.loading || this.events.signal.aborted) return;
+        this.pending = true; this.contentPending ||= content;
+        clearTimeout(this.checkpointTimer);
+        this.checkpointTimer = setTimeout(() => this.checkpoint().catch(error => notify(error, this.host)), 1000);
+    }
+    private async checkpoint() {
+        clearTimeout(this.checkpointTimer);
+        if (this.checkpointPromise) await this.checkpointPromise;
+        if (!this.pending || !this.session || !this.editor || this.events.signal.aborted) return;
+        const selection = this.editor.state.selection.main, scroll = this.editor.scrollDOM;
+        const session = { ...this.session, positions: this.positions, index: this.pageIndex, anchor: selection.anchor, head: selection.head,
+            top: scroll.scrollTop, left: scroll.scrollLeft, syntax: this.syntax.value };
+        const content = this.contentPending;
+        const data = { editor: session, ...(content ? { content: this.draft!.content(), page: this.page } : {}) };
+        this.pending = this.contentPending = false;
+        this.checkpointPromise = (async () => {
+            try {
+                const value = await this.operation('checkpoint', data);
+                this.session = value.editor;
+                this.controls();
+            } catch (error) { this.pending = true; this.contentPending ||= content; throw error; }
+        })();
+        try { await this.checkpointPromise; } finally { this.checkpointPromise = undefined; }
+    }
+    async canLeave() {
+        if (this.loading || this.saving) return false;
+        try { await this.checkpoint(); return true; }
+        catch (error) { notify(error, this.host); return false; }
+    }
+    async discard() {
+        clearTimeout(this.checkpointTimer);
+        await this.checkpointPromise?.catch(() => {});
+        if (this.session) await this.operation('close');
+        this.pending = this.contentPending = false; this.session = undefined;
+    }
+    private lineOffset(index: number) {
+        const position = this.positions[index];
+        return position.line + (this.session?.edits || []).filter(edit => edit.page.offset < position.offset)
+            .reduce((sum, edit) => sum + edit.lineBreaks - edit.page.lineBreaks, 0);
+    }
     private controls() {
+        this.dirty = !!this.session?.edits.some(edit => edit.page.offset !== this.page?.offset)
+            || !!this.draft && this.draft.content() !== this.original;
         this.changed(this.file.path, this.dirty);
         this.filePosition.textContent = `${this.index + 1}/${this.files.length}`;
         this.previous.disabled = this.next.disabled = this.files.length < 2;
@@ -140,7 +198,9 @@ export class FileInspector {
         this.footer.hidden = !this.editor;
         this.pageSeparator.hidden = this.pagination.hidden;
         if (this.page && this.draft) {
-            const bytes = this.page.total - (this.page.end - this.page.offset) + new TextEncoder().encode(this.draft.content()).length;
+            const otherEdits = (this.session?.edits || []).filter(edit => edit.page.offset !== this.page!.offset)
+                .reduce((sum, edit) => sum + edit.bytes - (edit.page.end - edit.page.offset), 0);
+            const bytes = this.page.total + otherEdits - (this.page.end - this.page.offset) + new TextEncoder().encode(this.draft.content()).length;
             this.size.textContent = compactSize(bytes, 1024);
             this.size.title = `${bytes.toLocaleString(locale())} B`;
         }
@@ -227,7 +287,7 @@ export class FileInspector {
         this.imageViewer?.dispose(); this.imageViewer = undefined;
         this.releaseMedia();
         this.editor?.destroy(); this.editor = undefined; this.dirty = false;
-        this.page = undefined; this.draft = undefined; this.pageIndex = 0; this.positions = [{ offset: 0, line: 1 }]; this.version = ''; this.loading = false;
+        this.page = undefined; this.draft = undefined; this.pageIndex = 0; this.positions = [{ offset: 0, line: 1 }]; this.loading = false;
         this.body.replaceChildren();
         this.changed(this.file.path, false);
         const kind = mediaKind(this.file.name), url = `/api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
@@ -256,16 +316,29 @@ export class FileInspector {
         }
         this.toolbar.replaceChildren(this.back, this.separator, ...this.toolbarItems, this.more);
         if (!this.media) {
-            await this.loadPage(0);
+            this.loading = true; this.controls();
+            if (!this.session) this.session = (await this.operation('open', { path: this.file.path })).editor;
+            if (this.events.signal.aborted) return;
+            this.positions = this.session!.positions;
+            const restore = this.targetLine ? undefined : this.session;
+            if (restore?.syntax && modes.includes(restore.syntax)) this.syntax.value = restore.syntax;
+            await this.loadPage(restore?.index || 0);
+            if (restore && this.editor) {
+                const length = this.editor.state.doc.length;
+                this.editor.dispatch({ selection: { anchor: Math.min(restore.anchor, length), head: Math.min(restore.head, length) } });
+                this.editor.requestMeasure({ read: () => null, write: () => {
+                    if (this.editor) { this.editor.scrollDOM.scrollTop = restore.top; this.editor.scrollDOM.scrollLeft = restore.left; }
+                } });
+            }
             const target = this.targetLine;
             this.targetLine = undefined;
-            while (target && this.page && this.editor && this.page.end < this.page.total && (target > this.positions[this.pageIndex].line + this.page.lineBreaks || target === this.positions[this.pageIndex].line + this.page.lineBreaks && this.editor.state.doc.line(this.editor.state.doc.lines).length === 0) && !this.events.signal.aborted) {
+            while (target && this.page && this.editor && this.page.end < this.page.total && (target > this.lineOffset(this.pageIndex) + this.page.lineBreaks || target === this.lineOffset(this.pageIndex) + this.page.lineBreaks && this.editor.state.doc.line(this.editor.state.doc.lines).length === 0) && !this.events.signal.aborted) {
                 const before = this.pageIndex;
                 await this.turnPage(1);
                 if (this.pageIndex === before) break;
             }
             if (target && this.editor) {
-                const number = Math.min(this.editor.state.doc.lines, Math.max(1, target - this.positions[this.pageIndex].line + 1));
+                const number = Math.min(this.editor.state.doc.lines, Math.max(1, target - this.lineOffset(this.pageIndex) + 1));
                 const row = this.editor.state.doc.line(number);
                 const offset = Math.min(row.to, row.from + Math.max(0, (this.targetColumn || 1) - 1));
                 this.editor.dispatch({ selection: { anchor: offset }, effects: EditorView.scrollIntoView(offset, { y: 'center' }) });
@@ -277,21 +350,24 @@ export class FileInspector {
     }
     private async loadPage(index: number) {
         const generation = ++this.sequence, position = this.positions[index];
+        const focusOwner = document.activeElement, focusHere = focusOwner === document.body || (this.host.closest('.panel') || this.host).contains(focusOwner);
         this.request?.abort(); const request = this.request = new AbortController();
         this.loading = true; this.controls();
         this.editor?.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(true)) });
         try {
-            const value = await api('/files', 'POST', { operation: 'read', path: this.file.path, offset: position.offset, version: this.version }, request.signal);
+            const value = await this.operation('read', { offset: position.offset }, request.signal);
+            this.session = value.editor;
+            const firstLine = this.lineOffset(index);
             if (generation !== this.sequence) return;
             const state = EditorState.create({ doc: value.content || '', extensions: [
                 EditorState.phrases.of({ 'Diagnostics': t('editor.diagnostics'), 'No diagnostics': t('editor.noDiagnostics'), 'Selection deleted': t('editor.selectionDeleted'), 'close': t('common.close'),
                     'Match on line $1: $2': t('editor.searchAnnouncement', { line: '$1', text: '$2' }),
                     'replaced match on line $': t('editor.searchReplacedLine', { line: '$1' }),
                     'replaced $ matches': t('editor.searchReplacedCount', { count: '$1' }) }),
-                lineNumbers({ formatNumber: number => String(position.line + number - 1) }),
+                lineNumbers({ formatNumber: number => String(firstLine + number - 1) }),
                 history(), bracketMatching(), indentOnInput(), highlighting,
                 this.wrapping.of(this.lineWrap.checked ? EditorView.lineWrapping : []),
-                search({ top: true, literal: true, lineOffset: position.line - 1, createPanel: view => editorSearchPanel(view, () => !!this.page && (this.pageIndex > 0 || this.page.end < this.page.total)) }),
+                search({ top: true, literal: true, lineOffset: firstLine - 1, createPanel: view => editorSearchPanel(view, () => !!this.page && (this.pageIndex > 0 || this.page.end < this.page.total)) }),
                 this.language.of([]), this.readOnly.of(EditorState.readOnly.of(false)),
                 keymap.of([...editorSearchKeymap, ...defaultKeymap, ...historyKeymap]),
                 EditorView.contentAttributes.of({ 'aria-label': t("editor.content") }),
@@ -304,18 +380,20 @@ export class FileInspector {
                     return transaction;
                 }),
                 EditorView.updateListener.of(update => {
-                    if (!update.docChanged) return;
-                    this.draft!.changes = this.draft!.changes.compose(update.changes);
-                    this.dirty = this.draft!.dirty(update.state.doc);
-                    this.controls();
+                    if (update.docChanged) {
+                        this.draft!.changes = this.draft!.changes.compose(update.changes);
+                        this.scheduleCheckpoint(true);
+                        this.controls();
+                    } else if (update.selectionSet) this.scheduleCheckpoint();
                 })
             ] });
             this.editor?.destroy(); this.body.replaceChildren();
             this.draft = new PageDraft(value.content || '', state);
-            this.pageIndex = index; this.page = value.page; this.version = value.version; this.dirty = false;
+            this.pageIndex = index; this.page = value.page; this.original = value.original ?? value.content;
             this.editor = new EditorView({ parent: this.body, state });
+            this.editor.scrollDOM.addEventListener('scroll', () => this.scheduleCheckpoint(), { signal: this.events.signal });
             await this.setLanguage();
-            if (generation === this.sequence) this.editor?.focus();
+            if (generation === this.sequence && focusHere && (document.activeElement === focusOwner || document.activeElement === document.body)) this.editor?.focus();
         } catch (error) {
             if (request.signal.aborted || generation !== this.sequence) return;
             if (this.editor) notify(error, this.host);
@@ -325,20 +403,25 @@ export class FileInspector {
                 this.loading = false;
                 this.editor?.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(false)) });
                 this.controls();
+                if (this.editor) this.scheduleCheckpoint();
             }
         }
     }
     private async save() {
         if (!this.editor || !this.dirty || this.saving || this.loading) return;
-        const content = this.draft!.content(), path = this.file.path, editor = this.editor;
+        const content = this.draft!.content(), editor = this.editor;
         this.saving = true; this.controls();
         editor.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(true)) });
         try {
-            const result = await api('/files', 'POST', { operation: 'write', path, content, version: this.version, page: this.page }, this.events.signal);
+            await this.checkpoint();
+            const result = await this.operation('save');
             if (this.events.signal.aborted) return;
+            this.session = result.editor;
+            this.positions = this.session!.positions; this.pageIndex = this.session!.index;
+            this.page = result.page || this.page;
+            this.original = content;
             this.draft = new PageDraft(content, editor.state);
-            this.version = result.version; this.page = result.page; this.dirty = false;
-            this.positions.length = this.pageIndex + 1;
+            this.controls(); this.scheduleCheckpoint();
             notify(t("editor.saved"), this.host);
         } finally {
             this.saving = false;
@@ -350,15 +433,18 @@ export class FileInspector {
     }
     private async turnPage(direction: number) {
         if (!this.page || this.loading || this.saving || (direction < 0 && !this.pageIndex) || (direction > 0 && this.page.end >= this.page.total)) return;
-        if (this.dirty) {
-            if (!await confirmAction(t("editor.saveChanges"), this.file.name, t("editor.saveAndContinue"))) return;
-            if (this.events.signal.aborted) return;
-            await this.save();
-            if (this.dirty || this.events.signal.aborted) return;
+        this.loading = true; this.controls();
+        this.editor?.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(true)) });
+        try {
+            await this.checkpoint();
+            const next = this.pageIndex + (direction > 0 && this.page.end === this.page.offset ? 0 : direction);
+            if (direction > 0) this.positions[next] = { offset: this.page.end, line: this.positions[this.pageIndex].line + this.page.lineBreaks };
+            await this.loadPage(next);
+        } finally {
+            this.loading = false;
+            this.editor?.dispatch({ effects: this.readOnly.reconfigure(EditorState.readOnly.of(false)) });
+            this.controls();
         }
-        const next = this.pageIndex + direction;
-        if (direction > 0) this.positions[next] = { offset: this.page.end, line: this.positions[this.pageIndex].line + this.page.lineBreaks };
-        await this.loadPage(next);
     }
     private async step(direction: number) { if (this.files.length < 2 || !await this.canClose()) return; this.index = (this.index + direction + this.files.length) % this.files.length; await this.load(); }
     async leave(action: () => Promise<void>) {
@@ -369,5 +455,5 @@ export class FileInspector {
     }
     close() { return this.leave(() => this.closed(this.file.path)); }
     private releaseMedia() { this.body.querySelectorAll<HTMLMediaElement>('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); }
-    dispose() { this.sequence++; this.request?.abort(); this.events.abort(); this.resize.disconnect(); this.closeMenu(); this.editor?.destroy(); this.imageViewer?.dispose(); this.releaseMedia(); this.root.remove(); }
+    dispose() { clearTimeout(this.checkpointTimer); this.sequence++; this.request?.abort(); this.events.abort(); this.resize.disconnect(); this.closeMenu(); this.editor?.destroy(); this.imageViewer?.dispose(); this.releaseMedia(); this.root.remove(); }
 }

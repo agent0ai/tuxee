@@ -59,6 +59,7 @@ type Server struct {
 	Restart        func()
 	Assets         fs.FS
 	cookieName     string
+	instanceID     string
 	languageCookie string
 	Translations   *i18n.Store
 	mu             sync.Mutex
@@ -78,6 +79,7 @@ type Server struct {
 func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 64), clipSlots: make(chan struct{}, 2)}
 	s.cookieName = "tuxee_session_" + instanceID
+	s.instanceID = instanceID
 	s.languageCookie = "tuxee_language_" + instanceID
 	s.Translations = i18n.NewStore(i18n.SystemDirectory)
 	s.monitor = monitor.New()
@@ -369,11 +371,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		jsonResponse(w, 200, info)
 	case r.URL.Path == "/api/me" && r.Method == "GET":
+		s.settingsMu.Lock()
+		defer s.settingsMu.Unlock()
 		settings, err := LoadSettings(ctx, session.user)
 		if err != nil {
 			failure(w, 500, err)
 			return
 		}
+		s.pruneEditors(ctx, session.user, settings)
 		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available(), "i18n": session.translations})
 	case r.URL.Path == "/api/logout" && r.Method == "POST":
 		s.mu.Lock()
@@ -405,6 +410,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		background, foreground := value.terminalColors()
+		s.pruneEditors(ctx, session.user, value)
 		s.Terminals.SetBackground(session.user, background, foreground)
 		jsonResponse(w, 200, value)
 	case r.URL.Path == "/api/files" && r.Method == "POST":
@@ -562,6 +568,27 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 	}
 	switch input.Operation {
 	case "list", "stat", "mkdir", "delete", "trash", "trash-list", "trash-restore", "trash-delete", "trash-empty", "chmod", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
+	case "editor-open", "editor-load", "editor-read", "editor-checkpoint", "editor-save", "editor-close":
+		s.settingsMu.Lock()
+		defer s.settingsMu.Unlock()
+		settings, err := LoadSettings(r.Context(), session.user)
+		if err != nil {
+			failure(w, 500, err)
+			return
+		}
+		found := false
+		for _, ws := range settings.Workspaces {
+			for _, panel := range ws.Panels {
+				if panel.Kind == "files" && panel.ID == input.EditorID {
+					found = true
+				}
+			}
+		}
+		if !found {
+			failure(w, 404, os.ErrNotExist)
+			return
+		}
+		input.Instance = s.instanceID
 	default:
 		failure(w, 400, i18n.New("backend.server.invalidFileOperation"))
 		return

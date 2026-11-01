@@ -101,9 +101,8 @@ try {
     await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
     const editor = page.locator('.cm-content'); await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('unsaved');
     await openRestart();
-    await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Restart Tuxee?', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.match(await editor.textContent(), /unsaved/); assert.equal(starts, 1);
-    await editor.click(); await page.keyboard.press('Control+z');
     const confirmation = page.getByRole('dialog', { name: 'Restart Tuxee?', exact: true });
     await mkdir('test-results', { recursive: true });
     for (const mobile of [false, true]) {
@@ -154,6 +153,7 @@ try {
         assert.ok(inventory.every(info => !info.exited));
     }
     await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
+    await editor.waitFor(); assert.match(await editor.textContent(), /unsaved/, 'restart restores editor drafts');
     assert.deepEqual(errors, []);
 
     const deniedCLI = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8', uid: users[1].uid, gid: users[1].gid });

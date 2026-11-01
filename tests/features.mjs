@@ -256,16 +256,17 @@ try{
  await row('paged.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();
  await file.locator('.inspector-page').getByText('Page 1',{exact:true}).waitFor();
  assert.equal(await file.getByRole('button',{name:'Previous file',exact:true}).count(),0);assert.equal(await file.getByRole('button',{name:'Next file',exact:true}).count(),0);assert.ok(await file.getByRole('button',{name:'Page up',exact:true}).isDisabled());
- const readPage=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='read');
+ const readPage=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='editor-read');
  await file.getByRole('button',{name:'Page down',exact:true}).click();const middle=await(await readPage).json();await file.locator('.inspector-page').getByText('Page 2',{exact:true}).waitFor();
  await file.locator('.cm-content').click();await page.keyboard.press('Control+Home');await page.keyboard.insertText('inserted-');
- await file.getByRole('button',{name:'Page down',exact:true}).click();await page.locator('dialog').getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await file.locator('.inspector-page').textContent(),'Page 2');assert.equal(await readFile(`${dir}/paged.txt`,'utf8'),pagedText);
- await file.getByRole('button',{name:'Page down',exact:true}).click();await page.locator('dialog').getByRole('button',{name:'Save and continue',exact:true}).click();await file.locator('.inspector-page').getByText('Page 3',{exact:true}).waitFor();
+ await file.getByRole('button',{name:'Page down',exact:true}).click();await file.locator('.inspector-page').getByText('Page 3',{exact:true}).waitFor();
+ assert.equal(await readFile(`${dir}/paged.txt`,'utf8'),pagedText,'page navigation leaves source unchanged');
+ await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('[aria-label="Save file"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');
  assert.equal(await readFile(`${dir}/paged.txt`,'utf8'),pagedText.slice(0,middle.page.offset)+'inserted-'+pagedText.slice(middle.page.offset));assert.ok(await file.getByRole('button',{name:'Page down',exact:true}).isDisabled());
  await file.getByRole('button',{name:'Page up',exact:true}).click();await file.locator('.inspector-page').getByText('Page 2',{exact:true}).waitFor();assert.ok((await file.locator('.cm-content').textContent()).startsWith('inserted-'));
  await file.getByRole('button',{name:'Back to files',exact:true}).click();check('binary rejection, visual wrapping, undo/redo and paged saves preserve every untouched byte');
  await row('windows.txt').locator('.file-name').dblclick();await file.locator('.cm-content').waitFor();await page.keyboard.press('Control+End');await page.keyboard.insertText('third');await page.keyboard.press('Enter');await page.keyboard.press('Control+s');await page.waitForFunction(()=>document.querySelector('[aria-label=\"Save file\"]')?.disabled && document.querySelector('.inspector-body')?.getAttribute('aria-busy') === 'false');assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'original\r\nsecond\r\nthird\r\n');
- await writeFile(`${dir}/windows.txt`,'changed elsewhere\r\n');await page.keyboard.insertText('stale');const staleResponse=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='write');await page.keyboard.press('Control+s');assert.equal((await staleResponse).status(),400);assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'changed elsewhere\r\n');await file.getByRole('button',{name:'Back to files',exact:true}).click();await page.keyboard.press('Enter');await file.locator('.file-inspector').waitFor({state:'detached'});check('editor preserves CRLF and rejects stale saves without losing external changes');
+ await writeFile(`${dir}/windows.txt`,'changed elsewhere\r\n');await page.keyboard.insertText('latest');const savedResponse=page.waitForResponse(response=>response.url().endsWith('/api/files')&&response.request().postDataJSON()?.operation==='editor-save');await page.keyboard.press('Control+s');assert.equal((await savedResponse).status(),200);assert.equal(await readFile(`${dir}/windows.txt`,'utf8'),'original\r\nsecond\r\nthird\r\nlatest');await file.getByRole('button',{name:'Back to files',exact:true}).click();await file.locator('.file-inspector').waitFor({state:'detached'});check('editor preserves CRLF and applies the latest save');
  // Save notifications overlap this small panel and would intercept the viewer's wheel input.
  await page.waitForFunction(()=>!document.querySelector('.component-notifications .toast'));
  await row('photo-a.png').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('.file-image')?.naturalWidth===1);
@@ -368,7 +369,7 @@ try{
  assert.equal(webpCopy.width,64);assert.equal(webpCopy.height,48);assert.ok(webpCopy.pixel[0]>190&&webpCopy.pixel[1]<50&&webpCopy.pixel[2]>70);
  await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();
  await page.evaluate(()=>{window.savedClipboardItem=window.ClipboardItem;window.ClipboardItem=undefined;});
- await row('converted.webp').locator('.file-name').dblclick();assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);assert.ok(await toolbar.getByRole('button',{name:'Download file',exact:true}).isVisible());
+ await row('converted.webp').locator('.file-name').dblclick();await file.locator('.image-viewport[data-ready]').waitFor();assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);assert.ok(await toolbar.getByRole('button',{name:'Download file',exact:true}).isVisible());
  await toolbar.getByRole('button',{name:'Back to files',exact:true}).click();await page.evaluate(()=>{window.ClipboardItem=window.savedClipboardItem;delete window.savedClipboardItem;});
  await row('clip.webm').locator('.file-name').dblclick();await page.waitForFunction(()=>document.querySelector('video')?.readyState>=1);
  assert.equal(await toolbar.locator('.image-controls').count(),0);assert.equal(await toolbar.getByRole('button',{name:'Copy image to clipboard',exact:true}).count(),0);assert.ok(await toolbar.getByRole('button',{name:'Download file',exact:true}).isVisible());
@@ -379,7 +380,7 @@ try{
  await file.locator('.file-inspector').waitFor({state:'detached'});
  const mediaOrder=['clip.webm','converted.webp','document.pdf','photo-a.png','photo-b.png','photo-z.png','sound.wav'];
  for(const start of ['photo-a.png','document.pdf','clip.webm','sound.wav']){
-  await row(start).locator('.file-name').dblclick();let index=mediaOrder.indexOf(start);
+  await row(start).locator('.file-name').dblclick();await file.locator('.file-inspector').waitFor();let index=mediaOrder.indexOf(start);
   for(const direction of [1,-1])for(let step=0;step<=mediaOrder.length;step++){
    const name=mediaOrder[index],isImage=name.endsWith('.png')||name.endsWith('.webp');
    assert.equal(await openedName(),name);

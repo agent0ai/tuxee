@@ -924,7 +924,13 @@ async function closePanel(panel: Panel) {
         if (mounted === value) render();
     } catch (error) { animation.cancel(); delete item.node.dataset.closing; throw error; }
 }
-async function canLeave(value?: Mounted) { for (const item of value?.items.values() || []) if (item.view.canClose && !await item.view.canClose()) return false; return true; }
+async function canLeave(value?: Mounted, closing = false) {
+    for (const { view } of value?.items.values() || []) {
+        const check = closing ? view.canClose : view.canLeave || view.canClose;
+        if (check && !await check.call(view)) return false;
+    }
+    return true;
+}
 async function switchWorkspace(value: string, checked = false) {
     cancelDrag();
     if (settings.current === value) return;
@@ -1035,7 +1041,11 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
 }
 async function closeWorkspace(ws = current()) {
     const value = warmWorkspaces.get(ws.id);
-    if (!await canLeave(value)) return;
+    if (!await canLeave(value, true)) return;
+    if (!value) for (const panel of ws.panels.filter(panel => panel.kind === 'files')) {
+        const { editor } = await api('/files', 'POST', { operation: 'editor-load', editorId: panel.id });
+        if (editor?.edits.length && !await confirmAction(t('editor.discardChanges'), editor.path, t('editor.discard'))) return;
+    }
     if (!await confirmAction(t("app.closeNamedWorkspace", { name: ws.name }), t("app.stopAllTerminalsInThisWorkspace"), t("app.closeWorkspace"))) return;
     const index = settings.workspaces.indexOf(ws), active = settings.current === ws.id;
     ws.panels.forEach(panel => stopPanel(panel, value));

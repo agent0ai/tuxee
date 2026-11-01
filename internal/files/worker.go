@@ -21,6 +21,8 @@ import (
 )
 
 type Request struct {
+	EditorID    string          `json:"editorId,omitempty"`
+	Editor      *EditorState    `json:"editor,omitempty"`
 	Draft       *TerminalDraft  `json:"draft,omitempty"`
 	Terminal    *TerminalRecord `json:"terminal,omitempty"`
 	Archive     json.RawMessage `json:"archive,omitempty"`
@@ -61,6 +63,8 @@ type Entry struct {
 }
 
 type Response struct {
+	Editor    *EditorState     `json:"editor,omitempty"`
+	Original  *string          `json:"original,omitempty"`
 	Draft     *TerminalDraft   `json:"draft,omitempty"`
 	Terminals []TerminalRecord `json:"terminals,omitempty"`
 	Archive   json.RawMessage  `json:"archive,omitempty"`
@@ -142,6 +146,10 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
+	if strings.HasPrefix(r.Operation, "editor-") {
+		response, err := editorOperation(ctx, r)
+		return response, nil, err
+	}
 	if strings.HasPrefix(r.Operation, "terminal-") {
 		response, err := terminalFiles(ctx, r)
 		return response, nil, err

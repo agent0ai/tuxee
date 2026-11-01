@@ -75,12 +75,6 @@ try {
     const editor = page.locator('.cm-content'); await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('unsaved');
     await page.locator('.brand-button').click();
     const install = page.locator('.update-install'); await install.waitFor();
-    await install.click();
-    await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
-    assert.equal(run(executable, ['version']), 'Tuxee 1.0.0'); assert.equal(starts, 1);
-    assert.match(await editor.textContent(), /unsaved/);
-    await page.keyboard.press('Escape'); await editor.click(); await page.keyboard.press('Control+z');
-    await page.locator('.brand-button').click(); await install.waitFor();
     let reloads = 0; page.on('framenavigated', frame => { if (frame === page.mainFrame()) reloads++; });
     const accepted = page.waitForResponse(base + '/api/update/apply');
     await install.click(); assert.equal((await accepted).status(), 202);
@@ -99,10 +93,11 @@ try {
         assert.equal(status.current, '1.1.0'); assert.equal(status.available, false); assert.equal(status.restartNeeded, false);
     }
     await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
+    await editor.waitFor(); assert.match(await editor.textContent(), /unsaved/, 'update restores editor drafts');
     await page.locator('.brand-button').click(); await page.getByText('Up to date', { exact: true }).waitFor();
     await page.screenshot({ path: 'test-results/update-restart-installed.png' });
     assert.deepEqual(errors, []);
-    console.log('PASS real verified 1.0.0 → 1.1.0 install, immediate same-PID/port re-exec, fresh frontend/login, all-user terminal survival, permissions and unsaved-edit cancellation');
+    console.log('PASS real verified 1.0.0 → 1.1.0 install, immediate same-PID/port re-exec, fresh frontend/login, all-user terminal survival, permissions and editor-draft restoration');
 } finally {
     if (cleanup && service?.exitCode === null) await cleanup().catch(error => console.error('cleanup:', error.message));
     await browser?.close(); unrelated?.kill('SIGKILL');

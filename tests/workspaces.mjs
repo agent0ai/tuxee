@@ -112,13 +112,7 @@ try {
     for (let i = 2; i < 8; i++) await visit(i);
     assert.equal(sockets.filter(socket => !socket.closed).length, 8);
     await visit(0); await visit(7); // Revisiting must not change FIFO order.
-    await select(8);
-    await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    assert.equal(await page.locator('.workspace-tab.active').textContent(), 'Warm 7');
-    assert.equal(connections(8).length, 0, 'cancelled eviction never creates a ninth view');
-    await select(8);
-    await page.getByRole('button', { name: 'Discard', exact: true }).click(); await settled(8);
+    await select(8); await settled(8);
     await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.json()).then(info => info.attached === 0), terminals[0].id);
     assert.ok(connections(0)[0].closed, 'evict the first visited workspace, even after revisiting');
     assert.equal(sockets.filter(socket => !socket.closed).length, 8);
@@ -126,6 +120,7 @@ try {
     await visit(0);
     assert.equal(connections(0).length, 2); assert.equal(connections(0)[1].snapshots, 1, 'evicted views use normal snapshot restoration');
     assert.equal(await first.evaluate(node => node === document.querySelector('[data-panel=term-0] .terminal-view')), false);
+    assert.match(await page.locator('.cm-content').textContent(), /unsaved/, 'eviction restores editor drafts');
     await first.dispose();
     await page.waitForFunction(id => fetch(`/api/terminals/${id}`).then(r => r.json()).then(info => info.attached === 0), terminals[1].id);
     assert.ok(connections(1)[0].closed, 'next eviction follows insertion order');
@@ -137,21 +132,16 @@ try {
     const beforeReload = sockets.length;
     await page.reload(); await settled(0);
     assert.equal(connections(0).length, 3); assert.equal(connections(0)[2].snapshots, 1);
-    await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
     await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('logout draft');
     await visit(3);
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Discard changes?', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    assert.equal(await page.locator('.workspace-tab.active').textContent(), 'Warm 3', 'logout protects drafts in inactive workspaces');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
-    await page.getByRole('button', { name: 'Discard', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     csrf = await login();
     await page.waitForFunction(ids => fetch('/api/terminals').then(r => r.json()).then(sessions => sessions.filter(session => ids.includes(session.id)).every(session => !session.attached)), terminals.map(terminal => terminal.id));
     assert.ok(sockets.slice(beforeReload).every(socket => socket.closed), 'logout closes active and inactive connections in the current document');
+    const draft = await (await api('/files', 'POST', { operation: 'editor-load', editorId: 'files' })).json();
+    assert.ok(draft.editor?.edits.length, 'logout retains inactive editor drafts');
     assert.deepEqual(errors, []);
     console.log('PASS warm workspace reuse, hidden output, FIFO limit, dirty eviction, closure, reload and logout');
 } finally {

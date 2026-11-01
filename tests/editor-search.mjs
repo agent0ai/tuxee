@@ -50,7 +50,7 @@ try {
     const page = await appPage(context), errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(base); const path = page.getByRole('textbox', { name: 'File or directory path', exact: true });
     const open = async file => {
-        const read = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'read' && response.request().postDataJSON()?.path === file);
+        const read = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().postDataJSON()?.operation === 'editor-read');
         await path.fill(file); await path.press('Enter'); await read;
         await page.locator('.inspector-body[aria-busy="false"] .cm-content').waitFor();
     };
