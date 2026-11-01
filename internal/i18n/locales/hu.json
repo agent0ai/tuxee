@@ -11,6 +11,7 @@
     "app.autoLayout": "Automatikus elrendezés",
     "app.balanced": "Kiegyensúlyozott",
     "app.cannotRestartTuxee": "A Tuxee újraindítása nem lehetséges",
+    "app.cloneWorkspace": "Klónozás",
     "app.closeNamedWorkspace": "Bezárja a {name}-t?",
     "app.closePanel": "Panel bezárása",
     "app.closeWorkspace": "Asztal bezárása",

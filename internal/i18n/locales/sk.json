@@ -11,6 +11,7 @@
     "app.autoLayout": "Auto rozloženie",
     "app.balanced": "Vyvážené",
     "app.cannotRestartTuxee": "Tuxee sa nedá reštartovať",
+    "app.cloneWorkspace": "Klonovať",
     "app.closeNamedWorkspace": "Zavrieť {name}?",
     "app.closePanel": "Zavrieť panel",
     "app.closeWorkspace": "Zavrieť plochu",

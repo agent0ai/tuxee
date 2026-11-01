@@ -11,6 +11,7 @@
     "app.autoLayout": "Samodejna postavitev",
     "app.balanced": "Uravnoteženo",
     "app.cannotRestartTuxee": "Tuxee ni mogoče znova zagnati",
+    "app.cloneWorkspace": "Kloniraj",
     "app.closeNamedWorkspace": "Zapreti {name}?",
     "app.closePanel": "Zapri ploščo",
     "app.closeWorkspace": "Zapri prostor",

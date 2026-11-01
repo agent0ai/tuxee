@@ -11,6 +11,7 @@
     "app.autoLayout": "طرح بندی خودکار",
     "app.balanced": "متعادل",
     "app.cannotRestartTuxee": "نمی توان Tuxee را دوباره راه اندازی کرد",
+    "app.cloneWorkspace": "همانندسازی",
     "app.closeNamedWorkspace": "بستن {name}؟",
     "app.closePanel": "پانل را ببندید",
     "app.closeWorkspace": "بستن فضا",

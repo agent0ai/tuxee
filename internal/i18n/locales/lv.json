@@ -11,6 +11,7 @@
     "app.autoLayout": "Automātiskais izkārtojums",
     "app.balanced": "Līdzsvarots",
     "app.cannotRestartTuxee": "Nevar restartēt Tuxee",
+    "app.cloneWorkspace": "Klonēt",
     "app.closeNamedWorkspace": "Vai aizvērt {name}?",
     "app.closePanel": "Aizvērt paneli",
     "app.closeWorkspace": "Aizveriet darbvietu",

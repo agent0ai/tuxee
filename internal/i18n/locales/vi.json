@@ -11,6 +11,7 @@
     "app.autoLayout": "Bố cục tự động",
     "app.balanced": "Cân bằng",
     "app.cannotRestartTuxee": "Không thể khởi động lại Tuxee",
+    "app.cloneWorkspace": "Nhân bản",
     "app.closeNamedWorkspace": "Đóng {name}?",
     "app.closePanel": "Đóng bảng điều khiển",
     "app.closeWorkspace": "Đóng vùng",

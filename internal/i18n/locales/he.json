@@ -11,6 +11,7 @@
     "app.autoLayout": "פריסה אוטומטית",
     "app.balanced": "מאוזן",
     "app.cannotRestartTuxee": "לא ניתן להפעיל מחדש את Tuxee",
+    "app.cloneWorkspace": "שכפול",
     "app.closeNamedWorkspace": "לסגור את {name}?",
     "app.closePanel": "סגור את הפאנל",
     "app.closeWorkspace": "סגירת מרחב",

@@ -11,6 +11,7 @@
     "app.autoLayout": "Automatinis išdėstymas",
     "app.balanced": "Subalansuotas",
     "app.cannotRestartTuxee": "Nepavyko iš naujo paleisti Tuxee",
+    "app.cloneWorkspace": "Klonuoti",
     "app.closeNamedWorkspace": "Uždaryti {name}?",
     "app.closePanel": "Uždaryti skydelį",
     "app.closeWorkspace": "Uždaryti erdvę",

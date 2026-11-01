@@ -11,6 +11,7 @@
     "app.autoLayout": "Aspect automat",
     "app.balanced": "Echilibrat",
     "app.cannotRestartTuxee": "Nu se poate reporni Tuxee",
+    "app.cloneWorkspace": "Clonează",
     "app.closeNamedWorkspace": "Închideți {name}?",
     "app.closePanel": "Închideți panoul",
     "app.closeWorkspace": "Închideți spațiul",

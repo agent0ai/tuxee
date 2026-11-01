@@ -11,6 +11,7 @@
     "app.autoLayout": "Automatski raspored",
     "app.balanced": "Uravnoteženo",
     "app.cannotRestartTuxee": "Nije moguće ponovo pokrenuti Tuxee",
+    "app.cloneWorkspace": "Kloniraj",
     "app.closeNamedWorkspace": "Zatvoriti {name}?",
     "app.closePanel": "Zatvori panel",
     "app.closeWorkspace": "Zatvori prostor",

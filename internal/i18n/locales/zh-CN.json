@@ -11,6 +11,7 @@
     "app.autoLayout": "自动布局",
     "app.balanced": "均衡",
     "app.cannotRestartTuxee": "无法重新启动 Tuxee",
+    "app.cloneWorkspace": "克隆",
     "app.closeNamedWorkspace": "关闭{name}？",
     "app.closePanel": "关闭面板",
     "app.closeWorkspace": "关闭工作区",

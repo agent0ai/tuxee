@@ -11,6 +11,7 @@
     "app.autoLayout": "Αυτόματη διάταξη",
     "app.balanced": "Ισορροπημένη",
     "app.cannotRestartTuxee": "Δεν είναι δυνατή η επανεκκίνηση του Tuxee",
+    "app.cloneWorkspace": "Κλωνοποίηση",
     "app.closeNamedWorkspace": "Κλείσιμο {name};",
     "app.closePanel": "Κλείσιμο πίνακα",
     "app.closeWorkspace": "Κλείστε τον χώρο",

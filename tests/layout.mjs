@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/model.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/model.mjs' });
-const { directoryPath, newWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
+const { directoryPath, newWorkspace, cloneWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
 for (const [path, expected] of [[undefined, '/home/test'], ['', '/home/test'], ['~', '/home/test'], ['~/projects with spaces', '/home/test/projects with spaces'], ['/tmp/', '/tmp'], ['/', '/']]) assert.equal(directoryPath(path, '/home/test'), expected);
 for (const path of ['relative', '~other', '/tmp/\0']) assert.throws(() => directoryPath(path, '/home/test'));
 for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280, 800, 4, 2, 3], [1440, 1000, 4, 2, 3], [1920, 1080, 4, 2, 4], [2560, 1080, 4, 2, 4], [5120, 1440, 4, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 2, 4, 2], [844, 390, 4, 2, 2], [1000, 1000, 4, 2, 2]]) {
@@ -23,6 +23,33 @@ for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280
     assert.equal(addCompact(ws, newPanel('files', '/')), false);
 }
 assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/root', '/root']);
+for (const [width, height] of [[1440, 1000], [390, 844]]) for (const mode of [0, 1, 2, 3]) {
+    const source = newWorkspace('Same name', '/old', width, height);
+    source.defaultDirectory = '~/project';
+    while (source.panels.length < 8) addCompact(source, newPanel('terminal', '/old'));
+    source.panels[0].path = '/browsed'; source.panels[0].pinned = true;
+    source.panels.filter(p => p.kind === 'terminal').forEach(p => p.terminal = `session-${p.id}`);
+    source.active = source.panels.at(-1).id;
+    for (let i = 0; i < mode; i++) cycleLayout(source, width, height);
+    const before = structuredClone(source), copy = cloneWorkspace(source, '/home/test/project');
+    assert.equal(copy.name, source.name); assert.equal(copy.defaultDirectory, source.defaultDirectory);
+    assert.equal(new Set([source.id, copy.id, ...source.panels.map(p => p.id), ...copy.panels.map(p => p.id)]).size, 18);
+    assert.ok(validGrid(copy)); assert.equal(copy.active, copy.panels.at(-1).id);
+    assert.deepEqual(copy.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]), source.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]));
+    assert.equal(copy.panels[0].path, '/browsed'); assert.equal(copy.panels[0].pinned, true);
+    assert.ok(copy.panels.filter(p => p.kind === 'terminal').every(p => p.path === '/home/test/project' && !p.terminal));
+    if (mode) {
+        assert.equal(copy.layout.mode, mode);
+        assert.deepEqual(copy.layout.custom.map(p => p.id), copy.panels.map(p => p.id));
+        while (copy.layout) cycleLayout(copy, width, height);
+        assert.deepEqual(copy.panels.map(({ x, y, w, h }) => [x, y, w, h]), source.layout.custom.map(({ x, y, w, h }) => [x, y, w, h]));
+    }
+    copy.panels[0].path = '/changed'; orientWorkspace(copy, height, width);
+    assert.deepEqual(source, before, 'clone edits and orientation never change the source');
+}
+const emptyClone = cloneWorkspace({ id: 'empty', name: 'Empty', columns: 4, rows: 2, panels: [], active: '' }, '/home/test');
+assert.ok(validGrid(emptyClone)); assert.equal(emptyClone.active, ''); assert.equal(emptyClone.defaultDirectory, undefined);
+console.log('PASS desktop cloning preserves layouts and folders with fresh identities and terminals');
 for (const [columns, rows, occupied, terminalRect, fileRect] of [
     [4, 2, [], [0, 0, 4, 2], [0, 0, 1, 2]],
     [2, 4, [], [0, 0, 2, 4], [0, 0, 1, 4]],

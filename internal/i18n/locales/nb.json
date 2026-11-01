@@ -11,6 +11,7 @@
     "app.autoLayout": "Automatisk layout",
     "app.balanced": "Balansert",
     "app.cannotRestartTuxee": "Kan ikke starte Tuxee på nytt",
+    "app.cloneWorkspace": "Klon",
     "app.closeNamedWorkspace": "Lukke {name}?",
     "app.closePanel": "Lukk panelet",
     "app.closeWorkspace": "Lukk område",

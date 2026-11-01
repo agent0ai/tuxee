@@ -11,6 +11,7 @@
     "app.autoLayout": "Автоматичний макет",
     "app.balanced": "Збалансоване",
     "app.cannotRestartTuxee": "Не вдається перезапустити Tuxee",
+    "app.cloneWorkspace": "Клонувати",
     "app.closeNamedWorkspace": "Закрити {name}?",
     "app.closePanel": "Закрити панель",
     "app.closeWorkspace": "Закрити стіл",

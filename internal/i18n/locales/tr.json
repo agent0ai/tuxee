@@ -11,6 +11,7 @@
     "app.autoLayout": "Otomatik düzen",
     "app.balanced": "Dengeli",
     "app.cannotRestartTuxee": "Tuxee yeniden başlatılamıyor",
+    "app.cloneWorkspace": "Klonla",
     "app.closeNamedWorkspace": "{name} kapatılsın mı?",
     "app.closePanel": "Paneli kapat",
     "app.closeWorkspace": "Alanı kapat",

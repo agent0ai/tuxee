@@ -173,6 +173,78 @@ try {
     await navigate(workspacePath); await button('File actions', file).click(); await menuitem('Desktop default').click();
     await waitFor(async () => await override(secondID) === workspacePath, 'moved shortcut updates destination workspace');
     assert.equal(await override(wsID), undefined); await setDirectory(secondID, '~/other');
+    await navigate(home + '/file.txt');
+    await file.locator('.cm-content').fill('source-only unsaved draft');
+    const sourceTerminal = (await saved()).workspaces.find(ws => ws.id === secondID).panels.find(p => p.terminal);
+    const sourcePID = (await info(sourceTerminal.terminal)).pid;
+    const clone = async (sourceID, contextMenu = false) => {
+        const activeID = await page.locator('.board:not([inert])').getAttribute('data-workspace');
+        await waitFor(async () => {
+            const state = await saved(), { width, height } = page.viewportSize();
+            return state.current === activeID && state.workspaces.find(ws => ws.id === activeID).columns === (width >= height ? 4 : 2);
+        }, 'workspace switch and orientation saved before cloning');
+        const before = await saved(), source = before.workspaces.find(ws => ws.id === sourceID);
+        const tab = page.locator(`.workspace-tab-item[data-workspace="${sourceID}"]`);
+        if (!await tab.isVisible()) await button('More desktops').click();
+        if (contextMenu) await tab.locator('.workspace-tab').click({ button: 'right' });
+        else await tab.locator('.workspace-menu').click();
+        assert.equal(await page.locator('.board:not([inert])').getAttribute('data-workspace'), activeID, 'opening an inactive menu never activates it');
+        await menuitem('Clone').click();
+        await waitFor(async () => {
+            const next = await saved(), copy = next.workspaces.at(-1);
+            return next.workspaces.length === before.workspaces.length + 1 && next.current === copy.id && copy.panels.every(p => p.kind !== 'terminal' || p.terminal);
+        }, 'clone created, activated and persisted');
+        const next = await saved(), copy = next.workspaces.at(-1);
+        assert.equal(copy.name, source.name); assert.equal(copy.defaultDirectory, source.defaultDirectory);
+        const oldIDs = new Set([source.id, ...source.panels.map(p => p.id)]);
+        assert.ok([copy.id, ...copy.panels.map(p => p.id)].every(id => !oldIDs.has(id)));
+        assert.equal(copy.active, copy.panels[source.panels.findIndex(p => p.id === source.active)].id);
+        for (const [i, panel] of copy.panels.entries()) {
+            const old = source.panels[i];
+            assert.equal(panel.kind, old.kind);
+            assert.deepEqual([panel.x, panel.y, panel.w, panel.h], copy.columns === source.columns ? [old.x, old.y, old.w, old.h] : [old.y, old.x, old.h, old.w]);
+            if (panel.kind === 'files') assert.equal(panel.path, old.path);
+            else {
+                assert.notEqual(panel.terminal, old.terminal); assert.notEqual((await info(panel.terminal)).pid, (await info(old.terminal)).pid);
+                assert.equal(await cwd(panel.terminal), otherPath);
+            }
+        }
+        assert.equal(await page.locator('.cm-editor').count(), 0, 'clones open folders without editor drafts');
+        assert.equal((await info(sourceTerminal.terminal)).pid, sourcePID);
+        assert.deepEqual(next.workspaces.find(ws => ws.id === sourceID), source, 'cloning preserves the source');
+        return copy;
+    };
+    const firstClone = await clone(secondID, true);
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
+    assert.equal((await saved()).current, firstClone.id);
+    assert.deepEqual((await saved()).workspaces.at(-1), firstClone);
+    assert.equal(await page.locator('.cm-editor').count(), 0);
+    await page.locator(`.workspace-tab-item[data-workspace="${secondID}"] .workspace-tab`).click();
+    await file.locator('.cm-content').waitFor();
+    assert.equal(await file.locator('.cm-content').textContent(), 'source-only unsaved draft');
+    await page.locator(`.workspace-tab-item[data-workspace="${firstClone.id}"] .workspace-tab`).click();
+    await page.setViewportSize({ width: 320, height: 1000 }); await page.waitForTimeout(250);
+    const mobileClone = await clone(secondID);
+    await mkdir('test-results', { recursive: true });
+    await button('More desktops').click();
+    await page.locator(`.workspace-tab-item[data-workspace="${mobileClone.id}"] .workspace-menu`).click();
+    const cloneBox = await menuitem('Clone').boundingBox();
+    assert.ok(cloneBox.x >= 0 && cloneBox.x + cloneBox.width <= 320, 'Clone fits the compact menu');
+    await page.screenshot({ path: 'test-results/desktop-clone-mobile.png' });
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
+    while ((await saved()).workspaces.length < 12) await clone((await saved()).current);
+    const full = await saved();
+    await page.locator(`.workspace-tab-item[data-workspace="${full.current}"] .workspace-menu`).click();
+    await menuitem('Clone').click();
+    await page.getByText('Desktop limit reached', { exact: true }).waitFor();
+    assert.equal((await saved()).workspaces.length, 12);
+    await button('More desktops').click();
+    await page.locator(`.workspace-tab-item[data-workspace="${secondID}"] .workspace-tab`).click();
+    await file.locator('.cm-content').waitFor();
+    assert.equal(await file.locator('.cm-content').textContent(), 'source-only unsaved draft');
+    await button('Back to files', file).click(); await button('Discard').click();
+    console.log('PASS active/inactive/mobile desktop cloning, fresh terminals, parent folders, draft isolation, reload and desktop limit');
     for (const theme of ['dark', 'light']) {
         if ((await saved()).theme !== theme) await button('Toggle light or dark theme').click();
         for (const width of [1440, 390, 320]) {
@@ -197,5 +269,6 @@ try {
     throw error;
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
+    spawnSync('pkill', ['-KILL', '-u', user]);
     run('userdel', [user]); await rm(home, { recursive: true, force: true }); await rm(state, { recursive: true, force: true });
 }

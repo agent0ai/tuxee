@@ -11,6 +11,7 @@
     "app.autoLayout": "تخطيط تلقائي",
     "app.balanced": "متوازن",
     "app.cannotRestartTuxee": "لا يمكن إعادة تشغيل Tuxee",
+    "app.cloneWorkspace": "استنساخ",
     "app.closeNamedWorkspace": "إغلاق {name}؟",
     "app.closePanel": "إغلاق اللوحة",
     "app.closeWorkspace": "إغلاق المساحة",

@@ -11,6 +11,7 @@
     "app.autoLayout": "Sjálfvirk skipulag",
     "app.balanced": "Jafnvægi",
     "app.cannotRestartTuxee": "Get ekki endurræst Tuxee",
+    "app.cloneWorkspace": "Klóna",
     "app.closeNamedWorkspace": "Loka {name}?",
     "app.closePanel": "Lokaðu spjaldinu",
     "app.closeWorkspace": "Loka svæði",

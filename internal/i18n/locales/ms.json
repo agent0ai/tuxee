@@ -11,6 +11,7 @@
     "app.autoLayout": "Susun atur automatik",
     "app.balanced": "Seimbang",
     "app.cannotRestartTuxee": "Tidak dapat memulakan semula Tuxee",
+    "app.cloneWorkspace": "Klon",
     "app.closeNamedWorkspace": "Tutup {name}?",
     "app.closePanel": "Tutup panel",
     "app.closeWorkspace": "Tutup ruang",

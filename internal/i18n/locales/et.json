@@ -11,6 +11,7 @@
     "app.autoLayout": "Automaatne paigutus",
     "app.balanced": "Tasakaalus",
     "app.cannotRestartTuxee": "Tuxee ei saa taaskäivitada",
+    "app.cloneWorkspace": "Klooni",
     "app.closeNamedWorkspace": "Kas sulgeda {name}?",
     "app.closePanel": "Sule paneel",
     "app.closeWorkspace": "Sule tööruum",

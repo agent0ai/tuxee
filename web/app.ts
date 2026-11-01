@@ -9,7 +9,7 @@ import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
+import { id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, cloneWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
@@ -938,10 +938,11 @@ async function switchWorkspace(value: string, checked = false) {
     const from = settings.workspaces.findIndex(ws => ws.id === settings.current), to = settings.workspaces.findIndex(ws => ws.id === value);
     settings.current = value; changed(); render(to > from ? 1 : -1);
 }
-async function createWorkspace() {
+async function createWorkspace(source?: Workspace) {
     if (settings.workspaces.length >= 12) { notify(t("app.workspaceLimitReached")); return; }
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
-    const ws = newWorkspace(t("app.workspaceNumber", { count: settings.workspaces.length + 1 }), defaultDirectory()); settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
+    const ws = source ? cloneWorkspace(source, defaultDirectory(source)) : newWorkspace(t("app.workspaceNumber", { count: settings.workspaces.length + 1 }), defaultDirectory());
+    settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
 }
 async function renameWorkspace(ws: Workspace) {
     const name = await ask(t("app.renameWorkspace"), t("common.name"), ws.name);
@@ -983,6 +984,7 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
     tabMenu(tab, t("app.workspaceLabel", { name: ws.name }), ws.id === settings.current, [
         [t("app.activate"), 'ArrowRight', () => switchWorkspace(ws.id), ws.id === current().id],
         [t("common.rename"), 'Pencil', () => renameWorkspace(ws)],
+        [t("app.cloneWorkspace"), 'Copy', () => createWorkspace(ws)],
         [t("app.defaultDirectory"), 'Folder', () => editWorkspaceDirectory(ws)],
         [t("common.close"), 'X', () => closeWorkspace(ws)],
     ], position);

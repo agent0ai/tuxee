@@ -11,6 +11,7 @@
     "app.autoLayout": "Disposition auto",
     "app.balanced": "Équilibré",
     "app.cannotRestartTuxee": "Impossible de redémarrer Tuxee",
+    "app.cloneWorkspace": "Cloner",
     "app.closeNamedWorkspace": "Fermer {name} ?",
     "app.closePanel": "Fermer le panneau",
     "app.closeWorkspace": "Fermer l'espace",

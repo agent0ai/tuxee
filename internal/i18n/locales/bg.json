@@ -11,6 +11,7 @@
     "app.autoLayout": "Автооформление",
     "app.balanced": "Балансирано",
     "app.cannotRestartTuxee": "Не може да се рестартира Tuxee",
+    "app.cloneWorkspace": "Клониране",
     "app.closeNamedWorkspace": "Затворете {name}?",
     "app.closePanel": "Затваряне на панела",
     "app.closeWorkspace": "Затваряне на плот",

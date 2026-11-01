@@ -116,6 +116,16 @@ export function newWorkspace(name: string, directory: string, width = innerWidth
     }
     return { id: id(), name, columns, rows, panels, active: panels[0].id };
 }
+export function cloneWorkspace(source: Workspace, directory: string): Workspace {
+    const panels = source.panels.map(({ kind, path, x, y, w, h, pinned }) => ({
+        ...newPanel(kind, kind === 'files' ? path : directory), x, y, w, h, pinned,
+    }));
+    const ids = new Map(source.panels.map((panel, i) => [panel.id, panels[i].id]));
+    return {
+        ...source, id: id(), panels, active: ids.get(source.active) || '',
+        layout: source.layout && { mode: source.layout.mode, custom: source.layout.custom.map(rect => ({ ...rect, id: ids.get(rect.id)! })) },
+    };
+}
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
 export function validGrid(ws: Workspace): boolean {
     if (!(ws.columns === 4 && ws.rows === 2 || ws.columns === 2 && ws.rows === 4) || ws.panels.length > 8) return false;

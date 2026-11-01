@@ -11,6 +11,7 @@
     "app.autoLayout": "自動レイアウト",
     "app.balanced": "バランス",
     "app.cannotRestartTuxee": "Tuxee を再起動できません",
+    "app.cloneWorkspace": "複製",
     "app.closeNamedWorkspace": "{name}を閉じますか?",
     "app.closePanel": "パネルを閉じる",
     "app.closeWorkspace": "デスクを閉じる",

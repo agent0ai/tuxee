@@ -11,6 +11,7 @@
     "app.autoLayout": "자동 레이아웃",
     "app.balanced": "균형",
     "app.cannotRestartTuxee": "Tuxee를 다시 시작할 수 없습니다.",
+    "app.cloneWorkspace": "복제",
     "app.closeNamedWorkspace": "{name}를 닫으시겠습니까?",
     "app.closePanel": "패널 닫기",
     "app.closeWorkspace": "작업공간 닫기",
