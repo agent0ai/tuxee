@@ -137,15 +137,16 @@ try {
     assert.equal(locked.language, 'cs');
     await page.getByRole('button', { name: 'Uživatelská nabídka', exact: true }).click();
     await page.evaluate(() => { window.logoutMarker = true; });
-    await page.route('**/api/language', async route => {
+    await page.route('**/api/logout', async route => {
+        const response = await route.fetch();
         await page.evaluate(() => window.dispatchEvent(new Event('tuxee-connection-check')));
         await new Promise(resolve => setTimeout(resolve, 750));
-        await route.continue();
+        await route.fulfill({ response });
     });
     await page.getByRole('menuitem', { name: 'Odhlásit se', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
-    assert.equal(await page.evaluate(() => window.logoutMarker), true, 'delayed login catalog must not turn deliberate logout into expiry/reload');
-    await page.unroute('**/api/language');
+    assert.equal(await page.evaluate(() => window.logoutMarker), undefined, 'intentional logout navigates to the isolated login document after its response');
+    await page.unroute('**/api/logout');
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('button', { name: 'User menu', exact: true }).waitFor();

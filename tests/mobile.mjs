@@ -73,17 +73,15 @@ await mkdir('test-results', { recursive: true });
 try {
     await page.goto(base);
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
-    assert.equal(await page.title(), `Tuxee ${system.hostname}`);
-    assert.equal(await page.locator('.login-metadata').textContent(), `Server ${system.hostname} • Tuxee v${system.version}`);
-    assert.equal(await page.locator('.login-metadata a').getAttribute('href'), 'https://github.com/agent0ai/tuxee');
+    assert.equal(await page.title(), 'Tuxee');
+    assert.equal(await page.locator('.login-metadata, meta[name=tuxee-hostname], meta[name=tuxee-version]').count(), 0);
     assert.equal(await page.locator('input:focus').count(), 0, 'touch login must not force focus/keyboard');
     for (const width of [1440, 320, 390]) {
         await page.setViewportSize({ width, height: 844 });
         const form = await page.locator('.login-form').boundingBox();
-        const metadata = await page.locator('.login-metadata').boundingBox();
-        assert.ok(metadata.x >= 0 && metadata.x + metadata.width <= width);
-        assert.ok(metadata.y >= form.y + form.height && metadata.y + metadata.height <= 844);
-        if (width === 1440) await page.screenshot({ path: 'test-results/desktop-login-metadata.png' });
+        assert.ok(form.x >= 0 && form.x + form.width <= width);
+        assert.ok(form.y >= 0 && form.y + form.height <= 844);
+        if (width === 1440) await page.screenshot({ path: 'test-results/desktop-login.png' });
     }
     for (const height of [360, 300]) {
         await keyboardHeight(height);
@@ -94,8 +92,6 @@ try {
         }
         const submit = await page.getByRole('button', { name: 'Sign in', exact: true }).boundingBox();
         assert.ok(submit.y >= 0 && submit.y + submit.height <= height, 'submit stays above emulated keyboard without scrolling');
-        const metadata = await page.locator('.login-metadata').boundingBox();
-        assert.ok(metadata.y >= submit.y + submit.height && metadata.y + metadata.height <= height, 'server metadata fits below the form above the emulated keyboard');
         assert.ok(await page.locator('.login-page').evaluate(node => node.scrollHeight <= node.clientHeight));
     }
     await page.screenshot({ path: 'test-results/mobile-login-keyboard.png' });
@@ -108,7 +104,7 @@ try {
     await page.evaluate(() => { delete visualViewport.height; visualViewport.dispatchEvent(new Event('resize')); });
     assert.equal(await page.evaluate(() => visualViewport.scale), 1);
     assert.ok(Math.abs(await page.locator('#app').evaluate(node => node.clientHeight) - 844) < 2);
-    check('hostname title, login metadata/link, touch login, 16px inputs, visual-viewport keyboard simulation and login-to-workspace height');
+    check('private hostname title, anonymous login, touch login, 16px inputs, visual-viewport keyboard simulation and login-to-workspace height');
 
     for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(250);

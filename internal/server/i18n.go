@@ -31,5 +31,25 @@ func (s *Server) requestTranslations(r *http.Request) *i18n.Bundle {
 	if cookie, err := r.Cookie(s.languageCookie); err == nil {
 		code = cookie.Value
 	}
-	return s.Translations.Bundle(code, s.languageCookie)
+	return s.loginTranslations(code)
+}
+
+func (s *Server) loginTranslations(code string) *i18n.Bundle {
+	bundle := *s.Translations.Bundle(code, s.languageCookie)
+	texts := make(map[string]string)
+	// An explicit list prevents new application messages from fingerprinting releases.
+	for _, key := range []string{
+		"app.tuxee", "app.tagline", "app.previewAlt", "app.signInFailed",
+		"login.language", "login.languageFailed", "login.password", "login.signIn", "login.username",
+		"validation.required", "validation.invalid", "ui.connectionLostTryAgainWhenReconnected",
+		"backend.identity.invalidUsernamePasswordOrAccountPolicy",
+		"backend.identity.authenticationIsBusyTryAgainShortly", "backend.identity.loginAttemptLimit",
+		"backend.server.invalidRequestBody", "backend.server.requestMustContainOneJSONValue",
+		"backend.server.missingApplicationRequestHeader", "backend.server.requestOriginIsNotAllowed",
+		"backend.server.serverRestarting", "backend.server.tooManyActiveLoginSessions", "server.frontendUnavailable",
+	} {
+		texts[key] = bundle.Texts[key]
+	}
+	bundle.Texts = texts
+	return &bundle
 }

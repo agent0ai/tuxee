@@ -496,14 +496,16 @@ try {
     await page.screenshot({ path: 'test-results/gui-mobile-windows.png' });
 
     await page.setViewportSize({ width: 1440, height: 950 });
+    const probeOpened = page.waitForEvent('websocket', socket => socket.url().endsWith(`/api/terminals/${panels[0].terminal}/display/ws`));
     await page.evaluate(id => new Promise((resolve, reject) => {
-        const socket = window.revocationProbe = new WebSocket(`${location.origin.replace('http', 'ws')}/api/terminals/${id}/display/ws`);
+        const socket = new WebSocket(`${location.origin.replace('http', 'ws')}/api/terminals/${id}/display/ws`);
         socket.onopen = resolve; socket.onerror = reject;
     }), panels[0].terminal);
+    const probeClosed = (await probeOpened).waitForEvent('close');
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
-    await page.waitForFunction(() => window.revocationProbe.readyState === WebSocket.CLOSED);
+    await probeClosed;
     assert.ok(await alive(input.pid));
     assert.equal((await api(`/terminals/${panels[0].terminal}/display`)).status(), 401);
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);

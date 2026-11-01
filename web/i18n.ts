@@ -12,9 +12,6 @@ export function setTranslations(value: Translations) {
         document.documentElement.dir = value.direction;
     }
 }
-export function rememberLanguage() {
-    document.cookie = `${catalog.cookie}=${encodeURIComponent(catalog.language)}; Path=/; Max-Age=31536000; SameSite=Strict${location.protocol === 'https:' ? '; Secure' : ''}`;
-}
 export function t(key: string, vars: Record<string, unknown> = {}): string {
     const template = Object.hasOwn(catalog.texts, key) ? catalog.texts[key] : undefined;
     const missing = () => `[!${key}${Object.keys(vars).sort().map(name => ` ${name}=${JSON.stringify(vars[name])}`).join('')}]`;

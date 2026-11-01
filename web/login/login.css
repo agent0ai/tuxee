@@ -1,0 +1,49 @@
+:root {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+  --bg: #0c1017;
+  --surface: #141922;
+  --text: #e3e9f2;
+  --muted: #8794a9;
+  --line: #283142;
+  --accent: #a5b5ff;
+  --danger: #ff969f;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+button, input, select { font: inherit; }
+button {
+  border: 1px solid transparent; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 30px; padding: 6px 9px; cursor: pointer; white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+button:disabled { opacity: .5; cursor: default; }
+input, select {
+  background: var(--bg); border: 1px solid var(--line); color: var(--text);
+  border-radius: 6px; min-width: 0; padding: 8px 10px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus { border-color: var(--accent); outline: none; }
+.primary { background: var(--accent); color: #101a3a; font-weight: 650; }
+.primary:hover { background: #bcc8ff; }
+.field { display: flex; flex-direction: column; gap: 7px; font-size: 12px; color: var(--muted); }
+.login-page {
+  height: var(--viewport-height, 100dvh); display: flex; flex-direction: column; overflow: auto;
+  padding: clamp(12px, calc(var(--viewport-height, 100dvh) * .025), 32px);
+  background: radial-gradient(ellipse at 25% 35%, #202d4f66, transparent 50%);
+}
+.login-content { width: min(320px, 100%); margin: auto; flex-shrink: 0; }
+.login-form { display: flex; flex-direction: column; gap: clamp(4px, calc(var(--viewport-height, 100dvh) * .02), 18px); }
+.login-logo {
+  width: clamp(32px, calc(var(--viewport-height, 100dvh) * .28 - 52px), 220px);
+  max-width: 100%; height: auto; align-self: center;
+}
+.login-form input { font-size: 16px; padding: clamp(6px, calc(var(--viewport-height, 100dvh) * .1 - 24px), 12px); }
+.login-language { align-self: center; width: auto; max-width: 100%; font-size: 16px; color: inherit; background: var(--surface); }
+.login-submit { min-height: 42px; }
+.login-error { color: var(--danger); font-size: 12px; }
+.login-error:empty { display: none; }

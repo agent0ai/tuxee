@@ -247,68 +247,6 @@ h3 {
   padding: 3px;
   cursor: pointer;
 }
-.login-page {
-  height: var(--viewport-height,100dvh);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  padding: clamp(12px, calc(var(--viewport-height,100dvh) * .025), 32px);
-  background:
-    radial-gradient(
-      ellipse at 25% 35%,
-      #202d4f66,
-      transparent 50%);
-}
-.login-content {
-  width: min(320px, 100%);
-  margin: auto;
-  flex-shrink: 0;
-}
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(4px, calc(var(--viewport-height,100dvh) * .02), 18px);
-}
-.login-logo {
-  width: clamp(32px, calc(var(--viewport-height,100dvh) * .28 - 52px), 220px);
-  max-width: 100%;
-  height: auto;
-  align-self: center;
-}
-.login-form input {
-  font-size: 16px;
-  padding: clamp(6px, calc(var(--viewport-height,100dvh) * .1 - 24px), 12px);
-}
-.login-language {
-  align-self: center;
-  width: auto;
-  max-width: 100%;
-  font: inherit;
-  font-size: 16px;
-  color: inherit;
-  background: var(--surface);
-}
-.login-submit {
-  min-height: 42px;
-}
-.login-error {
-  color: var(--danger);
-  font-size: 12px;
-}
-.login-error:empty {
-  display: none;
-}
-.login-metadata {
-  margin-top: clamp(8px, calc(var(--viewport-height,100dvh) * .02), 18px);
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-.login-metadata a {
-  color: inherit;
-}
 #app {
   height: var(--viewport-height,100dvh);
   display: flex;
@@ -1520,7 +1458,7 @@ input[role=switch]:disabled { opacity: .5; cursor: wait; }
 /* Technical surfaces retain their physical coordinate and text order in RTL UI. */
 .terminal-host, .terminal-text pre, .terminal-input, .cm-editor, .terminal-display,
 .path-input, input[name=defaultDirectory], input[name=shellCommand], input[name=terminalFontFamily], select[name=terminalFontSize],
-pre, code, .process-label small, .login-language {
+pre, code, .process-label small {
   direction: ltr;
   unicode-bidi: isolate;
 }

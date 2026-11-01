@@ -22,6 +22,13 @@ const html = source.replace('<!-- tuxee:styles -->', () => `<style>${styles}</st
 assert.ok(!/<(?:script|link)[^>]+(?:src|href)=["']https?:/i.test(html), 'frontend must not load external assets');
 await writeFile('web/dist/index.html', html);
 await writeFile('web/dist/script-csp.txt', createHash('sha256').update(script).digest('base64'));
+// Anonymous bytes must not change with esbuild, dependencies or the application bundle.
+const loginScript = await readFile('web/login/login.js', 'utf8');
+const loginStyles = await readFile('web/login/login.css', 'utf8');
+const loginSource = await readFile('web/login/index.html', 'utf8');
+await writeFile('web/dist/login.html', loginSource.replace('<!-- tuxee:styles -->', () => `<style>${loginStyles}</style>`).replace('<!-- tuxee:script -->', () => `<script type="module">${loginScript}</script>`));
+await writeFile('web/dist/login-csp.txt', createHash('sha256').update(loginScript).digest('base64'));
+await cp('web/tuxee-logo-vertical.webp', 'web/dist/login-logo.webp');
 await build({ entryPoints: ['web/sw.js'], bundle: true, minify: true, target: 'es2022', outfile: 'web/dist/sw.js' });
 for (const asset of ['favicon.png', 'social-preview.jpg']) await cp(`web/${asset}`, `web/dist/${asset}`);
 await cp('third_party', 'web/dist/licenses', { recursive: true, filter: source => !source.endsWith('AGENTS.md') });

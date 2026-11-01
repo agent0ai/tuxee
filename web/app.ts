@@ -23,7 +23,7 @@ import { BackendConnection } from './connection';
 import { Updates } from './updates';
 import { openHowTo } from './how-to';
 import { setFaviconColor } from './favicon';
-import { locale, t, errorText, translations, setTranslations, rememberLanguage, type Translations } from './i18n';
+import { locale, t, errorText, translations, setTranslations, type Translations } from './i18n';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
@@ -114,7 +114,7 @@ function disposeViews() {
     warmWorkspaces.forEach(destroyWorkspace); mounted = undefined;
 }
 function updateTitle() {
-    document.title = t("app.title", { name: loggedIn && settings.serverName || hostname });
+    document.title = loggedIn ? t("app.title", { name: settings.serverName || hostname }) : t("app.tuxee");
 }
 function setColorMarker(color?: string) {
     if (loggedIn && color) document.documentElement.style.setProperty('--server-marker-border', `0.25rem solid ${color}`);
@@ -138,85 +138,7 @@ function showLogin() {
     cancelTransfers();
     setUploadConcurrency();
     root.replaceChildren();
-    document.documentElement.dataset.theme = 'dark';
-    const page = el('div', 'login-page');
-    const content = el('div', 'login-content');
-    const form = el('form', 'login-form');
-    const logo = el('img', 'login-logo');
-    logo.src = verticalLogo;
-    logo.alt = t("app.tuxee");
-    logo.width = logo.height = 512;
-    logo.draggable = false;
-    form.append(logo);
-    const language = el('select', 'login-language');
-    language.name = 'language';
-    for (const item of translations().languages) {
-        const option = el('option', '', `${item.code.toUpperCase()} ${item.name}`); option.value = item.code; language.append(option);
-    }
-    language.value = translations().language;
-    form.append(language);
-    const username = el('input'), password = el('input');
-    username.name = 'username';
-    username.autocomplete = 'username';
-    username.required = true;
-    username.autofocus = matchMedia('(pointer: fine)').matches;
-    password.name = 'password';
-    password.type = 'password';
-    password.autocomplete = 'current-password';
-    password.required = true;
-    const loginLabels: { label: HTMLLabelElement; key: string }[] = [];
-    for (const [key, input] of [['login.username', username], ['login.password', password]] as const) {
-        const label = el('label', 'field', t(key));
-        loginLabels.push({ label, key });
-        label.append(input);
-        form.append(label);
-    }
-    const status = el('p', 'login-error');
-    status.setAttribute('role', 'alert');
-    const submit = button(t("app.signIn"));
-    submit.type = 'submit';
-    submit.className = 'primary login-submit';
-    form.append(status, submit);
-    form.onsubmit = async (e) => { e.preventDefault(); submit.disabled = true; status.textContent = ''; const value = password.value; password.value = ''; try {
-        await api('/login', 'POST', { username: username.value, password: value, language: translations().language });
-        if (form.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
-        await load();
-    }
-    catch (error) {
-        status.textContent = error instanceof Error ? errorText(error) : t("app.signInFailed");
-    }
-    finally {
-        submit.disabled = false;
-    } };
-    const version = document.querySelector<HTMLMetaElement>('meta[name="tuxee-version"]')!.content;
-    const metadata = el('p', 'login-metadata', t('login.server', { hostname }));
-    const github = el('a', '', t("app.version", { version }));
-    github.dir = 'ltr'; github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
-    metadata.append(github);
-    const translateLogin = () => {
-        document.documentElement.lang = translations().language;
-        language.setAttribute('aria-label', t('login.language'));
-        logo.alt = t('app.tuxee'); github.textContent = t('app.version', { version }); updateTitle();
-        for (const {label, key} of loginLabels) label.firstChild!.textContent = t(key);
-        submit.textContent = submit.title = t('login.signIn'); submit.setAttribute('aria-label', submit.title);
-        metadata.firstChild!.textContent = t('login.server', { hostname });
-    };
-    translateLogin();
-    language.onchange = async () => {
-        const previous = translations().language;
-        language.disabled = submit.disabled = true;
-        try {
-            const value = await api<Translations>(`/language?language=${encodeURIComponent(language.value)}`);
-            if (!form.isConnected || loggedIn) return;
-            setTranslations(value); rememberLanguage(); language.value = value.language;
-            status.textContent = ''; translateLogin();
-        } catch (error) { language.value = previous; status.textContent = error instanceof Error ? errorText(error) : t('login.languageFailed'); }
-        finally { language.disabled = submit.disabled = false; }
-    };
-    content.append(form, metadata);
-    page.append(content);
-    root.append(page);
-    if (username.autofocus) username.focus();
+    location.replace('/');
 }
 async function load(signal?: AbortSignal) {
     const value = await api<{
@@ -1525,7 +1447,6 @@ async function logout() {
     loggingOut = true;
     try {
         await api('/logout', 'POST', {});
-        setTranslations(await api<Translations>('/language'));
         showLogin();
     } finally { loggingOut = false; }
 }
@@ -1548,10 +1469,8 @@ window.addEventListener('pagehide', () => { disposeShortcuts(); clearFileCut(); 
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
     else if (session.uid === user.uid && (!session.language || session.language === translations().language)) setCSRF(session.csrf);
-    else { showLogin(); location.reload(); }
+    else showLogin();
 }, () => {
     if (loggingOut) return;
-    const ended = loggedIn;
-    if (!root.querySelector('.login-page')) showLogin();
-    if (ended) location.reload();
+    showLogin();
 });

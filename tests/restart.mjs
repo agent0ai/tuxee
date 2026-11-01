@@ -189,6 +189,12 @@ try {
     for (let i = 0; starts < 4 && i < 200; i++) await new Promise(resolve => setTimeout(resolve, 50));
     assert.equal(starts, 4); assert.equal(service.exitCode, null);
     assert.equal(addresses[3], base);
+    // Server readiness can precede the CLI caller's exit and its guardian's reap.
+    for (let i = 0; i < 100; i++) {
+        try { process.kill(ownTerminal.pid, 0); }
+        catch (error) { if (error.code === 'ESRCH') break; throw error; }
+        await new Promise(resolve => setTimeout(resolve, 20));
+    }
     assert.throws(() => process.kill(ownTerminal.pid, 0), { code: 'ESRCH' });
     for (let i = 0; i < users.length; i++) identities[i] = await login(i);
     assert.equal(unrelated.exitCode, null);

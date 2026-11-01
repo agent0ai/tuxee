@@ -71,6 +71,7 @@ type Server struct {
 	clipSlots      chan struct{}
 	sizeSlots      chan struct{}
 	scriptHash     string
+	loginHash      string
 	monitor        *monitor.Collector
 	processReads   chan struct{}
 	processKills   chan struct{}
@@ -88,9 +89,11 @@ func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tl
 	s.updatePath, _ = os.Executable()
 	s.sizeSlots = make(chan struct{}, 2)
 	s.processKills = make(chan struct{}, 2)
-	if data, err := fs.ReadFile(assets, "script-csp.txt"); err == nil {
-		if hash, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data))); err == nil && len(hash) == 32 {
-			s.scriptHash = " 'sha256-" + base64.StdEncoding.EncodeToString(hash) + "'"
+	for name, target := range map[string]*string{"script-csp.txt": &s.scriptHash, "login-csp.txt": &s.loginHash} {
+		if data, err := fs.ReadFile(assets, name); err == nil {
+			if hash, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data))); err == nil && len(hash) == 32 {
+				*target = " 'sha256-" + base64.StdEncoding.EncodeToString(hash) + "'"
+			}
 		}
 	}
 	return s
@@ -181,10 +184,15 @@ func (s *Server) Prune(ctx context.Context) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	session := s.requestSession(r)
+	policy := "default-src 'none'; script-src" + s.loginHash + "; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+	if session != nil && !s.closed.Load() {
+		policy = "default-src 'self'; script-src 'self'" + s.scriptHash + "; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'none'; frame-src 'self'; object-src 'self'; media-src 'self'; base-uri 'self'"
+	}
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "same-origin")
 	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+s.scriptHash+"; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'none'; frame-src 'self'; object-src 'self'; media-src 'self'; base-uri 'self'")
+	w.Header().Set("Content-Security-Policy", policy)
 	if s.closed.Load() {
 		w.Header().Set("Cache-Control", "no-store")
 		failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
@@ -196,6 +204,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
+		if session == nil {
+			// Deny before filesystem lookup, including aliases, directories and build metadata.
+			public := r.URL.Path == "/" || r.URL.Path == "/index.html" || r.URL.Path == "/login-logo.webp" || r.URL.Path == "/favicon.png" || r.URL.Path == "/social-preview.jpg"
+			if !public || r.Method != http.MethodGet && r.Method != http.MethodHead {
+				w.Header().Set("Cache-Control", "no-store")
+				http.NotFound(w, r)
+				return
+			}
+		}
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			bundle := s.requestTranslations(r)
 			translations, _ := json.Marshal(bundle)
@@ -207,15 +224,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 			}
-			data, err := fs.ReadFile(s.Assets, "index.html")
+			index := "login.html"
+			if session != nil {
+				index = "index.html"
+			}
+			data, err := fs.ReadFile(s.Assets, index)
 			if err != nil {
 				http.Error(w, (&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "server.frontendUnavailable"}), 500)
 				return
 			}
-			hostname, err := os.Hostname()
-			if err != nil {
-				http.Error(w, (&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "server.hostnameUnavailable"}), 500)
-				return
+			hostname, version := "", ""
+			if session != nil {
+				hostname, err = os.Hostname()
+				if err != nil {
+					http.Error(w, (&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "server.hostnameUnavailable"}), 500)
+					return
+				}
+				version = s.Version
 			}
 			data = []byte(strings.NewReplacer(
 				"{{i18n}}", string(translations),
@@ -226,7 +251,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"{{loading}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.loading"})),
 				"{{origin}}", html.EscapeString(s.origin(r)),
 				"{{hostname}}", html.EscapeString(hostname),
-				"{{version}}", html.EscapeString(s.Version),
+				"{{version}}", html.EscapeString(version),
 			).Replace(string(data)))
 			if compressed {
 				var buffer bytes.Buffer
@@ -244,10 +269,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(data))
 			return
 		}
-		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Cache-Control", "private, no-cache")
+		w.Header().Set("Vary", "Cookie")
+		if r.URL.Path == "/favicon.png" || r.URL.Path == "/social-preview.jpg" || r.URL.Path == "/login-logo.webp" {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
 		if strings.HasPrefix(r.URL.Path, "/assets/") {
 			if info, err := fs.Stat(s.Assets, strings.TrimPrefix(r.URL.Path, "/")); err == nil && !info.IsDir() {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 			}
 		}
 		http.FileServer(http.FS(s.Assets)).ServeHTTP(w, r)
@@ -269,7 +298,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					code = cookie.Value
 				}
 			}
-			jsonResponse(w, 200, s.Translations.Bundle(code, s.languageCookie))
+			jsonResponse(w, 200, s.loginTranslations(code))
 		}
 		return
 	}
@@ -277,19 +306,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.signIn(w, r)
 		return
 	}
-	cookie, err := r.Cookie(s.cookieName)
-	var key [32]byte
-	if err == nil {
-		key = sha256.Sum256([]byte(cookie.Value))
-	}
-	s.mu.Lock()
-	session := s.logins[key]
-	if session != nil && time.Now().After(session.expires) {
-		session.cancel()
-		delete(s.logins, key)
-		session = nil
-	}
-	s.mu.Unlock()
 	if s.closed.Load() {
 		failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		return
@@ -307,11 +323,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if session == nil {
-		if err != nil {
-			failure(w, 401, i18n.New("backend.server.signInToContinue"))
-		} else {
-			failure(w, 401, i18n.New("backend.server.sessionExpiredSignInAgain"))
-		}
+		failure(w, 401, i18n.New("backend.server.signInToContinue"))
 		return
 	}
 	if r.Method != "GET" && r.Method != "HEAD" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Tuxee-CSRF")), []byte(session.csrf)) != 1 {
@@ -381,8 +393,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.pruneEditors(ctx, session.user, settings)
 		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available(), "i18n": session.translations})
 	case r.URL.Path == "/api/logout" && r.Method == "POST":
+		cookie, _ := r.Cookie(s.cookieName)
 		s.mu.Lock()
-		delete(s.logins, key)
+		delete(s.logins, sha256.Sum256([]byte(cookie.Value)))
 		session.cancel()
 		s.mu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: s.cookieName, Path: "/", MaxAge: -1, HttpOnly: true, Secure: strings.HasPrefix(s.origin(r), "https:"), SameSite: http.SameSiteStrictMode})
@@ -393,7 +406,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Settings
 			IdleHours json.RawMessage `json:"idleHours"`
 		}
-		err = decode(w, r, &input)
+		err := decode(w, r, &input)
 		value := input.Settings
 		if err == nil {
 			err = validateSettings(&value)
@@ -440,7 +453,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Rows      int    `json:"rows"`
 			Command   string `json:"command"`
 		}
-		if err = decode(w, r, &input); err != nil {
+		if err := decode(w, r, &input); err != nil {
 			failure(w, 400, err)
 			return
 		}
@@ -514,6 +527,10 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		if s.closed.Load() {
 			failure(w, http.StatusServiceUnavailable, i18n.New("backend.server.serverRestarting"))
 		} else {
+			message := i18n.Describe(err)
+			if message.Key != "backend.identity.loginAttemptLimit" && message.Key != "backend.identity.authenticationIsBusyTryAgainShortly" {
+				err = i18n.New("backend.identity.invalidUsernamePasswordOrAccountPolicy")
+			}
 			failure(w, 401, err)
 		}
 		return

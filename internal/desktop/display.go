@@ -76,9 +76,6 @@ func prepare(user identity.User, owner *keeper.Client) (*Display, error) {
 			d.Close()
 		}
 	}()
-	if err = os.Chown(dir, int(user.UID), int(user.GID)); err != nil {
-		return nil, err
-	}
 	if err = os.Mkdir(dir+"/xdg", 0700); err != nil {
 		return nil, err
 	}
@@ -86,13 +83,8 @@ func prepare(user identity.User, owner *keeper.Client) (*Display, error) {
 		return nil, err
 	}
 	// Reserve both Linux transports so Xlib cannot pick another server's abstract socket.
-	if err = os.Mkdir("/tmp/.X11-unix", os.ModeSticky|0777); err == nil {
-		err = os.Chmod("/tmp/.X11-unix", os.ModeSticky|0777)
-	} else if os.IsExist(err) {
-		err = nil
-	}
-	if err != nil {
-		return nil, err
+	if err = prepareXDirectory("/tmp/.X11-unix"); err != nil {
+		return nil, i18n.Wrap("backend.desktop.displayUnavailable", err, nil)
 	}
 	var secret [26]byte
 	if _, err = rand.Read(secret[:]); err != nil {
@@ -141,11 +133,43 @@ func prepare(user identity.User, owner *keeper.Client) (*Display, error) {
 			return nil, err
 		}
 	}
+	// Hand off only after root has finished accessing children by pathname.
+	if err = os.Chown(dir, int(user.UID), int(user.GID)); err != nil {
+		return nil, err
+	}
 	d.workers.Add(2)
 	go d.accept(d.listener)
 	go d.accept(d.abstract)
 	ok = true
 	return d, nil
+}
+
+func prepareXDirectory(path string) error {
+	err := os.Mkdir(path, os.ModeSticky|0777)
+	created := err == nil
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd)
+	var info unix.Stat_t
+	if err := unix.Fstat(fd, &info); err != nil {
+		return err
+	}
+	if info.Uid != 0 || info.Mode&unix.S_ISVTX == 0 {
+		return fmt.Errorf("unsafe X11 socket directory: %s", path)
+	}
+	// Root ownership plus the sticky bit protects the socket until its final chown.
+	if created {
+		return unix.Fchmod(fd, 01777)
+	}
+	if info.Mode&0777 != 0777 {
+		return fmt.Errorf("invalid X11 socket directory permissions: %s", path)
+	}
+	return nil
 }
 
 func (d *Display) State() *State {

@@ -36,7 +36,7 @@ so it shares the account database's container lifecycle. Restarts preserve later
 password changes; new containers initialize again. Unset the password before jobs
 inherit the environment. Do not bake custom passwords into image layers.
 
-The image exposes `/usr/local/lib/tuxee/tuxee` through `/usr/local/bin/tuxee`. The updater replaces that file without restarting. Updates in the writable layer survive same-container restarts, but recreation uses the image version. Compose defaults to the published multi-platform image; root release automation owns image tags.
+The image exposes `/usr/local/lib/tuxee/tuxee` through a `/usr/local/bin/tuxee` symlink. Before manually updating an existing preview, inspect its active command and symlink layout; earlier manual deployments may have replaced the link with a separate executable. Atomically replace the active executable target, restart explicitly, and verify the served UI and assets rather than only the installed file checksum. The updater replaces that file without restarting. Updates in the writable layer survive same-container restarts, but recreation uses the image version. Compose defaults to the published multi-platform image; root release automation owns image tags.
 
 The image writes its normalized build version to `/usr/local/lib/tuxee/update-version`, outside all data volumes. Fresh containers skip the embedded startup update script, even with reused volumes; binary upgrades in older containers run setup once successfully. `internal/update` owns the script and marker handling. The `audio-runtime` Docker target exports `tuxee-audio.tar.gz` from the same private runtime copied into the image, for checksum-verified release installation without build tools.
 

@@ -3,24 +3,50 @@ package server
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"html"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"tuxee/web"
 )
 
+func assetRequest(t *testing.T, s *Server, method, path string) *http.Request {
+	t.Helper()
+	if s.logins[sha256.Sum256([]byte("asset-token"))] == nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		s.logins[sha256.Sum256([]byte("asset-token"))] = &login{ctx: ctx, cancel: cancel, expires: time.Now().Add(time.Hour), translations: s.Translations.Bundle("en", s.languageCookie)}
+	}
+	request := httptest.NewRequest(method, "http://tuxee.test"+path, nil)
+	request.AddCookie(&http.Cookie{Name: s.cookieName, Value: "asset-token"})
+	return request
+}
+
 func TestSelfContainedIndexAndCSP(t *testing.T) {
+	for _, authenticated := range []bool{false, true} {
+		t.Run(fmt.Sprint(authenticated), func(t *testing.T) {
+			testSelfContainedIndexAndCSP(t, authenticated)
+		})
+	}
+}
+func testSelfContainedIndexAndCSP(t *testing.T, authenticated bool) {
 	s := New("test-instance", nil, nil, nil, "", web.Assets())
 	s.Version = "0.2.1"
 	request := httptest.NewRequest("GET", "https://tuxee.test/", nil)
+	if authenticated {
+		request = assetRequest(t, s, "GET", "/")
+	}
 	plain := httptest.NewRecorder()
 	s.ServeHTTP(plain, request)
 	if plain.Code != 200 {
@@ -59,7 +85,7 @@ func TestSelfContainedIndexAndCSP(t *testing.T) {
 	}
 }
 
-func TestPublicAssetCaching(t *testing.T) {
+func TestAuthenticatedAssetCaching(t *testing.T) {
 	assets := web.Assets()
 	s := New("test-instance", nil, nil, nil, "", assets)
 	index, err := fs.ReadFile(assets, "index.html")
@@ -83,9 +109,9 @@ func TestPublicAssetCaching(t *testing.T) {
 		}
 		for _, method := range []string{"GET", "HEAD"} {
 			response := httptest.NewRecorder()
-			s.ServeHTTP(response, httptest.NewRequest(method, "http://tuxee.test/"+name, nil))
-			if response.Code != 200 || response.Header().Get("Content-Type") != "image/webp" || response.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
-				t.Fatalf("logo is not publicly cacheable: %s %d %v", name, response.Code, response.Header())
+			s.ServeHTTP(response, assetRequest(t, s, method, "/"+name))
+			if response.Code != 200 || response.Header().Get("Content-Type") != "image/webp" || response.Header().Get("Cache-Control") != "private, max-age=31536000, immutable" {
+				t.Fatalf("authenticated logo cache policy differs: %s %d %v", name, response.Code, response.Header())
 			}
 			if method == "GET" && !bytes.Equal(response.Body.Bytes(), data) {
 				t.Fatalf("logo response differs from the build: %s", name)
@@ -94,8 +120,11 @@ func TestPublicAssetCaching(t *testing.T) {
 	}
 	for _, path := range []string{"/", "/index.html", "/favicon.png", "/social-preview.jpg", "/sw.js"} {
 		response := httptest.NewRecorder()
-		s.ServeHTTP(response, httptest.NewRequest("GET", "http://tuxee.test"+path, nil))
+		s.ServeHTTP(response, assetRequest(t, s, "GET", path))
 		cache := "no-cache"
+		if path == "/sw.js" {
+			cache = "private, no-cache"
+		}
 		if path == "/" || path == "/index.html" {
 			cache = "private, no-store"
 		}
@@ -105,7 +134,7 @@ func TestPublicAssetCaching(t *testing.T) {
 	}
 	for _, path := range []string{"/assets/", "/assets/missing-AAAAAAAA.webp", "/assets/../favicon.png"} {
 		response := httptest.NewRecorder()
-		s.ServeHTTP(response, httptest.NewRequest("GET", "http://tuxee.test"+path, nil))
+		s.ServeHTTP(response, assetRequest(t, s, "GET", path))
 		if strings.Contains(response.Header().Get("Cache-Control"), "immutable") {
 			t.Fatalf("only existing generated files may be immutable: %s", path)
 		}
@@ -146,7 +175,7 @@ func TestBrandingOrigin(t *testing.T) {
 	}
 }
 
-func TestPublicServerIdentity(t *testing.T) {
+func TestAuthenticatedServerIdentity(t *testing.T) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +185,7 @@ func TestPublicServerIdentity(t *testing.T) {
 			s := New("test-instance", nil, nil, nil, "", web.Assets())
 			s.Version = version
 			response := httptest.NewRecorder()
-			s.ServeHTTP(response, httptest.NewRequest("GET", "http://local.test"+path, nil))
+			s.ServeHTTP(response, assetRequest(t, s, "GET", path))
 			if response.Code != 200 {
 				t.Fatal(response.Code)
 			}
@@ -166,7 +195,7 @@ func TestPublicServerIdentity(t *testing.T) {
 				`name="tuxee-version" content="` + html.EscapeString(version) + `"`,
 			} {
 				if !strings.Contains(response.Body.String(), tag) {
-					t.Fatalf("missing public server metadata %s", tag)
+					t.Fatalf("missing authenticated server metadata %s", tag)
 				}
 			}
 			if strings.Contains(response.Body.String(), "<script>injected</script>") {

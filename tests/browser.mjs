@@ -683,10 +683,10 @@ try {
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('[name=username]').waitFor();
-    assert.equal(await page.title(), `Tuxee ${hostname}`);
+    assert.equal(await page.title(), 'Tuxee');
     assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--server-marker-border')), '');
     await checkFavicon();
-    assert.ok((await page.locator('.login-metadata').textContent()).startsWith(`Server ${hostname} • `));
+    assert.equal(await page.locator('.login-metadata, meta[name=tuxee-hostname], meta[name=tuxee-version]').count(), 0);
     assert.equal((await context.request.get(`${base}/api/terminals`)).status(), 401);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await login(a);

@@ -84,6 +84,8 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+- Keep anonymous login responses stable across releases from this change onward: no system hostname, executable version, application bundle, full catalogs, dependency metadata or application CSP hashes before authentication. Freeze the small login page, public branding and API response contract; enforce its checked-in response baseline. Preserve authenticated titles, color markers, About/system information and terminal behavior. See [the login contract](web/login/AGENTS.md) and [server admission](internal/server/AGENTS.md). This reduces release fingerprinting, not HTTP/TLS or behavioral identification.
+
 - Terminal-survival experiments use a separate worktree and disposable Docker containers. Minimize native helper disk size and private/PSS memory without removing lifecycle or permission checks. Prefer only process/PTY ownership and a Unix socket inside each existing terminal metadata directory, discovered without a separate catalog; keep I/O, buffering and resizing in Tuxee when feasible. Measure crash recovery, backpressure and responsiveness before changing the production lifecycle contract. [The keeper experiment](experiments/terminal-keeper/AGENTS.md) owns the prototype and its measured limitations.
 - The full keeper PoC must preserve terminals and GUI/audio applications across Tuxee crashes, updates and runtime restarts, while retaining existing rendering, keyboard/mouse and latency behavior. Keep the native helper generic and its protocol compatible with workers from older Tuxee versions; prefer evolving Go code over replacing running helpers. Explicit terminal/workspace closure still terminates owned jobs. A Linux/container restart still ends processes. [The keeper contract](internal/keeper/AGENTS.md) owns the persistent-runtime boundary.
 
@@ -178,7 +180,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Verification
 
-- Go 1.26.10 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`.
+- Go 1.26.10 or newer and PAM development headers are required. This environment has a verified Go toolchain at `.tools/go/bin/go`. Use a process-local `umask 022` for builds and cross-user test fixtures so generated executables and shared fixtures are readable/executable by credential-dropped workers; do not change host configuration.
 - Build the embedded frontend and terminal engine with `npm run build`, then the native guardian with `make -C internal/keeper/native` (musl-tools required); build the executable with `.tools/go/bin/go build -o bin/tuxee ./cmd/tuxee`.
 - `web/dist/`, `internal/terminal/engine.js` and `internal/keeper/keeper.bin` are generated and ignored by Git. Run the frontend and guardian builds before Go builds or tests on a fresh checkout; keep vendored frontend source and dependency licenses in Git.
 - Run `TUXEE_SYSTEM_TEST=1 GOMAXPROCS=2 .tools/go/bin/go test -p 2 ./internal/... ./cmd/... ./tests` for backend/system checks. Use `npm run test:gui`, `npm run test:gui-clipboard`, `npm run test:layout`, `npm run test:dividers`, `npm run test:browser`, `npm run test:clipboard`, `npm run test:uploads`, `npm run test:tabs`, `npm run test:mobile`, `npm run test:mobile-files`, `npm run test:features`, `npm run test:monitoring` and `npm run test:processes` for frontend checks; run browser suites sequentially.
