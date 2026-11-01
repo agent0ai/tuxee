@@ -71,7 +71,11 @@ export function terminalLinks(term: Terminal, row: number, hostname = ''): Candi
                 end--;
             }
             token = token.slice(0, end);
-        } else token = token.replace(/[)\]},;!?]+$/u, '');
+        } else {
+            // Keep current/parent-directory segments when removing sentence punctuation.
+            const dots = token.match(/\/(\.{1,2})[.)\]},;!?:]*$/u)?.[1] || '';
+            token = token.replace(/[.)\]},;!?:]+$/u, dots);
+        }
         const target = terminalLink(token, hostname);
         if (!target) continue;
         const start = match.index! + prefix + (/^["']/u.test(token) ? 1 : 0);

@@ -42,6 +42,27 @@ assert.deepEqual(terminalLinks(term, 2).map(value => value.path), ['~/folder', '
 term.reset();
 await write('(https://example.com/a_(b)). [http://[::1]:8080] "https://example.com/end." file:///tmp/a%20b.cc:4:2');
 assert.deepEqual(terminalLinks(term, 1).map(value => value.url || value.path), ['https://example.com/a_(b)', 'http://[::1]:8080/', 'https://example.com/end.', '/tmp/a b.cc']);
+for (const path of ['/tmp/tuxee-security-audit.md', './report.md', '../report.md', '~/report.md', '/tmp/a,b.txt', 'file:///tmp/report.md']) {
+    for (const punctuation of ['.', ',', ':', ';', '!', '?', '...', '.,;!?', ').', '],']) {
+        term.reset();
+        await write(`See ${path}${punctuation} Next sentence.`);
+        const [link] = terminalLinks(term, 1);
+        assert.equal(link.path, path.replace(/^file:\/\//u, ''), path + punctuation);
+        assert.equal(link.text, path);
+        assert.deepEqual(link.range, { start: { x: 5, y: 1 }, end: { x: 4 + path.length, y: 1 } }, 'highlight excludes punctuation');
+    }
+}
+term.reset();
+await write('/tmp/report.md:12:3. "/tmp/literal.," \'./literal?!\' /tmp/. /tmp/.., /tmp/.cache file:///tmp/encoded%2E');
+const literal = terminalLinks(term, 1);
+assert.deepEqual(literal.map(link => link.path), ['/tmp/report.md', '/tmp/literal.,', './literal?!', '/tmp/.', '/tmp/..', '/tmp/.cache', '/tmp/encoded.']);
+assert.deepEqual([literal[0].line, literal[0].column], [12, 3]);
+assert.equal(terminalLink('file:///tmp/literal.').path, '/tmp/literal.', 'explicit OSC destinations remain exact');
+term.reset(); term.resize(40, 10);
+await write('I’ll write the complete report to /tmp/tuxee-security-audit.md. The earlier /\r\n  root/workspace destination was not created, and the repository remains untouched.');
+const [report] = terminalLinks(term, 2);
+assert.equal(report.path, '/tmp/tuxee-security-audit.md');
+assert.deepEqual(report.range, { start: { x: 35, y: 1 }, end: { x: 22, y: 2 } });
 term.reset(); term.resize(40, 10);
 await write('👋 https://example.com/long-folder/this-is-a-long-name?q=1#part');
 const url = terminalLinks(term, 2)[0];
