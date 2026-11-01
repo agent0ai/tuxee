@@ -2,6 +2,7 @@ package files
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -64,19 +65,14 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 	if r.Instance == "" || len(r.Instance) > 128 || len(r.Content) > InputHistoryEntryBytes {
 		return Response{}, i18n.New("backend.files.invalidWorkerRequest")
 	}
-	home, err := os.UserHomeDir()
+	base, err := terminalBase()
 	if err != nil {
 		return Response{}, err
 	}
-	state := os.Getenv("XDG_STATE_HOME")
-	if !filepath.IsAbs(state) {
-		state = filepath.Join(home, ".local", "state")
-	}
-	base := filepath.Join(state, "tuxee", "terminals")
 	if r.Operation == "terminal-draft" {
 		return terminalDraft(base, r)
 	}
-	if r.Operation == "terminal-prune" || r.Operation == "terminal-list" {
+	if r.Operation == "terminal-prune" || r.Operation == "terminal-list" || r.Operation == "terminal-keepers" {
 		return reconcileTerminals(ctx, base, r)
 	}
 	if r.Operation == "terminal-archive" || r.Operation == "terminal-record" || r.Operation == "terminal-close" || r.Operation == "terminal-delete" {
@@ -121,6 +117,81 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 		}
 	}
 	return Response{History: history}, nil
+}
+
+func terminalBase() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	state := os.Getenv("XDG_STATE_HOME")
+	if !filepath.IsAbs(state) {
+		state = filepath.Join(home, ".local", "state")
+	}
+	return filepath.Join(state, "tuxee", "terminals"), nil
+}
+
+// TerminalDirectory must run in a credential-dropped worker, like terminalFiles.
+func TerminalDirectory(id, instance string, create bool) (*os.File, error) {
+	if !terminalID(id) || instance == "" || len(instance) > 128 {
+		return nil, os.ErrInvalid
+	}
+	base, err := terminalBase()
+	if err != nil {
+		return nil, err
+	}
+	if create {
+		if err = prepareTerminalFolder(base, id, instance); err != nil {
+			return nil, err
+		}
+	}
+	if _, err = terminalRecord(base, id, instance); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(base, id), os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err == nil && (info.Mode().Perm()&0077 != 0 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Geteuid())) {
+		err = os.ErrPermission
+	}
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// AudioDirectory shares the terminal metadata parent, without adding a terminal record.
+func AudioDirectory(instance string, create bool) (*os.File, error) {
+	if instance == "" || len(instance) > 128 {
+		return nil, os.ErrInvalid
+	}
+	base, err := terminalBase()
+	if err != nil {
+		return nil, err
+	}
+	digest := sha256.Sum256([]byte(instance))
+	path := filepath.Join(base, ".audio-"+hex.EncodeToString(digest[:12]))
+	if create {
+		if err = os.MkdirAll(path, 0700); err != nil {
+			return nil, err
+		}
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err == nil && (info.Mode().Perm()&0077 != 0 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Geteuid())) {
+		err = os.ErrPermission
+	}
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
 }
 
 func prepareTerminalFolder(base, id, instance string) error {

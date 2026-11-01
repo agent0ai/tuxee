@@ -165,6 +165,7 @@ try {
     console.log('PASS terminal background defaults, save/cancel/failure/reset, warm/detached/new terminals, live DOM/PID retention, themes, mobile, reconnect, login and application palette preservation');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
+    spawnSync('pkill', ['-KILL', '-u', user]);
     run('userdel', [user]);
     await rm(state, { recursive: true, force: true }); await rm(home, { recursive: true, force: true });
 }

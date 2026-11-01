@@ -15,6 +15,7 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
 const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
+const previousClosed = (await (await api('/terminals')).json()).filter(terminal => terminal.closedAt).length;
 const page = await appPage(context), sessions = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 async function create(name, command) {
@@ -90,7 +91,7 @@ try {
     await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     release(); await retained.waitFor(); await page.unroute(base + '/api/terminals');
-    assert.deepEqual(await retained.getByRole('tab').allTextContents(), ['Lost (3)', 'Closed (0)']);
+    assert.deepEqual(await retained.getByRole('tab').allTextContents(), ['Lost (3)', `Closed (${previousClosed})`]);
     assert.equal(await row(listed.name).count(), 0, 'inactive workspace terminals are already represented');
     assert.equal(await row(lost.name).count(), 1);
     assert.ok((await row(attached.name).textContent()).includes('Attached'));

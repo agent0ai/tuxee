@@ -249,7 +249,11 @@ async function load(signal?: AbortSignal) {
         await save();
     }
     render();
-    updates?.dispose(); updates = new Updates(updateMenuWarnings);
+    updates?.dispose(); updates = new Updates(updateMenuWarnings, async () => {
+        for (const value of warmWorkspaces.values()) if (!await canLeave(value)) return false;
+        await save();
+        return true;
+    });
     void refreshTerminals();
     prepareDownloads();
     if (!settings.howToSeen) void showHowTo().catch(notify);

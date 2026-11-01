@@ -244,7 +244,8 @@ func TestTerminalUsageRetention(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			// Race-instrumented credential workers each add an exit delay.
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 			a, err := s.Attach(ctx)
 			if err != nil {
@@ -360,7 +361,7 @@ func TestArchiveCleanupRegisteredIdentity(t *testing.T) {
 	}
 }
 
-func TestArchiveFailureKeepsShellUsable(t *testing.T) {
+func TestKeeperRequiresMetadataDirectory(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip("credential-dropped worker requires root")
 	}
@@ -374,29 +375,8 @@ func TestArchiveFailureKeepsShellUsable(t *testing.T) {
 	m := NewManager()
 	m.HistoryInstance = "failure-test"
 	defer m.Close()
-	s, err := m.Create(user, home, "", 80, 24, "", "", "", user.Shell, false, "en")
-	if err != nil {
-		t.Fatalf("recording failure prevented shell creation: %v", err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	a, err := s.Attach(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer a.Close()
-	if err := a.Write(ctx, []byte("printf 'ARCHIVE_%s\\n' STILL_WORKS\r")); err != nil {
-		t.Fatal(err)
-	}
-	text := ""
-	for !strings.Contains(text, "ARCHIVE_STILL_WORKS") {
-		select {
-		case event := <-a.Events:
-			text += string(event.Data)
-			a.Release(event)
-		case <-ctx.Done():
-			t.Fatal("recording failure disrupted PTY output")
-		}
+	if _, err := m.Create(user, home, "", 80, 24, "", "", "", user.Shell, false, "en"); err == nil {
+		t.Fatal("started an undiscoverable persistent terminal")
 	}
 	data, err := os.ReadFile(state)
 	if err != nil || string(data) != "keep" {

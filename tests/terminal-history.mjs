@@ -91,7 +91,7 @@ try {
     await page.locator('.xterm-helper-textarea').press('Enter');
     assert.deepEqual(saved(users[0], terminal.id), [first, ": 'inserted'"]);
     assert.equal(run('stat', '-c', '%u:%a', `${folder(users[0], terminal.id)}/input-history.json`), `${uid}:600`);
-    await page.reload(); await connected(page); await toggle.click(); await previous.click();
+    await page.reload(); await connected(page); if (!await drawer.isVisible()) await toggle.click(); await previous.click();
     assert.equal(await drawer.inputValue(), ": 'inserted'", 'reload restores history');
     await previous.click(); assert.equal(await drawer.inputValue(), first, 'multiline Unicode preserved');
     assert.deepEqual(await history(a, neighbour.id), [], 'terminal histories are isolated');
@@ -108,12 +108,12 @@ try {
     await phone.locator('[data-action=take-control]').click();
     await connected(phone);
     await phone.setViewportSize({ width: 390, height: 800 });
-    await phone.getByRole('button', { name: 'Toggle terminal input', exact: true }).click();
+    if (!await phone.locator('.terminal-input').isVisible()) await phone.getByRole('button', { name: 'Toggle terminal input', exact: true }).click();
     await phone.getByRole('button', { name: 'Previous input', exact: true }).click();
     assert.equal(await phone.locator('.terminal-input').inputValue(), ": 'inserted'");
     await submit(phone, ": 'phone'");
     await phone.close();
-    await page.reload(); await connected(page); await toggle.click();
+    await page.reload(); await connected(page); if (!await drawer.isVisible()) await toggle.click();
     await previous.click(); assert.equal(await drawer.inputValue(), ": 'phone'");
     assert.deepEqual(await history(a, terminal.id, ''), [first, ": 'inserted'", ": 'phone'"]);
     await Promise.all(Array.from({ length: 12 }, (_, i) => history(i % 2 ? second : a, terminal.id, `concurrent ${i}`)));
@@ -142,7 +142,7 @@ try {
     console.log('PASS file ownership, Unicode, reload, another device, logout, account/terminal isolation, CSRF, bounds and concurrent appends');
 
     const resetPage = await appPage(a.context); await resetPage.goto(base); await connected(resetPage);
-    await resetPage.getByRole('button', { name: 'Toggle terminal input', exact: true }).click();
+    if (!await resetPage.locator('.terminal-input').isVisible()) await resetPage.getByRole('button', { name: 'Toggle terminal input', exact: true }).click();
     await resetPage.locator('.terminal-input').fill('unsent draft');
     await resetPage.getByRole('button', { name: 'Reset terminal', exact: true }).click();
     await resetPage.getByRole('button', { name: 'Kill and reset', exact: true }).click();
@@ -198,7 +198,9 @@ try {
     assert.ok(exists(folder(users[1], otherUser.id)), 'one user login cleaned another user');
     await b.relogin();
     assert.ok(exists(folder(users[1], otherUser.id)), 'lost other account archive');
-    assert.equal((await (await a.api(`/terminals/${afterKill.id}`)).json()).exited, true);
+    const survived = await (await a.api(`/terminals/${afterKill.id}`)).json();
+    assert.equal(survived.exited, false);
+    assert.equal(survived.pid, afterKill.pid);
 
     const beforeRestart = await create(a); await history(a, beforeRestart.id, 'before container restart');
     docker('restart', container);

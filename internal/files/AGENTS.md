@@ -33,6 +33,8 @@ Launch file workers from `identity.Self` so an on-disk binary update cannot chan
 Reconciliation receives live IDs from the terminal manager, marks stale records dead with a one-time `foundDeadAt` only when no observed termination time exists, and deletes only matching-installation closed folders that are explicitly unused or past their configured retention. Default is 168 hours, zero expires on cleanup, and the settings range is 0–876000 hours. Never delete unclosed archives; skip unknown metadata/unrelated directories and never infer liveness from stored PIDs. `terminal-close` immediately removes the folder when `used` is explicitly false; retain true/unknown records normally and honor known usage supplied by the manager if its final checkpoint failed. Closing twice must not reset expiry, and late checkpoints cannot reopen closed metadata. `terminal-delete` permanently removes only a matching-installation closed folder, including output and input history; reject live/unclosed records. The manager serializes it against checkpoints.
 
 
+`TerminalDirectory` and `AudioDirectory` authorize private metadata descriptors for the guardian worker. Discover guardians through `keeper.sock` in existing terminal folders; reuse installation/account scoping without a new catalog. A guardian holds a directory flock for its lifetime. Reconciliation skips locked folders, and explicit archive closure/deletion refuses a locked folder, protecting processes that could not be adopted.
+
 # Work Guidance
 
 Never pre-check permissions as root and then perform the operation as root. Do not follow directory symlinks during recursive copy/delete. Configuration is user-owned and replaced atomically.

@@ -50,9 +50,10 @@ jobs:
       - name: Verify
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libpam0g-dev
+          sudo apt-get install -y --no-install-recommends libpam0g-dev musl-tools
           npm ci
           npm run build
+          make -C internal/keeper/native
           mkdir -p bin
           go build -o bin/tuxee ./cmd/tuxee
           go build -ldflags='-X main.version=0.2.1' -o bin/tuxee-setup ./cmd/tuxee

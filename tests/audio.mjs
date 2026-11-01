@@ -153,11 +153,10 @@ try {
     assert.equal((await api('/audio')).status(), 401);
     await page.goto(base);
     if (plain) assert.equal(await page.evaluate(() => isSecureContext), false, 'plain-HTTP test must use an insecure origin');
-    await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('button', { name: 'Add terminal', exact: true }).waitFor();
-    const me = await (await api('/me')).json(); csrf = me.csrf; original = me.settings;
+    // Install the fixture before mounting a workspace that could create extra terminals.
     await page.goto('about:blank');
+    assert.equal((await api('/login', 'POST', { username: user, password })).status(), 200);
+    const me = await (await api('/me')).json(); csrf = me.csrf; original = me.settings;
     terminal = await (await api('/terminals', 'POST', { directory: fields[5], name: 'Audio proof', columns: 80, rows: 24 })).json();
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'audio-proof', workspaces: [{ id: 'audio-proof', name: 'Audio proof', columns: 4, rows: 2, active: 'audio-shell', panels: [{ id: 'audio-shell', kind: 'terminal', terminal: terminal.id, path: fields[5], x: 0, y: 0, w: 4, h: 2 }] }] })).status(), 200);
     await page.goto(base); const view = page.locator('.terminal-view[data-state=connected]'); await view.waitFor();

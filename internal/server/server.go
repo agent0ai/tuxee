@@ -53,6 +53,9 @@ type Server struct {
 	Origin         string
 	Version        string
 	Updates        *update.Checker
+	updatePath     string
+	updateApplying atomic.Bool
+	updateReads    chan struct{}
 	Restart        func()
 	Assets         fs.FS
 	cookieName     string
@@ -79,6 +82,8 @@ func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tl
 	s.Translations = i18n.NewStore(i18n.SystemDirectory)
 	s.monitor = monitor.New()
 	s.processReads = make(chan struct{}, 2)
+	s.updateReads = make(chan struct{}, 2)
+	s.updatePath, _ = os.Executable()
 	s.sizeSlots = make(chan struct{}, 2)
 	s.processKills = make(chan struct{}, 2)
 	if data, err := fs.ReadFile(assets, "script-csp.txt"); err == nil {
@@ -348,36 +353,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}{i18n.New("server.restartDenied", i18n.Vars{"detail": i18n.Describe(err)}).Error(), &i18n.Message{Key: "server.restartDenied", Vars: i18n.Vars{"detail": i18n.Describe(err)}}, command})
 			return
 		}
-		if !s.closed.CompareAndSwap(false, true) {
-			failure(w, 503, i18n.New("backend.server.serverRestarting"))
-			return
-		}
-		jsonResponse(w, http.StatusAccepted, map[string]bool{"ok": true})
-		s.Restart()
+		s.restartRuntime(w)
 	case r.URL.Path == "/api/processes" && (r.Method == "GET" || r.Method == "POST" || r.Method == "DELETE"):
 		s.processOperation(w, r, session)
-	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"):
-		if s.Updates == nil {
-			failure(w, 503, i18n.New("backend.server.updateChecksUnavailable"))
-			return
-		}
-		status := s.Updates.Status()
-		if r.Method == "POST" {
-			status = s.Updates.Check(ctx)
-		}
-		path, err := os.Executable()
-		if err != nil {
-			failure(w, 500, err)
-			return
-		}
-		command := update.Command(path) + " update"
-		if session.user.UID != 0 {
-			command = "sudo " + command
-		}
-		jsonResponse(w, 200, struct {
-			update.Status
-			Command string `json:"command"`
-		}{status, command})
+	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"),
+		r.URL.Path == "/api/update/apply" && r.Method == "POST":
+		s.updateOperation(w, r, session)
 	case r.URL.Path == "/api/metrics" && r.Method == "GET":
 		jsonResponse(w, 200, s.monitor.Sample())
 	case r.URL.Path == "/api/system" && r.Method == "GET":

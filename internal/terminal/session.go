@@ -3,6 +3,7 @@ package terminal
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"time"
 	"tuxee/internal/files"
 	"tuxee/internal/i18n"
+	"tuxee/internal/keeper"
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -83,26 +85,35 @@ type Manager struct {
 }
 
 type Session struct {
-	Display      *desktop.Display
-	mu           sync.Mutex
-	manager      *Manager
-	user         identity.User
-	info         Info
-	cmd          *exec.Cmd
-	pty          *os.File
-	engine       *Engine
-	views        map[string]*Attachment
-	controller   string
-	input        chan inputFrame
-	done         chan struct{}
-	exited       chan struct{}
-	closed       bool
-	redrawTimer  *time.Timer
-	background   string
-	foreground   string
-	archiveDirty bool
-	archiveDead  bool
-	used         bool
+	Display        *desktop.Display
+	mu             sync.Mutex
+	manager        *Manager
+	user           identity.User
+	info           Info
+	cmd            *exec.Cmd
+	pty            *os.File
+	engine         *Engine
+	views          map[string]*Attachment
+	controller     string
+	input          chan inputFrame
+	done           chan struct{}
+	exited         chan struct{}
+	closed         bool
+	redrawTimer    *time.Timer
+	background     string
+	foreground     string
+	archiveDirty   bool
+	archiveDead    bool
+	used           bool
+	keeper         *keeper.Client
+	job            *keeper.Job
+	offset         uint64
+	committed      uint64
+	detached       bool
+	readDone       chan struct{}
+	releaseShell   func()
+	releaseAudio   func()
+	shellDirectory string
 }
 
 type Attachment struct {
@@ -158,6 +169,22 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	if count >= 32 || len(m.sessions) >= 128 {
 		return nil, i18n.New("backend.terminal.closeUnusedTerminalsBeforeCreatingAnother")
 	}
+	id := newID()
+	var guardian *keeper.Client
+	if m.HistoryInstance != "" {
+		var err error
+		guardian, err = keeper.Start(user, id, m.HistoryInstance)
+		if err != nil {
+			return nil, err
+		}
+	}
+	retained := false
+	defer func() {
+		if guardian != nil && !retained {
+			guardian.Stop()
+			guardian.Close()
+		}
+	}()
 	engine, err := NewEngine(columns, rows)
 	if err != nil {
 		return nil, err
@@ -166,12 +193,17 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 		engine.Close()
 		return nil, err
 	}
-	audioEnv, releaseAudio, err := m.Audio.Environment(user)
+	audioEnv, releaseAudio, err := m.Audio.EnvironmentFor(user, m.HistoryInstance)
 	if err != nil {
 		engine.Close()
 		return nil, err
 	}
-	display, err := desktop.Prepare(user)
+	var display *desktop.Display
+	if guardian != nil {
+		display, err = desktop.PreparePersistent(user, guardian)
+	} else {
+		display, err = desktop.Prepare(user)
+	}
 	if err != nil {
 		releaseAudio()
 		engine.Close()
@@ -219,21 +251,49 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	cmd.SysProcAttr.Setsid = true
 	cmd.SysProcAttr.Setctty = true
 	cmd.SysProcAttr.Ctty = 0
-	if err = cmd.Start(); err != nil {
+	s := &Session{Display: display, manager: m, user: user, info: Info{ID: id, Name: name, Directory: directory}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{}), keeper: guardian, readDone: make(chan struct{}), releaseShell: releaseShell, releaseAudio: releaseAudio, shellDirectory: cmd.Args[len(cmd.Args)-1]}
+	s.background, s.foreground, s.used = background, foreground, command != ""
+	if s.info.Name == "" {
+		s.info.Name = "Terminal"
+	}
+	var job *keeper.Job
+	if guardian != nil {
+		// Commit an empty interpreter before starting a process that can outlive this call.
+		if err = s.retainLocked(); err != nil {
+			return failed(err)
+		}
+		if err = m.Audio.Bind(user, guardian); err != nil {
+			return failed(err)
+		}
+		cwd, openErr := keeper.OpenDirectory(user, directory)
+		if openErr != nil {
+			return failed(openErr)
+		}
+		defer cwd.Close()
+		if err = guardian.PTY(master); err == nil {
+			job, err = guardian.Spawn(1, cmd.Args, cmd.Env, cwd, slave, slave, slave, true)
+		}
+		if err != nil {
+			return failed(err)
+		}
+		cmd.Process, _ = os.FindProcess(job.PID)
+	} else if err = cmd.Start(); err != nil {
 		return failed(err)
 	}
 	slave.Close()
 	started := time.Now().UTC()
-	s := &Session{Display: display, manager: m, user: user, info: Info{StartedAt: &started, ID: newID(), Name: name, Directory: directory, PID: cmd.Process.Pid}, cmd: cmd, pty: master, engine: engine, views: make(map[string]*Attachment), input: make(chan inputFrame, 16), done: make(chan struct{}), exited: make(chan struct{})}
-	s.background = background
-	s.foreground = foreground
-	s.used = command != ""
-	if s.info.Name == "" {
-		s.info.Name = "Terminal"
+	s.info.StartedAt, s.info.PID, s.job = &started, cmd.Process.Pid, job
+	if guardian != nil {
+		if err = s.retainLocked(); err != nil {
+			return failed(err)
+		}
+		master.Close()
+		s.pty = nil
 	}
 	m.sessions[s.info.ID] = s
 	m.closing.Add(1)
 	created = true
+	retained = true
 	if display != nil {
 		go s.watchDisplay()
 	}
@@ -244,12 +304,25 @@ func (m *Manager) Create(user identity.User, directory, name string, columns, ro
 	go s.writeInput()
 	s.checkpointLocked()
 	go func() {
-		// Keep the PID allocated until group signaling and reaping can be serialized.
-		var status unix.Siginfo
-		for unix.Waitid(unix.P_PID, cmd.Process.Pid, &status, unix.WEXITED|unix.WNOWAIT, nil) == unix.EINTR {
+		if job != nil {
+			_ = job.Wait()
+			s.mu.Lock()
+			if s.detached {
+				s.mu.Unlock()
+				close(s.exited)
+				return
+			}
+			s.mu.Unlock()
+		} else {
+			// Keep the PID allocated until group signaling and reaping can be serialized.
+			var status unix.Siginfo
+			for unix.Waitid(unix.P_PID, cmd.Process.Pid, &status, unix.WEXITED|unix.WNOWAIT, nil) == unix.EINTR {
+			}
 		}
 		s.mu.Lock()
-		_ = cmd.Wait()
+		if job == nil {
+			_ = cmd.Wait()
+		}
 		s.info.Exited = true
 		if s.info.TerminatedAt == nil {
 			terminated := time.Now().UTC()
@@ -273,6 +346,14 @@ func (m *Manager) SetBackground(user identity.User, color, foreground string) {
 		}
 		s.mu.Lock()
 		if !s.closed && (s.background != color || s.foreground != foreground) {
+			if s.keeper != nil {
+				data, _ := json.Marshal([2]string{color, foreground})
+				if err := s.retainedEventLocked(backgroundRecord, data); err != nil {
+					s.broadcastLocked(Event{Type: "error", Message: err.Error(), Text: i18n.Describe(err)})
+				}
+				s.mu.Unlock()
+				continue
+			}
 			if err := s.engine.SetBackground(color, foreground); err != nil {
 				s.broadcastLocked(Event{Type: "error", Message: i18n.New("terminal.backgroundFailed", i18n.Vars{"detail": i18n.Describe(err)}).Error(), Text: &i18n.Message{Key: "terminal.backgroundFailed", Vars: i18n.Vars{"detail": i18n.Describe(err)}}})
 			} else {
@@ -308,6 +389,11 @@ func (m *Manager) List(user identity.User) []Info {
 }
 func (m *Manager) Close() {
 	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		m.closing.Wait()
+		return
+	}
 	if !m.closed && m.archiveStop != nil {
 		close(m.archiveStop)
 	}
@@ -344,7 +430,7 @@ func (s *Session) WorkingDirectory(ctx context.Context) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	response, err := files.Run(ctx, s.user, files.Request{Operation: "stat", Path: fmt.Sprintf("/proc/%d/cwd", s.cmd.Process.Pid)})
+	response, err := files.Run(ctx, s.user, files.Request{Operation: "stat", Path: fmt.Sprintf("/proc/%d/cwd", s.info.PID)})
 	if err != nil {
 		return "", err
 	}
@@ -364,6 +450,9 @@ func (s *Session) Rename(name string) error {
 	defer s.mu.Unlock()
 	s.info.Name = name
 	s.archiveDirty = true
+	if s.keeper != nil {
+		return s.retainLocked()
+	}
 	return nil
 }
 
@@ -487,6 +576,9 @@ func (a *Attachment) Write(ctx context.Context, data []byte) error {
 	consumed := make(chan error, 1)
 	err := s.enqueueInputLocked(data, consumed)
 	if err == nil && !s.used {
+		if s.keeper != nil {
+			err = s.retainedEventLocked(usedRecord, nil)
+		}
 		s.used = true
 		s.archiveDirty = true
 	}
@@ -533,6 +625,11 @@ func (a *Attachment) Resize(cols, rows int) error {
 	if s.controller != a.ID {
 		return i18n.New("backend.terminal.takeControlBeforeResizing")
 	}
+	if s.keeper != nil {
+		data := make([]byte, 4)
+		binary.BigEndian.PutUint32(data, uint32(cols)<<16|uint32(rows))
+		return s.retainedEventLocked(keeper.Resize, data)
+	}
 	update, err := s.engine.Apply(nil, cols, rows)
 	if err != nil {
 		return err
@@ -571,6 +668,10 @@ func (s *Session) syncDisplayLocked(update DisplayUpdate) {
 			defer s.mu.Unlock()
 			s.redrawTimer = nil
 			if !s.closed {
+				if s.keeper != nil {
+					_ = s.retainedEventLocked(flushRecord, nil)
+					return
+				}
 				if next, err := s.engine.Flush(); err == nil {
 					s.syncDisplayLocked(next)
 				}
@@ -582,6 +683,11 @@ func (s *Session) syncDisplayLocked(update DisplayUpdate) {
 	}
 }
 func (s *Session) readOutput() {
+	defer close(s.readDone)
+	if s.keeper != nil {
+		s.readRetained()
+		return
+	}
 	defer func() {
 		if s.manager.HistoryInstance != "" {
 			s.close(false)
@@ -635,7 +741,12 @@ func (s *Session) writeInput() {
 	for {
 		select {
 		case frame := <-s.input:
-			_, err := s.pty.Write(frame.data)
+			var err error
+			if s.keeper != nil {
+				err = s.keeper.Input(frame.data, 0)
+			} else {
+				_, err = s.pty.Write(frame.data)
+			}
 			if frame.consumed != nil {
 				frame.consumed <- err
 			}
@@ -648,11 +759,26 @@ func (s *Session) writeInput() {
 	}
 }
 
-func (s *Session) Close() { s.close(true) }
-func (s *Session) close(explicit bool) {
+func (s *Session) Close() error { return s.close(true) }
+func (s *Session) close(explicit bool) error {
 	s.manager.mu.Lock()
 	s.mu.Lock()
 	wasClosed := s.closed
+	if s.detached {
+		s.mu.Unlock()
+		s.manager.mu.Unlock()
+		return nil
+	}
+	if !wasClosed && s.keeper != nil {
+		s.mu.Unlock()
+		s.checkpointLocked()
+		s.mu.Lock()
+		if err := s.keeper.Stop(); err != nil {
+			s.mu.Unlock()
+			s.manager.mu.Unlock()
+			return fmt.Errorf("terminal cleanup: %w", err)
+		}
+	}
 	s.closed = true
 	if s.info.TerminatedAt == nil {
 		terminated := time.Now().UTC()
@@ -676,6 +802,7 @@ func (s *Session) close(explicit bool) {
 	if !wasClosed {
 		s.destroy()
 	}
+	return nil
 }
 func (s *Session) destroy() {
 	defer s.manager.closing.Done()
@@ -689,13 +816,20 @@ func (s *Session) destroy() {
 		s.detachLocked(a)
 	}
 	close(s.done)
-	if !s.info.Exited {
+	if s.keeper == nil && !s.info.Exited {
 		_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGHUP)
 	}
-	_ = s.pty.Close()
+	if s.pty != nil {
+		_ = s.pty.Close()
+	}
 	s.engine.Close()
 	s.mu.Unlock()
 	s.Display.Close()
+	if s.keeper != nil {
+		s.keeper.Close()
+		<-s.exited
+		return
+	}
 	select {
 	case <-s.exited:
 	case <-time.After(time.Second):

@@ -30,6 +30,19 @@ func NewChecker(version string) *Checker {
 
 func (c *Checker) Status() Status { c.mu.Lock(); defer c.mu.Unlock(); return c.status }
 
+// Record also shares a successful installer's release check with other sessions.
+func (c *Checker) Record(release Release) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !ValidTag(release.Tag) || release.Draft || release.Prerelease {
+		return
+	}
+	c.status.Latest = release.Tag
+	c.status.Available = Newer(release.Tag, c.status.Current)
+	c.status.CheckedAt = time.Now()
+	c.status.Error, c.status.Text = "", nil
+}
+
 func (c *Checker) Check(ctx context.Context) Status {
 	c.mu.Lock()
 	if done := c.pending; done != nil {

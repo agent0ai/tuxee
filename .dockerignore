@@ -1,6 +1,7 @@
 .git
 .github
 tests
+experiments
 **/AGENTS.md
 .env
 **/.env
@@ -15,6 +16,7 @@ test-results
 coverage
 web/dist
 internal/terminal/engine.js
+internal/keeper/keeper.bin
 docs
 assets
 .idea

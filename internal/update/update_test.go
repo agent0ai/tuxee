@@ -17,6 +17,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"tuxee/internal/i18n"
 )
 
 func fixtureBinary(version string) string { return "#!/bin/sh\nprintf 'Tuxee " + version + "\\n'\n" }
@@ -331,5 +333,20 @@ func TestCheckCoalescingFailureAndDailySchedule(t *testing.T) {
 				t.Fatal("did not advance calendar day", now, next)
 			}
 		}
+	}
+}
+
+func TestInstallerReleaseRefreshesCheckStatus(t *testing.T) {
+	checker := NewChecker("1.0.0")
+	checker.status.Error = "previous network error"
+	checker.status.Text = &i18n.Message{Key: "updates.checkFailed"}
+	checker.Record(Release{Tag: "v1.1.0"})
+	status := checker.Status()
+	if status.Current != "1.0.0" || status.Latest != "v1.1.0" || !status.Available || status.Error != "" || status.Text != nil || status.CheckedAt.IsZero() {
+		t.Fatal(status)
+	}
+	checker.Record(Release{Tag: "v999.0.0", Prerelease: true})
+	if checker.Status().Latest != "v1.1.0" {
+		t.Fatal("accepted non-stable release")
 	}
 }

@@ -11,6 +11,8 @@ import (
 
 // StartArchives remembers only accounts that have authenticated to this installation.
 func (m *Manager) StartArchives(state string) {
+	// Browser audio can subscribe before the first terminal is created.
+	m.Audio.Instance = m.HistoryInstance
 	m.archiveAccountsPath = filepath.Join(state, "terminal-accounts.json")
 	m.archiveAccounts = map[string]uint32{}
 	if data, err := os.ReadFile(m.archiveAccountsPath); err == nil {
@@ -22,14 +24,15 @@ func (m *Manager) StartArchives(state string) {
 		log.Printf("terminal account registry: %v", err)
 	}
 	m.archiveStop, m.archiveStopped = make(chan struct{}), make(chan struct{})
+	m.cleanArchives()
 	go func() {
 		defer close(m.archiveStopped)
 		ticker := time.NewTicker(time.Hour)
 		defer ticker.Stop()
 		for {
-			m.cleanArchives()
 			select {
 			case <-ticker.C:
+				m.cleanArchives()
 			case <-m.archiveStop:
 				return
 			}

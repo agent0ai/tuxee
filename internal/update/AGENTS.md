@@ -7,11 +7,13 @@ GitHub release discovery, safe executable replacement, container setup and share
 # Ownership
 
 Own release validation, downloads, installation, embedded `update.sh` and the daily check. CLI owns
-commands/restart guidance; server and browser expose checks, never installation.
+commands/restart guidance; server and browser expose checks and explicit installation through the credential-dropped `__update` worker.
 
 `Command(executable)` is shared by the update API, restart permission guidance and CLI restart hints. Return `tuxee` only when PATH lookup resolves through symlinks to the target installation path; otherwise return the shell-quoted absolute path. Compare paths rather than the running inode so atomic replacement keeps the short command valid. This checks the calling process's PATH, not customized user shell or sudo settings.
 
 # Local Contracts
+
+- `worker.go` probes installation permissions and runs the same `Client.Latest`/`Client.Apply` path as the CLI under the signed-in UID/GID/supplementary groups. Launch through `identity.Self`; never elevate, accept browser-supplied paths/releases or change shared server credentials. Permission probes cover directory access, executable access, sticky-directory ownership, mount boundaries/immutable attributes where statx supports them, and existing lock access; the installer enforces permissions again. Probe kernel signal permission against the parent server and require it before a browser installation. The server immediately re-execs after successful installation; the standalone CLI keeps restart explicit. Read installed versions separately from the running version to recognize manual CLI replacement. Bound worker execution to three minutes; graceful cancellation removes staging files and preserves atomic replacement.
 
 Shared update status carries structured i18n `text` alongside diagnostic `error`; keep cached status language-independent and clear both on success. Release-check messages are translatable; standalone CLI install/update output remains outside UI localization.
 
@@ -51,7 +53,7 @@ directories and cleanup traps in subshell functions. Preserve error propagation.
 
 `go test ./internal/update` covers release validation, failure preservation,
 checksums, replacement, scheduling, clock-minute boundaries and check concurrency
-without public requests. Setup tests cover fresh-image skips, legacy upgrades, completion markers, failure retries and child-process cancellation. `tests/setup.py` exercises the real script in disposable chroots; with `TUXEE_SETUP_TEST_BINARY` pointing to a 0.2.1 build it also checks the embedded script through real server startup. No host installation or public downloads.
+without public requests. Server worker fixtures cover root installation, restart denial for writable non-root/supplementary-group installations, permission loss, sticky directories, lock permissions/symlinks/contention, checksum failure, no-op and cancellation without public downloads. Setup tests cover fresh-image skips, legacy upgrades, completion markers, failure retries and child-process cancellation. `tests/setup.py` exercises the real script in disposable chroots; with `TUXEE_SETUP_TEST_BINARY` pointing to a 0.2.1 build it also checks the embedded script through real server startup. No host installation or public downloads.
 With bin/tuxee built, also verify native bootstrap/reinstallation in temporary paths.
 Verify that writable command directories are rejected before installation and
 that securing their permissions allows installation and reinstallation.

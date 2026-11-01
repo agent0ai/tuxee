@@ -20,6 +20,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "__update" {
+		updateTestWorker()
+	}
 	if len(os.Args) > 1 && os.Args[1] == "__processes" {
 		if processes.Worker() != nil {
 			os.Exit(1)

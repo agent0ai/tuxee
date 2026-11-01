@@ -17,6 +17,16 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && (os.Args[1] == "serve" || strings.HasPrefix(os.Args[1], "__")) {
+		if os.Args[1] == "serve" || os.Args[1] == "__update" {
+			if err := browserUpdateFixture(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
+		}
+		main()
+		return
+	}
 	// The updater probes a disposable copy of this test executable with "version".
 	if len(os.Args) == 2 && os.Args[1] == "version" {
 		_ = run([]string{"version"})
@@ -136,7 +146,7 @@ func TestUpdateConsole(t *testing.T) {
 			} else if strings.Contains(text, "\x1b[") || !strings.Contains(text, "Restart using: "+command) {
 				t.Fatalf("bad plain output: %q", text)
 			}
-			if !strings.Contains(text, "\n\nChanges take effect after restarting Tuxee, which kills all running terminals.\n") {
+			if !strings.Contains(text, "\n\nChanges take effect after restarting Tuxee. Terminals and GUI applications keep running.\n") {
 				t.Fatal("missing spacing/disclaimer", text)
 			}
 			installed, readErr := os.ReadFile(target)

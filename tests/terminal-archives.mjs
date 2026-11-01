@@ -282,12 +282,14 @@ try {
     await mount(shutdown.id); await stop(); await start(); csrf=await login();
     assert.equal((await json('/me')).settings.workspaces[0].panels[0].terminal,shutdown.id);
     assert.ok((await output(shutdown.id)).text.includes('SHUTDOWN_OUTPUT')); assert.equal((await json(`/terminals/${shutdown.id}`)).closedAt,undefined);
-    const shutdownInfo=await json(`/terminals/${shutdown.id}`); assert.ok(shutdownInfo.terminatedAt); assert.equal(shutdownInfo.foundDeadAt,undefined);
+    const shutdownInfo=await json(`/terminals/${shutdown.id}`); assert.equal(shutdownInfo.pid,shutdown.pid); assert.equal(shutdownInfo.exited,false);
+    process.kill(shutdown.pid,'SIGKILL'); await ended(shutdown.id);
     const crash=await create("printf 'CRASH_CHECKPOINT\\n'; sleep 300",'Crash');
     await wait(async()=>{try{return (await disk(crash.id)).text.includes('CRASH_CHECKPOINT');}catch{return false;}},'periodic checkpoint missing');
     await stop('SIGKILL'); await start(); csrf=await login();
     assert.ok((await output(crash.id)).text.includes('CRASH_CHECKPOINT')); assert.equal((await json(`/terminals/${crash.id}`)).closedAt,undefined);
-    const crashInfo=await json(`/terminals/${crash.id}`); assert.ok(crashInfo.foundDeadAt); assert.equal(crashInfo.terminatedAt,undefined); assert.equal(crashInfo.startedAt,crash.startedAt);
+    const crashInfo=await json(`/terminals/${crash.id}`); assert.equal(crashInfo.pid,crash.pid); assert.equal(crashInfo.exited,false); assert.equal(crashInfo.startedAt,crash.startedAt);
+    process.kill(crash.pid,'SIGKILL'); await ended(crash.id);
     const metadata=JSON.parse(await readFile(folder(natural.id)+'/meta.json')); metadata.closedAt=new Date(Date.now()-169*3600000).toISOString();
     await writeFile(folder(natural.id)+'/meta.json',JSON.stringify(metadata));
     csrf=await login(); assert.equal((await api(`/terminals/${natural.id}`)).status(),404);
@@ -308,7 +310,7 @@ try {
         [mc.id,{startedAt:stamp(100),terminatedAt:stamp(24+8+34/60)}],
         [killed.id,{startedAt:stamp(10),terminatedAt:stamp(1.5)}],
         [shutdown.id,{startedAt:stamp(401*24),terminatedAt:stamp(400*24)}],
-        [crash.id,{startedAt:stamp(7),foundDeadAt:stamp(53/60)}],
+        [crash.id,{startedAt:stamp(7),terminatedAt:undefined,foundDeadAt:stamp(53/60)}],
         [closedFixture.id,{startedAt:stamp(3)}],
         [olderClosed.id,{startedAt:stamp(2),terminatedAt:stamp(1),closedAt:stamp(1)}],
     ]) {

@@ -36,6 +36,10 @@ const api = async (path, method='GET', data, status=200) => {
     assert.equal(response.status(),status, path+': '+await response.text()); return response.json();
 };
 const archive = async id => (await api(`/terminals/${id}/archive`)).text;
+const diskArchive = id => {
+    const result = spawnSync('docker', ['exec', container, 'cat', `${home}/.local/state/tuxee/terminals/${id}/output.txt`], {encoding:'utf8'});
+    assert.equal(result.status, 0, result.stderr); return result.stdout;
+};
 const panel = () => page.locator('[data-panel=subject]');
 const liveText = () => panel().locator('.xterm-rows').textContent();
 const command = async value => { await panel().locator('.xterm-helper-textarea').focus(); await page.keyboard.insertText(value); await page.keyboard.press('Enter'); };
@@ -52,8 +56,8 @@ const mount = async session => {
     await panel().locator('.terminal-view[data-state=connected]').waitFor();
 };
 const create = async (shell='bash', commandText) => {
-    await page.goto('about:blank');
     await wait(()=>settingsWrites.size===0,'previous layout saves');
+    await page.goto('about:blank');
     settings={theme:'dark',shellCommand:shell,useTuxeePrompt:true,workspaces:[]}; await api('/settings','PUT',settings);
     const session=await api('/terminals','POST',{directory:home,name:shell,columns:120,rows:30,command:commandText},201);
     await mount(session); return session;
@@ -65,6 +69,7 @@ const ended = async (id=current.id) => {
     assert.equal(await panel().locator('.terminal-rendering:visible').count(),0);
     const text=await archive(id);
     assert.equal(await panel().locator('.terminal-archive pre').textContent(),text);
+    assert.equal(diskArchive(id),text,'post-mortem API and user-owned output.txt differ');
     assert.ok(text.split('\n').length<=5000);
     assert.equal(text.includes('\x1b'),false);
     assert.equal((await api('/terminals/'+id)).closedAt,undefined);
@@ -101,6 +106,8 @@ try {
     }
     await mkdir('test-results',{recursive:true}); await login(); page=await appPage(context);
     page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.message));
+    // Navigation cancels old-document requests whose completion Chromium may not report.
+    page.on('framenavigated',frame=>{if(frame===page.mainFrame())settingsWrites.clear();});
     page.on('request',request=>{if(request.url()===base+'/api/settings' && request.method()==='PUT')settingsWrites.add(request);});
     page.on('requestfinished',request=>settingsWrites.delete(request));page.on('requestfailed',request=>settingsWrites.delete(request));
     for(const shell of ['bash','zsh','fish','/bin/sh']) {
@@ -134,6 +141,10 @@ try {
             if(program.name==='top') {await page.keyboard.press('m');await page.keyboard.press('m');}
             // Let curses distinguish a standalone Escape from an Alt/function-key prefix.
             await page.waitForTimeout(1100);
+            if(shell==='bash') {
+                await page.screenshot({path:`test-results/archive-scenarios-live-${program.name}.png`});
+                await writeFile(`test-results/archive-scenarios-live-${program.name}.txt`,await archive(session.id));
+            }
             if(['vim','nano'].includes(program.name)) await wait(async()=> (await archive(session.id)).includes('EDIT_'+label),'last edited screen');
             await panel().locator('.xterm-helper-textarea').focus();await leaveProgram(program);
             const after=await marker('AFTER',label);tokens.push(after);
@@ -196,10 +207,12 @@ try {
         const child=exec('pgrep','-P',String(session.pid),'-x',program.name);assert.match(child,/^\d+$/);
         exec('runuser','-u',user,'--','kill','-KILL',child);
         // SIGKILL cannot run the application's terminal cleanup; restore shell modes.
-        await command('reset');await marker('AFTER','KILLED_CHILD_'+program.name);await command('exit');
+        await command("reset; printf 'RESET_%s\\n' 'READY'");
+        await wait(async()=>(await liveText()).includes('RESET_READY'),'reset completed');
+        await marker('AFTER','KILLED_CHILD_'+program.name);await command('exit');
         const output=await ended(session.id);
         // The surviving shell can overwrite/scroll part of a killed TUI before reset.
-        assert.match(output,{mc:/Modify time/,nano:/nano row 010/,htop:/Load average/}[program.name]);
+        assert.match(output,{mc:/Modify time/,nano:/nano row 010/,htop:/VIRT\s+RES\s+SHR/}[program.name]);
         assert.ok(output.includes('AFTER_KILLED_CHILD_'+program.name));
         pass(`${program.name} child SIGKILL, shell reset and continued output`);
     }
@@ -230,25 +243,45 @@ try {
     await wait(async()=>!!(await api('/terminals/'+closed.id)).closedAt,'explicit Close retention');
     assert.match(await archive(closed.id),programs[3].screen);pass('Close panel while Nano runs captures text and starts retention');
 
-    // Graceful re-exec and hard container loss must retain the checkpoint and layout ID.
+    // Server replacement preserves processes; container loss restores their last archive.
     for(const mode of ['cli','kill-server','container-stop','container-kill']) {
         const session=await create('bash');await openProgram(programs[4]);
+        if(mode.startsWith('container-')) {
+            // Freeze the shell first so its job notice cannot overwrite the captured TUI.
+            exec('kill','-STOP',String(session.pid));
+            exec('pkill','-STOP','-P',String(session.pid),'-x','htop');
+        }
         const expected=await archive(session.id);
         if(mode==='cli')exec('tuxee','restart');
         else if(mode==='kill-server') {
             const pid=exec('pgrep','-f','^/usr/local/bin/tuxee serve');assert.match(pid,/^\d+$/);exec('kill','-KILL',pid);
         }
         else {run(mode==='container-stop'?['stop','--time','15',container]:['kill',container]);run(['start',container]);}
-        await page.locator('[name=username]').waitFor({timeout:30000});await login();await page.goto(base);await panel().locator('.terminal-archive').waitFor();
+        await page.locator('[name=username]').waitFor({timeout:30000});await login();await page.goto(base);
         assert.equal((await api('/me')).settings.workspaces[0].panels[0].terminal,session.id);
+        if(mode==='cli'||mode==='kill-server') {
+            await panel().locator('.terminal-view[data-state=connected]').waitFor();
+            assert.equal((await api('/terminals/'+session.id)).pid,session.pid);
+            assert.equal((await api('/terminals/'+session.id)).exited,false);
+            await wait(async()=>programs[4].screen.test(await liveText()),'retained htop');
+            exec('runuser','-u',user,'--','kill','-KILL',String(session.pid));
+        }
+        await panel().locator('.terminal-archive').waitFor();
         const output=await archive(session.id);assert.match(output,programs[4].screen);
-        if(mode!=='cli')assert.equal(output,expected);
+        if(mode.startsWith('container-'))assert.equal(output,expected);
         await panel().locator('.terminal-tab').click();assert.equal(await panel().locator('.terminal-surface:visible').count(),0);
-        pass(`${mode}: active htop checkpoint, same saved ID, post-mortem after login`);
+        pass(`${mode}: same saved ID, ${mode.startsWith('container-')?'post-mortem after container loss':'same live PID, then post-mortem after explicit shell death'}`);
     }
+    const fresh=await create('bash');
+    const freshToken=await marker('FRESH','BEFORE_CONTAINER_STOP');
+    // No archive API read: shutdown itself must flush the last displayed output.
+    run(['stop','--time','15',container]);run(['start',container]);
+    await page.locator('[name=username]').waitFor({timeout:30000});await login();await page.goto(base);
+    assert.ok((await ended(fresh.id)).includes(freshToken));
+    pass('graceful container stop flushes recent output without an archive API request');
     assert.deepEqual(errors,[]);
 } catch(error) {
-    results.push({failure:error.stack});
+    results.push({failure:error.stack,pendingSettings:[...settingsWrites].map(request=>({timing:request.timing(),failure:request.failure()}))});
     await page?.screenshot({path:'test-results/archive-scenarios-failure.png'}).catch(()=>{});
     if(current)await archive(current.id).then(text=>writeFile('test-results/archive-scenarios-failure.txt',text)).catch(()=>{});
     throw error;

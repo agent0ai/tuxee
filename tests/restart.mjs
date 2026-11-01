@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { chmod, chown, copyFile, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { request } from 'node:http';
 
 const run = (command, args, input) => {
     const result = spawnSync(command, args, { input, encoding: 'utf8' });
@@ -15,7 +16,7 @@ const dir = await mkdtemp('/tmp/tuxee-restart-'), users = [];
 await chmod(dir, 0o755);
 const executable = `${dir}/tuxee`, boot = await readFile('/proc/sys/kernel/random/boot_id', 'utf8');
 const gui = spawnSync('sh', ['-c', 'command -v tuxee-Xvnc >/dev/null && command -v xterm >/dev/null']).status === 0;
-let service, stopped, browser, unrelated;
+let service, stopped, browser, unrelated, drain;
 try {
     for (const root of [true, false]) {
         const name = `tuxee-restart-${root ? 'root' : 'user'}-${process.pid}`, home = `${dir}/${root ? 'root' : 'user'}`;
@@ -111,8 +112,8 @@ try {
             await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
         }
         await openRestart(); await confirmation.waitFor();
-        assert.match(await confirmation.textContent(), /ends all running terminals.*every user/);
-        assert.match(await confirmation.textContent(), /Linux and other services keep running/);
+        assert.equal(await confirmation.locator('.confirmation-message').textContent(), 'Restarting Tuxee signs everyone out. Linux, terminals and other services keep running.\nTo restart Linux, use reboot or terminate PID 1 for containers.');
+        assert.equal(await confirmation.locator('.confirmation-message').evaluate(node => getComputedStyle(node).whiteSpace), 'pre-line');
         assert.match(await confirmation.textContent(), /reboot.*PID 1/);
         assert.ok(await confirmation.evaluate(node => node.getBoundingClientRect().right <= innerWidth));
         await page.screenshot({ path: `test-results/restart-${mobile ? 'mobile-light' : 'desktop-dark'}.png` });
@@ -141,18 +142,18 @@ try {
     assert.equal(await readFile(`${dir}/executed`, 'utf8'), 'restarted');
     assert.equal(await readFile('/proc/sys/kernel/random/boot_id', 'utf8'), boot);
     assert.equal(unrelated.exitCode, null);
-    for (const terminal of terminals) assert.throws(() => process.kill(terminal.pid, 0), { code: 'ESRCH' });
-    if (gui) assert.throws(() => process.kill(guiPID, 0), { code: 'ESRCH' });
+    for (const terminal of terminals) process.kill(terminal.pid, 0);
+    if (gui) process.kill(guiPID, 0);
     for (let i = 0; i < users.length; i++) {
         assert.deepEqual(await (await api(i, '/connection')).json(), { authenticated: false });
         assert.equal((await api(i, '/me')).status(), 401);
         identities[i] = await login(i);
         assert.equal(identities[i].settings.workspaces[0].panels[1].terminal, terminals[i].id);
         const inventory = await (await api(i, '/terminals')).json();
-        assert.ok(inventory.some(info => info.id === terminals[i].id && info.exited && !info.closedAt));
-        assert.ok(inventory.every(info => info.exited));
+        assert.ok(inventory.some(info => info.id === terminals[i].id && !info.exited && !info.closedAt));
+        assert.ok(inventory.every(info => !info.exited));
     }
-    await page.reload(); await page.getByText('Post mortem', { exact: true }).waitFor();
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
     assert.deepEqual(errors, []);
 
     const deniedCLI = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8', uid: users[1].uid, gid: users[1].gid });
@@ -169,12 +170,12 @@ try {
     await rename(`${dir}/next`, `${dir}/runtime`);
     const cli = spawnSync(`${dir}/runtime`, ['restart'], { encoding: 'utf8' });
     assert.equal(cli.status, 0, cli.stderr);
-    assert.equal(cli.stdout, '\nRestarting Tuxee kills all running terminals and GUI applications and signs everyone out.\n\nRestart requested.\n');
+    assert.equal(cli.stdout, '\nRestarting Tuxee signs everyone out. Terminals and GUI applications keep running.\n\nRestart requested.\n');
     await writeFile('test-results/cli-restart-output.txt', cli.stdout);
     for (const p of pages) await p.locator('[name=username]').waitFor({ timeout: 20000 });
     assert.equal(starts, 3); assert.equal(service.exitCode, null);
     assert.equal(addresses[2], base);
-    for (const terminal of cliTerminals) assert.throws(() => process.kill(terminal.pid, 0), { code: 'ESRCH' });
+    for (const terminal of cliTerminals) process.kill(terminal.pid, 0);
     for (let i = 0; i < users.length; i++) {
         assert.deepEqual(await (await api(i, '/connection')).json(), { authenticated: false });
         identities[i] = await login(i);
@@ -191,17 +192,20 @@ try {
     assert.throws(() => process.kill(ownTerminal.pid, 0), { code: 'ESRCH' });
     for (let i = 0; i < users.length; i++) identities[i] = await login(i);
     assert.equal(unrelated.exitCode, null);
-    console.log('PASS CLI restart after binary replacement, Linux permission denial, all-user cleanup, same PID/port, and restart from its own terminal');
+    console.log('PASS CLI restart after binary replacement, Linux permission denial, all-user terminal continuity, same PID/port, and restart from its own terminal');
 
-    await api(0, '/terminals', 'POST', { name: 'Shutdown race', directory: users[0].home, columns: 80, rows: 24, command: "trap '' HUP; printf ready > shutdown-ready; exec sleep 300" });
-    for (let i = 0; i < 100 && await readFile(`${users[0].home}/shutdown-ready`, 'utf8').catch(() => '') !== 'ready'; i++) await page.waitForTimeout(20);
-    assert.equal(await readFile(`${users[0].home}/shutdown-ready`, 'utf8'), 'ready');
+    for (let i=0;i<users.length;i++) for(const terminal of await(await api(i,'/terminals')).json()) if(!terminal.exited) assert.equal((await api(i,'/terminals/'+terminal.id,'DELETE')).status(),200);
+    // Hold an admitted body read so shutdown is signalled during draining, before re-exec.
+    drain = request(base + '/api/login', { method: 'POST', headers: { 'X-Tuxee-Client': 'web', 'Content-Type': 'application/json', 'Content-Length': '128', Expect: '100-continue' } });
+    drain.setTimeout(20000, () => drain.destroy(Error('drain fixture timed out')));
+    await new Promise((resolve, reject) => { drain.once('continue', resolve); drain.on('error', reject); drain.flushHeaders(); });
     assert.equal((await api(0, '/restart', 'POST', {})).status(), 202);
     service.kill('SIGTERM'); await stopped;
-    assert.equal(starts, 4, 'shutdown during terminal cleanup must cancel the pending restart');
+    assert.equal(starts, 4, 'shutdown during HTTP draining must cancel the pending restart');
     assert.equal(service.exitCode, 0);
-    console.log(`PASS restart menu for all users, Linux permission denial without interruption, CSRF/origin admission, cancellation/draft protection, desktop/mobile confirmation, real re-exec of updated binary, all-user terminal cleanup${gui ? ' including GUI' : ' (GUI unavailable)'}, loader → login, preserved settings, unrelated Linux processes and shutdown during restart`);
+    console.log(`PASS restart menu for all users, Linux permission denial without interruption, CSRF/origin admission, cancellation/draft protection, desktop/mobile confirmation, real re-exec of updated binary, all-user terminal continuity${gui ? ' including GUI' : ' (GUI unavailable)'}, loader → login, preserved settings, unrelated Linux processes and shutdown during restart`);
 } finally {
+    drain?.destroy();
     await browser?.close();
     if (service?.exitCode === null) { service.kill('SIGTERM'); await stopped; }
     unrelated?.kill();

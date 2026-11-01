@@ -919,6 +919,18 @@ export function terminalArchiveRecorder(terminal: any, text: (lines: any[]) => s
   });
   return {
     sample,
+    checkpoint: () => ({history, alternate, boundary:boundary && !boundary.isDisposed ? boundary.line : undefined, column, hiddenCursor, normalFullscreen, normalLeaving}),
+    restore: (saved:any) => {
+      if (!saved || typeof saved !== 'object') throw new MessageError('engine.terminalStateMustBePlainJson');
+      const check = (value:any): Line[] => {
+        if (!Array.isArray(value) || value.length > 5000 || value.some(line => !line || typeof line.text !== 'string' || line.text.length > MAX_NORMAL_CELLS || !Number.isInteger(line.cells) || line.cells < 0 || line.cells > MAX_NORMAL_CELLS)) throw new MessageError('engine.invalidTerminalLine');
+        return bounded(value);
+      };
+      history = check(saved.history); alternate = check(saved.alternate);
+      if (!Number.isInteger(saved.column) || saved.column < 0 || saved.column > MAX_NORMAL_CELLS || saved.boundary !== undefined && (!Number.isInteger(saved.boundary) || saved.boundary < 0 || saved.boundary >= buffers.normal.lines.length)) throw new MessageError('engine.invalidTerminalCursorOrMargins');
+      boundary?.dispose(); boundary = saved.boundary === undefined ? undefined : buffers.normal.addMarker(saved.boundary);
+      column = saved.column; hiddenCursor = !!saved.hiddenCursor; normalFullscreen = !!saved.normalFullscreen; normalLeaving = !!saved.normalLeaving;
+    },
     capture: () => {
       sample();
       const tail = buffers.active === buffers.alt || normalFullscreen ? alternate : normal();

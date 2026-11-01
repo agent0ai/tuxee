@@ -12,7 +12,7 @@ Systemd actions are exposed as `tuxee service start|stop|restart|status|logs`; t
 
 # Local Contracts
 
-Require a running systemd manager before installation or lifecycle changes. Use a named, marked unit and refuse unrelated files. Install atomically; preserve existing configuration and all state on uninstall. Run as root because PAM and per-user process credentials require it. No custom background supervisor.
+Require a running systemd manager before installation or lifecycle changes. Use a named, marked unit and refuse unrelated files. Install atomically; preserve existing configuration and all state on uninstall. Run as root because PAM and per-user process credentials require it. No custom background supervisor. Use `KillMode=process` so service stop/crash/restart affects Tuxee while user guardians remain alive. Existing units require one explicit `tuxee service install` to refresh this setting; updating the executable alone does not rewrite units. Linux shutdown still ends processes.
 
 Keep a protected installation marker beside the installed executable so unregistering and reinstalling remains safe without discarding preserved files.
 

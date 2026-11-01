@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,18 @@ import (
 	"time"
 	"tuxee/internal/i18n"
 )
+
+func lockTerminalDirectory(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	if err = unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
+}
 
 func terminalRecord(base, id, instance string) (TerminalRecord, error) {
 	var record TerminalRecord
@@ -96,11 +109,23 @@ func reconcileTerminals(ctx context.Context, base string, r Request) (Response, 
 		if !entry.IsDir() || !terminalID(entry.Name()) {
 			continue
 		}
+		if r.Operation == "terminal-keepers" {
+			info, err := os.Lstat(filepath.Join(base, entry.Name(), "keeper.sock"))
+			if err != nil || info.Mode()&os.ModeSocket == 0 {
+				continue
+			}
+		}
 		record, err := terminalRecord(base, entry.Name(), r.Instance)
 		if err != nil {
 			continue
 		}
 		if r.Operation == "terminal-prune" {
+			// A running guardian may be temporarily unavailable or use a newer snapshot.
+			guard, err := lockTerminalDirectory(filepath.Join(base, record.ID))
+			if err != nil {
+				continue
+			}
+			guard.Close()
 			if record.State == "closed" && record.ClosedAt != nil && (record.Used != nil && !*record.Used || time.Since(*record.ClosedAt).Hours() >= float64(hours)) {
 				if err := os.RemoveAll(filepath.Join(base, record.ID)); err != nil {
 					return Response{}, err
@@ -150,6 +175,13 @@ func terminalArchive(base string, r Request) (Response, error) {
 		return Response{}, err
 	}
 	path := filepath.Join(base, r.Path)
+	if r.Operation == "terminal-close" || r.Operation == "terminal-delete" {
+		guard, err := lockTerminalDirectory(path)
+		if err != nil {
+			return Response{}, err
+		}
+		defer guard.Close()
+	}
 	switch r.Operation {
 	case "terminal-record":
 		// A late checkpoint must never reopen an explicitly closed archive.

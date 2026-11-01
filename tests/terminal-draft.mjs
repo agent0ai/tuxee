@@ -22,7 +22,7 @@ const state = await mkdtemp('/tmp/tuxee-draft-state-');
 await chmod(state, 0o755);
 await copyFile(process.env.TUXEE_TEST_BINARY || './bin/tuxee', state + '/tuxee');
 await chmod(state + '/tuxee', 0o755);
-let server, stopped, browser;
+let server, stopped, browser, cleanup;
 const start = async () => {
     server = spawn(state + '/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state + '/state'], { stdio: ['ignore', 'pipe', 'pipe'] });
     stopped = new Promise(resolve => server.once('exit', resolve));
@@ -44,6 +44,9 @@ try {
     };
     csrf = await login();
     const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
+    cleanup = async () => {
+        for (const session of await (await api('/terminals')).json()) if (!session.exited) await api('/terminals/' + session.id, 'DELETE');
+    };
     const response = await api('/terminals', 'POST', { directory: accounts[0].home, columns: 80, rows: 24 });
     assert.equal(response.status(), 201, await response.text());
     let terminal = (await response.json()).id;
@@ -152,10 +155,15 @@ try {
     assert.equal((await saved()).text, 'draft before logout');
 
     // Persisted drafts also survive server restart and archived-terminal replacement.
+    const retained = await (await api('/terminals/' + terminal)).json();
     await page.close(); server.kill('SIGTERM'); await stopped;
     base = await start(); csrf = await login();
     assert.equal((await saved()).text, 'draft before logout');
     const restored = await appPage(context); await restored.goto(base);
+    await restored.locator('.terminal-view[data-state=connected]').waitFor();
+    assert.equal((await (await api('/terminals/' + terminal)).json()).pid, retained.pid);
+    assert.equal(await restored.locator('.terminal-input').inputValue(), 'draft before logout');
+    process.kill(retained.pid, 'SIGKILL');
     await restored.locator('.terminal-archive').waitFor();
     await restored.locator('.restart-terminal').click();
     await restored.locator('.terminal-view[data-state=connected]').waitFor();
@@ -164,6 +172,7 @@ try {
     assert.deepEqual(errors, []);
     console.log('Terminal draft persistence: reload, hidden drawer, Unicode, permissions, mobile, conflicts, pending saves, history, undo, reset, logout, ownership, CSRF and restart passed.');
 } finally {
+    await cleanup?.();
     await browser?.close(); server?.kill('SIGTERM'); await stopped;
     for (const account of accounts) { run('userdel', [account.user]); await rm(account.home, { recursive: true, force: true }); }
     await rm(state, { recursive: true, force: true });

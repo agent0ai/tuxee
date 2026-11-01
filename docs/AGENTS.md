@@ -13,6 +13,7 @@ manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits.
 `releases.md` owns updates, GitHub/Docker Hub setup and publication limits.
 `audio.md` owns shared user audio, reproduction commands, measured runtime footprint and validation limits.
+`terminal-keeper.md` owns the persistent-terminal PoC architecture, build steps, measurements and recovery limits.
 Root `README.md` owns the logo/title, short container/standalone introduction,
 illustrated Highlights, Quick start, Resources links and Agent Zero credits.
 

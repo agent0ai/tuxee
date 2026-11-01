@@ -30,6 +30,7 @@ func (m *Manager) PruneHistory(user identity.User) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	live := []string{}
+	m.adoptLocked(user)
 	for id, s := range m.sessions {
 		if s.user.UID != user.UID {
 			continue

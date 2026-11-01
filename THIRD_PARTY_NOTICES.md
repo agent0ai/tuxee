@@ -42,6 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # Additional bundled components
 
+The embedded native terminal guardian is statically linked with musl libc from Debian Trixie (musl 1.2.5). Its verbatim package copyright and license notices are in `third_party/MUSL-COPYRIGHT.txt`, embedded under `/licenses/`. The guardian runs as a separate process; terminal interpretation remains in Go.
+
 The GUI proof of concept bundles noVNC 1.6.0 `core/` and `vendor/` ES modules from https://github.com/novnc/noVNC/releases/tag/v1.6.0. Corresponding source is included in `web/vendor/novnc/` in this repository and is available from that upstream tag. Tuxee modifies `core/util/browser.js` to release the H.264 capability probe's frame and decoder on success/failure, and `core/rfb.js` to reject invalid framebuffer dimensions from hidden/detached viewers; the remaining bundled modules are unmodified. The core is MPL-2.0, with BSD-licensed portions and the bundled MIT-licensed pako implementation. Full notices are in `third_party/NOVNC-*`; upstream per-file notices remain in source. The Go binary serves these notices under `/licenses/`.
 
 The POC container separately builds TigerVNC 1.16.2 (GPL-2.0 and upstream component licenses) with Xorg Server 21.1.25 (upstream X/MIT-style licenses). Exact source URLs, SHA-256 checksums, upstream integration patch and build options are in `docker/build-gui.sh`. Corresponding source archives are https://github.com/TigerVNC/tigervnc/archive/refs/tags/v1.16.2.tar.gz and https://www.x.org/releases/individual/xserver/xorg-server-21.1.25.tar.xz. The container retains their upstream license files under `/usr/local/share/licenses/tuxee-gui/`. They are separate runtime executables, not linked into Tuxee.

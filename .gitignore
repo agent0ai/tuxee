@@ -7,7 +7,9 @@ node_modules/
 /bin/
 /web/dist/
 /internal/terminal/engine.js
+/internal/keeper/keeper.bin
 *.test
+__pycache__/
 
 # Local state and verification output
 /.test-state/

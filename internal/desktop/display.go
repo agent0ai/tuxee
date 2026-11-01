@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 	"tuxee/internal/i18n"
+	"tuxee/internal/keeper"
 
 	"github.com/jezek/xgb"
 	"golang.org/x/sys/unix"
@@ -47,9 +48,18 @@ type Display struct {
 	x                    *xgb.Conn
 	windows              *windowManager
 	idle                 *time.Timer
+	keeper               *keeper.Client
 }
 
 func Prepare(user identity.User) (*Display, error) {
+	return prepare(user, nil)
+}
+
+func PreparePersistent(user identity.User, owner *keeper.Client) (*Display, error) {
+	return prepare(user, owner)
+}
+
+func prepare(user identity.User, owner *keeper.Client) (*Display, error) {
 	// Native installations without the optional runtime keep ordinary terminals.
 	if _, err := exec.LookPath("tuxee-Xvnc"); err != nil {
 		return nil, nil
@@ -58,7 +68,7 @@ func Prepare(user identity.User) (*Display, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &Display{Changes: make(chan struct{}, 1), user: user, dir: dir}
+	d := &Display{Changes: make(chan struct{}, 1), user: user, dir: dir, keeper: owner}
 	d.ctx, d.cancel = context.WithCancel(context.Background())
 	ok := false
 	defer func() {
@@ -126,6 +136,11 @@ func Prepare(user identity.User) (*Display, error) {
 		return nil, err
 	}
 	d.Env = []string{"DISPLAY=:" + number, "XAUTHORITY=" + dir + "/Xauthority", "XDG_RUNTIME_DIR=" + dir + "/xdg", "XDG_SESSION_TYPE=x11", "DBUS_SESSION_BUS_ADDRESS=unix:path=" + dir + "/bus"}
+	if owner != nil {
+		if err = d.retain(); err != nil {
+			return nil, err
+		}
+	}
 	d.workers.Add(2)
 	go d.accept(d.listener)
 	go d.accept(d.abstract)
@@ -152,6 +167,14 @@ func (d *Display) changed() {
 
 func (d *Display) accept(listener *net.UnixListener) {
 	defer d.workers.Done()
+	if d.keeper != nil {
+		slot := uint64(2)
+		if listener == d.abstract {
+			slot = 3
+		}
+		d.acceptRetained(slot)
+		return
+	}
 	for {
 		client, err := listener.AcceptUnix()
 		if err != nil {
@@ -195,7 +218,7 @@ func (d *Display) connect() (net.Conn, error) {
 	if err := d.ctx.Err(); err != nil {
 		return nil, err
 	}
-	if d.process == nil {
+	if d.process == nil || d.windows == nil {
 		if err := d.launch(); err != nil {
 			return nil, err
 		}
@@ -206,17 +229,35 @@ func (d *Display) connect() (net.Conn, error) {
 		d.releaseAfterLocked(30 * time.Second)
 	}
 	d.mu.Unlock()
-	return (&net.Dialer{}).DialContext(d.ctx, "unix", d.backend)
+	return d.dial(d.backend)
 }
 
 // The runtime lock serializes startup, connections and teardown; state stays readable.
 func (d *Display) launch() error {
-	p, err := start(d.ctx, d.user, d.dir, d.Password)
+	if d.keeper != nil {
+		if _, exited, err := d.keeper.Job(2); err == unix.ENOENT || err == nil && exited {
+			for _, name := range []string{"ready", "bus-ready", "vnc", "bus", "passwd"} {
+				d.remove(d.dir + "/" + name)
+			}
+		}
+	}
+	p := d.process
+	if p != nil {
+		select {
+		case <-p.done:
+			p = nil
+		default:
+		}
+	}
+	var err error
+	if p == nil {
+		p, err = startOwned(d.ctx, d.user, d.dir, d.Password, d.keeper)
+	}
 	var x *xgb.Conn
 	var windows *windowManager
 	if err == nil {
 		var connection net.Conn
-		connection, err = (&net.Dialer{}).DialContext(d.ctx, "unix", p.address)
+		connection, err = d.dial(p.address)
 		if err == nil {
 			connection.SetDeadline(time.Now().Add(10 * time.Second))
 			x, err = xgb.NewConnNetWithCookieHex(connection, d.cookie)
@@ -282,7 +323,11 @@ func (d *Display) stop(err error, idle *time.Timer) {
 		d.idle = nil
 	}
 	x, p := d.x, d.process
-	d.x, d.process, d.windows, d.backend = nil, nil, nil, ""
+	d.x, d.windows = nil, nil
+	preserve := d.keeper != nil && err != nil && d.ctx.Err() == nil
+	if !preserve {
+		d.process, d.backend = nil, ""
+	}
 	d.state = State{}
 	if err != nil {
 		d.state.Error = err.Error()
@@ -293,11 +338,14 @@ func (d *Display) stop(err error, idle *time.Timer) {
 	if x != nil {
 		x.Close()
 	}
+	if preserve {
+		return
+	}
 	if p != nil {
 		p.close()
 	}
 	for _, name := range []string{"ready", "bus-ready", "vnc", "bus", "passwd"} {
-		os.Remove(d.dir + "/" + name)
+		d.remove(d.dir + "/" + name)
 	}
 }
 
@@ -355,6 +403,13 @@ func (d *Display) Close() {
 		d.stop(nil, nil)
 		d.runtime.Unlock()
 		d.workers.Wait()
-		os.RemoveAll(d.dir)
+		if d.keeper != nil {
+			d.keeper.Put(2, nil)
+			d.keeper.Put(3, nil)
+			if d.listener != nil {
+				d.remove(d.listener.Addr().String())
+			}
+		}
+		d.remove(d.dir)
 	})
 }

@@ -234,7 +234,7 @@ func quote(value string) string {
 }
 func unit(p paths) string {
 	commandQuote := func(value string) string { return strings.ReplaceAll(quote(value), "$", "$$") }
-	return marker + "[Unit]\nDescription=Tuxee Linux management\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nUser=root\nUMask=0077\nExecStart=" + commandQuote(p.binary) + " serve --config " + commandQuote(p.config) + "\nRestart=on-failure\nRestartSec=3\nTimeoutStopSec=30\nKillMode=control-group\n\n[Install]\nWantedBy=multi-user.target\n"
+	return marker + "[Unit]\nDescription=Tuxee Linux management\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nUser=root\nUMask=0077\nExecStart=" + commandQuote(p.binary) + " serve --config " + commandQuote(p.config) + "\nRestart=on-failure\nRestartSec=3\nTimeoutStopSec=30\nKillMode=process\n\n[Install]\nWantedBy=multi-user.target\n"
 }
 func Uninstall(name string) error {
 	if os.Geteuid() != 0 {

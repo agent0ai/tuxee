@@ -9,6 +9,7 @@ import (
 	"tuxee/internal/files"
 	"tuxee/internal/i18n"
 	"tuxee/internal/identity"
+	"tuxee/internal/keeper"
 )
 
 func (s *Session) archiveRecordLocked() files.TerminalRecord {
@@ -69,7 +70,13 @@ func (s *Session) watchArchive() {
 		case <-ticker.C:
 			s.mu.Lock()
 			if !s.closed && !s.archiveDead {
-				_, _ = s.engine.call("sampleArchive")
+				if s.keeper != nil {
+					if s.archiveDirty {
+						_ = s.retainedEventLocked(sampleRecord, nil)
+					}
+				} else {
+					_, _ = s.engine.call("sampleArchive")
+				}
 			}
 			dirty := s.archiveDirty
 			ticks++
@@ -111,7 +118,7 @@ func (m *Manager) ArchiveInventory(ctx context.Context, user identity.User) ([]I
 }
 
 func archivedInfo(record files.TerminalRecord) Info {
-	return Info{ID: record.ID, Name: record.Name, Directory: record.Directory, Exited: true, ClosedAt: record.ClosedAt, StartedAt: record.StartedAt, TerminatedAt: record.TerminatedAt, FoundDeadAt: record.FoundDeadAt, ExpiresAt: record.ExpiresAt}
+	return Info{ID: record.ID, Name: record.Name, Directory: record.Directory, Exited: record.State != "live", ClosedAt: record.ClosedAt, StartedAt: record.StartedAt, TerminatedAt: record.TerminatedAt, FoundDeadAt: record.FoundDeadAt, ExpiresAt: record.ExpiresAt}
 }
 
 func (m *Manager) Archive(ctx context.Context, user identity.User, id string) (json.RawMessage, error) {
@@ -127,6 +134,12 @@ func (m *Manager) Archive(ctx context.Context, user identity.User, id string) (j
 func (m *Manager) CloseArchive(ctx context.Context, user identity.User, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if owner, err := keeper.Connect(user, id, m.HistoryInstance); err == nil {
+		defer owner.Close()
+		if err = owner.Stop(); err != nil {
+			return err
+		}
+	}
 	_, err := files.Run(ctx, user, files.Request{Operation: "terminal-close", Instance: m.HistoryInstance, Path: id})
 	return err
 }

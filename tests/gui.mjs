@@ -220,6 +220,12 @@ try {
         const button = buttons.find(b => b.title === title);
         return button ? '0x' + Number(button.dataset.window).toString(16) : undefined;
     }, title);
+    // Native confirmation dialogs may be omitted from the window manager's task list.
+    const closeDialog = () => {
+        const result = spawnSync('xdotool', ['search', '--onlyvisible', '--name', '^Confirm application close$'], { uid, gid, env, encoding: 'utf8' });
+        assert.ok(result.status === 0 || result.status === 1, result.stderr);
+        return result.stdout.trim();
+    };
     const dialogFits = async title => {
         const id = await windowID(title); if (!id) return false;
         const info = runX(env, 'xwininfo', ['-id', id]);
@@ -506,7 +512,8 @@ try {
     csrf = (await (await api('/me')).json()).csrf;
     await shell(second, 'exit');
     await poll(() => second.getAttribute('data-state').then(value => value === 'ended'), 'shell exit was not reported');
-    await poll(() => second.locator('.terminal-host').isVisible(), 'shell exit left a dead display visible');
+    await poll(() => second.locator('.terminal-archive').isVisible(), 'shell exit did not show its archive');
+    assert.equal(await second.locator('.terminal-display').isVisible(),false,'shell exit left a dead display visible');
     await poll(async () => !await alive(Number(shellLines[1])), 'shell exit left GUI app running');
     await page.locator('.terminal-view').last().locator('..').getByRole('button', { name: 'Close panel', exact: true }).click();
     await poll(() => api(`/terminals/${panels[1].terminal}`).then(response => response.json()).then(info => Boolean(info.closedAt)), 'closing panel left GUI session running');
@@ -519,13 +526,13 @@ try {
     const menu = page.getByRole('menuitem', { name: 'Close', exact: true });
     await firstPanel.locator('.display-window-item.active').getByRole('button', { name: 'Window menu', exact: true }).click();
     await menu.click();
-    await poll(async () => !!await windowID('Confirm application close'), 'window close bypassed the application confirmation');
+    await poll(() => !!closeDialog(), 'window close bypassed the application confirmation');
     await page.keyboard.press('Escape');
-    await poll(async () => !await windowID('Confirm application close'), 'close confirmation did not cancel');
+    await poll(() => !closeDialog(), 'close confirmation did not cancel');
     assert.ok(await alive(input.pid), 'cancelled window close killed the application');
     await firstPanel.getByRole('button', { name: 'GUI application proof', exact: true }).click({ button: 'right' });
     await menu.click();
-    await poll(async () => !!await windowID('Confirm application close'), 'right-click Close did not reach the application');
+    await poll(() => !!closeDialog(), 'right-click Close did not reach the application');
     await page.screenshot({ path: 'test-results/gui-close-confirmation.png' });
     await page.keyboard.press('Enter');
     await poll(async () => !await alive(input.pid), 'application did not exit');
@@ -566,6 +573,7 @@ try {
         csrf = (await (await api('/me')).json()).csrf;
         await api('/settings', 'PUT', original);
     }
+    for(const terminal of await(await api('/terminals')).json()) if(!terminal.exited) await api(`/terminals/${terminal.id}`,'DELETE');
     await browser.close(); service.kill('SIGTERM'); await stopped;
     for (const pid of appPIDs) await poll(async () => !await alive(pid), 'shutdown left an application running');
     for (const runtime of runtimes) assert.equal(await stat(runtime).catch(() => false), false);

@@ -6,9 +6,12 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
-assert.equal(spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':')[4], 'Tuxee prototype test');
+const run = (command, args, options) => process.env.TUXEE_TEST_CONTAINER
+    ? spawnSync('docker', ['exec', '-i', process.env.TUXEE_TEST_CONTAINER, command, ...args], options)
+    : spawnSync(command, args, options);
+assert.equal(run('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':')[4], 'Tuxee prototype test');
 const password = randomBytes(24).toString('base64url');
-assert.equal(spawnSync('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
+assert.equal(run('chpasswd', [], { input: `${user}:${password}\n` }).status, 0);
 const base = process.env.TUXEE_TEST_URL || 'https://127.0.0.1:9443';
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
@@ -26,6 +29,8 @@ assert.equal(terminalResponse.status(), 201);
 const terminal = await terminalResponse.json();
 assert.equal((await api('/settings', 'PUT', {
     theme: 'dark', current: 'mobile',
+    // This fixture measures raw Alt+Shift+Enter; the application shortcut has its own suite.
+    shortcuts: { 'panel.terminal': [[], []] },
     workspaces: [{ id: 'mobile', name: 'Mobile', columns: 4, rows: 2, active: 'term', panels: [
         { id: 'term', kind: 'terminal', terminal: terminal.id, path: '/tmp', x: 0, y: 0, w: 2, h: 2 },
         ...[0, 1].map(y => ({ id: `files-${y}`, kind: 'files', path: '/tmp', x: 2, y, w: 2, h: 1 })),

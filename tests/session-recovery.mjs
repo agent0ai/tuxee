@@ -66,6 +66,9 @@ try {
     await page.goto(base);
     const terminal = page.locator('.terminal-view');
     await page.locator('.terminal-view[data-state=connected]').waitFor();
+    await terminal.locator('.xterm-helper-textarea').focus();
+    await page.keyboard.type("printf 'ARCHIVE_%s\\n' 'RECOVERY'"); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('ARCHIVE_RECOVERY'));
     const originalTerminal = await terminal.elementHandle();
     await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
     const editor = page.locator('.cm-content');
@@ -152,6 +155,6 @@ try {
         const timeout = setTimeout(() => service.kill('SIGKILL'), 10000);
         await stopped; clearTimeout(timeout);
     }
-    for (const user of users) run('userdel', [user.name]);
+    for (const user of users) { spawnSync('pkill', ['-KILL', '-u', user.name]); run('userdel', [user.name]); }
     await rm(dir, { recursive: true, force: true });
 }

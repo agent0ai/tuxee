@@ -8,6 +8,11 @@ COPY third_party ./third_party
 COPY THIRD_PARTY_NOTICES.md ./
 RUN npm run build
 
+FROM debian:trixie-slim AS keeper
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools make binutils && rm -rf /var/lib/apt/lists/*
+COPY internal/keeper/native /build/native
+RUN make -C /build/native
+
 # Keep the exported CGO/PAM binary compatible with Debian 12 native installations.
 FROM golang:1.26.10-bookworm AS backend
 RUN apt-get update && apt-get install -y --no-install-recommends libpam0g-dev && rm -rf /var/lib/apt/lists/*
@@ -17,6 +22,7 @@ RUN go mod download
 COPY . .
 COPY --from=frontend /build/web/dist ./web/dist
 COPY --from=frontend /build/internal/terminal/engine.js ./internal/terminal/engine.js
+COPY --from=keeper /build/keeper.bin ./internal/keeper/keeper.bin
 ARG VERSION=0.0.0
 RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X main.version=${VERSION#v}" -o /tuxee ./cmd/tuxee
 

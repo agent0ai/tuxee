@@ -24,7 +24,7 @@ const state = await mkdtemp('/tmp/tuxee-shell-server-');
 await chmod(state, 0o755); await copyFile('./bin/tuxee', state + '/tuxee'); await chmod(state + '/tuxee', 0o755);
 const server = spawn(state + '/tuxee', ['serve', '--http', '--bind', '127.0.0.1:0', '--state', state + '/state'], { stdio: ['ignore', 'pipe', 'pipe'] });
 const stopped = new Promise(resolve => server.once('exit', resolve));
-let browser, page;
+let browser, page, cleanup;
 try {
     const base = await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(Error('server startup timed out')), 10000);
@@ -37,6 +37,9 @@ try {
     assert.equal(login.status(), 200);
     const csrf = (await login.json()).csrf;
     const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
+    cleanup = async () => {
+        for (const session of await (await api('/terminals')).json()) if (!session.exited) await api('/terminals/' + session.id, 'DELETE');
+    };
     const saved = async () => (await (await api('/me')).json()).settings;
     const create = async () => { const response = await api('/terminals', 'POST', { columns: 80, rows: 24 }); assert.equal(response.status(), 201); return response.json(); };
     const first = await create();
@@ -103,6 +106,7 @@ try {
     if (page) { await mkdir('test-results', { recursive: true }); await page.screenshot({ path: 'test-results/shell-settings-failure.png' }); }
     throw error;
 } finally {
+    await cleanup?.();
     await browser?.close(); server.kill('SIGTERM'); await stopped;
     run('userdel', [user]); await rm(home, { recursive: true, force: true }); await rm(state, { recursive: true, force: true });
 }

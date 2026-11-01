@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 	"tuxee/internal/i18n"
+	"tuxee/internal/keeper"
 
 	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
@@ -28,9 +29,23 @@ type process struct {
 	done    chan struct{}
 	mu      sync.Mutex
 	exited  bool
+	job     *keeper.Job
 }
 
 func start(ctx context.Context, user identity.User, dir, password string) (*process, error) {
+	return startOwned(ctx, user, dir, password, nil)
+}
+
+func startOwned(ctx context.Context, user identity.User, dir, password string, owner *keeper.Client) (*process, error) {
+	if owner != nil {
+		if job, exited, err := owner.Job(2); err == nil && !exited {
+			address, err := owner.Load(4, 4096)
+			if err != nil {
+				return nil, err
+			}
+			return retainedProcess(job, string(address)), nil
+		}
+	}
 	for _, tool := range []string{"tuxee-Xvnc", "tuxee-vncpasswd", "matchbox-window-manager", "dbus-daemon"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			return nil, i18n.New("backend.desktop.missingRuntimeTool", i18n.Vars{"tool": tool})
@@ -48,6 +63,9 @@ func start(ctx context.Context, user identity.User, dir, password string) (*proc
 	cmd.Stdin = strings.NewReader(password + "\n")
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr.Setpgid = true
+	if owner != nil {
+		return startRetained(ctx, user, cmd, owner, display, password)
+	}
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -92,6 +110,10 @@ func (s *process) signal(signal syscall.Signal) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.exited {
+		if s.job != nil {
+			_ = s.job.Signal(unix.Signal(signal))
+			return
+		}
 		_ = syscall.Kill(-s.cmd.Process.Pid, signal)
 	}
 }

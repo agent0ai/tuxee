@@ -258,3 +258,39 @@ func TestTerminalLifecycleMetadataAndDelete(t *testing.T) {
 		t.Fatalf("known death became discovered death: %+v", meta)
 	}
 }
+
+func TestGuardianProtectsUnadoptedArchive(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", "")
+	ctx := context.Background()
+	id := strings.Repeat("a", 24)
+	record := TerminalRecord{State: "live", Used: new(false)}
+	if _, err := terminalFiles(ctx, Request{Operation: "terminal-record", Instance: "keeper", Path: id, Terminal: &record}); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := TerminalDirectory(id, "keeper", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Close()
+	guard, err := lockTerminalDirectory(dir.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer guard.Close()
+	if _, err = terminalFiles(ctx, Request{Operation: "terminal-prune", Instance: "keeper"}); err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Dir(dir.Name())
+	saved, err := terminalRecord(base, id, "keeper")
+	if err != nil || saved.State != "live" {
+		t.Fatal("unadopted guardian marked dead", saved, err)
+	}
+	if _, err = terminalFiles(ctx, Request{Operation: "terminal-close", Instance: "keeper", Path: id}); err == nil {
+		t.Fatal("closed metadata of running guardian")
+	}
+	guard.Close()
+	if _, err = terminalFiles(ctx, Request{Operation: "terminal-close", Instance: "keeper", Path: id}); err != nil {
+		t.Fatal(err)
+	}
+}

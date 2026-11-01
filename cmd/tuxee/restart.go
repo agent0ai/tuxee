@@ -217,7 +217,7 @@ func runRestart(args []string) (err error) {
 	if err := unix.PidfdSendSignal(int(proc.Fd()), 0, nil, 0); err != nil {
 		return err
 	}
-	fmt.Println("\nRestarting Tuxee kills all running terminals and GUI applications and signs everyone out.")
+	fmt.Println("\nRestarting Tuxee signs everyone out. Terminals and GUI applications keep running.")
 	if err := unix.PidfdSendSignal(int(proc.Fd()), unix.SIGUSR1, nil, 0); err != nil {
 		return err
 	}

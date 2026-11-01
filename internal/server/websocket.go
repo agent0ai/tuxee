@@ -376,7 +376,10 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 	case "GET":
 		jsonResponse(w, 200, value.Info())
 	case "DELETE":
-		value.Close()
+		if err = value.Close(); err != nil {
+			failure(w, 500, err)
+			return
+		}
 		jsonResponse(w, 200, map[string]bool{"ok": true})
 	case "PATCH":
 		var input struct {

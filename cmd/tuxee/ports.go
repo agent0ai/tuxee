@@ -88,7 +88,7 @@ func runPorts(args []string, output io.Writer) error {
 		if err := os.Rename(staged.Name(), *path); err != nil {
 			return err
 		}
-		fmt.Fprintln(output, "Saved. Restart Tuxee to apply; restarting ends active terminals and login sessions.")
+		fmt.Fprintln(output, "Saved. Restart Tuxee to apply; restarting ends login sessions and preserves terminals.")
 	}
 	httpAddress, httpsAddress := "disabled", "disabled"
 	for _, listener := range listeners {

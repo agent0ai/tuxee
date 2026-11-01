@@ -159,6 +159,22 @@ func (e *Engine) Capture() (json.RawMessage, error) {
 	return json.RawMessage(s), err
 }
 
+func (e *Engine) Checkpoint() (json.RawMessage, error) {
+	s, err := e.call("checkpoint")
+	if len(s) > MaxSnapshotBytes {
+		return nil, i18n.New("backend.terminal.terminalSnapshotExceedsItsByteLimit")
+	}
+	return json.RawMessage(s), err
+}
+
+func (e *Engine) Restore(data json.RawMessage) error {
+	if len(data) > MaxSnapshotBytes {
+		return i18n.New("backend.terminal.terminalSnapshotExceedsItsByteLimit")
+	}
+	_, err := e.call("restore", string(data))
+	return err
+}
+
 func (e *Engine) Close() { _, _ = e.call("close"); e.loop.Terminate() }
 
 func engineError(value goja.Value) error {

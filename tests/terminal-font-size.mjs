@@ -192,6 +192,7 @@ try {
     console.log('PASS terminal font defaults, presets/extremes, family, reset/cancel/failure, live/warm/new terminals, text metrics, PTY resize, draft/PID/DOM retention, reload/login, legacy sizes and mobile');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
+    spawnSync('pkill', ['-KILL', '-u', user]);
     run('userdel', [user]);
     await rm(state, { recursive: true, force: true }); await rm(home, { recursive: true, force: true });
 }

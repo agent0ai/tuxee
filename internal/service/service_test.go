@@ -95,7 +95,7 @@ func TestUnitQuotesAndNameValidation(t *testing.T) {
 		t.Fatal("invalid name validation")
 	}
 	value := unit(paths{binary: "/path with spaces/100%$bin", config: "/etc/tuxee/config.json"})
-	if !strings.Contains(value, `ExecStart="/path with spaces/100%%$$bin" serve`) || !strings.Contains(value, "KillMode=control-group") {
+	if !strings.Contains(value, `ExecStart="/path with spaces/100%%$$bin" serve`) || !strings.Contains(value, "KillMode=process") {
 		t.Fatal(value)
 	}
 }

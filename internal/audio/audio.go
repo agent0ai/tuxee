@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 	"tuxee/internal/i18n"
+	"tuxee/internal/keeper"
 
 	"golang.org/x/sys/unix"
 	"tuxee/internal/identity"
@@ -22,28 +23,32 @@ const Frames = 960
 const PacketBytes = 8 + Frames*4
 
 type Manager struct {
-	mu     sync.Mutex
-	users  map[uint32]*runtime
-	closed bool
+	Instance string
+	mu       sync.Mutex
+	users    map[uint32]*runtime
+	closed   bool
 }
 
 type runtime struct {
-	user      identity.User
-	dir       string
-	files     *os.Root
-	env       []string
-	listener  *net.UnixListener
-	ctx       context.Context
-	cancel    context.CancelFunc
-	workers   sync.WaitGroup
-	closeOnce sync.Once
-	browsers  int // guarded by Manager.mu
-	mu        sync.Mutex
-	terminals int
-	process   *exec.Cmd
-	exited    chan struct{}
-	capture   *capture
-	listeners map[chan []byte]struct{}
+	user       identity.User
+	dir        string
+	files      *os.Root
+	env        []string
+	listener   *net.UnixListener
+	ctx        context.Context
+	cancel     context.CancelFunc
+	workers    sync.WaitGroup
+	closeOnce  sync.Once
+	browsers   int // guarded by Manager.mu
+	mu         sync.Mutex
+	terminals  int
+	process    *exec.Cmd
+	exited     chan struct{}
+	capture    *capture
+	listeners  map[chan []byte]struct{}
+	keeper     *keeper.Client
+	job        *keeper.Job
+	controller *os.File
 }
 
 type capture struct {
@@ -73,7 +78,11 @@ func (m *Manager) acquire(user identity.User, browser bool) (*runtime, func(), e
 	a := m.users[user.UID]
 	if a == nil {
 		var err error
-		a, err = prepare(user)
+		if m.Instance != "" {
+			a, err = preparePersistent(user, m.Instance)
+		} else {
+			a, err = prepare(user)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -125,6 +134,15 @@ func (m *Manager) Environment(user identity.User) ([]string, func(), error) {
 	return a.env, release, nil
 }
 
+func (m *Manager) EnvironmentFor(user identity.User, instance string) ([]string, func(), error) {
+	m.mu.Lock()
+	if m.Instance == "" {
+		m.Instance = instance
+	}
+	m.mu.Unlock()
+	return m.Environment(user)
+}
+
 func (m *Manager) Subscribe(user identity.User) (<-chan []byte, func(), error) {
 	a, release, err := m.acquire(user, true)
 	if err != nil {
@@ -169,11 +187,15 @@ func (m *Manager) Close() {
 }
 
 func prepare(user identity.User) (*runtime, error) {
+	return prepareOwned(user, nil, "")
+}
+
+func prepareOwned(user identity.User, owner *keeper.Client, instance string) (*runtime, error) {
 	dir, err := os.MkdirTemp("", "tuxee-audio-")
 	if err != nil {
 		return nil, err
 	}
-	a := &runtime{user: user, dir: dir, listeners: make(map[chan []byte]struct{})}
+	a := &runtime{user: user, dir: dir, listeners: make(map[chan []byte]struct{}), keeper: owner}
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	ok := false
 	defer func() {
@@ -181,6 +203,11 @@ func prepare(user identity.User) (*runtime, error) {
 			a.close()
 		}
 	}()
+	if owner != nil {
+		if err = retainCleanup(dir, instance, owner); err != nil {
+			return nil, err
+		}
+	}
 	a.files, err = os.OpenRoot(dir)
 	if err != nil {
 		return nil, err
@@ -224,6 +251,11 @@ func prepare(user identity.User) (*runtime, error) {
 		return nil, err
 	}
 	a.env = []string{"PULSE_SERVER=unix:" + dir + "/native", "PULSE_COOKIE=" + dir + "/cookie"}
+	if owner != nil {
+		if err = a.retain(); err != nil {
+			return nil, err
+		}
+	}
 	a.workers.Add(1)
 	go a.accept()
 	ok = true
@@ -232,6 +264,10 @@ func prepare(user identity.User) (*runtime, error) {
 
 func (a *runtime) accept() {
 	defer a.workers.Done()
+	if a.keeper != nil {
+		a.acceptRetained()
+		return
+	}
 	for {
 		client, err := a.listener.AcceptUnix()
 		if err != nil {
@@ -308,6 +344,9 @@ func (a *runtime) startLocked() error {
 	if a.terminals == 0 {
 		return i18n.New("backend.audio.noRunningTerminals")
 	}
+	if a.keeper != nil {
+		return a.startRetainedLocked()
+	}
 	if a.process != nil {
 		select {
 		case <-a.exited:
@@ -351,7 +390,7 @@ func (a *runtime) startLocked() error {
 }
 
 func (a *runtime) captureLocked() error {
-	if a.process == nil || a.capture != nil || len(a.listeners) == 0 {
+	if a.process == nil && a.job == nil || a.capture != nil || len(a.listeners) == 0 {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(a.ctx)
@@ -446,6 +485,11 @@ func (a *runtime) stopCaptureLocked() {
 
 func (a *runtime) stopLocked() {
 	a.stopCaptureLocked()
+	if a.job != nil {
+		_ = a.job.Signal(unix.SIGKILL)
+		<-a.exited
+		a.job = nil
+	}
 	if a.process != nil {
 		a.process.Process.Kill()
 		<-a.exited
@@ -475,6 +519,15 @@ func (a *runtime) close() {
 		if a.files != nil {
 			a.files.Close()
 		}
-		os.RemoveAll(a.dir)
+		if a.controller != nil {
+			a.controller.Close()
+		}
+		if a.keeper != nil {
+			a.keeper.Stop()
+			a.keeper.Close()
+			a.remove()
+		} else {
+			os.RemoveAll(a.dir)
+		}
 	})
 }

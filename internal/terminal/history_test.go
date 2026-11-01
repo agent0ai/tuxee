@@ -11,9 +11,17 @@ import (
 	"testing"
 	"tuxee/internal/files"
 	"tuxee/internal/identity"
+	"tuxee/internal/keeper"
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "__keeper" {
+		if err := keeper.Worker(); err != nil {
+			os.Stderr.WriteString(err.Error())
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if len(os.Args) > 1 && os.Args[1] == "__files" {
 		if files.Worker() != nil {
 			os.Exit(1)

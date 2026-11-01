@@ -25,6 +25,6 @@ func updateResult(out *os.File, message, command string, failed bool) {
 		color = "31"
 	}
 	fmt.Fprintln(out, "\n"+colored(out, color, message))
-	fmt.Fprintln(out, "\nChanges take effect after restarting Tuxee, which kills all running terminals.")
+	fmt.Fprintln(out, "\nChanges take effect after restarting Tuxee. Terminals and GUI applications keep running.")
 	fmt.Fprintln(out, "Restart using: "+colored(out, "33", command))
 }

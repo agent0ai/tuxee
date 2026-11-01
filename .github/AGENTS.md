@@ -14,7 +14,7 @@ installer; internal/update owns the release-asset contract.
 
 - `FUNDING.yml` uses Agent Zero's sponsorship configuration (`github: agent0ai`).
 - Push `vMAJOR.MINOR.PATCH` to release. Build on native amd64/arm64 runners.
-  Docker's Bookworm backend builds both the image and exported binary, with the
+  Native verification builds the embedded guardian with musl-tools before Go compilation. Docker's Bookworm backend builds both the image and exported binary, with the
   tag injected into `main.version`. Never publish unversioned development builds.
 - Both architectures and checks must pass before publishing. Upload both binaries,
   `tuxee-audio-linux-{amd64,arm64}.tar.gz` and SHA-256 sums to a draft, then publish Docker manifests and the release.

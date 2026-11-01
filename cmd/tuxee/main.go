@@ -22,6 +22,7 @@ import (
 	"tuxee/internal/files"
 	"tuxee/internal/i18n"
 	"tuxee/internal/identity"
+	"tuxee/internal/keeper"
 	"tuxee/internal/processes"
 	"tuxee/internal/server"
 	"tuxee/internal/service"
@@ -52,6 +53,12 @@ type config struct {
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "__keeper":
+			if err := keeper.Worker(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
 		case "__auth":
 			if identity.RunAuthHelper() != nil {
 				os.Exit(1)
@@ -60,6 +67,12 @@ func main() {
 		case "__files":
 			if err := files.Worker(); err != nil {
 				_ = json.NewEncoder(os.Stderr).Encode(i18n.Describe(err))
+				os.Exit(1)
+			}
+			return
+		case "__update":
+			if err := update.Worker(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
 			return
@@ -102,7 +115,7 @@ func help() {
 
 Run tuxee serve --help for listener, TLS and configuration options.
 Native operation requires root and Linux PAM. Docker manages container users.
-Live terminals survive logout/disconnection, but end when Tuxee stops.`)
+Live terminals survive logout, disconnection and Tuxee restarts.`)
 }
 func run(args []string) error {
 	if len(args) == 0 {
@@ -134,7 +147,7 @@ func run(args []string) error {
 			fmt.Println("Add the command to this shell: export PATH=\"/usr/local/bin:$PATH\"")
 		}
 		fmt.Println("Omit sudo when already root. Installation does not restart Tuxee.")
-		fmt.Println("Running processes use the new version after you restart them. Restarting ends all terminal sessions.")
+		fmt.Println("Restart Tuxee to use the new version. Terminals and GUI applications keep running.")
 		return nil
 	case "update", "upgrade":
 		return runUpdate(args[1:])
@@ -534,7 +547,7 @@ func serve(value *config) error {
 	terminals := terminal.NewManager()
 	terminals.HistoryInstance = instanceID
 	terminals.StartArchives(value.State)
-	defer terminals.Close()
+	defer terminals.Detach()
 	gate := identity.NewGate(value.PAM)
 	var tls *tlsmanager.Manager
 	if configs[0].https {
@@ -605,7 +618,7 @@ func serve(value *config) error {
 	for _, httpServer := range servers {
 		_ = httpServer.Shutdown(shutdown)
 	}
-	terminals.Close()
+	terminals.Detach()
 	if errors.Is(err, errRestart) && ctx.Err() != nil {
 		return nil
 	}

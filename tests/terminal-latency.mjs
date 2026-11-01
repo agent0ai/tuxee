@@ -12,7 +12,7 @@ const run = (command, args, input) => {
 };
 const dir = await mkdtemp('/tmp/tuxee-terminal-latency-');
 const user = `tuxee-lag-${process.pid}`, password = randomBytes(24).toString('base64url');
-let added = false, service, stopped, browser;
+let added = false, service, stopped, browser, cleanupTerminal;
 const timers = new Set(), results = [];
 try {
     await chmod(dir, 0o755);
@@ -43,6 +43,7 @@ try {
     const response = await context.request.post(base + '/api/terminals', { data: { name: 'Latency', columns: 80, rows: 24 }, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
     assert.equal(response.status(), 201, await response.text());
     const info = await response.json();
+    cleanupTerminal=()=>context.request.delete(base+'/api/terminals/'+info.id,{headers:{'X-Tuxee-CSRF':me.csrf,'X-Tuxee-Client':'web'}});
     const bundle = await build({ stdin: { contents: `
         import { TerminalView } from './web/term';
         import { setCSRF } from './web/ui';
@@ -125,6 +126,7 @@ try {
     }
 } finally {
     for (const timer of timers) clearTimeout(timer);
+    await cleanupTerminal?.().catch(()=>{});
     await browser?.close();
     if (service && service.exitCode === null) {
         service.kill('SIGTERM');

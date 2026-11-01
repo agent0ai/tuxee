@@ -45,7 +45,7 @@ the running Tuxee instance:
 sudo tuxee restart
 ```
 
-Restarting ends all terminal sessions. The command works for foreground, systemd
+Restarting preserves guardian-backed terminals and GUI applications and ends browser login sessions. Terminals created by older builds without guardians still end on their first restart. The command works for foreground, systemd
 and Docker deployments. Older running versions need one restart through the UI,
 `sudo tuxee service restart`, or their existing supervisor before they support
 the new CLI runtime restart. Custom executable paths and custom-named service
@@ -112,7 +112,9 @@ sudo tuxee service start
 
 Other systems can run `tuxee serve` through their existing supervisor.
 See [service management](guide.md#native-service) and [updates](releases.md#update).
-Restarting Tuxee ends its terminal sessions.
+Restarting Tuxee preserves guardian-backed terminals and GUI apps, and ends browser
+login sessions. Linux/container restarts still end those processes. Existing systemd
+installations need the unit refresh described in [the keeper notes](terminal-keeper.md).
 
 ## Advanced: build from source
 
@@ -121,7 +123,7 @@ On Debian/Ubuntu, install the native build dependencies:
 
 ```sh
 sudo apt-get update
-sudo apt-get install git build-essential libpam0g-dev
+sudo apt-get install git build-essential libpam0g-dev musl-tools
 ```
 
 With Go and Node on PATH:
@@ -131,11 +133,12 @@ git clone https://github.com/agent0ai/tuxee.git
 cd tuxee
 npm ci
 npm run build
+make -C internal/keeper/native
 go build -trimpath -o bin/tuxee ./cmd/tuxee
 sudo ./bin/tuxee serve
 ```
 
-Build the frontend before Go builds or tests on a fresh checkout. The result
+Build the frontend and native guardian before Go builds or tests on a fresh checkout. The result
 includes the web UI; Node is not required at runtime. The executable links to
 the build system's glibc and PAM, so build on a compatible system.
 
@@ -148,3 +151,9 @@ sudo ./bin/tuxee service start
 
 See the [developer guide](guide.md#build-and-run) for isolated local runs and
 [verification commands](guide.md#verification).
+
+For a service installed before the guardian PoC, run `sudo tuxee service install`
+once to refresh its managed unit to `KillMode=process`, preserving configuration.
+Then use `tuxee restart` to activate the installed binary. Updating only the binary
+does not rewrite old systemd units. Live systemd migration needs validation on a
+systemd host; the Docker and foreground paths need no unit changes.

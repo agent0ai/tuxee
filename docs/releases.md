@@ -39,7 +39,7 @@ installer and Docker image share one binary between PATH and the server; named
 services retain their separate installation paths. About and CLI restart hints
 use `tuxee` when PATH lookup resolves through
 symlinks to the same installation; otherwise they show its quoted absolute path.
-About adds sudo for non-root users. The lookup checks the calling process's PATH;
+The lookup checks the calling process's PATH;
 customized user shells and sudo may have different paths.
 
 The updater checks the latest stable release and compares semantic versions.
@@ -54,21 +54,21 @@ inside the container.
 Checksums detect corrupt or mismatched downloads; release authenticity depends
 on HTTPS and control of the official GitHub repository.
 
-Running processes keep their current code. Authentication and file helpers
+Running processes keep their current code. Authentication, file, process and update helpers
 execute the running inode via `/proc/self/exe`, so they stay on the same version
 after replacement. Configuration, user files and terminals are unchanged by
-the update. **Restarting ends all terminal sessions.**
+the update. **Restarting preserves guardian-backed terminals and GUI applications and ends browser login sessions.**
 
-When ready, run `sudo tuxee restart` (with `--name` for a named installation).
-This uses the same runtime cleanup/re-exec as the UI for foreground, systemd and
+After a CLI update, run `sudo tuxee restart` (with `--name` for a named installation).
+This uses the same runtime detach/re-exec as the UI for foreground, systemd and
 Docker deployments. Use `--state /path` to select among instances sharing a binary.
 All systemd controls now live under `tuxee service`, including `tuxee service restart`.
 Older running servers need one restart through the UI or their service/supervisor
-before they support the new CLI trigger. Updates never restart automatically.
+before they support the new CLI trigger. CLI updates never restart automatically.
 
 Update results print a blank line, green success or red failure, another blank
 line, the reminder that changes take effect after restarting and that restarting
-kills all running terminals, then `Restart using:` with the command in yellow.
+preserves terminals, then `Restart using:` with the command in yellow.
 Failures return a nonzero exit status, so `tuxee update && tuxee restart` only
 requests restart after a successful update command (including already up to date).
 Use `sudo tuxee update && sudo tuxee restart` outside a root shell. Colors are
@@ -151,9 +151,20 @@ Signed-in visible browsers read cached status once a minute and on focus/visibil
 return. Available updates show the existing warning icon on About and the hamburger
 button. Directly below the version, About shows the status, local check time and
 refresh-icon Check now action in one table row. Available updates highlight that
-row and display the notification icon and a selectable terminal command. The table
-starts with a link to the GitHub repository above the version.
-It cannot install updates or restart the server. Logout/page closure stops polling.
+row and show **Update** beside an icon-only check button. Update is available only
+when the signed-in Linux account can replace the installation and restart Tuxee; other users see a
+request to contact the system administrator. Tuxee does not elevate through sudo.
+Permitted users also see an inline command for manual updates.
+
+**Update** uses the same release discovery, checksum verification, installation
+lock and atomic replacement as `tuxee update`, under your Linux credentials.
+Closing About keeps the update request running; logout or leaving the page cancels
+unfinished work. Unsaved edits are checked and settings saved before installation.
+Failed downloads leave the executable intact. Successful installation immediately
+restarts Tuxee and reloads the browser to login, preserving terminals and GUI apps.
+No second click is needed. The terminal command keeps restart explicit.
+The table starts with a link to GitHub above the running version. Logout/page closure
+stops polling.
 
 ## GitHub repository setup
 

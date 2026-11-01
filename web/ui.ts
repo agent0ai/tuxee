@@ -251,7 +251,7 @@ export function ask(title: string, label: string, initial = '', reset?: string):
 export function confirmAction(title: string, message: string, action = t("common.continue")): Promise<boolean> {
     return new Promise(resolve => {
         const content = el('div', 'form');
-        content.append(el('p', 'muted', message));
+        content.append(el('p', 'muted confirmation-message', message));
         const actions = el('div', 'actions');
         const { dialog } = modal(title, content);
         actions.append(button(t("common.cancel"), undefined, () => dialog.close()), button(action, undefined, () => { resolve(true); dialog.close(); }, 'primary'));

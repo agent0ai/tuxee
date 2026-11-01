@@ -2,7 +2,7 @@ import { appPage } from './app-page.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 
@@ -29,12 +29,26 @@ assert.equal((await context.request.post(base + '/api/login', { data: { username
 const me = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': me.csrf, 'X-Tuxee-Client': 'web' } });
 const real = await (await api('/update')).json();
-assert.equal(real.command, 'sudo tuxee update');
+assert.equal(real.command, 'tuxee update');
+assert.equal(real.canApply, false, 'ordinary account cannot replace root installation');
+assert.equal((await api('/update/apply', 'POST')).status(), 403, 'server enforces update permissions');
+assert.equal((await api('/me')).status(), 200, 'denied update keeps login alive');
 const page = await appPage(context), errors = [], external = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:')) external.push(request.url()); });
-let polls = 0, checks = 0;
-let status = { ...real, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:59Z', error: '' };
+let polls = 0, checks = 0, applies = 0, finishApply, applyStarted;
+let applyFailure = false;
+await page.route(base + '/api/update/apply', async route => {
+    applies++;
+    await new Promise(resolve => { finishApply = resolve; applyStarted?.(); });
+    if (applyFailure) await route.fulfill({ status: 500, json: { error: 'release checksum mismatch; installation unchanged' } });
+    else {
+        status = { ...status, available: false, restartNeeded: false, error: '' };
+        assert.equal((await api('/logout', 'POST')).status(), 200);
+        await route.fulfill({ status: 202, json: { ok: true } });
+    }
+});
+let status = { ...real, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:59Z', error: '', canApply: true, restartNeeded: false };
 await page.route(base + '/api/update', async route => {
     if (route.request().method() === 'POST') checks++; else polls++;
     await route.fulfill({ json: status });
@@ -42,7 +56,13 @@ await page.route(base + '/api/update', async route => {
 const dialog = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
 const menu = page.getByRole('button', { name: 'User menu', exact: true });
 const updateRow = dialog.locator('.about-details tr.about-update');
+const install = updateRow.locator('.update-install');
 const checkNow = dialog.getByRole('button', { name: 'Check now', exact: true });
+async function startInstall() {
+    const started = new Promise(resolve => { applyStarted = resolve; });
+    await install.click();
+    await started;
+}
 async function openAbout() {
     await menu.click();
     await page.getByRole('menuitem', { name: 'About', exact: true }).click();
@@ -50,7 +70,7 @@ async function openAbout() {
     assert.deepEqual(await dialog.locator('tr th').evaluateAll(headers => headers.slice(0, 2).map(header => header.textContent)), ['GitHub', 'Tuxee version']);
 }
 async function checkSummaryLine() {
-    const centers = await updateRow.locator('.update-summary > *').evaluateAll(nodes => nodes.map(node => {
+    const centers = await updateRow.locator('.update-summary > *').evaluateAll(nodes => nodes.filter(node => !node.hidden).map(node => {
         const box = node.getBoundingClientRect(); return box.y + box.height / 2;
     }));
     assert.ok(Math.max(...centers) - Math.min(...centers) < 1, 'desktop status, check time and refresh action share one line');
@@ -105,9 +125,14 @@ try {
     await dialog.getByText('v99.0.0 available', { exact: true }).waitFor();
     assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:13');
     await checkSummaryLine(); await checkNotice();
-    assert.equal(await dialog.locator('.update-command').textContent(), real.command);
+    assert.equal(await updateRow.locator('.update-subtitle code').textContent(), real.command);
     assert.equal(checks, 1);
-    await dialog.getByText('Run this command to update. Manual restart will be required (kills terminals).', { exact: true }).waitFor();
+    await dialog.getByText('For manual update run tuxee update in the terminal.', { exact: true }).waitFor();
+    assert.equal(await checkNow.textContent(), 'Check now');
+    assert.equal(await checkNow.locator('span:visible').count(), 0, 'available state has icon-only check');
+    assert.equal(await install.isVisible(), true);
+    const installBox = await install.boundingBox(), refreshBox = await checkNow.boundingBox();
+    assert.ok(installBox.x + installBox.width < refreshBox.x, 'Update precedes refresh');
     await page.screenshot({ path: 'test-results/updates-desktop.png' });
     await page.keyboard.press('Escape');
     assert.equal(await menu.locator('.menu-warning').count(), 1);
@@ -125,7 +150,7 @@ try {
     status = { ...status, checkedAt: '2026-10-20T19:14:00Z', error: 'GitHub download returned HTTP 503' };
     await checkNow.click();
     await dialog.getByText('Check failed: GitHub download returned HTTP 503', { exact: true }).waitFor();
-    assert.equal(await dialog.locator('.update-command').textContent(), real.command);
+    assert.equal(await updateRow.locator('.update-subtitle code').textContent(), real.command);
     assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:14');
     await checkNotice();
     const box = await dialog.boundingBox();
@@ -135,7 +160,39 @@ try {
     await page.keyboard.press('Escape');
     console.log('PASS mobile/light layout and failed checks retain known updates');
 
-    status = { ...status, available: false, error: '' };
+    await openAbout();
+    status = { ...status, canApply: false, error: '' };
+    await checkNow.click();
+    await updateRow.getByText('Contact your system administrator to update Tuxee.', { exact: true }).waitFor();
+    assert.equal(await install.isVisible(), false);
+    assert.equal(await updateRow.locator('.update-subtitle code').count(), 0);
+    await page.screenshot({ path: 'test-results/updates-denied.png' });
+    status = { ...status, canApply: true };
+    await checkNow.click();
+    applyFailure = true;
+    await startInstall();
+    await updateRow.getByText('Updating…', { exact: true }).waitFor();
+    assert.equal(await checkNow.isDisabled(), true);
+    assert.equal(await install.isDisabled(), true);
+    await page.keyboard.press('Escape');
+    await openAbout();
+    assert.equal(await install.isDisabled(), true, 'closing About does not cancel or duplicate an update');
+    assert.equal(applies, 1);
+    finishApply();
+    await updateRow.getByText('Update failed: release checksum mismatch; installation unchanged', { exact: true }).waitFor();
+    await page.waitForFunction(() => !document.querySelector('.update-install').disabled);
+    applyFailure = false;
+    await startInstall();
+    await updateRow.getByText('Updating…', { exact: true }).waitFor();
+    finishApply();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
+    assert.equal(applies, 2);
+    assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
+    me.csrf = (await (await context.request.get(base + '/api/me')).json()).csrf;
+    await page.goto(base); await menu.waitFor();
+    console.log('PASS permissions, inline command, icon-only refresh, pending operation across modal close, failed update/retry and restart-to-login flow');
+
+    status = { ...status, available: false, restartNeeded: false, error: '' };
     const refresh = page.waitForResponse(base + '/api/update');
     await page.clock.fastForward(61000); await refresh;
     await page.waitForFunction(() => !document.querySelector('.user-menu-button .menu-warning'));
@@ -148,7 +205,7 @@ try {
     const automatic = page.waitForResponse(base + '/api/update');
     await page.clock.fastForward(61000); await automatic;
     await menu.locator('.menu-warning').waitFor();
-    assert.equal(checks, 2, 'background refresh must read cached server status, not force GitHub checks');
+    assert.equal(checks, 4, 'background refresh must read cached server status, not force GitHub checks');
     await menu.click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     const afterLogout = polls;
@@ -156,6 +213,49 @@ try {
     assert.equal(polls, afterLogout);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     console.log('PASS periodic notice refresh and logout cleanup; browser makes no external requests');
+
+    assert.equal((await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
+    let localized;
+    // Render every real catalog through the app without making 43 PAM logins.
+    await page.route(base + '/api/me', async route => {
+        const response = await route.fetch(), data = await response.json();
+        await route.fulfill({ json: { ...data, i18n: { ...data.i18n, ...localized } } });
+    });
+    await page.setViewportSize({ width: 320, height: 740 });
+    for (const name of (await readdir('internal/i18n/locales')).filter(name => name.endsWith('.json')).sort()) {
+        const code = name.slice(0, -5), { texts } = JSON.parse(await readFile(`internal/i18n/locales/${name}`, 'utf8'));
+        localized = { language: code, direction: ['ar', 'he', 'fa'].includes(code) ? 'rtl' : 'ltr', texts };
+        status = { ...status, canApply: true, available: true, restartNeeded: false, installing: false, error: '' };
+        await page.goto(base);
+        await page.locator('.user-menu-button').waitFor();
+        await page.locator('.brand-button').click();
+        const row = page.locator('.about-update'), update = row.locator('.update-install'), refresh = row.locator('.update-actions button:last-child');
+        await update.waitFor();
+        assert.equal(await update.getAttribute('aria-label'), texts['updates.install']);
+        assert.equal(await row.locator('.update-subtitle').textContent(), texts['updates.manualCommand'].replace('{command}', real.command));
+        assert.equal(await refresh.getAttribute('aria-label'), texts['updates.checkNow']);
+        const bounds = async () => {
+            const overflow = await row.evaluate(node => [...node.querySelectorAll('button, .update-actions, .update-summary, .update-subtitle')].filter(item => !item.hidden && item.getBoundingClientRect().width > 0).filter(item => {
+                const box = item.getBoundingClientRect();
+                return item.scrollWidth > item.clientWidth + 1 || box.x < 0 || box.right > innerWidth;
+            }).map(item => item.textContent));
+            assert.deepEqual(overflow, [], `${code}: update controls fit 320px`);
+        };
+        await bounds();
+        if (['ar', 'cs', 'de'].includes(code)) await page.screenshot({ path: `test-results/updates-${code}-320.png` });
+        status = { ...status, canApply: false };
+        await refresh.click();
+        await row.getByText(texts['updates.contactAdministrator'], { exact: true }).waitFor();
+        assert.equal(await update.isVisible(), false);
+        await bounds();
+        status = { ...status, canApply: true, installing: true };
+        await refresh.click();
+        await row.getByText(texts['updates.installing'], { exact: true }).waitFor();
+        assert.equal(await update.isDisabled(), true);
+        await bounds();
+    }
+    assert.deepEqual(errors, []);
+    console.log('PASS all 43 catalogs: authorized/denied/pending updates at 320px, including RTL');
 } catch (error) {
     await page.screenshot({ path: 'test-results/updates-failure.png' });
     throw error;
