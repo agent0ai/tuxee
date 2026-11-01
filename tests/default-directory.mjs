@@ -177,7 +177,7 @@ try {
     await file.locator('.cm-content').fill('source-only unsaved draft');
     const sourceTerminal = (await saved()).workspaces.find(ws => ws.id === secondID).panels.find(p => p.terminal);
     const sourcePID = (await info(sourceTerminal.terminal)).pid;
-    const clone = async (sourceID, contextMenu = false) => {
+    const clone = async (sourceID, expectedName, contextMenu = false) => {
         const activeID = await page.locator('.board:not([inert])').getAttribute('data-workspace');
         await waitFor(async () => {
             const state = await saved(), { width, height } = page.viewportSize();
@@ -195,7 +195,11 @@ try {
             return next.workspaces.length === before.workspaces.length + 1 && next.current === copy.id && copy.panels.every(p => p.kind !== 'terminal' || p.terminal);
         }, 'clone created, activated and persisted');
         const next = await saved(), copy = next.workspaces.at(-1);
-        assert.equal(copy.name, source.name); assert.equal(copy.defaultDirectory, source.defaultDirectory);
+        assert.equal(copy.name, expectedName); assert.equal(copy.defaultDirectory, source.defaultDirectory);
+        const copiedTab = page.locator(`.workspace-tab-item[data-workspace="${copy.id}"] .workspace-tab`), overflow = !await copiedTab.isVisible();
+        if (overflow) await button('More desktops').click();
+        assert.equal(await copiedTab.textContent(), expectedName);
+        if (overflow) await page.keyboard.press('Escape');
         const oldIDs = new Set([source.id, ...source.panels.map(p => p.id)]);
         assert.ok([copy.id, ...copy.panels.map(p => p.id)].every(id => !oldIDs.has(id)));
         assert.equal(copy.active, copy.panels[source.panels.findIndex(p => p.id === source.active)].id);
@@ -214,7 +218,7 @@ try {
         assert.deepEqual(next.workspaces.find(ws => ws.id === sourceID), source, 'cloning preserves the source');
         return copy;
     };
-    const firstClone = await clone(secondID, true);
+    const firstClone = await clone(secondID, 'Desktop 3', true);
     await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
     assert.equal((await saved()).current, firstClone.id);
     assert.deepEqual((await saved()).workspaces.at(-1), firstClone);
@@ -224,7 +228,7 @@ try {
     assert.equal(await file.locator('.cm-content').textContent(), 'source-only unsaved draft');
     await page.locator(`.workspace-tab-item[data-workspace="${firstClone.id}"] .workspace-tab`).click();
     await page.setViewportSize({ width: 320, height: 1000 }); await page.waitForTimeout(250);
-    const mobileClone = await clone(secondID);
+    const mobileClone = await clone(secondID, 'Desktop 4');
     await mkdir('test-results', { recursive: true });
     await button('More desktops').click();
     await page.locator(`.workspace-tab-item[data-workspace="${mobileClone.id}"] .workspace-menu`).click();
@@ -233,7 +237,25 @@ try {
     await page.screenshot({ path: 'test-results/desktop-clone-mobile.png' });
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
-    while ((await saved()).workspaces.length < 12) await clone((await saved()).current);
+    const rename = async name => {
+        const tab = page.locator(`.workspace-tab-item[data-workspace="${secondID}"]`);
+        if (!await tab.isVisible()) await button('More desktops').click();
+        await tab.locator('.workspace-menu').click(); await menuitem('Rename').click();
+        await dialog('Rename desktop').getByLabel('Name', { exact: true }).fill(name);
+        await button('Continue', dialog('Rename desktop')).click();
+        await waitFor(async () => (await saved()).workspaces.find(ws => ws.id === secondID).name === name, 'renamed source persisted');
+    };
+    await rename('Project');
+    await clone(secondID, 'Project 2');
+    await clone(secondID, 'Project 3');
+    const longName = 'ž'.repeat(30);
+    await rename(longName);
+    const longClone = await clone(secondID, longName);
+    await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
+    assert.equal((await saved()).workspaces.find(ws => ws.id === longClone.id).name, longName);
+    await clone(mobileClone.id, 'Desktop 5');
+    let nextNumber = 6;
+    while ((await saved()).workspaces.length < 12) await clone((await saved()).current, `Desktop ${nextNumber++}`);
     const full = await saved();
     await page.locator(`.workspace-tab-item[data-workspace="${full.current}"] .workspace-menu`).click();
     await menuitem('Clone').click();

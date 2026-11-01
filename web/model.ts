@@ -116,13 +116,20 @@ export function newWorkspace(name: string, directory: string, width = innerWidth
     }
     return { id: id(), name, columns, rows, panels, active: panels[0].id };
 }
-export function cloneWorkspace(source: Workspace, directory: string): Workspace {
+export function cloneWorkspace(source: Workspace, directory: string, workspaces: Workspace[]): Workspace {
+    const suffix = source.name.match(/ (\d+)$/), base = suffix ? source.name.slice(0, suffix.index) : source.name;
+    let number = suffix ? BigInt(suffix[1]) : 1n, name: string;
+    do {
+        name = `${base} ${++number}`;
+        // Match the server's UTF-8 byte limit without shortening the source name.
+        if (new TextEncoder().encode(name).length > 60) { name = source.name; break; }
+    } while (workspaces.some(ws => ws.name === name));
     const panels = source.panels.map(({ kind, path, x, y, w, h, pinned }) => ({
         ...newPanel(kind, kind === 'files' ? path : directory), x, y, w, h, pinned,
     }));
     const ids = new Map(source.panels.map((panel, i) => [panel.id, panels[i].id]));
     return {
-        ...source, id: id(), panels, active: ids.get(source.active) || '',
+        ...source, id: id(), name, panels, active: ids.get(source.active) || '',
         layout: source.layout && { mode: source.layout.mode, custom: source.layout.custom.map(rect => ({ ...rect, id: ids.get(rect.id)! })) },
     };
 }

@@ -31,8 +31,8 @@ for (const [width, height] of [[1440, 1000], [390, 844]]) for (const mode of [0,
     source.panels.filter(p => p.kind === 'terminal').forEach(p => p.terminal = `session-${p.id}`);
     source.active = source.panels.at(-1).id;
     for (let i = 0; i < mode; i++) cycleLayout(source, width, height);
-    const before = structuredClone(source), copy = cloneWorkspace(source, '/home/test/project');
-    assert.equal(copy.name, source.name); assert.equal(copy.defaultDirectory, source.defaultDirectory);
+    const before = structuredClone(source), copy = cloneWorkspace(source, '/home/test/project', [source]);
+    assert.equal(copy.name, 'Same name 2'); assert.equal(copy.defaultDirectory, source.defaultDirectory);
     assert.equal(new Set([source.id, copy.id, ...source.panels.map(p => p.id), ...copy.panels.map(p => p.id)]).size, 18);
     assert.ok(validGrid(copy)); assert.equal(copy.active, copy.panels.at(-1).id);
     assert.deepEqual(copy.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]), source.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]));
@@ -47,8 +47,36 @@ for (const [width, height] of [[1440, 1000], [390, 844]]) for (const mode of [0,
     copy.panels[0].path = '/changed'; orientWorkspace(copy, height, width);
     assert.deepEqual(source, before, 'clone edits and orientation never change the source');
 }
-const emptyClone = cloneWorkspace({ id: 'empty', name: 'Empty', columns: 4, rows: 2, panels: [], active: '' }, '/home/test');
+const emptyClone = cloneWorkspace({ id: 'empty', name: 'Empty', columns: 4, rows: 2, panels: [], active: '' }, '/home/test', []);
 assert.ok(validGrid(emptyClone)); assert.equal(emptyClone.active, ''); assert.equal(emptyClone.defaultDirectory, undefined);
+for (const [name, occupied, expected] of [
+    ['Project', [], 'Project 2'],
+    ['Project', ['Project 2', 'Project 3', 'Project 5'], 'Project 4'],
+    ['Project 2', [], 'Project 3'],
+    ['Project 2', ['Project 3', 'Project 4'], 'Project 5'],
+    ['Project 9', ['Project 10'], 'Project 11'],
+    ['Project 0', [], 'Project 1'],
+    ['Project 009', [], 'Project 10'],
+    ['Project2', [], 'Project2 2'],
+    ['Project 2 notes', [], 'Project 2 notes 2'],
+    ['Project 2.5', [], 'Project 2.5 2'],
+    ['Project  2', [], 'Project  3'],
+    ['Project 2 ', [], 'Project 2  2'],
+    ['Plocha žluťoučká', [], 'Plocha žluťoučká 2'],
+    ['Project 9007199254740992', ['Project 9007199254740993'], 'Project 9007199254740994'],
+    ['x'.repeat(58), [], 'x'.repeat(58) + ' 2'],
+    ['x'.repeat(59), [], 'x'.repeat(59)],
+    ['x'.repeat(60), [], 'x'.repeat(60)],
+    ['ž'.repeat(29), [], 'ž'.repeat(29) + ' 2'],
+    ['ž'.repeat(30), [], 'ž'.repeat(30)],
+    ['x'.repeat(58) + ' 8', ['x'.repeat(58) + ' 9'], 'x'.repeat(58) + ' 8'],
+]) {
+    const source = { ...emptyClone, name }, workspaces = [source, ...occupied.map(name => ({ ...emptyClone, name }))];
+    const before = structuredClone(workspaces), copy = cloneWorkspace(source, '/home/test', workspaces);
+    assert.equal(copy.name, expected, `clone name for ${JSON.stringify(name)}`);
+    assert.deepEqual(workspaces, before, 'name allocation never renames existing desktops');
+}
+console.log('PASS clone numbering skips occupied names and preserves names at the UTF-8 byte limit');
 console.log('PASS desktop cloning preserves layouts and folders with fresh identities and terminals');
 for (const [columns, rows, occupied, terminalRect, fileRect] of [
     [4, 2, [], [0, 0, 4, 2], [0, 0, 1, 2]],
