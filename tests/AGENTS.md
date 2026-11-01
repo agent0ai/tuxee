@@ -26,6 +26,8 @@ Keep implementation and checks small and complete. Pure module fixtures that ass
 
 # Verification
 
+- `TUXEE_SYSTEM_TEST=1 go test ./tests -run TestRuntimeStatus`: disposable executable/instances and marked `tuxee-poc-status` account; live listener discovery, privileged/unprivileged status, login/logout counts, retained terminals and same-PID restart, bounded probes of a paused process, ambiguous-instance selection and socket cleanup. CLI unit tests cover degraded health, IPv4/IPv6, disabled listeners, redirects, older records and missing counts.
+
 `trash.mjs` and `file-clipboard.mjs` exercise 87-file selections through real trash/restore and pointer drag copy/move. Hold requests only to assert immediate local progress, then release to the real server; verify one mutation request, exact file contents, partial-failure retries and cancellation. Verify that multi-file Properties reads and permission changes also use one request. Record elapsed time without brittle machine-speed thresholds.
 
 - `node tests/login-security.mjs`: isolated server and disposable Linux account; verify anonymous HTML/catalog/asset/API isolation, no idle application polling, desktop/mobile/short-screen form bounds, real PAM failure/success, authenticated title/color/favicon/About, logout replacing the private document, re-login and hostname fallback. Compare public HTML byte-for-byte after authenticated use; server baseline tests pin public responses while simulating private release changes. Run browser suites sequentially; screenshots contain no credentials.

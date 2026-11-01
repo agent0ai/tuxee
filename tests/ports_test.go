@@ -231,6 +231,26 @@ func TestIndependentListeners(t *testing.T) {
 			if out, err := probe.CombinedOutput(); err != nil {
 				t.Fatalf("image health probe: %v %s", err, out)
 			}
+			status := exec.Command("../bin/tuxee", "status", "--state", state)
+			status.Env = portEnvironment("invalid", "invalid")
+			out, err := status.CombinedOutput()
+			if err != nil || !strings.Contains(string(out), "Healthy") {
+				t.Fatalf("runtime status: %v %s", err, out)
+			}
+			for protocol, port := range map[string]string{"HTTP": httpPort, "HTTPS": httpsPort} {
+				found := false
+				for _, line := range strings.Split(string(out), "\n") {
+					fields := strings.Fields(line)
+					if len(fields) < 2 || fields[0] != protocol {
+						continue
+					}
+					_, actualPort, _ := net.SplitHostPort(fields[1])
+					found = port == "0" && fields[1] == "Disabled" || port == actualPort && len(fields) == 3 && fields[2] == "OK"
+				}
+				if !found {
+					t.Fatalf("status missing %s port %s:\n%s", protocol, port, out)
+				}
+			}
 			for _, base := range bases {
 				t.Run(base, func(t *testing.T) {
 					jar, _ := cookiejar.New(nil)

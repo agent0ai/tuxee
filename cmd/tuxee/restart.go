@@ -18,13 +18,16 @@ import (
 
 const runtimeDirectory = "/run/tuxee"
 
+var errRuntimeNotFound = errors.New("no running Tuxee instance found for this installation")
+
 type runtimeRecord struct {
-	Protocol   int    `json:"protocol"`
-	PID        int    `json:"pid"`
-	Start      string `json:"start"`
-	Boot       string `json:"boot"`
-	Executable string `json:"executable"`
-	State      string `json:"state"`
+	Protocol   int            `json:"protocol"`
+	PID        int            `json:"pid"`
+	Start      string         `json:"start"`
+	Boot       string         `json:"boot"`
+	Executable string         `json:"executable"`
+	State      string         `json:"state"`
+	Status     *runtimeStatus `json:"status,omitempty"`
 }
 
 func processStart(dir *os.File) (string, error) {
@@ -61,7 +64,7 @@ func checkRuntimeDirectory(path string) error {
 }
 
 // Publish only after the restart signal handler is installed; old servers have no record.
-func registerRuntime(directory, state string) (func(), error) {
+func registerRuntime(directory, state string, status *runtimeStatus) (func(), error) {
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return nil, err
 	}
@@ -96,7 +99,7 @@ func registerRuntime(directory, state string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	record := runtimeRecord{1, os.Getpid(), start, string(boot), executable, state}
+	record := runtimeRecord{1, os.Getpid(), start, string(boot), executable, state, status}
 	f, err := os.CreateTemp(directory, ".runtime-*")
 	if err != nil {
 		return nil, err
@@ -116,37 +119,37 @@ func registerRuntime(directory, state string) (func(), error) {
 	return func() { _ = os.Remove(path) }, nil
 }
 
-func findRuntime(directory, executable, state string) (*os.File, error) {
-	missing := errors.New("no running Tuxee instance found for this installation; older versions need the UI restart or a service/supervisor restart once")
+func findRuntime(directory, executable, state string) (*os.File, *runtimeRecord, error) {
 	if err := checkRuntimeDirectory(directory); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, missing
+			return nil, nil, errRuntimeNotFound
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	executable, err := filepath.EvalSymlinks(executable)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if state != "" {
 		state, err = filepath.EvalSymlinks(state)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		state, err = filepath.Abs(state)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var found *os.File
+	var selected *runtimeRecord
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -172,14 +175,15 @@ func findRuntime(directory, executable, state string) (*os.File, error) {
 		if found != nil {
 			found.Close()
 			proc.Close()
-			return nil, errors.New("multiple Tuxee instances use this installation; select one with --state directory")
+			return nil, nil, errors.New("multiple Tuxee instances use this installation; select one with --state directory")
 		}
 		found = proc
+		selected = &record
 	}
 	if found == nil {
-		return nil, missing
+		return nil, nil, errRuntimeNotFound
 	}
-	return found, nil
+	return found, selected, nil
 }
 
 func runRestart(args []string) (err error) {
@@ -208,8 +212,11 @@ func runRestart(args []string) (err error) {
 			return err
 		}
 	}
-	proc, err := findRuntime(runtimeDirectory, executable, *state)
+	proc, _, err := findRuntime(runtimeDirectory, executable, *state)
 	if err != nil {
+		if errors.Is(err, errRuntimeNotFound) {
+			return fmt.Errorf("%w; older versions need the UI restart or a service/supervisor restart once", err)
+		}
 		return err
 	}
 	defer proc.Close()

@@ -100,6 +100,8 @@ func help() {
 
   tuxee serve [options]                   Run in the foreground
   tuxee healthcheck [serve options]       Probe the configured local listener
+  tuxee status [--name tuxee] [--state directory]
+                                         Show runtime, health and activity
   tuxee ports [--http-port N] [--https-port N] [--config PATH]
                                          Show/save listening ports; 0 disables
   tuxee service install [--name tuxee] [serve options]
@@ -155,6 +157,8 @@ func run(args []string) error {
 		return runPorts(args[1:], os.Stdout)
 	case "restart":
 		return runRestart(args[1:])
+	case "status":
+		return runStatus(args[1:], os.Stdout)
 	case "serve", "healthcheck":
 		value, _, err := parseConfig(args[1:], false)
 		if err != nil {
@@ -453,10 +457,20 @@ func healthcheck(value config) error {
 	if len(listeners) == 0 {
 		return errors.New("HTTP and HTTPS are disabled; no listener to probe")
 	}
-	listener := listeners[0]
-	host, port, _ := net.SplitHostPort(listener.address)
+	return probeHealth(listeners[0], 4*time.Second)
+}
+
+func probeHealth(listener listenerConfig, timeout time.Duration) error {
+	host, port, err := net.SplitHostPort(listener.address)
+	if err != nil {
+		return err
+	}
 	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "127.0.0.1"
+		if host == "::" {
+			host = "::1"
+		} else {
+			host = "127.0.0.1"
+		}
 	}
 	scheme := "http"
 	if listener.https {
@@ -465,14 +479,14 @@ func healthcheck(value config) error {
 	// Local liveness only, matching the image's former curl --insecure probe.
 	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Timeout: 4 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Timeout: timeout, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	response, err := client.Get(scheme + "://" + net.JoinHostPort(host, port) + "/health")
 	if err != nil {
 		return err
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("health returned %s", response.Status)
+		return fmt.Errorf("HTTP %d", response.StatusCode)
 	}
 	return nil
 }
@@ -503,6 +517,7 @@ func lockState(path string) (*os.File, error) {
 	return f, nil
 }
 func serve(value *config) error {
+	started := time.Now()
 	configs, err := value.listeners()
 	if err != nil {
 		return err
@@ -571,11 +586,20 @@ func serve(value *config) error {
 	signal.Notify(restartSignal, syscall.SIGUSR1)
 	// Ignore late duplicate requests across exec, until the new runtime is ready.
 	defer signal.Ignore(syscall.SIGUSR1)
-	unregister, err := registerRuntime(runtimeDirectory, value.State)
+	status := &runtimeStatus{Version: version, StartedAt: started}
+	for i, listener := range listeners {
+		status.Listeners = append(status.Listeners, runtimeListener{Address: listener.Addr().String(), HTTPS: configs[i].https})
+	}
+	unregister, err := registerRuntime(runtimeDirectory, value.State, status)
 	if err != nil {
 		return err
 	}
 	defer unregister()
+	closeStatus, err := serveStatus(runtimeDirectory, app)
+	if err != nil {
+		return err
+	}
+	defer closeStatus()
 	app.Version = version
 	app.Updates = update.NewChecker(version)
 	go app.Updates.Run(ctx)
@@ -612,6 +636,7 @@ func serve(value *config) error {
 		stop()
 	}
 	unregister()
+	closeStatus()
 	app.Close()
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

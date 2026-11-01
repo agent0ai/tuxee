@@ -79,6 +79,62 @@ Use `--name tuxee-poc` consistently to install/test a separate service identity.
 
 Every signed-in account can choose **Restart Tuxee** immediately above **Log out** in the user menu. Restart requires the same Linux permission as signalling the Tuxee process directly; a denied request shows the error and a selectable `sudo tuxee restart` command when that short command names the installation, or its full executable path otherwise. The runtime and sessions keep running. The action does not invoke `sudo`. The confirmation explains that this restarts only the Tuxee runtime, preserves every user's terminals and GUI applications, and signs everyone out. Unsaved editor changes require confirmation and saved layouts remain. The disconnected loader stays visible until Tuxee returns and confirms the session ended, then the browser reloads the page so login uses the current frontend. This works for foreground, systemd and Docker deployments, uses the currently installed executable, and leaves Linux, unrelated processes and Docker init hooks running. To restart Linux, use `reboot`; for containers, use the deployment's container restart controls or terminate the container's PID 1 as appropriate.
 
+## Runtime status
+
+```sh
+tuxee status
+sudo tuxee status                 # Include all users’ activity counts.
+tuxee status --name tuxee-poc      # Select a named managed installation.
+tuxee status --state /path/state  # Disambiguate instances sharing a binary.
+```
+
+Example output:
+
+```text
+Tuxee status
+  Status      Running
+  Health      Healthy
+  Version     1.2.3
+  PID         1428
+  Uptime      3d 4h
+  HTTP        [::]:80  OK
+  HTTPS       [::]:443  OK
+  Sessions    2 signed-in users
+  Terminals   5 running
+```
+
+The command selects the running installation using the same verified runtime
+records as `tuxee restart`. Version is the running version, even if an update has
+replaced the executable on disk. Uptime resets on runtime restart,
+even when the PID stays the same. Listener addresses are the actual local sockets;
+Docker host-published ports and reverse-proxy addresses are outside this view.
+Saved configuration and the calling shell’s listener environment are not consulted.
+Disabled protocols show `Disabled`.
+
+Health probes each enabled listener’s `/health` endpoint in parallel, with a
+four-second timeout per request. All returning HTTP 200 means **Healthy**; some
+passing means **Degraded**; none passing means **Unresponsive**. Each listener
+shows its result, such as `OK`, `Timeout`, `Connection refused` or `HTTP 503`.
+This checks local web-server responsiveness only. It does not verify public
+reachability, certificate trust, PAM login, GUI/audio or terminal functionality.
+HTTPS probing accepts the local certificate without checking trust, matching
+`tuxee healthcheck`. The public health response remains unchanged.
+
+Sessions counts distinct Linux UIDs with valid, unexpired logins; closing a browser
+does not revoke its login. Terminals counts live terminals, including detached ones,
+and excludes post-mortem archives. These totals are read on demand through a
+root-owned `0600` Unix socket in `/run/tuxee`; run as root to see them. Missing or
+inaccessible counts show `Unavailable`, never zero. Basic status and health remain
+available without root where Linux permits reading the runtime records/process.
+
+No matching registered runtime shows **Not running**. An older runtime with a
+record but no status metadata shows **Unknown** health and asks for a restart.
+Versions predating runtime registration need one restart through their UI or
+supervisor before discovery works. Exit status is 0 when every enabled listener
+passes, regardless of activity-count availability, and 1 otherwise, including
+stopped, unknown and instance-selection errors.
+`tuxee service status` continues to report systemd’s service status separately.
+
 ## Listening ports
 
 `TUXEE_HTTP_PORT` and `TUXEE_HTTPS_PORT` select the actual listening ports in

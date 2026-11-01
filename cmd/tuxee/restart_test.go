@@ -20,7 +20,7 @@ func TestRuntimeSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unregister, err := registerRuntime(dir, state)
+	unregister, err := registerRuntime(dir, state, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestRuntimeSelection(t *testing.T) {
 	}
 	check := func(state string, wantError string) {
 		t.Helper()
-		proc, err := findRuntime(dir, executable, state)
+		proc, _, err := findRuntime(dir, executable, state)
 		if wantError != "" {
 			if proc != nil {
 				proc.Close()

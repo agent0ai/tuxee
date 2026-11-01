@@ -24,6 +24,8 @@ The per-user prompt preference defaults on and affects only new interactive Bash
 
 Attachment loss never kills a shell. There is no idle or detached timeout. Explicit termination, process exit and unrecoverable terminal failure end it. Tuxee shutdown/re-exec detaches guardians; Linux/container shutdown ends processes. User ownership is checked before attachment and control. Persistent creation requires a usable private metadata directory for discovery and the guardian socket; refuse creation if it cannot be prepared.
 
+`RunningCount` supplies the CLI’s private status aggregate under manager/session locks. Include attached and detached live terminals; exclude exited, closed and post-mortem sessions. Counting never attaches a viewer, reads archives or changes terminal lifetime.
+
 With archival enabled, output EOF captures final text and releases the ended session/engine; API lookup falls back to its archive. Isolated managers without an installation ID retain ended output in memory for attachment tests. The frontend must persist a new session ID before connecting, and coalesce creation while its panel is being remounted.
 
 Serialize process-group signals with child reaping. Never signal a retained terminal's numeric PID after it has exited and been reaped.
