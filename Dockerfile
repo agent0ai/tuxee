@@ -67,7 +67,7 @@ COPY --from=audio /output/ /
 ARG VERSION=0.0.0
 RUN ln -s /usr/local/lib/tuxee/tuxee /usr/local/bin/tuxee \
     && printf '%s\n' "${VERSION#v}" > /usr/local/lib/tuxee/update-version
-# Initialize ROOT_PASSWORD (default: toor) on the first container start.
+# Initialize root from a supplied password/file or a random password on first start.
 COPY --chmod=0755 docker/entrypoint.sh /opt/tuxee/entrypoint.sh
 COPY --chmod=0755 docker/docker-init.sh /opt/tuxee/docker-init.sh
 COPY docker/init/README.md /init/README.md

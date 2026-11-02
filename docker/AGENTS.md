@@ -29,12 +29,18 @@ metadata only. The image healthcheck uses the binary’s same JSON/environment
 parser; custom command-line listener options require matching healthcheck options.
 
 Before launching jobs, the entrypoint initializes root through `chpasswd` stdin
-from runtime `ROOT_PASSWORD` (unset defaults to `toor`). Reject empty values and
-CR/LF; failure aborts startup without marking success. Keep the completion marker
+from runtime `ROOT_PASSWORD` or a readable `ROOT_PASSWORD_FILE`; reject both
+nonempty sources together. File contents preserve spaces and punctuation, ignoring
+trailing LF characters; reject empty files and remaining CR/LF. If both variables
+are unset or empty, generate 24 random bytes from `/dev/urandom`, encoded as
+32 Base64 characters. After successful initialization, print only generated
+passwords once to stderr in a yellow warning with surrounding blank lines and
+a request to change the password after login. Read/generation/update failures
+abort startup without marking success. Keep the completion marker
 beside the entrypoint at `/opt/tuxee/.root-password-initialized`, outside volumes,
 so it shares the account database's container lifecycle. Restarts preserve later
-password changes; new containers initialize again. Unset the password before jobs
-inherit the environment. Do not bake custom passwords into image layers.
+password changes; new containers initialize again. Remove both password variables
+and temporary values before jobs inherit the environment. Do not bake custom passwords into image layers.
 
 The image exposes `/usr/local/lib/tuxee/tuxee` through a `/usr/local/bin/tuxee` symlink. Before manually updating an existing preview, inspect its active command and symlink layout; earlier manual deployments may have replaced the link with a separate executable. Atomically replace the active executable target, restart explicitly, and verify the served UI and assets rather than only the installed file checksum. The updater replaces that file without restarting. Updates in the writable layer survive same-container restarts, but recreation uses the image version. Compose defaults to the published multi-platform image; root release automation owns image tags.
 

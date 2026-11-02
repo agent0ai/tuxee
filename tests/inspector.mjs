@@ -91,8 +91,8 @@ try {
  for (const theme of ['dark', 'light']) {
   if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
   for (const [kind, texts] of [
-   ['type', ['services', 'tuxee', 'image', 'ROOT_PASSWORD', '"quoted key"', 'mode', '!!str']],
-   ['string', ['agent0ai/tuxee:latest', '${ROOT_PASSWORD-toor}', 'tuxee-state:/var/lib/tuxee', 'unless-stopped', '30s', '"80:80"', 'unquoted value', 'true', 'false', 'null', '42', '3.14', '"quoted"', "'single'", 'fast', 'tagged value', 'echo hello']],
+   ['type', ['services', 'tuxee', 'image', 'ROOT_PASSWORD', 'ROOT_PASSWORD_FILE', '"quoted key"', 'mode', '!!str']],
+   ['string', ['agent0ai/tuxee:latest', '${ROOT_PASSWORD:-}', '${ROOT_PASSWORD_FILE:-}', 'tuxee-state:/var/lib/tuxee', 'unless-stopped', '30s', '"80:80"', 'unquoted value', 'true', 'false', 'null', '42', '3.14', '"quoted"', "'single'", 'fast', 'tagged value', 'echo hello']],
    ['function', ['&defaults', '*defaults']], ['markup', [':', '-', '[', ']', '{', '}', ',']], ['comment', ['# YAML comment']]
   ]) for (const text of texts) {
    const token = content.locator('.code-' + kind).filter({ hasText: text }).first(); await token.waitFor();

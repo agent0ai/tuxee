@@ -110,7 +110,7 @@ docker compose up -d tuxee
 
 This recreates the container when the image changes, ending terminals and
 rerunning startup scripts. Configured volumes retain their data; the container
-account database is recreated according to the existing ROOT_PASSWORD contract.
+account database is recreated according to the [first-start password contract](guide.md#docker).
 
 `tuxee update` also works as root inside a writable container. It replaces
 the binary. On the next server start, that binary runs its embedded

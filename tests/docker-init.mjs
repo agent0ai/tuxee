@@ -51,46 +51,92 @@ try {
         await writeFile(join(accountRoot, 'etc/passwd'), 'root:x:0:0:root:/root:/bin/bash\n');
         const shadow = join(accountRoot, 'etc/shadow'), initialShadow = 'root:!:19000:0:99999:7:::\n';
         await writeFile(shadow, initialShadow, { mode: 0o600 });
+        const capture = join(directory, 'password'), passwordFile = join(directory, 'password secret');
+        const special = 'spaces : $ \'" \\\\ punctuation';
+        await writeFile(passwordFile, special + '\n', { mode: 0o600 });
         await writeFile(join(bin, 'chpasswd'), `#!/bin/bash
 set -e
 [[ "\${INIT_TEST_FAIL:-}" != 1 ]] || exit 1
 IFS= read -r input
-[[ "$input" == "root:$INIT_TEST_PASSWORD" ]] || exit 1
+if [[ -v INIT_TEST_PASSWORD ]]; then
+    [[ "$input" == "root:$INIT_TEST_PASSWORD" ]] || exit 1
+else
+    [[ "$input" =~ ^root:[A-Za-z0-9+/]{32}$ ]] || exit 1
+fi
+printf '%s' "\${input#root:}" > "$INIT_TEST_CAPTURE"
 printf '%s\\n' "$input" | /usr/sbin/chpasswd --root "$INIT_TEST_ACCOUNT_ROOT" --crypt-method SHA512
 `, { mode: 0o700 });
-        await writeFile(join(init, 'password-env.sh'), '[[ ! -v ROOT_PASSWORD ]] && touch "$INIT_TEST_STARTED.hook"\n');
-        const initialize = password => {
+        await writeFile(join(init, 'password-env.sh'), '[[ ! -v ROOT_PASSWORD && ! -v ROOT_PASSWORD_FILE ]] && touch "$INIT_TEST_STARTED.hook"\n');
+        const initialize = ({ password, passwordFile, expectedPassword = password || undefined } = {}) => {
             const startupEnv = { ...env, PATH: `${bin}:${process.env.PATH}`, INIT_TEST_ACCOUNT_ROOT: accountRoot,
-                INIT_TEST_PASSWORD: password ?? 'toor', INIT_TEST_STARTED: started };
-            if (password === undefined) delete startupEnv.ROOT_PASSWORD; else startupEnv.ROOT_PASSWORD = password;
+                INIT_TEST_CAPTURE: capture, INIT_TEST_STARTED: started };
+            delete startupEnv.ROOT_PASSWORD; delete startupEnv.ROOT_PASSWORD_FILE; delete startupEnv.INIT_TEST_PASSWORD;
+            if (password !== undefined) startupEnv.ROOT_PASSWORD = password;
+            if (passwordFile !== undefined) startupEnv.ROOT_PASSWORD_FILE = passwordFile;
+            if (expectedPassword !== undefined) startupEnv.INIT_TEST_PASSWORD = expectedPassword;
             return spawnSync('bash', [entrypoint, init, 'bash', '-c',
-                '[[ ! -v ROOT_PASSWORD ]] || exit 83; until [[ -f "$INIT_TEST_STARTED.hook" ]]; do sleep 0.01; done; touch "$INIT_TEST_STARTED"; kill -TERM "$PPID"'],
+                '[[ ! -v ROOT_PASSWORD && ! -v ROOT_PASSWORD_FILE ]] || exit 83; until [[ -f "$INIT_TEST_STARTED.hook" ]]; do sleep 0.01; done; touch "$INIT_TEST_STARTED"; kill -TERM "$PPID"'],
                 { env: startupEnv, encoding: 'utf8', timeout: 3000 });
         };
-        for (const password of [undefined, 'spaces : $ \'" \\\\ punctuation']) {
-            await rm(passwordMarker, { force: true }); await rm(started, { force: true }); await rm(`${started}.hook`, { force: true });
-            assert.equal(initialize(password).status, 0, 'first startup must initialize the account and start both jobs');
+        const reset = async () => {
+            for (const path of [passwordMarker, started, `${started}.hook`, capture]) await rm(path, { force: true });
+            await writeFile(shadow, initialShadow);
+        };
+        const generated = new Set();
+        for (const options of [{}, { password: '', passwordFile: '' }, { password: special },
+            { password: '', passwordFile, expectedPassword: special }]) {
+            await reset();
+            const result = initialize(options);
+            assert.equal(result.status, 0, 'first startup must initialize the account and start both jobs');
             await readFile(started); await readFile(passwordMarker);
+            const actual = await readFile(capture, 'utf8');
+            if (!options.password && !options.passwordFile) {
+                assert.ok(/^[A-Za-z0-9+/]{32}$/.test(actual), 'generated password must contain 24 random bytes');
+                assert.ok(!generated.has(actual), 'new containers must get distinct passwords'); generated.add(actual);
+                assert.ok(result.stderr.includes(`\n\x1b[33mWARNING: No root password set. Generated root password: ${actual}\nChange it immediately after your first login!\x1b[0m\n\n`), 'warning must show the applied password with color and blank lines');
+            } else assert.ok(!result.stderr.includes(actual), 'supplied passwords must not be logged');
             const initialized = await readFile(shadow, 'utf8'); assert.match(initialized, /^root:\$6\$/);
-            assert.equal(initialize('different password').status, 0);
+            const restarted = initialize({ password: 'ignored', passwordFile: '/missing-on-restart' });
+            assert.equal(restarted.status, 0); assert.ok(!restarted.stderr.includes('Generated root password'));
             assert.equal(await readFile(shadow, 'utf8'), initialized, 'container restarts must not reset the password');
             await writeFile(shadow, initialShadow);
-            assert.equal(initialize('ignored').status, 0);
+            assert.equal(initialize().status, 0);
             assert.equal(await readFile(shadow, 'utf8'), initialShadow, 'manual account changes must survive restarts');
         }
-        for (const password of ['', 'line\nbreak', 'line\rbreak']) {
-            await rm(passwordMarker, { force: true }); await rm(started, { force: true });
-            const result = initialize(password);
-            assert.equal(result.status, 1); assert.match(result.stderr, /ROOT_PASSWORD must be nonempty and contain no line breaks/);
-            await assert.rejects(readFile(passwordMarker), { code: 'ENOENT' }); await assert.rejects(readFile(started), { code: 'ENOENT' });
+        for (const contents of [special, special + '\n\n']) {
+            await reset(); await writeFile(passwordFile, contents);
+            assert.equal(initialize({ passwordFile, expectedPassword: special }).status, 0, 'file passwords preserve characters and ignore trailing newlines');
+        }
+        const rejected = async (options, message) => {
+            const result = initialize(options);
+            assert.equal(result.status, 1); assert.ok(result.stderr.includes(message));
+            assert.ok(!result.stderr.includes('Generated root password'));
+            for (const path of [passwordMarker, started, `${started}.hook`]) await assert.rejects(readFile(path), { code: 'ENOENT' });
             assert.equal(await readFile(shadow, 'utf8'), initialShadow);
+        };
+        await reset();
+        await rejected({ password: 'conflicting', passwordFile }, 'Set only one of ROOT_PASSWORD and ROOT_PASSWORD_FILE');
+        for (const path of [join(directory, 'missing'), init]) {
+            await rejected({ passwordFile: path }, 'ROOT_PASSWORD_FILE must point to a readable file');
+        }
+        for (const password of ['line\nbreak', 'line\rbreak']) {
+            await rejected({ password }, 'Root password must be nonempty and contain no line breaks');
+        }
+        for (const password of ['', '\n', 'line\nbreak', 'line\rbreak']) {
+            await writeFile(passwordFile, password);
+            await rejected({ passwordFile }, 'Root password must be nonempty and contain no line breaks');
+        }
+        for (const program of ['cat', 'head']) {
+            await writeFile(join(bin, program), '#!/bin/bash\nexit 1\n', { mode: 0o700 });
+            await rejected(program === 'cat' ? { passwordFile } : {}, '');
+            await rm(join(bin, program));
         }
         env.INIT_TEST_FAIL = '1';
-        assert.equal(initialize('failed update').status, 1); await assert.rejects(readFile(passwordMarker), { code: 'ENOENT' });
+        await rejected({}, '');
         delete env.INIT_TEST_FAIL;
-        assert.equal(initialize('retry update').status, 0, 'failed initialization must remain retryable');
+        assert.equal(initialize({ password: 'retry update' }).status, 0, 'failed initialization must remain retryable');
         await rm(join(init, 'password-env.sh'));
-        console.log('PASS first-run/default root password, exact special characters, restart/manual-change preservation, secret environment cleanup, invalid input and failed-update retry using isolated account files');
+        console.log('PASS random/env/file root passwords, warning formatting, exact characters, restart preservation, secret cleanup, invalid/conflicting input and failed-read/update retry using isolated accounts');
     } else console.log('SKIP isolated root password initialization: requires root for chpasswd --root');
     // Remaining lifecycle checks must never initialize the host account.
     await writeFile(passwordMarker, '');

@@ -97,17 +97,14 @@ terminals. Also available as a standalone web interface for existing Linux serve
 **Recommended: run the tiny Docker image with zero configuration.**
 
 ```sh
-docker run -p 80:80 -p 443:443 agent0ai/tuxee
+docker run -p 80:80 -p 443:443 -e ROOT_PASSWORD='your-password' agent0ai/tuxee
 ```
 
 The app is available on HTTP 80 and HTTPS 443. Behind Traefik or another HTTPS
 proxy, forward to container port **80**—no Tuxee configuration is needed.
 See [Docker setup](docs/guide.md#docker) for persistence and alternate host ports.
 
-Open `https://localhost` (or `https://<server-ip>`) in your browser. Log in as
-**root** with password **toor**, then run `passwd` in a terminal to change it.
-Or preset the password by adding `-e ROOT_PASSWORD='your-password'` before the
-image name.
+You can use `ROOT_PASSWORD_FILE` instead of `ROOT_PASSWORD` to provide file path instead of plain value for the default password.
 
 **Or install directly on an existing Linux server:**
 

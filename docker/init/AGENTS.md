@@ -21,7 +21,7 @@ Executable permission is unnecessary; the working directory is `/init`.
 Failures are logged; completed or failed scripts are not automatically restarted.
 Hooks run on every container start, never in native installations.
 The entrypoint initializes root before launching hooks and removes `ROOT_PASSWORD`
-from their environment.
+and `ROOT_PASSWORD_FILE` from their environment.
 Long-running services may run directly or use a restart loop. Node/npm and PM2
 are not bundled; examples use a foreground executable. The Compose volume persists scripts.
 

@@ -10,8 +10,8 @@ Scripts run as root inside the container, each in a separate Bash process with
 `/init` as its working directory. They do not need executable permission. Hidden
 files, subdirectories, Markdown and other file types are ignored. Environment
 changes in one script do not carry over to other scripts or Tuxee.
-Root password initialization finishes before scripts start; `ROOT_PASSWORD` is
-removed from their environment.
+Root password initialization finishes before scripts start; `ROOT_PASSWORD` and
+`ROOT_PASSWORD_FILE` are removed from their environment.
 
 Scripts may run forever. One script blocking, exiting or crashing does not stop
 the others or Tuxee. Failures are reported in the container logs. Make scripts

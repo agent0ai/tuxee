@@ -5,7 +5,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      ROOT_PASSWORD: ${ROOT_PASSWORD-toor}
+      ROOT_PASSWORD: ${ROOT_PASSWORD:-}
+      ROOT_PASSWORD_FILE: ${ROOT_PASSWORD_FILE:-}
     volumes:
       - tuxee-state:/var/lib/tuxee
       - tuxee-home:/root

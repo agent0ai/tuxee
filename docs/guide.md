@@ -361,7 +361,19 @@ run `docker build -t agent0ai/tuxee:latest .`, then
 `ROOT_PASSWORD='your-password' docker compose up -d --pull never`.
 See [Docker updates](releases.md#docker-updates) for binary and image updates.
 
-Open `https://SERVER/` and sign in as **root** with `ROOT_PASSWORD`. If omitted, it defaults to **toor**. With `docker run`, pass `-e ROOT_PASSWORD='your-password'`. The entrypoint sets it on the first start of each new container, before Tuxee or init scripts run. Later restarts do not reset passwords changed with `passwd`; recreating the container initializes its new account database from `ROOT_PASSWORD` again. The completion marker stays in `/opt/tuxee/.root-password-initialized`, in the container's writable layer alongside the account database lifecycle, not a persistent volume. Empty passwords and line breaks are rejected; a failed update prevents startup and can retry on the next start. The password is sent to `chpasswd` through stdin and `ROOT_PASSWORD` is removed from the environment inherited by Tuxee and init scripts.
+Open `https://localhost/` (or `https://<server-ip>/`) and sign in as **root** with the supplied password. With `docker run`, pass `-e ROOT_PASSWORD='your-password'`. If neither password variable is set to a nonempty value, the entrypoint generates a secure random 32-character password and prints it once in a yellow warning, separated by blank lines, in the container logs. Run `passwd` in a Tuxee terminal to change it immediately after login. Anyone who can read retained logs can read the generated password; environment values can also be visible in container metadata. Prefer a password file or Docker secret for production.
+
+Use `ROOT_PASSWORD_FILE` to read the password from a file **inside the container**, for example:
+
+```sh
+docker run -p 80:80 -p 443:443 \
+  --mount type=bind,src=/absolute/path/root-password,dst=/run/secrets/root_password,readonly \
+  -e ROOT_PASSWORD_FILE=/run/secrets/root_password agent0ai/tuxee
+```
+
+Create that file with restrictive host permissions. For Compose, mount the file or add a [Compose secret](https://docs.docker.com/compose/how-tos/use-secrets/) to the service, then set `ROOT_PASSWORD_FILE` to its container path; the supplied Compose file passes both password variables through but does not mount a secret automatically. Do not supply both variables with nonempty values. Missing/unreadable files, empty file passwords and CR/LF within passwords prevent startup; trailing LF characters in files are ignored. Supplied passwords are never printed.
+
+Initialization runs only on the first start of each new container, before Tuxee or init scripts. Later restarts do not reread the file, reset passwords changed with `passwd`, or print the generated password again. Recreating the container initializes its new account database from the supplied password/file or generates a new password. The completion marker stays in `/opt/tuxee/.root-password-initialized`, in the container's writable layer alongside the account database lifecycle, not a persistent volume. Failed initialization prevents startup and retries on the next start. Passwords reach `chpasswd` through stdin; `ROOT_PASSWORD` and `ROOT_PASSWORD_FILE` are removed from the environment inherited by Tuxee and init scripts.
 
 The image creates no tuxee user and persists `/root` for user files/settings. Run commands directly as root, omitting `sudo`. The image and upgrade setup do not install sudo or a replacement wrapper; install the real package yourself if needed. Shell and prompt preferences are available in Settings, as described above. Binary upgrades remove the obsolete Tuxee system prompt profiles; user startup files remain untouched.
 

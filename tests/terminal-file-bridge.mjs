@@ -6,7 +6,8 @@ import { chromium } from 'playwright';
 
 const base = process.env.TUXEE_TEST_URL;
 const container = process.env.TUXEE_TEST_CONTAINER;
-if (!base || !container) throw Error('Set TUXEE_TEST_URL and TUXEE_TEST_CONTAINER to the disposable test container');
+const rootPassword = process.env.TUXEE_TEST_PASSWORD;
+if (!base || !container || !rootPassword) throw Error('Set TUXEE_TEST_URL, TUXEE_TEST_CONTAINER and TUXEE_TEST_PASSWORD for the disposable test container');
 const docker = (...args) => {
     const result = spawnSync('docker', ['exec', container, ...args], { encoding: 'utf8' });
     if (result.status !== 0) throw Error(result.stderr);
@@ -33,7 +34,7 @@ await context.route(/^https?:\/\/terminal-link\.invalid\//u, route => {
     webRequests.push(route.request());
     return route.fulfill({ contentType: 'text/plain', body: 'Terminal link target' });
 });
-const login = await context.request.post(base + '/api/login', { data: { username: 'root', password: 'toor' }, headers: { 'X-Tuxee-Client': 'web' } });
+const login = await context.request.post(base + '/api/login', { data: { username: 'root', password: rootPassword }, headers: { 'X-Tuxee-Client': 'web' } });
 assert.equal(login.status(), 200);
 const { csrf, settings: original } = await (await context.request.get(base + '/api/me')).json();
 const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' + path, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } });
