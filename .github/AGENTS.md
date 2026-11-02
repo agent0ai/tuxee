@@ -8,7 +8,7 @@ Tag-triggered releases, daily stable Docker image rebuilds, repository sponsorsh
 
 Own Actions workflows, release-note generation and `FUNDING.yml`. Root owns Dockerfile and
 installer; internal/update owns the release-asset contract.
-`resources/` owns optimized README screenshots, infographics and their thumbnails.
+`resources/` owns the optimized README video hero, screenshots, infographics and their thumbnails.
 
 # Local Contracts
 
@@ -59,4 +59,4 @@ on both architectures and registry publication require GitHub Actions.
 
 # Child DOX Index
 
-- [resources/AGENTS.md](resources/AGENTS.md): Optimized screenshots, infographics and thumbnails linked from the README.
+- [resources/AGENTS.md](resources/AGENTS.md): Optimized video hero, screenshots, infographics and thumbnails linked from the README.

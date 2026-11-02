@@ -1,8 +1,7 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="web/tuxee-logo-vertical.webp">
-    <img src="web/tuxee-logo-vertical-light.webp" alt="Tuxee" width="220">
-  </picture>
+  <a href="https://youtu.be/RdexB39ISjg" target="_blank" rel="noopener noreferrer" title="Tuxee - the most convenient Linux for servers and agents.">
+    <img src=".github/resources/tuxee-video-preview.webp" alt="Tuxee - the most convenient Linux for servers and agents." width="800">
+  </a>
 </p>
 
 # Tuxee - the most convenient Linux for servers and agents.

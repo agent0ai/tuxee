@@ -9,7 +9,7 @@ Original Tuxee branding artwork and theme variants.
 Own the user-supplied horizontal, vertical and emblem PNGs.
 `tuxee-logo-*-light.png` are transparent light-theme edits; preserve the
 original PNGs separately.
-`web/` owns their optimized WebP copies used by the UI and root README.
+`web/` owns their optimized WebP copies used by the UI.
 README screenshots and infographics live only as optimized images and thumbnails
 in `.github/resources/screenshots/`; do not keep duplicate originals here.
 
