@@ -29,12 +29,13 @@ function finish(id: string, error?: string) { const value = transfers.get(id); i
     return; value.cancel.disabled = true; if (!error) value.progress.value = 100; value.label.textContent += error ? ` · ${error}` : t("transfers.done"); value.node.classList.toggle('failed', !!error); transfers.delete(id); setTimeout(() => value.node.remove(), error ? 12000 : 3000); }
 export function cancelTransfers() { for (const value of transfers.values())
     value.abort(); }
-export async function operation(name: string, total: number, work: (signal: AbortSignal, progress: (done: number) => void) => Promise<void>, owner?: HTMLElement) {
+export async function operation(name: string, total: number, work: (signal: AbortSignal, progress: (done: number) => void) => Promise<void>, owner?: HTMLElement, showCompletion = true) {
     const id = newID(), controller = new AbortController();
     const view = create(id, name, () => controller.abort(), owner);
     try {
         await work(controller.signal, done => { view.progress.value = done / total * 100; view.label.textContent = `${name} · ${done}/${total}`; });
         finish(id);
+        if (!showCompletion) view.node.remove();
     } catch (error) { finish(id, controller.signal.aborted ? t("common.cancelled") : error instanceof Error ? errorText(error) : t("common.failed")); throw error; }
 }
 export async function upload(path: string, file: File, signal: AbortSignal, unique = false, progress?: (loaded: number) => void): Promise<string> {

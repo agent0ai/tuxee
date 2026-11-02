@@ -721,7 +721,7 @@ export class FileView implements View {
                 results.push(result);
                 progress(index + 1);
             }
-        }, this.root);
+        }, this.root, request.operation !== 'stat');
         return results;
     }
     private async transfer(entries: DraggedFile[], path: string, operation: 'copy' | 'move', settled?: (path: string, error?: unknown) => void) {

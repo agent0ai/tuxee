@@ -67,6 +67,7 @@ try {
     async function open(names) {
         for (let i = 0; i < names.length; i++) await row(names[i]).locator('.file-name').click({ modifiers: i ? ['Control'] : [] });
         await page.getByRole('button', { name: 'Properties', exact: true }).click(); await dialog.waitFor();
+        assert.equal(await page.locator('[data-panel="files"] .transfer').count(), 0, 'opening Properties must not leave a completion notification');
     }
     async function close() { await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click(); await noWorkers(); }
     await open(['single']);
