@@ -71,6 +71,7 @@ Build the frontend, native guardian and executable using the root instructions b
 - `node tests/panel-close.mjs`: real terminal closures across normal/ultrawide/portrait/concurrent layouts, survivor identity, process termination, saved geometry and canonical terminal background pixels.
 - `node tests/panel-focus.mjs`: isolated server/account; input ownership through headers/footers, disabled controls, menus, drawers, editors and touch. It also runs terminal transport against the same fixture.
 - `node tests/popovers.mjs`: nested popup lifecycle, keyboard/focus and dismissal. Pair with `npm run test:tabs` or `npm run test:gui` for actual component/window overflow.
+- `node tests/notifications.mjs`: shared notification/progress routing, top-right stacks, scrolling and usable bottom inputs across desktop and compact viewports, including dismiss/cancel controls. Pair with `npm run test:uploads` for real transfers.
 - `node tests/modal-focus.mjs`: marked account; pixel-check all keyboard focus-outline edges in both themes and small/short viewports, with real cancellation preserving fixture files.
 - `node tests/scrollbars.mjs`: marked account and real server; native/custom scrolling and dragging with Chromium's default `--hide-scrollbars` disabled, preserving geometry and splitter priority.
 - `npm run test:tabs`: real API/Chromium pointer, touch and keyboard menus/reordering, terminal manual names and compact overflow. `TUXEE_TEST_CONTAINER` enables container-side account checks.

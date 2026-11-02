@@ -48,7 +48,7 @@ App scrollbars share slim rounded thumbs, transparent tracks and subtle light/da
 
 - Context menus use ui.ts popovers at the click or invoking control, with Up/Down navigation and Escape restoring focus without clearing selection. Nested popovers keep their parent overflow/menu visible; siblings replace only the child, and unrelated menus replace the whole branch. Escape closes one level and restores its invoking control; closing, resizing or disposing a parent also closes its children. Keep this lifecycle shared across workspace, component and GUI-window overflow. Popovers preserve explicit dialog roles and native form-control arrow keys; menu navigation applies only to menus. Confirmation dialogs initially focus the confirming action and preserve explicit newlines in plain-text messages; never interpret catalog text as HTML.
 
-- Component-related notifications and progress live within that component; global actions use viewport notifications. ui.ts owns notification routing, including controls moved into menus/mobile tabs.
+- Component-related notifications and progress share a stack at the top right inside that component, below its header; keep long stacks scrollable in its upper portion so bottom inputs stay clear. Global actions share a viewport stack at the top right. ui.ts owns notification routing, including controls moved into menus/mobile tabs.
 
 ## Settings
 

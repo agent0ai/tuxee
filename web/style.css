@@ -943,20 +943,28 @@ h3 {
 .retained-row code {
   color: var(--muted);
 }
-#notifications,
-#transfers {
+.notification-stack {
   position: fixed;
   z-index: 1000;
   right: 18px;
-  bottom: 18px;
+  top: 18px;
   width: min(390px, calc(100vw - 36px));
+  max-height: calc(100% - 36px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+.notification-stack,
+.notification-stack > div {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  pointer-events: none;
 }
-#transfers {
-  bottom: 84px;
+.notification-stack > div {
+  flex-shrink: 0;
+}
+.notification-stack > div:empty {
+  /* Keep empty live regions available without reserving a gap. */
+  position: absolute;
 }
 .toast,
 .transfer {
@@ -1212,8 +1220,9 @@ h3 {
 .panel-dragging { pointer-events: none; opacity: .8; will-change: transform; }
 .panel-dragging .panel { box-shadow: 0 12px 40px #0005; }
 .new-panel-drag { display: grid; place-content: center; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; }
-.component-notifications, .component-transfers { position: absolute; right: 8px; bottom: 8px; width: min(360px, calc(100% - 16px)); max-height: calc(100% - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 60; }
-.component-transfers { bottom: 58px; }
+.component-notification-stack { position: absolute; right: 8px; top: 43px; width: min(360px, calc(100% - 16px)); max-height: 50%; gap: 6px; z-index: 60; }
+.component-notification-stack > div { gap: inherit; }
+.compact-board .component-notification-stack { top: 8px; }
 .file-entry:focus { outline: none; }
 .file-list.keyboard-focus .file-entry:focus { outline: 1px solid var(--accent); outline-offset: -3px; }
 

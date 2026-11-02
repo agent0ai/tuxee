@@ -103,8 +103,10 @@ function notificationOwner(node?: HTMLElement): HTMLElement | undefined {
 export function notificationHost(kind: 'notifications' | 'transfers', owner?: HTMLElement): HTMLElement {
     const panel = notificationOwner(owner);
     if (!panel?.isConnected) return document.querySelector(`#${kind}`)!;
+    let stack = panel.querySelector<HTMLElement>('.component-notification-stack');
+    if (!stack) { stack = el('div', 'notification-stack component-notification-stack'); panel.append(stack); }
     let host = panel.querySelector<HTMLElement>(`.component-${kind}`);
-    if (!host) { host = el('div', `component-${kind}`); panel.append(host); }
+    if (!host) { host = el('div', `component-${kind}`); stack.append(host); }
     return host;
 }
 export function notify(value: unknown, owner?: HTMLElement) {
