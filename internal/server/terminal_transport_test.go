@@ -290,7 +290,8 @@ func TestTerminalOutputWindow(t *testing.T) {
 }
 
 func TestTerminalBlockedInputStillDrainsOutput(t *testing.T) {
-	_, _, address := terminalFixture(t, "read -r; stty -echo -icanon; printf READY; read -r; head -c 300000 /dev/zero; dd bs=65536 count=1 iflag=fullblock of=/dev/null 2>/dev/null; printf INPUT_DONE; exec sleep 60")
+	// A shell read on the noncanonical PTY can discard queued bytes from the following input frame.
+	_, _, address := terminalFixture(t, "read -r; stty -echo -icanon; printf READY; dd bs=1 count=1 of=/dev/null 2>/dev/null; head -c 300000 /dev/zero; dd bs=65536 count=1 iflag=fullblock of=/dev/null 2>/dev/null; printf INPUT_DONE; exec sleep 60")
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	c := dialTerminal(t, ctx, address)
