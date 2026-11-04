@@ -1,6 +1,7 @@
 import { t } from './i18n';
 import type { ShortcutBindings } from './shortcuts';
 export type Kind = 'files' | 'terminal';
+export type CommandShortcut = { name: string; command: string };
 export type Panel = {
     id: string;
     kind: Kind;
@@ -27,6 +28,7 @@ export type Workspace = {
 export type Settings = {
     howToSeen?: boolean;
     shortcuts?: ShortcutBindings;
+    commandShortcuts?: CommandShortcut[];
     closedTerminalHistoryHours?: number;
     shellCommand?: string;
     useTuxeePrompt?: boolean;

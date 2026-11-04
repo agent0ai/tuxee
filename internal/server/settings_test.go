@@ -8,6 +8,46 @@ import (
 	"testing"
 )
 
+func TestCommandShortcutSettings(t *testing.T) {
+	command := "  printf 'žluťoučký\\n'\npwd\n"
+	settings := Settings{Theme: "dark", Workspaces: []Workspace{}, CommandShortcuts: []CommandShortcut{{Name: "  <Tools>  ", Command: command}}}
+	if err := migrateSettings(&settings); err != nil {
+		t.Fatal(err)
+	}
+	if settings.CommandShortcuts[0].Name != "<Tools>" || settings.CommandShortcuts[0].Command != command {
+		t.Fatal("name normalization changed command bytes")
+	}
+	data, err := json.Marshal(settings)
+	var restored Settings
+	if err != nil || json.Unmarshal(data, &restored) != nil || !reflect.DeepEqual(settings, restored) {
+		t.Fatal("command shortcuts did not round-trip")
+	}
+	for _, value := range []CommandShortcut{
+		{Name: " ", Command: "pwd"}, {Name: "Test", Command: "\n \t"},
+		{Name: "a\x00", Command: "pwd"}, {Name: "Test", Command: "pwd\x00"},
+		{Name: strings.Repeat("😀", 33), Command: "pwd"}, {Name: "Test", Command: strings.Repeat("é", 8193)},
+	} {
+		settings.CommandShortcuts = []CommandShortcut{value}
+		if validateSettings(&settings) == nil || migrateSettings(&settings) == nil {
+			t.Fatal("accepted invalid command shortcut")
+		}
+	}
+	settings.CommandShortcuts = make([]CommandShortcut, 65)
+	if validateSettings(&settings) == nil {
+		t.Fatal("accepted too many shortcuts")
+	}
+	settings.CommandShortcuts = []CommandShortcut{{Name: strings.Repeat("😀", 32), Command: strings.Repeat("é", 8192)}}
+	if err := validateSettings(&settings); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{`{"commandShortcuts":{}}`, `{"commandShortcuts":[null]}`, `{"commandShortcuts":[{"name":1,"command":"pwd"}]}`} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}}
+		if json.Unmarshal([]byte(raw), &value) == nil && validateSettings(&value) == nil {
+			t.Fatal("accepted malformed command shortcuts")
+		}
+	}
+}
+
 func TestHowToSeenSettings(t *testing.T) {
 	for _, raw := range []string{`{}`, `{"howToSeen":null}`, `{"howToSeen":false}`, `{"howToSeen":true}`, `{"howToSeen":"true"}`, `{"howToSeen":1}`} {
 		settings := Settings{Theme: "dark", Workspaces: []Workspace{}}

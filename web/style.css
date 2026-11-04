@@ -293,7 +293,7 @@ h3 {
 :root[data-theme=light] .brand {
   mix-blend-mode: normal;
 }
-.add-panel {
+.add-panel, .command-shortcuts-toggle, .layout-cycle {
   color: var(--accent);
 }
 .workspace-tabs {
@@ -850,6 +850,13 @@ h3 {
   padding: 10px 12px;
 }
 .menu-submenu { margin-inline-start: 20px; border-inline-start: 1px solid var(--line); }
+.command-shortcuts { width: min(320px, calc(100vw - 8px)); }
+.command-shortcuts-head, .command-shortcut-row { display: flex; align-items: center; gap: 4px; }
+.command-shortcuts-head { justify-content: space-between; padding-inline-start: 8px; }
+.command-shortcuts-rows { max-height: min(420px, calc(100dvh - 100px)); overflow-y: auto; overscroll-behavior: contain; }
+.command-shortcut-run { flex: 1; min-width: 0; justify-content: flex-start; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-shortcut-row > button, .command-shortcuts-head > button { min-height: 36px; }
+.command-shortcut-form textarea { width: 100%; min-width: 0; resize: vertical; font-family: monospace; }
 .menu-submenu[hidden] { display: none; }
 .menu-actions button[aria-expanded] > svg:last-child { margin-inline-start: auto; }
 .menu-actions button[aria-expanded=true] > svg:last-child { transform: rotate(90deg); }
@@ -1226,7 +1233,7 @@ h3 {
 .file-entry:focus { outline: none; }
 .file-list.keyboard-focus .file-entry:focus { outline: 1px solid var(--accent); outline-offset: -3px; }
 
-.workspace-controls { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; gap: 4px; }
+.workspace-controls { display: flex; align-items: center; min-width: 0; flex: 1; gap: 4px; }
 .workspace-controls > button { flex-shrink: 0; }
 .panel-additions { display: flex; gap: 2px; margin-inline: 2em 0; padding-inline: 3px; border-inline: 1px solid var(--line); }
 .compact .panel-additions { flex-shrink: 0; margin: 0; padding-inline: 4px 0; border-inline-end: 0; gap: 0; }

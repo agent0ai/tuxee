@@ -19,6 +19,7 @@ import { cancelTransfers, prepareDownloads, setUploadConcurrency } from './trans
 import { Monitoring } from './monitor';
 import { audio, audioControl, toggleMute, adjustVolume } from './audio';
 import { installShortcuts, openShortcuts } from './shortcuts';
+import type { CommandShortcut } from './model';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
 import { openHowTo } from './how-to';
@@ -45,6 +46,8 @@ let terminalRefresh = Promise.resolve(true);
 type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; parked: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { owner: Mounted; node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
 let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animation | undefined;
 const warmWorkspaces = new Map<string, Mounted>();
+// Creation commands belong to one explicit launch, never to persisted panel state.
+const initialCommands = new WeakMap<Panel, string>();
 const MAX_WARM_WORKSPACES = 8;
 const windowAnimations = new Map<HTMLElement, () => void>();
 const resizeContent = new Map<HTMLElement, () => void>();
@@ -286,9 +289,15 @@ function renderChrome() {
     for (const [kind, label, name] of [['files', t("app.addFileBrowser"), 'FolderPlus'], ['terminal', t("app.addTerminal"), 'SquareTerminal']] as const) {
         const add = button(label, name, () => addPanel(kind), 'add-panel');
         add.disabled = ws.panels.length >= MAX_PANELS;
+        add.dataset.kind = kind;
         add.onpointerdown = event => { if (!compact) beginDrag(event, kind); };
         additions.append(add);
     }
+    let closeCommands = () => {};
+    const commands = button(t('commandShortcuts.title'), 'Star', () => { closeCommands = commandShortcutsMenu(commands); }, 'command-shortcuts-toggle');
+    commands.setAttribute('aria-haspopup', 'menu');
+    (compact ? right : additions).append(commands);
+    chromeDisposers.push(() => closeCommands());
     if (!compact) {
         let collapseTimer: ReturnType<typeof setTimeout> | undefined;
         const collapseLater = () => {
@@ -405,7 +414,8 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 node.append(grip);
             }
             const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
-            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
+            const command = initialCommands.get(panel); initialCommands.delete(panel);
+            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, command);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         const shown = compact ? panel.id === ws.active : ws.maximized ? panel.id === ws.maximized : !panel.minimized;
@@ -840,11 +850,12 @@ function splitPanel(target: Panel, panel: Panel) {
     const edge = target.w > 1 && (target.h === 1 || width >= height) ? 'right' : 'bottom';
     return split(current(), target.id, panel, edge);
 }
-function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }) {
+function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }, command?: string) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
     if (ws.panels.length >= MAX_PANELS) throw new Error(t("app.workspaceFull"));
     if (!addCompact(ws, panel, near, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight) && !restorePanel(ws, panel, undefined, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight)) throw new Error(t("app.workspaceFull"));
+    if (command !== undefined) initialCommands.set(panel, command);
     ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
     return panel;
@@ -1165,6 +1176,65 @@ function refreshTerminals(): Promise<boolean> {
     return terminalRefresh;
 }
 
+async function saveCommandShortcuts(value: CommandShortcut[]) {
+    const previous = settings.commandShortcuts;
+    settings.commandShortcuts = value;
+    try { await save(); }
+    catch (error) { settings.commandShortcuts = previous; throw error; }
+}
+function commandShortcutsMenu(anchor: HTMLElement) {
+    const content = el('div', 'command-shortcuts');
+    content.setAttribute('aria-label', t('commandShortcuts.title'));
+    let close = () => {};
+    const header = el('div', 'command-shortcuts-head');
+    const add = button(t('commandShortcuts.add'), 'Plus', () => { close(); editCommandShortcut(); });
+    add.setAttribute('role', 'menuitem'); add.disabled = (settings.commandShortcuts?.length || 0) >= 64;
+    header.append(el('strong', '', t('commandShortcuts.title')), add); content.append(header);
+    const rows = el('div', 'command-shortcuts-rows'); content.append(rows);
+    for (const [index, shortcut] of (settings.commandShortcuts || []).entries()) {
+        const row = el('div', 'command-shortcut-row');
+        const run = () => { close(); addPanel('terminal', defaultDirectory(current()), undefined, undefined, shortcut.command); };
+        const launch = button(shortcut.name, undefined, run, 'command-shortcut-run');
+        launch.dir = 'auto'; launch.setAttribute('role', 'menuitem');
+        const actions = (opener: HTMLElement, position?: { x: number; y: number }) => tabMenu(opener, shortcut.name, false, [
+            [t('commandShortcuts.run'), 'Play', run],
+            [t('commandShortcuts.edit'), 'Pencil', () => { close(); editCommandShortcut(index); }],
+            [t('common.delete'), 'Trash2', () => { close(); return saveCommandShortcuts(settings.commandShortcuts!.filter((_, i) => i !== index)); }],
+        ], position);
+        const menu = button(t('commandShortcuts.actions'), 'ChevronDown', () => actions(menu), 'component-menu');
+        menu.setAttribute('role', 'menuitem'); menu.setAttribute('aria-haspopup', 'menu');
+        bindContextMenu(row, position => actions(launch, position));
+        row.append(launch, menu); rows.append(row);
+    }
+    ({ close } = popover(anchor, content, anchor));
+    return close;
+}
+function editCommandShortcut(index?: number) {
+    const shortcut = index === undefined ? undefined : settings.commandShortcuts![index];
+    const form = el('form', 'form command-shortcut-form');
+    const name = el('input'); name.name = 'name'; name.required = true; name.maxLength = 64; name.value = shortcut?.name || '';
+    const command = el('textarea'); command.name = 'command'; command.required = true; command.rows = 3; command.dir = 'ltr'; command.value = shortcut?.command || '';
+    const nameLabel = el('label', 'field', t('common.name')), commandLabel = el('label', 'field', t('commandShortcuts.command'));
+    nameLabel.append(name); commandLabel.append(command); form.append(nameLabel, commandLabel);
+    const dialog = modal(t(shortcut ? 'commandShortcuts.edit' : 'commandShortcuts.add'), form);
+    const actions = el('div', 'actions'), submit = button(t('common.save'), undefined, undefined, 'primary'); submit.type = 'submit';
+    actions.append(button(t('common.cancel'), undefined, dialog.close), submit); form.append(actions);
+    form.onsubmit = async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        for (const input of [name, command]) {
+            input.setCustomValidity(input.value.trim() ? '' : t('validation.required'));
+            if (!input.reportValidity()) return;
+        }
+        const value = { name: name.value.trim(), command: command.value }, list = [...settings.commandShortcuts || []];
+        if (index === undefined) list.push(value); else list[index] = value;
+        submit.disabled = true;
+        try { await saveCommandShortcuts(list); dialog.close(); }
+        catch (error) { notify(error, form); }
+        finally { submit.disabled = false; }
+    };
+    name.focus(); name.select();
+}
 function editShortcuts() {
     openShortcuts(() => settings.shortcuts, async value => {
         const previous = settings.shortcuts;

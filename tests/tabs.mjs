@@ -90,6 +90,24 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].length === 2 &&
         [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
     await page.waitForTimeout(700);
+    await page.setViewportSize({ width: 1024, height: 1000 }); await page.waitForTimeout(250);
+    const visibleBefore = await page.locator('.workspace-tabs .visible-tabs .workspace-tab-item').count();
+    assert.ok(visibleBefore < settings.workspaces.length, 'monitor forces desktop overflow in the fixture');
+    await page.locator('.monitor-summary').click();
+    const monitor = page.getByRole('dialog', { name: 'Resource monitor', exact: true });
+    const displayWidget = monitor.getByRole('switch', { name: 'Display resource monitor widget', exact: true });
+    let widgetSave = saved(); await displayWidget.uncheck(); await widgetSave;
+    await page.waitForFunction(before => document.querySelectorAll('.workspace-tabs .visible-tabs .workspace-tab-item').length > before, visibleBefore, { timeout: 3000 });
+    const plusGap = await page.locator('.workspace-controls').evaluate(node => {
+        const last = node.querySelector('.overflow-toggle:not([hidden])') || node.querySelector('.visible-tabs > :last-child');
+        return node.lastElementChild.getBoundingClientRect().left - last.getBoundingClientRect().right;
+    });
+    assert.ok(plusGap >= 0 && plusGap <= 8, 'desktop plus stays next to the fitted tabs');
+    widgetSave = saved(); await displayWidget.check(); await widgetSave;
+    await page.waitForFunction(before => document.querySelectorAll('.workspace-tabs .visible-tabs .workspace-tab-item').length <= before, visibleBefore, { timeout: 3000 });
+    await monitor.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(250);
+    check('desktop tabs reclaim and release resource-widget space without reload');
     const terminalID = (await snapshot()).workspaces[0].panels[6].terminal;
     assert.ok(terminalID);
     assert.equal(await panel('panel-0').getByRole('button', { name: 'Rename file browser', exact: true }).count(), 0);

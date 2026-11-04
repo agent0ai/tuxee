@@ -64,7 +64,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
     const observer = new ResizeObserver(schedule);
     window.addEventListener('tuxee-tabs-changed', schedule);
-    observer.observe(host); fit();
+    observer.observe(host); observer.observe(host.parentElement!); fit();
     return () => { dragging?.dispose(); observer.disconnect(); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
 }
 
