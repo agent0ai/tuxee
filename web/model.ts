@@ -255,6 +255,7 @@ export function gridDrop(ws: Workspace, x: number, y: number, width: number, hei
     return { x: left, y: top, w, h };
 }
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const contains = (outer: Rect, inner: Rect) => inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
 export function dropLayout(ws: Workspace, panel: Panel, rect: Rect, minimizeOverflow = false): Panel[] | undefined {
     if (!ws.panels.some(p => p.id === panel.id) && (ws.panels.length >= MAX_PANELS || !minimizeOverflow && !canAddPanel(ws))) return;
     if (ws.maximized && ws.maximized !== panel.id) {
@@ -268,10 +269,9 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect, minimizeOver
     const next = { ...panel, ...rect };
     if (!validGrid({ ...ws, panels: [next] })) return;
     const others = visiblePanels(ws).filter(p => p.id !== panel.id);
-    let fixed = others.filter(p => !overlaps(p, rect)), blocked = others.filter(p => overlaps(p, rect));
+    const fixed = others.filter(p => !overlaps(p, rect)), blocked = others.filter(p => overlaps(p, rect));
+    const origin = visiblePanels(ws).find(p => p.id === panel.id);
     const free = ws.columns * ws.rows - rect.w * rect.h - fixed.reduce((sum, p) => sum + p.w * p.h, 0);
-    const relax = minimizeOverflow && free < blocked.length;
-    if (relax) { fixed = []; blocked = others; }
     // Preserve the existing in-place trim whenever every neighbor can remain.
     const trimmed = blocked.map(p => [
             { ...p, w: rect.x - p.x },
@@ -279,11 +279,11 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect, minimizeOver
             { ...p, h: rect.y - p.y },
             { ...p, y: rect.y + rect.h, h: p.y + p.h - rect.y - rect.h },
         ].filter(r => r.w >= 1 && r.h >= 1).sort((a, b) => b.w * b.h - a.w * a.h)[0]);
-    if (!relax && trimmed.every(p => p !== undefined)) {
+    if (trimmed.every(p => p !== undefined)) {
         const panels = [...fixed.map(p => ({ ...p })), ...trimmed, next];
         return validGrid({ ...ws, panels }) ? panels : undefined;
     }
-    if (!minimizeOverflow && ws.columns * ws.rows - rect.w * rect.h - fixed.reduce((sum, p) => sum + p.w * p.h, 0) < blocked.length) return;
+    if (!minimizeOverflow && free < blocked.length) return;
     const mask = (r: Rect) => {
         let bits = 0;
         for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) bits |= 1 << (y * ws.columns + x);
@@ -291,15 +291,19 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect, minimizeOver
     };
     const occupied = fixed.reduce((bits, p) => bits | mask(p), mask(rect));
     const choices = blocked.map(p => {
+        // Covered windows prefer the vacated source, preserving their relative arrangement.
+        const swap = origin && !contains(rect, origin) && contains(rect, p) ? origin : undefined;
+        const centerX = swap ? 2 * swap.x + (2 * p.x + p.w - 2 * rect.x) * swap.w / rect.w : 2 * p.x + p.w;
+        const centerY = swap ? 2 * swap.y + (2 * p.y + p.h - 2 * rect.y) * swap.h / rect.h : 2 * p.y + p.h;
         const options = [];
         for (let y = 0; y < ws.rows; y++) for (let x = 0; x < ws.columns; x++)
             for (let h = 1; h <= p.h && y + h <= ws.rows; h++) for (let w = 1; w <= p.w && x + w <= ws.columns; w++) {
                 const candidate = { ...p, x, y, w, h }, bits = mask(candidate);
                 if (bits & occupied) continue;
                 options.push({ panel: candidate, bits,
-                    moved: Number(x < p.x || y < p.y || x + w > p.x + p.w || y + h > p.y + p.h),
+                    moved: Number(!contains(swap || p, candidate)),
                     lost: p.w * p.h - w * h,
-                    distance: Math.abs(2 * x + w - 2 * p.x - p.w) + Math.abs(2 * y + h - 2 * p.y - p.h) });
+                    distance: Math.abs(2 * x + w - centerX) + Math.abs(2 * y + h - centerY) });
             }
         return options;
     });
@@ -319,10 +323,10 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect, minimizeOver
             if (!best || rest.minimized < best.minimized || rest.minimized === best.minimized && (moved < best.moved || moved === best.moved && (lost < best.lost || lost === best.lost && distance < best.distance)))
                 best = { panels: [option.panel, ...rest.panels], minimized: rest.minimized, moved, lost, distance };
         }
-        if (minimizeOverflow) {
+        if (minimizeOverflow && contains(rect, blocked[index])) {
             const rest = arrange(index + 1, used);
             if (rest) {
-                const minimized = rest.minimized + 1, moved = rest.moved + Number(!overlaps(blocked[index], rect));
+                const minimized = rest.minimized + 1, moved = rest.moved;
                 if (!best || minimized < best.minimized || minimized === best.minimized && (moved < best.moved || moved === best.moved && (rest.lost < best.lost || rest.lost === best.lost && rest.distance < best.distance)))
                     best = { ...rest, panels: [{ ...blocked[index], minimized: true }, ...rest.panels], minimized, moved };
             }

@@ -346,7 +346,7 @@ try {
         const fixed = await rect('c');
         const columns = portrait ? 2 : 4, rows = portrait ? 4 : 2;
         const expectedA = direction === 'bottom' ? [0, 1, 2, 1] : [1, 0, 1, 2];
-        const expectedB = direction === 'bottom' ? [1, 0, 1, 1] : [0, 1, 1, 1];
+        const expectedB = direction === 'bottom' ? [0, 0, 1, 1] : [0, 1, 1, 1];
         for (const cancel of [true, false]) {
             const head = await item('a').locator('.panel-header').boundingBox();
             await page.mouse.move(head.x + 45, head.y + head.height / 2); await page.mouse.down();
@@ -385,8 +385,8 @@ try {
     await page.mouse.move(shrinkHead.x + 45, shrinkHead.y + 15); await page.mouse.down();
     await page.mouse.move(shrinkGrid.x + shrinkGrid.width * .75, shrinkGrid.y + shrinkGrid.height / 2, { steps: 6 });
     await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
-    assert.deepEqual(await rect('a'), [2, 0, 2, 2]); assert.deepEqual(await rect('b'), [1, 1, 1, 1]);
-    assert.deepEqual(await rect('e'), [0, 0, 1, 1]); assert.deepEqual(await rect('c'), [1, 0, 1, 1]); assert.deepEqual(await rect('d'), [0, 1, 1, 1]);
+    assert.deepEqual(await rect('a'), [2, 0, 2, 2]); assert.deepEqual(await rect('b'), [0, 0, 1, 1]);
+    assert.deepEqual(await rect('e'), [1, 1, 1, 1]); assert.deepEqual(await rect('c'), [1, 0, 1, 1]); assert.deepEqual(await rect('d'), [0, 1, 1, 1]);
     await page.screenshot({ path: 'test-results/drop-move-and-shrink.png' });
     await fixture([panel('a', 0, 0, 1, 1), panel('b', 1, 1, 1, 1), panel('c', 2, 0, 2, 2)]);
     const addGrid = await page.locator('.grid-stack').boundingBox(), addButton = await page.getByRole('button', { name: 'Add file browser', exact: true }).boundingBox();

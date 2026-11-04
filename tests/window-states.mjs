@@ -85,6 +85,48 @@ try {
         if (cancel) await page.keyboard.press('Escape');
         await page.mouse.up(); await settled();
     }
+    async function dropAt(source, x, y, cancel = false) {
+        const from = await source.boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+        await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 + 20, { steps: 2 });
+        const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
+        await page.mouse.move(grid.x + grid.width * x, grid.y + grid.height * y, { steps: 10 });
+        await page.locator('.dock-preview.visible:not(.invalid)').waitFor();
+        if (cancel) await page.keyboard.press('Escape');
+        await page.mouse.up(); await settled();
+    }
+    const sketch = (ws, incoming) => Array.from({ length: 2 }, (_, y) => Array.from({ length: 4 }, (_, x) => {
+        const p = ws.panels.find(p => !p.minimized && x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h);
+        return p?.id === incoming ? 'D' : p?.id === 'shell' ? 'C' : p?.id || ' ';
+    }).join('')).join('\n');
+    for (const [name, x, y, expected, hidden] of [
+        ['left', .005, .5, 'DDCC\nDDCC', ['A', 'B']],
+        ['bottom-left', .25, .75, 'ABCC\nDDCC', []],
+        ['top-left', .25, .25, 'DDCC\nABCC', []],
+    ]) {
+        await fixture([workspace('origin', [panel('A', 0, 0, 1, 2), panel('B', 1, 0, 1, 1), shell()])]);
+        const before = await current(), original = await item('shell').locator('.xterm').elementHandle();
+        await dropAt(page.locator('.add-panel[data-kind=files]'), x, y, true);
+        assert.deepEqual(await current(), before, 'cancelled replacement preserves all windows');
+        await dropAt(page.locator('.add-panel[data-kind=files]'), x, y);
+        const result = await current(), added = result.panels.find(p => !before.panels.some(old => old.id === p.id));
+        assert.equal(sketch(result, added.id), expected);
+        assert.deepEqual(result.panels.filter(p => p.minimized).map(p => p.id).sort(), hidden);
+        assert.deepEqual(result.panels.find(p => p.id === 'shell'), before.panels[2]);
+        assert.ok(await original.evaluate(node => node === document.querySelector('[data-panel=shell] .xterm')));
+        assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, terminal.pid);
+        await assertGrid(result);
+        await mkdir('test-results', { recursive: true }); await page.screenshot({ path: `test-results/drop-replacement-${name}.png` });
+        await page.reload(); await item('shell').locator('[data-state=connected]').waitFor();
+        assert.equal(sketch(await current(), added.id), expected, 'replacement survives reload');
+    }
+    await fixture([workspace('origin', [panel('A', 0, 0, 1, 1), panel('B', 1, 0, 1, 1), panel('C', 0, 1, 2, 1), shell()])]);
+    await dropAt(item('shell').locator('.terminal-tab'), .005, .5);
+    assert.equal(sketch(await current(), 'shell'), 'DDAB\nDDCC', 'covered group retains its arrangement in the vacated half');
+    await assertGrid(await current());
+    assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, terminal.pid);
+    console.log('PASS replacement drops, partial trims, free-cell relocation, group swaps, cancellation, persistence and unaffected terminal identity');
+
     await fixture([workspace('origin', [panel('files', 0, 0, 2, 1), panel('other', 0, 1, 2, 1), shell()]), workspace('destination', [])]);
     await item('shell').locator('[data-state=connected]').waitFor();
     const original = geometry(await current()), shellDOM = await item('shell').locator('.xterm').elementHandle();

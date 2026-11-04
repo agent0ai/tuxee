@@ -42,14 +42,38 @@ for (const rect of [{ x: 1, y: 0, w: 2, h: 1 }, { x: 1, y: 0, w: 2, h: 2 }]) {
 }
 assert.ok(validGrid({ ...blocked, panels: dropLayout(blocked, moving, { x: 0, y: 0, w: 2, h: 2 }) }));
 const geometry = p => [p.x, p.y, p.w, p.h];
+const sketch = ws => Array.from({ length: ws.rows }, (_, y) => Array.from({ length: ws.columns }, (_, x) =>
+    ws.panels.find(p => !p.minimized && x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)?.id || ' ').join('')).join('\n');
+for (const transpose of [false, true]) {
+    const turn = p => transpose ? { ...p, x: p.y, y: p.x, w: p.h, h: p.w } : p;
+    const source = { columns: transpose ? 2 : 4, rows: transpose ? 4 : 2,
+        panels: [panel('A', 0, 0, 1, 2), panel('B', 1, 0, 1, 1), panel('C', 2, 0, 2, 2)].map(turn) };
+    for (const [target, expected, minimized] of [
+        [[0, 0, 2, 2], 'DDCC\nDDCC', ['A', 'B']],
+        [[0, 1, 2, 1], 'ABCC\nDDCC', []],
+        [[0, 0, 2, 1], 'DDCC\nABCC', []],
+    ]) {
+        const [x, y, w, h] = target, result = dropLayout(source, turn(panel('D', 0, 0, 1, 1)), turn({ x, y, w, h }), true);
+        assert.ok(validGrid({ ...source, panels: result }));
+        assert.equal(sketch({ columns: 4, rows: 2, panels: result.map(turn) }), expected);
+        assert.deepEqual(result.filter(p => p.minimized).map(p => p.id).sort(), minimized);
+        assert.deepEqual(result.find(p => p.id === 'C'), source.panels[2], 'uncovered C keeps its complete rectangle');
+    }
+    const sourceGroup = { ...source, panels: [panel('A', 0, 0, 1, 1), panel('B', 1, 0, 1, 1), panel('C', 0, 1, 2, 1), panel('D', 2, 0, 2, 2)].map(turn) };
+    const swapped = dropLayout(sourceGroup, sourceGroup.panels[3], turn({ x: 0, y: 0, w: 2, h: 2 }), true);
+    assert.equal(sketch({ columns: 4, rows: 2, panels: swapped.map(turn) }), 'DDAB\nDDCC', 'covered group swaps into the source with sizes and relative positions intact');
+    const half = { ...source, panels: [panel('A', 0, 0, 2, 2), panel('D', 2, 0, 2, 2)].map(turn) };
+    const swappedHalf = dropLayout(half, half.panels[1], turn({ x: 0, y: 0, w: 2, h: 2 }), true);
+    assert.equal(sketch({ columns: 4, rows: 2, panels: swappedHalf.map(turn) }), 'DDAA\nDDAA', 'whole windows swap halves');
+}
 for (const [target, expected] of [
-    [[0, 1, 2, 1], [1, 0, 1, 1]], [[1, 0, 1, 2], [0, 1, 1, 1]],
+    [[0, 1, 2, 1], [0, 0, 1, 1]], [[1, 0, 1, 2], [0, 1, 1, 1]],
 ]) {
     const a = panel('a', 0, 0, 1, 2), b = panel('b', 1, 1, 1, 1);
     const ws = { columns: 2, rows: 4, panels: [a, b, panel('fixed', 0, 2, 2, 2)] }, [x, y, w, h] = target;
     const result = dropLayout(ws, a, { x, y, w, h });
     assert.ok(validGrid({ ...ws, panels: result }));
-    assert.deepEqual(geometry(result.find(p => p.id === 'b')), expected, 'move B to the nearest free cell');
+    assert.deepEqual(geometry(result.find(p => p.id === 'b')), expected, 'move covered B into the vacated source');
     assert.deepEqual(geometry(result.find(p => p.id === 'a')), target);
 }
 const squeezed = workspace([panel('a', 0, 0, 1, 1), panel('b', 2, 0, 2, 2), panel('c', 0, 1, 1, 1), panel('d', 1, 0, 1, 2)]);
@@ -58,8 +82,8 @@ assert.deepEqual(geometry(squeezedResult.find(p => p.id === 'b')), [0, 0, 1, 1],
 assert.deepEqual(squeezedResult.filter(p => ['c', 'd'].includes(p.id)), squeezed.panels.slice(2));
 const shared = workspace([panel('a', 0, 0, 2, 1), panel('b', 2, 0, 1, 1), panel('c', 3, 0, 1, 2), panel('fixed', 1, 1, 1, 1)]);
 const sharedResult = dropLayout(shared, shared.panels[0], { x: 2, y: 0, w: 2, h: 2 });
-assert.deepEqual(geometry(sharedResult.find(p => p.id === 'b')), [1, 0, 1, 1]);
-assert.deepEqual(geometry(sharedResult.find(p => p.id === 'c')), [0, 0, 1, 2], 'coordinate blockers to preserve both sizes');
+assert.deepEqual(geometry(sharedResult.find(p => p.id === 'b')), [0, 0, 1, 1]);
+assert.deepEqual(geometry(sharedResult.find(p => p.id === 'c')), [1, 0, 1, 1], 'fit the covered group into the vacated source before using other gaps');
 const full = workspace(Array.from({ length: 8 }, (_, i) => panel(String(i), i % 4, Math.floor(i / 4), 1, 1)));
 assert.equal(dropLayout(full, full.panels[0], { x: 0, y: 0, w: 2, h: 1 }), undefined, 'reject a full grid without deleting a panel');
 assert.equal(dropLayout(full, moving, { x: 0, y: 0, w: 1, h: 1 }), undefined, 'new panels do not vacate a cell');
@@ -77,8 +101,9 @@ for (const source of [moving, full.panels[0]]) {
 const crowded = workspace([panel('fixed', 0, 0, 2, 2), panel('a', 2, 0, 1, 1), panel('b', 3, 0, 1, 1), panel('c', 2, 1, 1, 1)]);
 const rescued = dropLayout(crowded, moving, { x: 2, y: 0, w: 2, h: 2 }, true);
 assert.ok(validGrid({ ...crowded, panels: rescued }));
-assert.equal(rescued.filter(p => p.minimized).length, 0, 'shrink another window before minimizing displaced windows');
-console.log('PASS shared dividers and drop relocation: exact four-cell example, nearest free cell, move/shrink, coordinated blockers and full-grid rejection');
+assert.equal(rescued.filter(p => p.minimized).length, 3, 'minimize covered windows instead of shrinking an untouched window');
+assert.deepEqual(rescued.find(p => p.id === 'fixed'), crowded.panels[0]);
+console.log('PASS shared dividers and drops: replacement examples, group swaps, source-space resizing, fixed neighbors and full-grid rejection');
 
 let seed = 12345, checked = 0, slowest = 0;
 const random = n => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
@@ -104,7 +129,10 @@ for (const [columns, rows] of [[4, 2], [2, 4]]) for (let sample = 0; sample < 60
             assert.equal(!!result, possible, JSON.stringify({ ws, source, target }));
             const overflow = dropLayout(ws, source, target, true);
             assert.ok(overflow && validGrid({ ...ws, panels: overflow }), 'every in-bounds drag/resize fits');
-            assert.equal(overflow.filter(p => p.minimized).length, Math.max(0, others.length - (columns * rows - w * h)), 'minimize only when all windows cannot fit');
+            for (const p of overflow.filter(p => p.minimized)) assert.ok(p.x >= x && p.y >= y && p.x + p.w <= x + w && p.y + p.h <= y + h, 'only fully covered windows may be minimized');
+            const available = columns * rows - w * h - fixed.reduce((sum, p) => sum + p.w * p.h, 0);
+            assert.equal(overflow.filter(p => p.minimized).length, Math.max(0, others.length - fixed.length - available), 'minimize only the overlaps that cannot fit without disturbing fixed windows');
+            for (const p of fixed) assert.deepEqual(overflow.find(next => next.id === p.id), p, 'unaffected panels never move even when minimizing');
             if (!result) continue;
             assert.ok(validGrid({ ...ws, panels: result }));
             assert.equal(result.length, others.length + 1);
