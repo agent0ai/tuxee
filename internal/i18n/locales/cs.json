@@ -1,6 +1,10 @@
 {
   "name": "Čeština",
   "texts": {
+    "app.minimizeWindow": "Minimalizovat okno",
+    "app.maximizeWindow": "Maximalizovat okno",
+    "app.unmaximizeWindow": "Ukončit maximalizaci",
+    "app.restoreWindow": "Obnovit",
     "app.about": "O aplikaci",
     "app.aboutTuxee": "O Tuxee",
     "app.activate": "Aktivovat",

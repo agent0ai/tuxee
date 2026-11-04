@@ -1,6 +1,10 @@
 {
   "name": "Norsk bokmål",
   "texts": {
+    "app.minimizeWindow": "Minimer vindu",
+    "app.maximizeWindow": "Maksimer vindu",
+    "app.unmaximizeWindow": "Avslutt maksimert visning",
+    "app.restoreWindow": "Gjenopprett",
     "app.about": "Om",
     "app.aboutTuxee": "Om Tuxee",
     "app.activate": "Aktiver",

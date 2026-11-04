@@ -1,6 +1,10 @@
 {
   "name": "Українська",
   "texts": {
+    "app.minimizeWindow": "Згорнути вікно",
+    "app.maximizeWindow": "Розгорнути вікно",
+    "app.unmaximizeWindow": "Вийти з розгорнутого режиму",
+    "app.restoreWindow": "Відновити",
     "app.about": "Про програму",
     "app.aboutTuxee": "Про Tuxee",
     "app.activate": "Активувати",

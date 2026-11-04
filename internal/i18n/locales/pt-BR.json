@@ -1,6 +1,10 @@
 {
   "name": "Português (Brasil)",
   "texts": {
+    "app.minimizeWindow": "Minimizar janela",
+    "app.maximizeWindow": "Maximizar janela",
+    "app.unmaximizeWindow": "Sair do modo maximizado",
+    "app.restoreWindow": "Restaurar",
     "app.about": "Sobre",
     "app.aboutTuxee": "Sobre Tuxee",
     "app.activate": "Ativar",

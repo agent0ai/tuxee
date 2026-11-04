@@ -1,6 +1,10 @@
 {
   "name": "Eesti",
   "texts": {
+    "app.minimizeWindow": "Minimeeri aken",
+    "app.maximizeWindow": "Maksimeeri aken",
+    "app.unmaximizeWindow": "Välju maksimeeritud vaatest",
+    "app.restoreWindow": "Taasta",
     "app.about": "Teave",
     "app.aboutTuxee": "Umbes Tuxee",
     "app.activate": "Aktiveeri",

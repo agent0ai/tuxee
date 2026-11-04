@@ -1,6 +1,10 @@
 {
   "name": "العربية",
   "texts": {
+    "app.minimizeWindow": "تصغير النافذة",
+    "app.maximizeWindow": "تكبير النافذة",
+    "app.unmaximizeWindow": "إنهاء التكبير",
+    "app.restoreWindow": "استعادة",
     "app.about": "حول",
     "app.aboutTuxee": "حول Tuxee",
     "app.activate": "تفعيل",

@@ -426,3 +426,48 @@ for (const [width, height, f, t] of [[1280,800,1,1], [1440,1000,2,2], [1440,1000
     assert.equal(files.name, 'Renamed during auto layout', 'restoring geometry must preserve live browser labels');
 }
 console.log('PASS wider ultrawide terminals, area priorities and custom-layout restoration without reverting paths/sessions');
+
+// Hidden panels retain valid saved rectangles but consume no visible cells.
+{
+    const { restorePanel, MAX_PANELS, visiblePanels, dropLayout } = await import('../.test-state/model.mjs');
+    const ws = newWorkspace('states', '/', 1400, 900);
+    const hidden = ws.panels[0]; hidden.minimized = true;
+    const before = structuredClone(ws.panels), others = ws.panels.filter(p => p !== hidden);
+    const extra = newPanel('terminal', '/');
+    assert.ok(addCompact(ws, extra));
+    assert.deepEqual(others, before.slice(1), 'addition ignores minimized rectangles and preserves neighbors');
+    const hiddenBefore = { ...hidden };
+    ws.maximized = hidden.id;
+    cycleLayout(ws, 1400, 900);
+    assert.equal(ws.maximized, undefined);
+    assert.deepEqual(hidden, hiddenBefore, 'automatic layout leaves minimized state and geometry intact');
+    while (ws.layout) cycleLayout(ws, 1400, 900);
+    assert.deepEqual(hidden, hiddenBefore);
+    assert.ok(validGrid(ws));
+    const snapshot = structuredClone(ws);
+    orientWorkspace(ws, 900, 1400); orientWorkspace(ws, 1400, 900);
+    assert.deepEqual(ws, snapshot, 'orientation round trip retains hidden geometry');
+    const full = { id: 'full', name: 'Full', columns: 4, rows: 2, active: 'p0', panels: Array.from({ length: 8 }, (_, i) => ({ ...newPanel('terminal', '/'), id: `p${i}`, x: i % 4, y: Math.floor(i / 4) })) };
+    const incoming = { ...newPanel('terminal', '/'), minimized: true, terminal: 'keep-session' };
+    const geometry = structuredClone(full.panels);
+    assert.ok(restorePanel(full, incoming));
+    assert.equal(full.panels[0].minimized, true, 'full restore swaps first row-major window');
+    assert.deepEqual(full.panels.slice(1, 8), geometry.slice(1), 'unaffected destination windows stay exact');
+    assert.equal(incoming.terminal, 'keep-session'); assert.equal(incoming.minimized, false);
+    assert.equal(full.panels.length, 9); assert.ok(validGrid(full));
+    incoming.minimized = true;
+    assert.ok(restorePanel(full, incoming, 'p4'), 'center swaps even with free space');
+    assert.equal(full.panels[4].minimized, true);
+    assert.deepEqual([incoming.x, incoming.y, incoming.w, incoming.h], [0, 1, 1, 1]);
+    const saved = structuredClone(full);
+    assert.equal(restorePanel(full, incoming, 'missing'), false); assert.deepEqual(full, saved);
+    while (full.panels.length < MAX_PANELS) full.panels.push({ ...newPanel('files', '/'), minimized: true });
+    assert.ok(validGrid(full)); assert.equal(restorePanel(full, newPanel('files', '/')), false);
+    assert.equal(addCompact(full, newPanel('files', '/')), false);
+    assert.equal(dropLayout(full, newPanel('files', '/'), { x: 0, y: 0, w: 1, h: 1 }), undefined);
+    assert.equal(snapLayout(full, newPanel('files', '/'), { x: 0, y: 0, w: 1, h: 1 }), undefined);
+    const clone = cloneWorkspace(full, '/', []);
+    assert.deepEqual(clone.panels.map(p => !!p.minimized), full.panels.map(p => !!p.minimized));
+    assert.equal(visiblePanels(clone).length, visiblePanels(full).length);
+    console.log('PASS minimized capacity, restore/swap identity, exact unaffected geometry, automatic exclusion and orientation');
+}

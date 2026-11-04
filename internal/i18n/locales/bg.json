@@ -1,6 +1,10 @@
 {
   "name": "Български",
   "texts": {
+    "app.minimizeWindow": "Минимизиране на прозореца",
+    "app.maximizeWindow": "Максимизиране на прозореца",
+    "app.unmaximizeWindow": "Изход от максимизиран режим",
+    "app.restoreWindow": "Възстановяване",
     "app.about": "Относно",
     "app.aboutTuxee": "Относно Tuxee",
     "app.activate": "Активиране",

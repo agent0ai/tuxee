@@ -1,6 +1,10 @@
 {
   "name": "Ελληνικά",
   "texts": {
+    "app.minimizeWindow": "Ελαχιστοποίηση παραθύρου",
+    "app.maximizeWindow": "Μεγιστοποίηση παραθύρου",
+    "app.unmaximizeWindow": "Έξοδος από μεγιστοποίηση",
+    "app.restoreWindow": "Επαναφορά",
     "app.about": "Σχετικά",
     "app.aboutTuxee": "Σχετικά με το Tuxee",
     "app.activate": "Ενεργοποίηση",

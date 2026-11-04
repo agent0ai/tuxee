@@ -1,6 +1,10 @@
 {
   "name": "Català",
   "texts": {
+    "app.minimizeWindow": "Minimitza la finestra",
+    "app.maximizeWindow": "Maximitza la finestra",
+    "app.unmaximizeWindow": "Surt del mode maximitzat",
+    "app.restoreWindow": "Restaura",
     "app.about": "Quant a",
     "app.aboutTuxee": "Quant al Tuxee",
     "app.activate": "Activa",

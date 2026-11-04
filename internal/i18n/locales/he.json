@@ -1,6 +1,10 @@
 {
   "name": "עברית",
   "texts": {
+    "app.minimizeWindow": "מזעור חלון",
+    "app.maximizeWindow": "הגדלת חלון",
+    "app.unmaximizeWindow": "יציאה ממצב מוגדל",
+    "app.restoreWindow": "שחזור",
     "app.about": "אודות",
     "app.aboutTuxee": "לגבי Tuxee",
     "app.activate": "הפעלה",

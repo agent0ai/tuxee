@@ -9,7 +9,7 @@ import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
-import { id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, cloneWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
+import { visiblePanels, canAddPanel, MAX_PANELS, restorePanel, id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, cloneWorkspace, orientWorkspace, split, validGrid, type Edge, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, snapLayout, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
@@ -42,10 +42,11 @@ let updates: Updates | undefined;
 let terminalSessions: TerminalInfo[] = [], terminalError = '';
 let terminalRequest: AbortController | undefined, terminalTimer: ReturnType<typeof setTimeout> | undefined;
 let terminalRefresh = Promise.resolve(true);
-type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { owner: Mounted; node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
+type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; parked: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { owner: Mounted; node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
 let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animation | undefined;
 const warmWorkspaces = new Map<string, Mounted>();
 const MAX_WARM_WORKSPACES = 8;
+const windowAnimations = new Map<HTMLElement, () => void>();
 let track: HTMLElement, viewportRoot: HTMLElement;
 let dragging = false, cancelDrag = () => {};
 let chromeDisposers: (() => void)[] = [];
@@ -94,7 +95,7 @@ async function setEditorLineWrap(enabled: boolean) {
 function destroyWorkspace(value?: Mounted) {
     if (!value) return;
     warmWorkspaces.delete(value.ws.id);
-    value.items.forEach(item => item.view.dispose());
+    value.items.forEach(item => { windowAnimations.get(item.node)?.(); item.node.getAnimations().forEach(a => a.cancel()); item.view.dispose(); });
     value.grid?.destroy(false);
     value.board.remove();
 }
@@ -182,9 +183,9 @@ async function load(signal?: AbortSignal) {
 }
 function isCompact() { return innerWidth < 760 || innerHeight < 480; }
 function mountWorkspace(ws: Workspace): Mounted {
-    const value: Mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), compact: isCompact(), items: new Map() };
+    const value: Mounted = { ws, board: el('section', 'board'), gridEl: el('div', 'grid-stack'), parked: el('div'), compact: isCompact(), items: new Map() };
     value.board.dataset.workspace = ws.id;
-    value.board.append(value.gridEl);
+    value.parked.hidden = true; value.board.append(value.gridEl, value.parked);
     value.board.oncontextmenu = event => {
         if (value.compact || dragging || event.defaultPrevented || (event.target as Element).closest('.panel')) return;
         event.preventDefault(); event.stopPropagation();
@@ -195,7 +196,7 @@ function mountWorkspace(ws: Workspace): Mounted {
         for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const) {
             const control = button(label, name, () => { close(); addPanel(kind, defaultDirectory(ws), undefined, near); });
             control.append(el('span', '', label)); control.setAttribute('role', 'menuitem');
-            control.disabled = ws.panels.length >= 8; content.append(control);
+            control.disabled = !canAddPanel(ws); content.append(control);
         }
         ({ close } = popover({ x: event.clientX, y: event.clientY }, content));
     };
@@ -328,16 +329,20 @@ function renderChrome() {
     componentControls.append(componentTabs);
     if (compact) componentControls.append(additions);
     const components: HTMLElement[] = [];
-    for (const panel of ws.panels) {
+    componentControls.classList.toggle('window-bar', !compact);
+    const barPanels = compact ? ws.panels : ws.panels.filter(p => ws.maximized ? p.id !== ws.maximized : p.minimized);
+    componentControls.hidden = !compact && !barPanels.length;
+    for (const panel of barPanels) {
         const item = mounted!.items.get(panel.id)!;
         const group = el('div', 'component-tab-item'); group.classList.toggle('active', panel.id === ws.active);
-        const tab = button(item.title.textContent || panel.kind, undefined, () => activatePanel(panel), 'component-tab');
+        const tab = button(item.title.textContent || panel.kind, undefined, () => compact ? activatePanel(panel) : restoreWindow(panel), 'component-tab');
         tab.replaceChildren(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), el('span', 'component-tab-title', item.title.textContent || panel.kind));
         tab.dataset.componentName = panel.id;
         tab.classList.toggle('active', panel.id === ws.active); group.append(tab);
         tab.setAttribute('aria-haspopup', 'menu');
-        chromeDisposers.push(bindContextMenu(tab, position => componentMenu(panel, tab, position), compact));
-        const menu = button(t("app.componentMenu"), 'ChevronDown', () => componentMenu(panel, menu), 'component-menu');
+        chromeDisposers.push(bindContextMenu(group, position => compact ? componentMenu(panel, tab, position) : windowMenu(panel, tab, position), compact));
+        if (!compact && !ws.maximized) tab.onpointerdown = event => beginDrag(event, panel.kind, panel);
+        const menu = button(t("app.componentMenu"), 'ChevronDown', () => compact ? componentMenu(panel, menu) : windowMenu(panel, menu), 'component-menu');
         menu.dataset.componentMenu = panel.id;
         menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         components.push(group);
@@ -348,20 +353,24 @@ function renderChrome() {
         settings.workspaces = items.map(item => settings.workspaces.find(ws => ws.id === item.dataset.workspace)!);
         changed();
     }));
-    if (compact) chromeDisposers.push(overflowTabs(componentTabs, components, t("app.moreComponents")));
+    if (compact || barPanels.length) chromeDisposers.push(overflowTabs(componentTabs, components, t("app.moreComponents")));
     mounted?.grid?.cellHeight(cellHeight(mounted));
     mounted?.items.forEach(item => item.view.resize?.());
 }
 function cellHeight(value: Mounted) { return Math.max(140, value.gridEl.clientHeight / value.ws.rows); }
 function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
     const { ws, board, gridEl, items } = value;
+    items.forEach(item => windowAnimations.get(item.node)?.());
     const before = previousRects || new Map([...items].map(([id, item]) => [id, item.node.getBoundingClientRect()]));
     const compact = isCompact();
     const rotated = orientWorkspace(ws);
     if (rotated) changed();
     if (compact !== value.compact || rotated) { value.grid?.destroy(false); value.grid = undefined; value.compact = compact; }
     board.classList.toggle('compact-board', compact);
-    if (!ws.panels.some(p => p.id === ws.active)) ws.active = ws.panels[0]?.id || '';
+    board.classList.toggle('maximized-board', !compact && !!ws.maximized);
+    if (!compact && ws.maximized) ws.active = ws.maximized;
+    else if (!compact && ws.panels.find(p => p.id === ws.active)?.minimized) ws.active = visiblePanels(ws)[0]?.id || '';
+    if (!ws.panels.some(p => p.id === ws.active)) ws.active = (compact ? ws.panels : visiblePanels(ws))[0]?.id || '';
     for (const [id, item] of items) if (!ws.panels.some(p => p.id === id)) {
         value.grid?.removeWidget(item.node, false, false); item.view.dispose(); item.node.remove(); items.delete(id);
     }
@@ -372,9 +381,11 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             const content = el('div', 'grid-stack-item-content panel'), head = el('header', 'panel-header');
             const title = el('span', 'panel-title', panel.kind === 'files' ? t("common.files") : t("common.terminal"));
             const tools = el('div', 'panel-tools');
-            tools.append(button(t("app.closePanel"), 'X', () => closePanel(panel)));
+            const maximize = button(t("app.maximizeWindow"), 'Square', () => toggleMaximize(panel), 'window-maximize');
+            const minimize = button(t("app.minimizeWindow"), 'Minus', () => minimizeWindow(panel), 'window-minimize');
+            tools.append(maximize, minimize, button(t("app.closePanel"), 'X', () => closePanel(panel)));
             head.append(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), title, tools);
-            head.ondblclick = event => { if (!(event.target as Element).closest('button:not(.terminal-tab)')) { const owner = item!.owner, ws = owner.ws, before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(owner); } };
+            head.ondblclick = event => { if (!item!.owner.ws.maximized && !(event.target as Element).closest('button:not(.terminal-tab)')) { const owner = item!.owner, ws = owner.ws, before = ws.panels.map(p => ({ ...p })); Object.assign(panel, expandPanel(ws, panel)); layoutChanged(ws, before); syncWorkspace(owner); } };
             head.onpointerdown = event => {
                 if (!item!.owner.compact && !(event.target as Element).closest('button:not(.terminal-tab)')) beginDrag(event, panel.kind, panel);
             };
@@ -392,16 +403,27 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
-        item.node.hidden = compact && panel.id !== ws.active;
-        for (const key of ['x', 'y', 'w', 'h'] as const) item.node.setAttribute(`gs-${key}`, String(panel[key]));
+        const shown = compact ? panel.id === ws.active : ws.maximized ? panel.id === ws.maximized : !panel.minimized;
+        if (!shown) {
+            if (value.grid?.engine.nodes.some(n => n.el === item!.node)) value.grid.removeWidget(item.node, false, false);
+            value.parked.append(item.node);
+        } else if (item.node.parentElement !== gridEl) gridEl.append(item.node);
+        item.node.hidden = !shown;
+        const maximize = item.tools.querySelector<HTMLButtonElement>('.window-maximize')!;
+        maximize.classList.toggle('active', !!ws.maximized); maximize.setAttribute('aria-pressed', String(!!ws.maximized));
+        maximize.title = ws.maximized ? t("app.unmaximizeWindow") : t("app.maximizeWindow"); maximize.setAttribute('aria-label', maximize.title);
+        item.tools.querySelector<HTMLButtonElement>('.window-minimize')!.hidden = !!ws.maximized;
+        const geometry = !compact && ws.maximized ? { x: 0, y: 0, w: ws.columns, h: ws.rows } : panel;
+        for (const key of ['x', 'y', 'w', 'h'] as const) item.node.setAttribute(`gs-${key}`, String(geometry[key]));
         item.node.setAttribute('gs-id', panel.id);
     }
     if (!compact) {
+        const panels = ws.maximized ? ws.panels.filter(p => p.id === ws.maximized).map(p => ({ ...p, x: 0, y: 0, w: ws.columns, h: ws.rows })) : visiblePanels(ws);
         if (!value.grid) {
             value.grid = GridStack.init({ rtl: false, column: ws.columns, maxRow: ws.rows, cellHeight: cellHeight(value), margin: 5, float: true, disableDrag: true, disableResize: true, animate: false }, gridEl);
         } else {
-            value.grid.load(ws.panels.map(panel => ({ ...panel, minW: 1, minH: 1, noMove: true })), false);
-            for (const panel of ws.panels) {
+            value.grid.load(panels.map(panel => ({ ...panel, minW: 1, minH: 1, noMove: true })), false);
+            for (const panel of panels) {
                 const node = items.get(panel.id)!.node;
                 if (!value.grid.engine.nodes.some(n => n.el === node)) value.grid.makeWidget(node, { ...panel, minW: 1, minH: 1, noMove: true });
             }
@@ -412,13 +434,13 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
     renderDividers(value);
     for (const [id, item] of items) {
         const previous = before.get(id), next = item.node.getBoundingClientRect();
-        if (!compact && previous?.width && previous.height && next.width && next.height && (previous.x !== next.x || previous.y !== next.y || previous.width !== next.width || previous.height !== next.height))
+        if (!compact && !item.node.dataset.closing && previous?.width && previous.height && next.width && next.height && (previous.x !== next.x || previous.y !== next.y || previous.width !== next.width || previous.height !== next.height))
             animateGeometry(item.node, previous, next);
         item.view.resize?.();
     }
 }
 function beginPanelResize(value: Mounted, panel: Panel, edge: string, event: PointerEvent) {
-    if (event.button !== 0 || dragging || value.compact) return;
+    if (event.button !== 0 || dragging || value.compact || value.ws.maximized) return;
     event.preventDefault(); event.stopPropagation(); cancelDrag(); finishSlide();
     const { ws, gridEl, items } = value, trigger = event.currentTarget as HTMLElement;
     const node = items.get(panel.id)!.node, snapshot = { ...ws, panels: ws.panels.map(p => ({ ...p })) };
@@ -470,7 +492,7 @@ function renderDividers(value: Mounted) {
     const { ws, gridEl } = value;
     const focused = (document.activeElement as HTMLElement)?.dataset.divider;
     gridEl.querySelectorAll('.workspace-divider').forEach(node => node.remove());
-    if (value.compact) return;
+    if (value.compact || ws.maximized) return;
     const dividers = sharedDividers(ws);
     function handle(axes: Divider[], x: number, y: number, w: number, h: number, junction = false) {
         const movable = axes.filter(d => d.min < d.max);
@@ -512,7 +534,7 @@ function renderDividers(value: Mounted) {
             handle([x, y], x.at, y.at, 0, 0, true);
 }
 function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerEvent) {
-    if (event.button !== 0 || dragging || value.compact) return;
+    if (event.button !== 0 || dragging || value.compact || value.ws.maximized) return;
     event.preventDefault(); event.stopPropagation(); cancelDrag(); finishSlide();
     const trigger = event.currentTarget as HTMLElement, { ws, gridEl, items } = value;
     const snapshot = { ...ws, panels: ws.panels.map(p => ({ ...p })) };
@@ -572,8 +594,8 @@ function beginDividerResize(value: Mounted, dividers: Divider[], event: PointerE
 function renderVacancies(value: Mounted, moving?: Panel) {
     const { ws, gridEl, compact } = value;
     gridEl.querySelectorAll('.grid-vacancy').forEach(node => node.remove());
-    if (!compact) for (let y = 0; y < ws.rows; y++) for (let x = 0; x < ws.columns; x++) {
-        if (ws.panels.some(p => p !== moving && x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)) continue;
+    if (!compact && !ws.maximized) for (let y = 0; y < ws.rows; y++) for (let x = 0; x < ws.columns; x++) {
+        if (visiblePanels(ws).some(p => p !== moving && x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)) continue;
         const cell = el('div', 'grid-vacancy'); cell.setAttribute('aria-hidden', 'true');
         Object.assign(cell.style, { left: `${x / ws.columns * 100}%`, top: `${y / ws.rows * 100}%`, width: `${100 / ws.columns}%`, height: `${100 / ws.rows}%` }); gridEl.append(cell);
     }
@@ -586,20 +608,23 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
     ], { duration: duration(180), easing: 'cubic-bezier(.2,.7,.2,1)' });
 }
 function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
-    if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
-    if (existing && mounted.items.get(existing.id)?.node.dataset.moving) return;
+    if (event.button !== 0 || dragging || !mounted || mounted.compact || mounted.ws.maximized) return;
+    if (existing && (mounted.items.get(existing.id)?.node.dataset.moving || mounted.items.get(existing.id)?.node.dataset.closing)) return;
     cancelDrag(); finishSlide();
-    const value = mounted, ws = value.ws, trigger = (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
-    const panel = existing || newPanel(kind, defaultDirectory(ws));
-    const node = existing ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
+    const value = mounted, ws = value.ws, restoring = !!existing?.minimized;
+    // Overflow menus may detach their title while another desktop menu opens.
+    const trigger = restoring ? root : (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
+    const panel = restoring ? { ...existing!, minimized: false } : existing || newPanel(kind, defaultDirectory(ws));
+    const node = existing && !restoring ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
     node.getAnimations().forEach(animation => animation.cancel());
-    const origin = existing ? node.getBoundingClientRect() : new DOMRect(event.clientX, event.clientY, 180, 100);
+    const origin = existing && !restoring ? node.getBoundingClientRect() : new DOMRect(event.clientX, event.clientY, 180, 100);
     const startX = event.clientX, startY = event.clientY;
     let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined;
     const dropTabs = workspaceTabs;
     const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; });
     const events = new AbortController();
-    trigger.setPointerCapture(event.pointerId);
+    const pointerEvents = restoring ? window : trigger;
+    if (!restoring) trigger.setPointerCapture(event.pointerId);
     function finish(cancelled = false) {
         events.abort(); cancelDrag = () => {};
         if (trigger.hasPointerCapture(event.pointerId)) trigger.releasePointerCapture(event.pointerId);
@@ -610,7 +635,8 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         setTimeout(() => trigger.removeEventListener('click', stopClick, true), 100);
         dragging = false; hidePreview(); value.board.classList.remove('docking'); clearTabs();
         document.querySelector<HTMLElement>('.overflow-tabs:popover-open')?.hidePopover();
-        if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && workspaceTarget.panels.length < 8) {
+        if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && (restoring ? workspaceTarget.panels.length < MAX_PANELS : canAddPanel(workspaceTarget))) {
+            if (restoring) node.remove();
             movePanel(existing, workspaceTarget).catch(error => notify(error, node));
             return;
         }
@@ -618,17 +644,21 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         let applied = false;
         if (!cancelled && where) {
             if ('layout' in where) { for (const next of where.layout) { const old = ws.panels.find(p => p.id === next.id); if (old) Object.assign(old, next); else ws.panels.push(Object.assign(panel, next)); } applied = true; }
+            else if (where.edge === 'center' && existing && restoring) applied = restorePanel(ws, existing, where.target.id);
             else if (where.edge === 'center' && existing) {
                 const rect = { x: where.target.x, y: where.target.y, w: where.target.w, h: where.target.h };
                 Object.assign(where.target, { x: panel.x, y: panel.y, w: panel.w, h: panel.h }); Object.assign(panel, rect); applied = true;
-            } else if (where.edge !== 'center') applied = split(ws, where.target.id, panel, where.edge);
+            } else if (where.edge !== 'center') {
+                applied = split(ws, where.target.id, existing || panel, where.edge);
+                if (applied && restoring) existing!.minimized = false;
+            }
         }
         node.style.transform = ''; node.classList.remove('panel-dragging');
-        if (!existing) node.remove();
+        if (!existing || restoring) node.remove();
         if (applied) { ws.active = panel.id; layoutChanged(ws, before); render(); }
         else renderVacancies(value);
-        if (applied && !existing && kind === 'terminal') focusActivePanel();
-        const settled = existing ? node : applied ? value.items.get(panel.id)?.node : undefined;
+        if (applied && (!existing || restoring) && kind === 'terminal') focusActivePanel();
+        const settled = existing && !restoring ? node : applied ? value.items.get(panel.id)?.node : undefined;
         if (settled) {
             settled.getAnimations().forEach(animation => animation.cancel());
             const destination = settled.getBoundingClientRect();
@@ -639,19 +669,21 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     }
     cancelDrag = () => finish(true);
     document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { capture: true, signal: events.signal });
-    trigger.addEventListener('pointercancel', () => finish(true), { signal: events.signal });
-    trigger.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
-    trigger.addEventListener('pointerup', () => finish(), { signal: events.signal });
+    pointerEvents.addEventListener('pointercancel', () => finish(true), { signal: events.signal });
+    pointerEvents.addEventListener('lostpointercapture', () => finish(true), { signal: events.signal });
+    pointerEvents.addEventListener('pointerup', () => finish(), { signal: events.signal });
     window.addEventListener('blur', () => finish(true), { signal: events.signal });
     window.addEventListener('resize', () => finish(true), { signal: events.signal });
-    trigger.addEventListener('pointermove', move => {
+    pointerEvents.addEventListener('pointermove', (move: PointerEvent) => {
+        if (move.pointerId !== event.pointerId) return;
         const dx = move.clientX - startX, dy = move.clientY - startY;
         if (!active && Math.hypot(dx, dy) < 5) return;
         move.preventDefault();
         if (!active) {
+            if (restoring) trigger.setPointerCapture(event.pointerId);
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             renderVacancies(value, existing);
-            if (!existing) {
+            if (!existing || restoring) {
                 node.append(icon(kind === 'files' ? 'Folder' : 'SquareTerminal'));
                 Object.assign(node.style, { position: 'fixed', left: `${origin.x}px`, top: `${origin.y}px`, width: `${origin.width}px`, height: `${origin.height}px` });
                 document.body.append(node);
@@ -669,14 +701,14 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
             const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
             if (tab) {
                 workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
-                tab.dataset.componentDrop = workspaceTarget !== ws && workspaceTarget!.panels.length < 8 ? 'allowed' : 'blocked';
+                tab.dataset.componentDrop = workspaceTarget !== ws && (restoring ? workspaceTarget!.panels.length < MAX_PANELS : canAddPanel(workspaceTarget!)) ? 'allowed' : 'blocked';
                 where = undefined; hidePreview(); return;
             }
         }
         const grid = value.gridEl.getBoundingClientRect(), cellW = grid.width / ws.columns, cellH = grid.height / ws.rows;
         where = undefined;
         const snap = screenSnap(ws, move.clientX - grid.left, move.clientY - grid.top, grid.width, grid.height);
-        if (snap) {
+        if (snap && !(restoring && visiblePanels(ws).length === 8)) {
             const layout = snapLayout(ws, panel, snap);
             if (layout) where = { layout, rect: snap };
             showPreview(value.gridEl, { x: snap.x * cellW, y: snap.y * cellH, w: snap.w * cellW, h: snap.h * cellH }, 'snap', !layout);
@@ -685,7 +717,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         const cx = move.clientX, cy = move.clientY;
         const rect = gridDrop(ws, cx - grid.left, cy - grid.top, grid.width, grid.height);
         // A target spanning occupied and vacant cells may trim its neighbors from either side of the gap.
-        const covered = rect && ws.panels.filter(p => p !== existing).reduce((sum, p) => sum +
+        const covered = rect && visiblePanels(ws).filter(p => p !== existing).reduce((sum, p) => sum +
             Math.max(0, Math.min(p.x + p.w, rect.x + rect.w) - Math.max(p.x, rect.x)) *
             Math.max(0, Math.min(p.y + p.h, rect.y + rect.h) - Math.max(p.y, rect.y)), 0);
         if (rect && covered && covered < rect.w * rect.h) {
@@ -694,12 +726,12 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
             showPreview(value.gridEl, { x: rect.x * cellW, y: rect.y * cellH, w: rect.w * cellW, h: rect.h * cellH }, 'empty', !layout);
             return;
         }
-        const target = ws.panels.find(p => p !== existing && cx >= grid.left + p.x * cellW && cx < grid.left + (p.x + p.w) * cellW && cy >= grid.top + p.y * cellH && cy < grid.top + (p.y + p.h) * cellH);
+        const target = visiblePanels(ws).find(p => p !== existing && cx >= grid.left + p.x * cellW && cx < grid.left + (p.x + p.w) * cellW && cy >= grid.top + p.y * cellH && cy < grid.top + (p.y + p.h) * cellH);
         if (target) {
             const tx = (cx - grid.left - target.x * cellW) / (target.w * cellW), ty = (cy - grid.top - target.y * cellH) / (target.h * cellH);
             const distances: [Edge, number][] = [['left', tx], ['right', 1 - tx], ['top', ty], ['bottom', 1 - ty]];
             distances.sort((a, b) => a[1] - b[1]);
-            const edge = distances[0][1] < .28 ? distances[0][0] : 'center';
+            const edge = restoring && visiblePanels(ws).length === 8 ? 'center' : distances[0][1] < .28 ? distances[0][0] : 'center';
             if (edge === 'center' ? !!existing : (edge === 'left' || edge === 'right' ? target.w : target.h) >= 2) where = { target, edge };
             const container = value.items.get(target.id)!.node.querySelector<HTMLElement>('.panel')!, bounds = container.getBoundingClientRect();
             const rect = { x: bounds.left - grid.left + container.clientLeft, y: bounds.top - grid.top + container.clientTop, w: container.clientWidth, h: container.clientHeight };
@@ -715,9 +747,9 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     }, { signal: events.signal });
 }
 function rearrangeWorkspace() {
-    if (!mounted || !current().panels.length) return;
+    if (!mounted) return;
     cycleLayout(current(), mounted.gridEl.clientWidth, mounted.gridEl.clientHeight);
-    changed(); syncWorkspace(mounted); updateLayoutButton(true);
+    changed(); syncWorkspace(mounted); renderChrome(); updateLayoutButton(true);
 }
 function updateLayoutButton(advance = false) {
     const button = root.querySelector<HTMLButtonElement>('.layout-cycle');
@@ -729,12 +761,13 @@ function updateLayoutButton(advance = false) {
     const label = button.querySelector<HTMLElement>('.layout-label')!;
     label.textContent = names[mode];
     button.querySelector('svg')!.style.transform = `rotate(${turn * 90}deg)`;
-    button.disabled = !current().panels.length;
+    button.disabled = !current().panels.length && !current().maximized;
 }
 function layoutChanged(ws: Workspace, before?: Panel[]) {
+    if (ws.maximized && !ws.panels.some(p => p.id === ws.maximized)) ws.maximized = visiblePanels(ws)[0]?.id || ws.panels[0]?.id;
     const unchanged = before && before.length === ws.panels.length && before.every(previous => {
         const panel = ws.panels.find(p => p.id === previous.id);
-        return panel && panel.x === previous.x && panel.y === previous.y && panel.w === previous.w && panel.h === previous.h;
+        return panel && !!panel.minimized === !!previous.minimized && panel.x === previous.x && panel.y === previous.y && panel.w === previous.w && panel.h === previous.h;
     });
     if (!unchanged) delete ws.layout;
     changed();
@@ -754,11 +787,9 @@ function splitPanel(target: Panel, panel: Panel) {
 function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
-    const full = ws.panels.reduce((sum, p) => sum + p.w * p.h, 0) === ws.columns * ws.rows;
-    const target = !near && full && ws.panels.filter(p => p.w > 1 || p.h > 1)
-        .sort((a, b) => b.w * b.h - a.w * a.h || Number(a.kind === 'terminal') - Number(b.kind === 'terminal'))[0];
-    if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error(t("app.workspaceFull"));
-    ws.active = panel.id; layoutChanged(ws); render();
+    if (!canAddPanel(ws)) throw new Error(t("app.workspaceFull"));
+    if (!addCompact(ws, panel, near, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight)) throw new Error(t("app.workspaceFull"));
+    ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
     return panel;
 }
@@ -776,7 +807,7 @@ async function openFileBrowser(owner: Mounted, path: string, line?: number, colu
 function addSplitPanel(kind: Kind, target: Panel) {
     const ws = current(), panel = newPanel(kind, defaultDirectory(ws));
     if (!splitPanel(target, panel)) return;
-    ws.active = panel.id; layoutChanged(ws); render();
+    ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
 }
 function stopPanel(panel: Panel, value?: Mounted) {
@@ -787,14 +818,14 @@ function stopPanel(panel: Panel, value?: Mounted) {
 async function movePanel(panel: Panel, target: Workspace) {
     const source = [...warmWorkspaces.values()].find(value => value.items.has(panel.id)), item = source?.items.get(panel.id);
     if (!source || !item || source.ws === target || item.node.dataset.closing || item.node.dataset.moving) return;
-    if (target.panels.length >= 8) throw new Error(t("app.workspaceFull"));
+    if (panel.minimized ? target.panels.length >= MAX_PANELS : !canAddPanel(target)) throw new Error(t("app.workspaceFull"));
     const node = item.node, style = node.getAttribute('style'), from = node.getBoundingClientRect();
     node.dataset.moving = 'true';
     let flight: HTMLElement | undefined;
     try {
         const tab = [...document.querySelectorAll<HTMLElement>('.workspace-tab-item')].find(tab => tab.dataset.workspace === target.id && tab.checkVisibility())
             || document.querySelector<HTMLElement>('.workspace-tabs .overflow-toggle');
-        if (tab && from.width && from.height && duration(220)) {
+        if (!panel.minimized && tab && from.width && from.height && duration(220)) {
             const to = tab.getBoundingClientRect();
             flight = el('div', 'grid-stack component-flight');
             Object.assign(flight.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px` });
@@ -812,7 +843,7 @@ async function movePanel(panel: Panel, target: Workspace) {
         if (!loggedIn || warmWorkspaces.get(source.ws.id) !== source || !settings.workspaces.includes(target) || !source.ws.panels.includes(panel)) return;
         const plan = structuredClone(target), incoming = { ...panel }, vacated = { ...panel };
         orientWorkspace(plan);
-        if (!addCompact(plan, incoming)) throw new Error(t("app.workspaceFull"));
+        if (!(panel.minimized ? restorePanel(plan, incoming, undefined, source.gridEl.clientWidth, source.gridEl.clientHeight) : addCompact(plan, incoming, undefined, source.gridEl.clientWidth, source.gridEl.clientHeight))) throw new Error(t("app.workspaceFull"));
         const destination = warmWorkspaces.get(target.id) || mountWorkspace(target);
         if (target.columns !== plan.columns || target.rows !== plan.rows) { destination.grid?.destroy(false); destination.grid = undefined; }
         target.columns = plan.columns; target.rows = plan.rows;
@@ -821,8 +852,9 @@ async function movePanel(panel: Panel, target: Workspace) {
         source.ws.panels = source.ws.panels.filter(p => p !== panel);
         if (source.ws.active === panel.id) source.ws.active = source.ws.panels[0]?.id || '';
         target.panels.push(panel); target.active = panel.id;
+        if (target.maximized) target.maximized = panel.id;
         item.owner = destination; destination.items.set(panel.id, item);
-        if (!source.compact) expandAfterClose(source.ws, vacated, source.ws.panels.filter(p => !source.items.get(p.id)?.node.dataset.closing));
+        if (!source.compact && !source.ws.maximized && !vacated.minimized) expandAfterClose(source.ws, vacated, source.ws.panels.filter(p => !source.items.get(p.id)?.node.dataset.closing));
         layoutChanged(source.ws); layoutChanged(target);
     } finally {
         style === null ? node.removeAttribute('style') : node.setAttribute('style', style);
@@ -834,16 +866,17 @@ async function movePanel(panel: Panel, target: Workspace) {
     }
 }
 async function closePanel(panel: Panel) {
-    const value = mounted, item = value?.items.get(panel.id);
+    const value = [...warmWorkspaces.values()].find(value => value.items.has(panel.id)), item = value?.items.get(panel.id);
     if (!value || !item || item.node.dataset.closing || item.node.dataset.moving) return;
     if (item.view.canClose && !await item.view.canClose()) return;
+    windowAnimations.get(item.node)?.();
     item.node.dataset.closing = 'true';
     const animation = item.node.animate([{ opacity: 1, transform: 'scale(1)', transformOrigin: 'center' }, { opacity: 0, transform: 'scale(.96)', transformOrigin: 'center' }], { duration: duration(160), fill: 'forwards' });
     try {
         stopPanel(panel, value);
         await animation.finished;
         value.ws.panels = value.ws.panels.filter(p => p.id !== panel.id);
-        if (!value.compact) expandAfterClose(value.ws, panel,
+        if (!value.compact && !value.ws.maximized && !panel.minimized) expandAfterClose(value.ws, panel,
             value.ws.panels.filter(p => !value.items.get(p.id)?.node.dataset.closing));
         layoutChanged(value.ws);
         if (mounted === value) render();
@@ -914,13 +947,67 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
         [t("common.close"), 'X', () => closeWorkspace(ws)],
     ], position);
 }
-function activatePanel(panel: Panel) { current().active = panel.id; changed(); render(); }
+function activatePanel(panel: Panel) {
+    const ws = current();
+    if (!isCompact() && ws.maximized) ws.maximized = panel.id;
+    else if (!isCompact() && panel.minimized) {
+        if (!restorePanel(ws, panel, undefined, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight)) return;
+        layoutChanged(ws);
+    }
+    ws.active = panel.id; changed(); render();
+}
+function windowMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }) {
+    tabMenu(tab, mounted!.items.get(panel.id)!.title.textContent || panel.kind, false, [
+        [t("app.restoreWindow"), 'Square', () => restoreWindow(panel)],
+        [t("common.close"), 'X', () => closePanel(panel)],
+    ], position);
+}
+function restoreWindow(panel: Panel) {
+    const item = mounted?.items.get(panel.id);
+    if (!item || item.node.dataset.closing || item.node.dataset.moving) return;
+    const from = root.querySelector<HTMLElement>(`[data-component-name="${panel.id}"]`)?.getBoundingClientRect();
+    activatePanel(panel); focusActivePanel();
+    const node = mounted?.items.get(panel.id)?.node;
+    if (node && !node.hidden && from?.width) animateGeometry(node, from, node.getBoundingClientRect());
+}
+function minimizeWindow(panel: Panel) {
+    const value = mounted, item = value?.items.get(panel.id);
+    if (!value || !item || value.compact || value.ws.maximized || item.node.dataset.closing || item.node.dataset.moving) return;
+    windowAnimations.get(item.node)?.();
+    const from = item.node.getBoundingClientRect();
+    panel.minimized = true; layoutChanged(value.ws); render(); focusActivePanel();
+    if (!value.ws.active) root.querySelector<HTMLButtonElement>('.window-bar .component-tab, .window-bar .overflow-toggle')?.focus();
+    const tab = root.querySelector<HTMLElement>(`[data-component-name="${panel.id}"]`);
+    const to = (tab?.checkVisibility() ? tab : root.querySelector<HTMLElement>('.window-bar .overflow-toggle'))?.getBoundingClientRect();
+    if (!to?.width || !from.width || !duration(180)) return;
+    const node = item.node, style = node.getAttribute('style'), flight = el('div', 'grid-stack component-flight');
+    Object.assign(flight.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px` });
+    Object.assign(node.style, { left: '0', top: '0', width: '100%', height: '100%' });
+    node.hidden = false; node.inert = true; flight.append(node); document.body.append(flight);
+    const animation = flight.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 0 }], { duration: duration(180), easing: 'cubic-bezier(.2,.7,.2,1)' });
+    const cancel = () => {
+        if (windowAnimations.get(node) !== cancel) return;
+        windowAnimations.delete(node); animation.cancel(); node.inert = false; node.hidden = true;
+        style === null ? node.removeAttribute('style') : node.setAttribute('style', style);
+        value.parked.append(node); flight.remove();
+    };
+    windowAnimations.set(node, cancel);
+    animation.finished.then(cancel).catch(() => {});
+}
+function toggleMaximize(panel: Panel) {
+    const item = mounted?.items.get(panel.id);
+    if (!item || item.node.dataset.closing || item.node.dataset.moving) return;
+    const ws = current();
+    if (ws.maximized) delete ws.maximized;
+    else { ws.maximized = panel.id; ws.active = panel.id; }
+    changed(); render(); focusActivePanel();
+}
 function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }, header = false) {
     const item = mounted!.items.get(panel.id)!;
     const actions: (TabAction | TabSubmenu)[] = header ? [] : [[t("app.activate"), 'ArrowRight', () => activatePanel(panel), panel.id === current().active]];
     for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const)
-        actions.push([label, name, () => addSplitPanel(kind, panel), panel.w === 1 && panel.h === 1]);
-    actions.push({ label: t("app.moveToWorkspace"), items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || ws.panels.length >= 8, description: ws === current() ? t("app.currentWorkspace") : ws.panels.length >= 8 ? t("app.workspaceFull") : '', action: () => movePanel(panel, ws) })) });
+        actions.push([label, name, () => addSplitPanel(kind, panel), !canAddPanel(current()) || panel.minimized || panel.w === 1 && panel.h === 1]);
+    actions.push({ label: t("app.moveToWorkspace"), items: settings.workspaces.map(ws => ({ label: ws.name, disabled: ws === current() || !canAddPanel(ws), description: ws === current() ? t("app.currentWorkspace") : !canAddPanel(ws) ? t("app.workspaceFull") : '', action: () => movePanel(panel, ws) })) });
     if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
     const control = item.tools.querySelector<HTMLButtonElement>('[data-action="take-control"]');
@@ -1041,7 +1128,7 @@ async function runShortcut(action: string) {
     if (action === 'panel.next' || action === 'panel.previous') {
         const panels = ws.panels.filter(panel => {
             const node = mounted?.items.get(panel.id)?.node;
-            return node && !node.dataset.closing && !node.dataset.moving;
+            return node && (isCompact() || ws.maximized || !panel.minimized) && !node.dataset.closing && !node.dataset.moving;
         }).sort((a, b) => ws.columns > ws.rows ? a.x - b.x || a.y - b.y : a.y - b.y || a.x - b.x);
         if (!panels.length) return;
         const index = panels.findIndex(panel => panel.id === focused);
@@ -1455,6 +1542,8 @@ async function logout() {
 }
 let resizeTimer: ReturnType<typeof setTimeout>;
 window.addEventListener('resize', () => {
+    windowAnimations.forEach(cancel => cancel());
+    warmWorkspaces.forEach(value => value.items.forEach(item => item.node.getAnimations().forEach(a => { if (!item.node.dataset.closing) a.cancel(); })));
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { if (loggedIn && !dragging) render(); }, 100);
 });

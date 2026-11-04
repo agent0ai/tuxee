@@ -1,6 +1,10 @@
 {
   "name": "Bahasa Indonesia",
   "texts": {
+    "app.minimizeWindow": "Minimalkan jendela",
+    "app.maximizeWindow": "Maksimalkan jendela",
+    "app.unmaximizeWindow": "Keluar dari mode maksimal",
+    "app.restoreWindow": "Pulihkan",
     "app.about": "Tentang",
     "app.aboutTuxee": "Tentang Tuxee",
     "app.activate": "Aktifkan",

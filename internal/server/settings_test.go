@@ -402,3 +402,50 @@ func TestFullLegacyWorkspaceMigration(t *testing.T) {
 		t.Fatal("accepted more than the migration workspace limit")
 	}
 }
+
+func TestWindowStateSettings(t *testing.T) {
+	value := Settings{Theme: "dark", Current: "ws", Workspaces: []Workspace{{ID: "ws", Name: "Windows", Columns: 4, Rows: 2, Active: "p0", Maximized: "p8", Panels: []Panel{}}}}
+	ws := &value.Workspaces[0]
+	for i := range maxPanels {
+		ws.Panels = append(ws.Panels, Panel{ID: fmt.Sprintf("p%d", i), Kind: "terminal", Terminal: fmt.Sprintf("session-%d", i), X: i % 4, Y: (i / 4) % 2, W: 1, H: 1, Minimized: i >= 8})
+	}
+	ws.Layout = &Layout{Mode: 1, Custom: []PanelPosition{}}
+	for _, p := range ws.Panels {
+		ws.Layout.Custom = append(ws.Layout.Custom, PanelPosition{p.ID, p.X, p.Y, p.W, p.H})
+	}
+	if err := migrateSettings(&value); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Settings
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSettings(&restored); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(value, restored) {
+		t.Fatal("window state did not round trip")
+	}
+	for _, mutate := range []func(*Workspace){
+		func(w *Workspace) { w.Panels[8].Minimized = false },
+		func(w *Workspace) { w.Panels[8].W = 5 },
+		func(w *Workspace) { w.Maximized = "missing" },
+		func(w *Workspace) {
+			w.Panels = append(w.Panels, Panel{ID: "overflow", Kind: "files", W: 1, H: 1, Minimized: true})
+		},
+		func(w *Workspace) { w.Layout.Custom[8].X = -1 },
+	} {
+		var invalid Settings
+		if err := json.Unmarshal(data, &invalid); err != nil {
+			t.Fatal(err)
+		}
+		mutate(&invalid.Workspaces[0])
+		if validateSettings(&invalid) == nil {
+			t.Fatal("accepted invalid window state")
+		}
+	}
+}

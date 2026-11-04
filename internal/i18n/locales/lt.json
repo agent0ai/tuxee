@@ -1,6 +1,10 @@
 {
   "name": "Lietuvių",
   "texts": {
+    "app.minimizeWindow": "Sumažinti langą",
+    "app.maximizeWindow": "Išdidinti langą",
+    "app.unmaximizeWindow": "Baigti išdidinimą",
+    "app.restoreWindow": "Atkurti",
     "app.about": "Apie",
     "app.aboutTuxee": "Apie Tuxee",
     "app.activate": "Aktyvinti",

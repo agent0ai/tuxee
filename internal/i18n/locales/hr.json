@@ -1,6 +1,10 @@
 {
   "name": "Hrvatski",
   "texts": {
+    "app.minimizeWindow": "Minimiziraj prozor",
+    "app.maximizeWindow": "Maksimiziraj prozor",
+    "app.unmaximizeWindow": "Izađi iz maksimiziranog prikaza",
+    "app.restoreWindow": "Vrati",
     "app.about": "O aplikaciji",
     "app.aboutTuxee": "O Tuxee",
     "app.activate": "Aktiviraj",

@@ -1,6 +1,10 @@
 {
   "name": "Dansk",
   "texts": {
+    "app.minimizeWindow": "Minimer vindue",
+    "app.maximizeWindow": "Maksimer vindue",
+    "app.unmaximizeWindow": "Afslut maksimering",
+    "app.restoreWindow": "Gendan",
     "app.about": "Om",
     "app.aboutTuxee": "Om Tuxee",
     "app.activate": "Aktiver",

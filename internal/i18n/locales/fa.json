@@ -1,6 +1,10 @@
 {
   "name": "فارسی",
   "texts": {
+    "app.minimizeWindow": "کوچک کردن پنجره",
+    "app.maximizeWindow": "بزرگ کردن پنجره",
+    "app.unmaximizeWindow": "خروج از حالت بزرگ‌شده",
+    "app.restoreWindow": "بازیابی",
     "app.about": "درباره",
     "app.aboutTuxee": "درباره Tuxee",
     "app.activate": "فعال‌سازی",

@@ -1,6 +1,10 @@
 {
   "name": "Tiếng Việt",
   "texts": {
+    "app.minimizeWindow": "Thu nhỏ cửa sổ",
+    "app.maximizeWindow": "Phóng to cửa sổ",
+    "app.unmaximizeWindow": "Thoát chế độ phóng to",
+    "app.restoreWindow": "Khôi phục",
     "app.about": "Giới thiệu",
     "app.aboutTuxee": "Giới thiệu về Tuxee",
     "app.activate": "Kích hoạt",

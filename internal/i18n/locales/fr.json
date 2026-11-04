@@ -1,6 +1,10 @@
 {
   "name": "Français",
   "texts": {
+    "app.minimizeWindow": "Réduire la fenêtre",
+    "app.maximizeWindow": "Agrandir la fenêtre",
+    "app.unmaximizeWindow": "Quitter le mode agrandi",
+    "app.restoreWindow": "Restaurer",
     "app.about": "À propos",
     "app.aboutTuxee": "À propos de Tuxee",
     "app.activate": "Activer",

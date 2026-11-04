@@ -1,6 +1,10 @@
 {
   "name": "简体中文",
   "texts": {
+    "app.minimizeWindow": "最小化窗口",
+    "app.maximizeWindow": "最大化窗口",
+    "app.unmaximizeWindow": "退出最大化模式",
+    "app.restoreWindow": "还原",
     "app.about": "关于",
     "app.aboutTuxee": "关于Tuxee",
     "app.activate": "激活",

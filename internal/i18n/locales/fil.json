@@ -1,6 +1,10 @@
 {
   "name": "Filipino",
   "texts": {
+    "app.minimizeWindow": "I-minimize ang window",
+    "app.maximizeWindow": "I-maximize ang window",
+    "app.unmaximizeWindow": "Umalis sa naka-maximize na mode",
+    "app.restoreWindow": "Ibalik",
     "app.about": "Tungkol",
     "app.aboutTuxee": "Tungkol sa Tuxee",
     "app.activate": "I-activate",

@@ -1,6 +1,10 @@
 {
   "name": "Íslenska",
   "texts": {
+    "app.minimizeWindow": "Lágmarka glugga",
+    "app.maximizeWindow": "Hámarka glugga",
+    "app.unmaximizeWindow": "Hætta í hámarkaðri sýn",
+    "app.restoreWindow": "Endurheimta",
     "app.about": "Um",
     "app.aboutTuxee": "Um Tuxee",
     "app.activate": "Virkja",

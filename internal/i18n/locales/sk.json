@@ -1,6 +1,10 @@
 {
   "name": "Slovenčina",
   "texts": {
+    "app.minimizeWindow": "Minimalizovať okno",
+    "app.maximizeWindow": "Maximalizovať okno",
+    "app.unmaximizeWindow": "Ukončiť maximalizáciu",
+    "app.restoreWindow": "Obnoviť",
     "app.about": "O aplikácii",
     "app.aboutTuxee": "O Tuxee",
     "app.activate": "Aktivovať",

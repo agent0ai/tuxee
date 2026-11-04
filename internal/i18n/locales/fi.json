@@ -1,6 +1,10 @@
 {
   "name": "Suomi",
   "texts": {
+    "app.minimizeWindow": "Pienennä ikkuna",
+    "app.maximizeWindow": "Suurenna ikkuna",
+    "app.unmaximizeWindow": "Poistu suurennetusta tilasta",
+    "app.restoreWindow": "Palauta",
     "app.about": "Tietoja",
     "app.aboutTuxee": "Tietoja Tuxee:sta",
     "app.activate": "Aktivoi",

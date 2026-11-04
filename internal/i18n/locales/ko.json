@@ -1,6 +1,10 @@
 {
   "name": "한국어",
   "texts": {
+    "app.minimizeWindow": "창 최소화",
+    "app.maximizeWindow": "창 최대화",
+    "app.unmaximizeWindow": "최대화 해제",
+    "app.restoreWindow": "복원",
     "app.about": "정보",
     "app.aboutTuxee": "Tuxee 소개",
     "app.activate": "활성화",

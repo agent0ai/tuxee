@@ -69,7 +69,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Default directory']), 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Clone', 'Default directory']), 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -125,7 +125,7 @@ try {
     const terminalPID = (await (await api(`/terminals/${terminalID}`)).json()).pid;
     await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
     await workspace('other-0').getByRole('button', { name: 'Desktop menu', exact: true }).click();
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Clone', 'Default directory', 'Close']);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     save = saved(); await renameDialog('desktop', 'A much wider workspace'); await save;
@@ -154,6 +154,8 @@ try {
     assert.equal(sockets.length, connectionCount, 'reordering does not reconnect the terminal');
     assert.equal((await (await api(`/terminals/${terminalID}`)).json()).pid, terminalPID);
     await page.reload(); await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .terminal-view')?.dataset.state === 'connected');
+    await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
+    await page.waitForTimeout(350); // Let restored titles finish the shared tab fitting before dragging.
     assert.deepEqual(await page.locator('.workspace-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace)), [...originalOrder.slice(1), 'work']);
     await dragWorkspace('work', 'other-0'); save = saved(); await page.mouse.up(); await save;
     assert.deepEqual(await workspaceOrder(), originalOrder);

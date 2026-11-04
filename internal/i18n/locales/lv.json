@@ -1,6 +1,10 @@
 {
   "name": "Latviešu",
   "texts": {
+    "app.minimizeWindow": "Minimizēt logu",
+    "app.maximizeWindow": "Maksimizēt logu",
+    "app.unmaximizeWindow": "Iziet no maksimizēta režīma",
+    "app.restoreWindow": "Atjaunot",
     "app.about": "Par",
     "app.aboutTuxee": "Par Tuxee",
     "app.activate": "Aktivizēt",

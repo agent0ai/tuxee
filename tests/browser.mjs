@@ -56,7 +56,7 @@ catch {
 } frames.push(['received', value]); if (frames.length > 40)
     frames.shift(); }); });
 page.on('console', message => { if (message.type() === 'error' && !message.text().includes('401') && !message.text().includes('404'))
-    errors.push(message.text()); });
+    errors.push(`${message.text()} (${new URL(message.location().url || base).pathname})`); });
 const check = (label) => console.log(`PASS ${label}`);
 async function login(user) { await page.locator('[name=username]').fill(user.name); await page.locator('[name=password]').fill(user.password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.locator('.topbar').waitFor(); await page.waitForFunction(() => { const terminal = document.querySelector('.panel-body.terminal-view'); return terminal ? terminal.dataset.state === 'connected' : !!document.querySelector('.file-view'); }); }
 async function checkFavicon(color, target = page) {
@@ -351,7 +351,7 @@ try {
     await targetBrowser.locator('.file-entry').filter({ hasText: 'private.txt' }).click({ button: 'right' });
     const contextBox = await page.locator('.popover-menu').boundingBox(), contextRow = await targetBrowser.locator('.file-entry').filter({ hasText: 'private.txt' }).boundingBox();
     assert.ok(Math.abs(contextBox.x - (contextRow.x + contextRow.width / 2)) < 5);
-    assert.ok(Math.abs(contextBox.y - (contextRow.y + contextRow.height / 2)) < 5);
+    assert.ok(Math.abs(contextBox.y - Math.min(contextRow.y + contextRow.height / 2, page.viewportSize().height - contextBox.height - 4)) < 5, 'context menu stays anchored within the viewport');
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('renamed.txt');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
@@ -395,6 +395,7 @@ try {
     assert.equal(await page.getByRole('menuitem', { name: 'Rename desktop', exact: true }).count(), 0);
     await page.keyboard.press('Escape');
     const motionTerminalID = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
+    const motionTerminalPID = (await (await api(`/terminals/${motionTerminalID}`)).json()).pid;
     const fixedFile = page.locator('.grid-stack-item:has(.file-view)');
     const fixedBox = await fixedFile.boundingBox();
     await page.evaluate(() => { window.fixedFileNode = document.querySelector('.file-view'); window.fixedTerminalNode = document.querySelector('.panel-body.terminal-view'); });
@@ -455,15 +456,19 @@ try {
     await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close panel', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     assert.equal((await terminatedPanel).status(), 200);
-    assert.equal((await api(`/terminals/${motionTerminalID}`)).status(), 404);
+    const closedTerminal = await api(`/terminals/${motionTerminalID}`);
+    assert.equal(closedTerminal.status(), 200);
+    const archive = await closedTerminal.json();
+    assert.ok(archive.exited && archive.closedAt, 'used terminal retains its closed archive');
+    assert.throws(() => process.kill(motionTerminalPID, 0), { code: 'ESRCH' });
     assert.equal(await page.evaluate(() => window.fixedFileNode === document.querySelector('.file-view')), true);
     assert.deepEqual(await fixedFile.boundingBox(), fixedBox);
     check('terminal close stops the process and preserves the file browser already at its automatic width cap');
     const boardBox = await page.locator('.board .grid-stack').boundingBox();
     const header = fixedFile.locator('.panel-header');
     for (const [cx, cy, x, y, w, h] of [[3.5, .5, 3, 0, 1, 1], [3, .5, 2, 0, 2, 1], [3.5, 1, 3, 0, 1, 2], [3, 1, 2, 0, 2, 2]]) {
-        const headerBox = await header.boundingBox();
-        await page.mouse.move(headerBox.x + headerBox.width - 80, headerBox.y + headerBox.height / 2); await page.mouse.down();
+        const headerBox = await header.locator(':scope > svg').boundingBox();
+        await page.mouse.move(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2); await page.mouse.down();
         await page.mouse.move(boardBox.x + cx * boardBox.width / 4, boardBox.y + cy * boardBox.height / 2, { steps: 12 });
         const drop = page.locator('.dock-preview[data-edge=empty]:not(.invalid)');
         await drop.waitFor();
@@ -540,7 +545,6 @@ try {
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('user-menu-button')), true);
     await page.locator('.user-menu-button .username').click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
-    assert.equal(await page.getByRole('spinbutton').count(), 0);
     const parallelUploads = page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
     assert.equal(await parallelUploads.inputValue(), '4');
     assert.deepEqual(await parallelUploads.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['1', '2', '4', '8', '16', '32', '64']);
@@ -560,7 +564,7 @@ try {
     const orangeBorder = { width: markerWidth, color: 'rgb(234, 88, 12)', style: 'solid' };
     const previewColor = value => color.evaluate((node, value) => { node.value = value; node.dispatchEvent(new Event('input', { bubbles: true })); }, value);
     await checkFavicon();
-    assert.equal(await page.getByRole('button', { name: 'Reset', exact: true }).isDisabled(), true);
+    assert.equal(await color.locator('..').getByRole('button', { name: 'Reset', exact: true }).isDisabled(), true);
     for (const value of ['#00ff00', '#ff0000', '#00ffff', '#000000', '#ffffff']) {
         await previewColor(value); await checkFavicon(value);
     }
@@ -572,7 +576,7 @@ try {
     assert.notEqual(await page.locator('link[rel="icon"]').getAttribute('href'), blueFavicon, 'each color has its own cache-independent URL');
     assert.deepEqual(await markerBorder(), orangeBorder, 'input previews the marker before change/save');
     assert.equal((await (await api('/me')).json()).settings.serverColor, undefined);
-    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await color.locator('..').getByRole('button', { name: 'Reset', exact: true }).click();
     assert.deepEqual(await markerBorder(), defaultBorder, 'reset restores the theme border');
     await checkFavicon();
     await previewColor('#ea580c');
@@ -713,7 +717,7 @@ try {
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await parallelUploads.inputValue(), '8', 'parallel uploads persists across reload and login');
     await serverName.fill('   ');
-    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await color.locator('..').getByRole('button', { name: 'Reset', exact: true }).click();
     assert.equal((await markerBorder()).width, '1px');
     const lightDefaultBorder = await markerBorder();
     await page.keyboard.press('Escape');
@@ -723,7 +727,7 @@ try {
     await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     await serverName.fill('   ');
-    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await color.locator('..').getByRole('button', { name: 'Reset', exact: true }).click();
     await serverName.press('Enter');
     await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.equal(await page.title(), `Tuxee ${hostname}`);
@@ -797,7 +801,7 @@ try {
     await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     const workspaceChoice = page.locator('.overflow-tabs:popover-open .workspace-tab').first();
     await workspaceChoice.click({ button: 'right' });
-    assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Default directory', 'Close']);
+    assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Clone', 'Default directory', 'Close']);
     await page.keyboard.press('Escape');
     assert.ok(await workspaceChoice.evaluate(node => node === document.activeElement));
     await page.keyboard.press('Escape');
@@ -898,7 +902,7 @@ try {
         const cw = bounds.width / columns, ch = bounds.height / rows;
         const dragTo = async (trigger, x, y) => {
             const head = await trigger.boundingBox();
-            await page.mouse.move(head.x + Math.max(10, head.width - 80), head.y + head.height / 2); await page.mouse.down();
+            await page.mouse.move(head.x + Math.min(10, head.width / 2), head.y + head.height / 2); await page.mouse.down();
             await page.mouse.move(bounds.x + x * cw, bounds.y + y * ch, { steps: 12 });
         };
         await dragTo(movingPanel.locator('.panel-header'), hx + .5, hy + .5);

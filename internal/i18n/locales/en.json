@@ -1,6 +1,10 @@
 {
   "name": "English",
   "texts": {
+    "app.minimizeWindow": "Minimize window",
+    "app.maximizeWindow": "Maximize window",
+    "app.unmaximizeWindow": "Exit maximized mode",
+    "app.restoreWindow": "Restore",
     "app.about": "About",
     "app.aboutTuxee": "About Tuxee",
     "app.activate": "Activate",

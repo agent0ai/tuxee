@@ -1,6 +1,10 @@
 {
   "name": "Русский",
   "texts": {
+    "app.minimizeWindow": "Свернуть окно",
+    "app.maximizeWindow": "Развернуть окно",
+    "app.unmaximizeWindow": "Выйти из развёрнутого режима",
+    "app.restoreWindow": "Восстановить",
     "app.about": "О программе",
     "app.aboutTuxee": "О Tuxee",
     "app.activate": "Активировать",

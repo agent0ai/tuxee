@@ -1,6 +1,10 @@
 {
   "name": "Türkçe",
   "texts": {
+    "app.minimizeWindow": "Pencereyi küçült",
+    "app.maximizeWindow": "Pencereyi büyüt",
+    "app.unmaximizeWindow": "Büyütülmüş moddan çık",
+    "app.restoreWindow": "Geri yükle",
     "app.about": "Hakkında",
     "app.aboutTuxee": "Tuxee Hakkında",
     "app.activate": "Etkinleştir",

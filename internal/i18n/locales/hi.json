@@ -1,6 +1,10 @@
 {
   "name": "हिन्दी",
   "texts": {
+    "app.minimizeWindow": "विंडो छोटी करें",
+    "app.maximizeWindow": "विंडो बड़ी करें",
+    "app.unmaximizeWindow": "बड़े विंडो मोड से बाहर निकलें",
+    "app.restoreWindow": "पुनर्स्थापित करें",
     "app.about": "परिचय",
     "app.aboutTuxee": "Tuxee के बारे में",
     "app.activate": "सक्रिय करें",

@@ -26,20 +26,23 @@ const (
 	maxTerminalFontFamilyUnits = 512
 	maxServerNameUnits         = 64
 	maxWorkspaces              = 24
+	maxPanels                  = 32
 )
 
 type Panel struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Path     string `json:"path"`
-	Terminal string `json:"terminal,omitempty"`
-	Pinned   bool   `json:"pinned,omitempty"`
-	X        int    `json:"x"`
-	Y        int    `json:"y"`
-	W        int    `json:"w"`
-	H        int    `json:"h"`
+	Minimized bool   `json:"minimized,omitempty"`
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	Path      string `json:"path"`
+	Terminal  string `json:"terminal,omitempty"`
+	Pinned    bool   `json:"pinned,omitempty"`
+	X         int    `json:"x"`
+	Y         int    `json:"y"`
+	W         int    `json:"w"`
+	H         int    `json:"h"`
 }
 type Workspace struct {
+	Maximized        string  `json:"maximized,omitempty"`
 	DefaultDirectory string  `json:"defaultDirectory,omitempty"`
 	ID               string  `json:"id"`
 	Name             string  `json:"name"`
@@ -195,21 +198,33 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 		if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || legacy && len(value.Workspaces) <= 12 && ws.Columns == 8 && ws.Rows == 2) {
 			return i18n.New("backend.server.invalidWorkspaceGridDimensions")
 		}
-		if len(ws.Panels) > ws.Columns*ws.Rows {
+		if len(ws.Panels) > maxPanels || ws.Columns == 8 && len(ws.Panels) > 16 {
 			return i18n.New("backend.server.workspaceIsFull")
 		}
 		positions := make([]PanelPosition, 0, len(ws.Panels))
 		panelIDs := map[string]bool{}
+		minimized := map[string]bool{}
 		for _, panel := range ws.Panels {
 			if panel.ID == "" || len(panel.ID) > 80 || seen[panel.ID] || panel.Kind != "files" && panel.Kind != "terminal" {
 				return i18n.New("backend.server.invalidOrDuplicatePanel")
 			}
 			seen[panel.ID] = true
 			panelIDs[panel.ID] = true
+			minimized[panel.ID] = panel.Minimized
 			if panel.Path != "" && !(panel.Kind == "files" && panel.Path == files.TrashPath) && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
 				return i18n.New("backend.server.invalidPanelLocation")
 			}
-			positions = append(positions, PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H})
+			position := PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H}
+			if panel.Minimized {
+				if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
+					return err
+				}
+			} else {
+				positions = append(positions, position)
+			}
+		}
+		if ws.Maximized != "" && !panelIDs[ws.Maximized] {
+			return i18n.New("backend.server.invalidOrDuplicatePanel")
 		}
 		if err := validatePanelPositions(positions, ws.Columns, ws.Rows); err != nil {
 			return err
@@ -224,7 +239,17 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 				}
 				delete(panelIDs, position.ID)
 			}
-			if err := validatePanelPositions(layout.Custom, ws.Columns, ws.Rows); err != nil {
+			visible := make([]PanelPosition, 0, len(layout.Custom))
+			for _, position := range layout.Custom {
+				if minimized[position.ID] {
+					if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
+						return err
+					}
+				} else {
+					visible = append(visible, position)
+				}
+			}
+			if err := validatePanelPositions(visible, ws.Columns, ws.Rows); err != nil {
 				return err
 			}
 		}

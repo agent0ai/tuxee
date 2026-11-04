@@ -65,6 +65,8 @@ Build the frontend, native guardian and executable using the root instructions b
 
 ## Layout, focus and shared controls
 
+- `node tests/window-states.mjs`: isolated server/account; real terminal/editor/GUI survival, minimize/restore/close, bar menus/overflow, exact maximize geometry and persistence, full/free swaps, cross-desktop cancellation, compact access, rapid transitions and reduced motion. Requires Chromium and the GUI runtime. `test:layout` and server settings tests cover hidden capacity, immutable neighbor positions and persistence validation.
+
 - `npm run test:layout`: pure bounded-grid rules, defaults, additions, drops, reflow, automatic modes and exact custom restoration. Inspect representative ASCII output in `.test-state/layout-report.txt`; preserve determinism, identity and non-mutation checks.
 - `npm run test:dividers`: model and real browser checks for gap/junction/corner/edge gestures, overlap planning, exact preview/commit geometry, cancellation and closure expansion across orientations/scales. Observe actual outgoing PTY and RFB resizes: drag previews must not resize remote sessions. `node tests/shared-layout.mjs` runs the geometry assertions alone.
 - `node tests/component-workspaces.mjs`: real server/account; blank/header additions and moving existing components through menus or tab drops, retaining terminal/editor identity, drafts and pending creation. Check destination ownership, compact/overflow paths and cache eviction.

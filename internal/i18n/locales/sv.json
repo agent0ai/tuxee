@@ -1,6 +1,10 @@
 {
   "name": "Svenska",
   "texts": {
+    "app.minimizeWindow": "Minimera fönster",
+    "app.maximizeWindow": "Maximera fönster",
+    "app.unmaximizeWindow": "Avsluta maximerat läge",
+    "app.restoreWindow": "Återställ",
     "app.about": "Om",
     "app.aboutTuxee": "Om Tuxee",
     "app.activate": "Aktivera",

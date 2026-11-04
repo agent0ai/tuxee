@@ -1,6 +1,10 @@
 {
   "name": "Nederlands",
   "texts": {
+    "app.minimizeWindow": "Venster minimaliseren",
+    "app.maximizeWindow": "Venster maximaliseren",
+    "app.unmaximizeWindow": "Maximalisatie beëindigen",
+    "app.restoreWindow": "Herstellen",
     "app.about": "Over",
     "app.aboutTuxee": "Over Tuxee",
     "app.activate": "Activeren",

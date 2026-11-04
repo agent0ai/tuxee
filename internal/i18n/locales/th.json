@@ -1,6 +1,10 @@
 {
   "name": "ไทย",
   "texts": {
+    "app.minimizeWindow": "ย่อหน้าต่าง",
+    "app.maximizeWindow": "ขยายหน้าต่าง",
+    "app.unmaximizeWindow": "ออกจากโหมดขยายหน้าต่าง",
+    "app.restoreWindow": "คืนค่า",
     "app.about": "เกี่ยวกับ",
     "app.aboutTuxee": "เกี่ยวกับ Tuxee",
     "app.activate": "เปิดใช้งาน",

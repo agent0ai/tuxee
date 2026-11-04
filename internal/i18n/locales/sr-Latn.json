@@ -1,6 +1,10 @@
 {
   "name": "Srpski (latinica)",
   "texts": {
+    "app.minimizeWindow": "Umanji prozor",
+    "app.maximizeWindow": "Uvećaj prozor",
+    "app.unmaximizeWindow": "Izađi iz uvećanog prikaza",
+    "app.restoreWindow": "Vrati",
     "app.about": "O aplikaciji",
     "app.aboutTuxee": "O aplikaciji Tuxee",
     "app.activate": "Aktiviraj",

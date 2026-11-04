@@ -1,6 +1,10 @@
 {
   "name": "繁體中文（台灣）",
   "texts": {
+    "app.minimizeWindow": "最小化視窗",
+    "app.maximizeWindow": "最大化視窗",
+    "app.unmaximizeWindow": "結束最大化模式",
+    "app.restoreWindow": "還原",
     "app.about": "關於",
     "app.aboutTuxee": "關於 Tuxee",
     "app.activate": "啟用",

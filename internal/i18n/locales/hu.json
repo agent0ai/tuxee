@@ -1,6 +1,10 @@
 {
   "name": "Magyar",
   "texts": {
+    "app.minimizeWindow": "Ablak kis méretre",
+    "app.maximizeWindow": "Ablak teljes méretre",
+    "app.unmaximizeWindow": "Kilépés a teljes méretből",
+    "app.restoreWindow": "Visszaállítás",
     "app.about": "Névjegy",
     "app.aboutTuxee": "A Tuxee-ról",
     "app.activate": "Aktiválás",

@@ -1,6 +1,10 @@
 {
   "name": "Română",
   "texts": {
+    "app.minimizeWindow": "Minimizează fereastra",
+    "app.maximizeWindow": "Maximizează fereastra",
+    "app.unmaximizeWindow": "Ieși din modul maximizat",
+    "app.restoreWindow": "Restabilește",
     "app.about": "Despre",
     "app.aboutTuxee": "Despre Tuxee",
     "app.activate": "Activează",

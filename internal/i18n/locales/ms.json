@@ -1,6 +1,10 @@
 {
   "name": "Bahasa Melayu",
   "texts": {
+    "app.minimizeWindow": "Minimumkan tetingkap",
+    "app.maximizeWindow": "Maksimumkan tetingkap",
+    "app.unmaximizeWindow": "Keluar daripada mod maksimum",
+    "app.restoreWindow": "Pulihkan",
     "app.about": "Perihal",
     "app.aboutTuxee": "Perihal Tuxee",
     "app.activate": "Aktifkan",

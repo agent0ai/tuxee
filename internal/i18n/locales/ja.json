@@ -1,6 +1,10 @@
 {
   "name": "日本語",
   "texts": {
+    "app.minimizeWindow": "ウィンドウを最小化",
+    "app.maximizeWindow": "ウィンドウを最大化",
+    "app.unmaximizeWindow": "最大化を解除",
+    "app.restoreWindow": "復元",
     "app.about": "このアプリについて",
     "app.aboutTuxee": "Tuxeeについて",
     "app.activate": "活性化",

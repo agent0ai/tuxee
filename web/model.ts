@@ -7,6 +7,7 @@ export type Panel = {
     path: string;
     terminal?: string;
     pinned?: boolean;
+    minimized?: boolean;
     x: number;
     y: number;
     w: number;
@@ -20,6 +21,7 @@ export type Workspace = {
     rows: number;
     panels: Panel[];
     active: string;
+    maximized?: string;
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {
@@ -124,22 +126,46 @@ export function cloneWorkspace(source: Workspace, directory: string, workspaces:
         // Match the server's UTF-8 byte limit without shortening the source name.
         if (new TextEncoder().encode(name).length > 60) { name = source.name; break; }
     } while (workspaces.some(ws => ws.name === name));
-    const panels = source.panels.map(({ kind, path, x, y, w, h, pinned }) => ({
-        ...newPanel(kind, kind === 'files' ? path : directory), x, y, w, h, pinned,
+    const panels = source.panels.map(({ kind, path, x, y, w, h, pinned, minimized }) => ({
+        ...newPanel(kind, kind === 'files' ? path : directory), x, y, w, h, pinned, minimized,
     }));
     const ids = new Map(source.panels.map((panel, i) => [panel.id, panels[i].id]));
     return {
-        ...source, id: id(), name, panels, active: ids.get(source.active) || '',
+        ...source, id: id(), name, panels, active: ids.get(source.active) || '', maximized: ids.get(source.maximized || ''),
         layout: source.layout && { mode: source.layout.mode, custom: source.layout.custom.map(rect => ({ ...rect, id: ids.get(rect.id)! })) },
     };
 }
 export type Edge = 'left' | 'right' | 'top' | 'bottom';
+export const MAX_PANELS = 32;
+export const visiblePanels = (ws: Workspace) => ws.panels.filter(p => !p.minimized);
+export function canAddPanel(ws: Workspace) { return ws.panels.length < MAX_PANELS && visiblePanels(ws).length < 8; }
+
+// Restore uses ordinary placement; a full grid swaps its first row-major panel.
+export function restorePanel(ws: Workspace, panel: Panel, targetID?: string, width = ws.columns, height = ws.rows): boolean {
+    if (!ws.panels.includes(panel) && ws.panels.length >= MAX_PANELS) return false;
+    const plan = { ...ws, panels: ws.panels.filter(p => p.id !== panel.id).map(p => ({ ...p })) };
+    const incoming = { ...panel, minimized: false };
+    let target = targetID ? plan.panels.find(p => p.id === targetID && !p.minimized) : undefined;
+    if (targetID && !target) return false;
+    if (target || !addCompact(plan, incoming, undefined, width, height)) {
+        target ||= visiblePanels(plan).sort((a, b) => a.y - b.y || a.x - b.x)[0];
+        if (!target) return false;
+        Object.assign(incoming, { x: target.x, y: target.y, w: target.w, h: target.h });
+        target.minimized = true;
+        plan.panels.push(incoming);
+    }
+    if (!validGrid(plan)) return false;
+    for (const next of plan.panels) Object.assign(ws.panels.find(p => p.id === next.id) || panel, next);
+    if (!ws.panels.includes(panel)) ws.panels.push(panel);
+    return true;
+}
 export function validGrid(ws: Workspace): boolean {
-    if (!(ws.columns === 4 && ws.rows === 2 || ws.columns === 2 && ws.rows === 4) || ws.panels.length > 8) return false;
+    if (!(ws.columns === 4 && ws.rows === 2 || ws.columns === 2 && ws.rows === 4) || ws.panels.length > MAX_PANELS || visiblePanels(ws).length > 8) return false;
     const cells = new Set<string>();
     return ws.panels.every(p => {
         if (![p.x, p.y, p.w, p.h].every(Number.isInteger) || p.x < 0 || p.y < 0 || p.w < 1 || p.h < 1 || p.x + p.w > ws.columns || p.y + p.h > ws.rows)
             return false;
+        if (p.minimized) return true;
         for (let y = p.y; y < p.y + p.h; y++)
             for (let x = p.x; x < p.x + p.w; x++) {
                 const cell = `${x},${y}`;
@@ -160,7 +186,7 @@ export function place(ws: Workspace, panel: Panel, rect: Rect): boolean {
 }
 export function split(ws: Workspace, targetID: string, panel: Panel, edge: Edge): boolean {
     const target = ws.panels.find(p => p.id === targetID);
-    if (!target || target === panel)
+    if (!target || target.minimized || target === panel || !ws.panels.includes(panel) && !canAddPanel(ws))
         return false;
     const horizontal = edge === 'left' || edge === 'right';
     if ((horizontal ? target.w : target.h) < 2)
@@ -183,7 +209,8 @@ export function split(ws: Workspace, targetID: string, panel: Panel, edge: Edge)
         ws.panels.push(panel);
     return true;
 }
-export function addCompact(ws: Workspace, panel: Panel, near?: { x: number; y: number }): boolean {
+export function addCompact(ws: Workspace, panel: Panel, near?: { x: number; y: number }, width = ws.columns, height = ws.rows): boolean {
+    if (!canAddPanel(ws)) return false;
     if (near) {
         const cells = Array.from({ length: ws.columns * ws.rows }, (_, i) => ({ x: i % ws.columns, y: Math.floor(i / ws.columns), w: 1, h: 1 }));
         cells.sort((a, b) => Math.hypot(a.x + .5 - near.x, a.y + .5 - near.y) - Math.hypot(b.x + .5 - near.x, b.y + .5 - near.y));
@@ -201,16 +228,16 @@ export function addCompact(ws: Workspace, panel: Panel, near?: { x: number; y: n
     let best: Rect | undefined;
     for (let y = 0; y < ws.rows; y++)
         for (let x = 0; x < ws.columns; x++) {
-            if (!ws.panels.some(p => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)) {
+            if (!visiblePanels(ws).some(p => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h)) {
                 const rect = expandedRect(ws, { ...panel, x, y, w: 1, h: 1 }, panel.kind === 'files' ? 1 : ws.columns);
                 if (!best || rect.w * rect.h > best.w * best.h) best = rect;
             }
         }
     if (best) return place(ws, panel, best);
-    const largest = [...ws.panels].filter(p => p.w > 1 || p.h > 1).sort((a, b) => b.w * b.h - a.w * a.h)[0];
+    const largest = visiblePanels(ws).filter(p => p.w > 1 || p.h > 1).sort((a, b) => b.w * b.h - a.w * a.h || Number(a.kind === 'terminal') - Number(b.kind === 'terminal'))[0];
     if (!largest)
         return false;
-    return split(ws, largest.id, panel, largest.w >= largest.h && largest.w > 1 ? 'right' : 'bottom');
+    return split(ws, largest.id, panel, largest.w > 1 && (largest.h === 1 || largest.w * width / ws.columns >= largest.h * height / ws.rows) ? 'right' : 'bottom');
 }
 
 export type Rect = Pick<Panel, 'x' | 'y' | 'w' | 'h'>;
@@ -227,9 +254,10 @@ export function gridDrop(ws: Workspace, x: number, y: number, width: number, hei
 }
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export function dropLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | undefined {
+    if (!ws.panels.some(p => p.id === panel.id) && !canAddPanel(ws)) return;
     const next = { ...panel, ...rect };
     if (!validGrid({ ...ws, panels: [next] })) return;
-    const others = ws.panels.filter(p => p.id !== panel.id);
+    const others = visiblePanels(ws).filter(p => p.id !== panel.id);
     const fixed = others.filter(p => !overlaps(p, rect)), blocked = others.filter(p => overlaps(p, rect));
     // Preserve the existing in-place trim whenever every neighbor can remain.
     const trimmed = blocked.map(p => [
@@ -288,6 +316,7 @@ export function dropLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | u
 }
 export type Divider = { axis: 'x' | 'y'; at: number; from: number; to: number; before: string[]; after: string[]; min: number; max: number };
 export function sharedDividers(ws: Workspace): Divider[] {
+    ws = { ...ws, panels: visiblePanels(ws) };
     const result: Divider[] = [];
     for (const axis of ['x', 'y'] as const) {
         const size = axis === 'x' ? 'w' : 'h', other = axis === 'x' ? 'y' : 'x', span = axis === 'x' ? 'h' : 'w';
@@ -334,10 +363,10 @@ export function resizeDividers(ws: Workspace, dividers: Divider[], dx: number, d
             if (divider.after.includes(p.id)) { p[size] += p[axis] - at; p[axis] = at; }
         }
     }
-    return panels.some((p, i) => panels.slice(i + 1).some(q => overlaps(p, q))) ? undefined : panels;
+    return panels.some((p, i) => !p.minimized && panels.slice(i + 1).some(q => !q.minimized && overlaps(p, q))) ? undefined : panels;
 }
 function expandedRect(ws: Workspace, panel: Panel, maxWidth: number): Rect {
-    const others = ws.panels.filter(p => p.id !== panel.id);
+    const others = visiblePanels(ws).filter(p => p.id !== panel.id);
     let best: Rect = panel;
     for (let y = 0; y <= panel.y; y++) for (let x = 0; x <= panel.x; x++)
         for (let bottom = panel.y + panel.h; bottom <= ws.rows; bottom++) for (let right = panel.x + panel.w; right <= Math.min(ws.columns, x + maxWidth); right++) {
@@ -355,7 +384,7 @@ function automaticWidthCap(ws: Workspace, panel: Panel, width: number, priority?
         panel.kind === priority ? ws.columns : Math.max(1, Math.floor((panel.kind === 'terminal' ? 1440 : 640) / (width / ws.columns))));
 }
 export function expandAfterClose(ws: Workspace, closed: Rect, candidates = ws.panels) {
-    for (const panel of [...candidates].sort((a, b) => a.w * a.h - b.w * b.h)) {
+    for (const panel of candidates.filter(p => !p.minimized).sort((a, b) => a.w * a.h - b.w * b.h)) {
         let axis: 'x' | 'y';
         if (panel.y < closed.y + closed.h && panel.y + panel.h > closed.y
             && (panel.x + panel.w === closed.x || panel.x === closed.x + closed.w)) axis = 'x';
@@ -381,7 +410,8 @@ export function screenSnap(ws: Workspace, x: number, y: number, width: number, h
     return { x: 0, y: top ? 0 : halfH, w: ws.columns, h: halfH };
 }
 export function snapLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | undefined {
-    const others = ws.panels.filter(p => p.id !== panel.id), fixed = { ...panel, ...rect };
+    if (!ws.panels.some(p => p.id === panel.id) && !canAddPanel(ws)) return;
+    const others = visiblePanels(ws).filter(p => p.id !== panel.id), fixed = { ...panel, ...rect };
     if (!validGrid({ ...ws, panels: [fixed] }) || others.length > ws.columns * ws.rows - rect.w * rect.h) return;
     let keep = others.filter(p => !overlaps(p, rect));
     if (ws.columns * ws.rows - rect.w * rect.h - keep.reduce((sum, p) => sum + p.w * p.h, 0) < others.length - keep.length) keep = [];
@@ -413,6 +443,10 @@ export function snapLayout(ws: Workspace, panel: Panel, rect: Rect): Panel[] | u
     return validGrid({ ...ws, panels: result }) ? result : undefined;
 }
 export function rearrange(ws: Workspace, width: number, height: number, mode: 1 | 2 | 3 = 1): Panel[] {
+    if (ws.panels.some(p => p.minimized)) {
+        const result = rearrange({ ...ws, panels: visiblePanels(ws) }, width, height, mode);
+        return ws.panels.map(p => result.find(next => next.id === p.id) || { ...p });
+    }
     if (!ws.panels.length) return [];
     const panels = [...ws.panels.filter(p => p.kind === 'files'), ...ws.panels.filter(p => p.kind === 'terminal')];
     const files = panels.filter(p => p.kind === 'files').length;
@@ -498,6 +532,7 @@ export function rearrange(ws: Workspace, width: number, height: number, mode: 1 
     return ws.panels.map(panel => result.find(p => p.id === panel.id)!);
 }
 export function cycleLayout(ws: Workspace, width: number, height: number) {
+    delete ws.maximized;
     if (!ws.panels.length) return;
     if (ws.layout?.mode === 3) {
         for (const panel of ws.panels) Object.assign(panel, ws.layout.custom.find(p => p.id === panel.id)!);

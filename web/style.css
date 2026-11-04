@@ -1501,3 +1501,10 @@ pre, code, .process-label small {
     .shortcuts-table th, .shortcuts-table td { padding: 4px 2px; font-size: 12px; }
     .shortcuts-table td button { font-size: 11px; }
 }
+
+/* Desktop window membership is independent of the saved grid. */
+.window-bar:not([hidden]) { display: flex; flex: 0 0 auto; padding: 2px 8px; min-height: 32px; background: transparent; }
+.window-bar .component-tab-item { background: var(--surface); }
+.window-maximize.active { background: var(--accent-bg); color: var(--accent); }
+.window-minimize svg { transform: translateY(3px); }
+.maximized-board .panel-resize { display: none; }
