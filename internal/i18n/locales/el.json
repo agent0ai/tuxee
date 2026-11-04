@@ -693,6 +693,7 @@
     "term.connectionRestored": "Η σύνδεση αποκαταστάθηκε",
     "term.control": "Τερματικό ελέγχου",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Ο έλεγχος μετακινήθηκε. ελέγξτε την τελευταία σας εισαγωγή πριν συνεχίσετε",
+    "term.defaultName": "Τερματικό {count}",
     "term.dropFiles": "Απόθεση αρχείων εδώ",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Εισαγάγετε: αποστολή · Ctrl+Enter: εισαγωγή · Shift+Enter: νέα γραμμή",
     "term.inputIsBusyWaitBeforePastingMore": "Η είσοδος είναι απασχολημένη. περιμένετε πριν επικολλήσετε περισσότερα",

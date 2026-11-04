@@ -89,6 +89,30 @@ try {
     await page.goto(base);
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].length === 2 &&
         [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
+    const initialNames = await page.locator('.terminal-tab .panel-title').allTextContents();
+    assert.equal(new Set(initialNames).size, 2);
+    initialNames.forEach(name => assert.match(name, /^Terminal \d+$/));
+    const inventory = await (await api('/terminals')).json();
+    let number = 1;
+    while (inventory.some(terminal => !terminal.closedAt && terminal.name === `Terminal ${number}`)) number++;
+    const reserved = `Terminal ${number}`;
+    const create = async (name) => {
+        const response = await api('/terminals', 'POST', { directory: '/tmp', name, columns: 80, rows: 24 });
+        assert.equal(response.status(), 201); return response.json();
+    };
+    const named = await create(reserved); assert.equal(named.name, reserved, 'explicit names remain exact');
+    const concurrent = await Promise.all(Array.from({ length: 3 }, () => create()));
+    assert.equal(new Set([...initialNames, reserved, ...concurrent.map(terminal => terminal.name)]).size, 6, 'concurrent creation skips occupied and detached terminal names');
+    await api(`/terminals/${named.id}`, 'DELETE');
+    assert.equal((await create()).name, reserved, 'closed terminals release their default number');
+    const localized = await browser.newContext({ ignoreHTTPSErrors: true });
+    const login = await localized.request.post(base + '/api/login', { data: { username: user, password, language: 'cs' }, headers: { 'X-Tuxee-Client': 'web' } });
+    assert.equal(login.status(), 200);
+    const localizedCSRF = (await login.json()).csrf;
+    const localizedTerminal = await localized.request.post(base + '/api/terminals', { data: { directory: '/tmp', columns: 80, rows: 24 }, headers: { 'X-Tuxee-Client': 'web', 'X-Tuxee-CSRF': localizedCSRF } });
+    assert.equal(localizedTerminal.status(), 201); assert.match((await localizedTerminal.json()).name, /^Terminál \d+$/);
+    await localized.close();
+    check('numbered defaults, concurrent/detached creation, explicit names, number reuse and login-language labels');
     await page.waitForTimeout(700);
     await page.setViewportSize({ width: 1024, height: 1000 }); await page.waitForTimeout(250);
     const visibleBefore = await page.locator('.workspace-tabs .visible-tabs .workspace-tab-item').count();

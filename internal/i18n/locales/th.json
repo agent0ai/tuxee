@@ -693,6 +693,7 @@
     "term.connectionRestored": "กู้คืนการเชื่อมต่อแล้ว",
     "term.control": "ขั้วต่อการควบคุม",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "ย้ายการควบคุมแล้ว ตรวจสอบข้อมูลล่าสุดของคุณก่อนดำเนินการต่อ",
+    "term.defaultName": "เทอร์มินัล {count}",
     "term.dropFiles": "วางไฟล์ที่นี่",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: ส่ง · Ctrl+Enter: แทรก · Shift+Enter: บรรทัดใหม่",
     "term.inputIsBusyWaitBeforePastingMore": "ข้อมูลเข้าไม่ว่าง รอก่อนที่จะวางเพิ่มเติม",

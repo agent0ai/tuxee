@@ -693,6 +693,7 @@
     "term.connectionRestored": "Koneksi dipulihkan",
     "term.control": "Terminal kendali",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrol dipindahkan; periksa masukan terakhir Anda sebelum melanjutkan",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Letakkan file di sini",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Masukkan: kirim · Ctrl+Enter: masukkan · Shift+Enter: baris baru",
     "term.inputIsBusyWaitBeforePastingMore": "Masukan sedang sibuk; tunggu sebelum menempelkan lebih banyak",

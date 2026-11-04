@@ -693,6 +693,7 @@
     "term.connectionRestored": "연결이 복원되었습니다.",
     "term.control": "제어",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "제어권이 이전되었습니다. 계속하기 전에 마지막 입력을 확인하세요",
+    "term.defaultName": "터미널 {count}",
     "term.dropFiles": "파일 놓기",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: 보내기 · Ctrl+Enter: 삽입 · Shift+Enter: 줄 바꿈",
     "term.inputIsBusyWaitBeforePastingMore": "입력이 사용 중입니다. 더 붙여넣기 전에 기다려주세요",

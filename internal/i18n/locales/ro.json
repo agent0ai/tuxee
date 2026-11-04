@@ -693,6 +693,7 @@
     "term.connectionRestored": "Conexiunea a fost restabilită",
     "term.control": "Terminal de control",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Controlul mutat; verificați ultima intrare înainte de a continua",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Aruncă fișierele aici",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Introduceți: trimiteți · Ctrl+Enter: introduceți · Shift+Enter: linie nouă",
     "term.inputIsBusyWaitBeforePastingMore": "Intrarea este ocupată; așteptați înainte de a lipi mai multe",

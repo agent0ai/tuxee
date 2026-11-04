@@ -693,6 +693,7 @@
     "term.connectionRestored": "Naibalik ang koneksyon",
     "term.control": "Control terminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Inilipat ang kontrol; suriin ang iyong huling input bago magpatuloy",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Mag-drop ng mga file dito",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Ipasok: ipadala · Ctrl+Enter: ipasok · Shift+Enter: bagong linya",
     "term.inputIsBusyWaitBeforePastingMore": "Abala ang input; maghintay bago mag-paste ng higit pa",

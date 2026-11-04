@@ -693,6 +693,7 @@
     "term.connectionRestored": "連線已恢復",
     "term.control": "控制",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "控制權已轉移；繼續前請檢查最後一次輸入",
+    "term.defaultName": "終端機 {count}",
     "term.dropFiles": "拖放檔案",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter：傳送 · Ctrl+Enter：插入 · Shift+Enter：換行",
     "term.inputIsBusyWaitBeforePastingMore": "輸入忙碌中；請稍候再貼上更多內容",

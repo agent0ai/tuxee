@@ -693,6 +693,7 @@
     "term.connectionRestored": "Savienojums atjaunots",
     "term.control": "Vadība",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Vadība pārvietota; pirms turpināt, pārbaudiet pēdējo ievadīto informāciju",
+    "term.defaultName": "Terminālis {count}",
     "term.dropFiles": "Nometiet failus šeit",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Ievadīt: sūtīt · Ctrl+Enter: ievietot · Shift+Enter: jauna rinda",
     "term.inputIsBusyWaitBeforePastingMore": "Ievade ir aizņemta; pagaidiet, pirms ielīmējat vairāk",

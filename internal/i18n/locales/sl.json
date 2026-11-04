@@ -693,6 +693,7 @@
     "term.connectionRestored": "Povezava je vzpostavljena",
     "term.control": "Nadzorni terminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Nadzor premaknjen; preverite svoj zadnji vnos, preden nadaljujete",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Spustite datoteke sem",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: pošiljanje · Ctrl+Enter: vstavljanje · Shift+Enter: nova vrstica",
     "term.inputIsBusyWaitBeforePastingMore": "Vhod je zaseden; počakajte, preden prilepite več",

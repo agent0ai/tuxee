@@ -10,6 +10,8 @@ Own HTTP routing and session revocation. Delegate filesystem syscalls to files, 
 
 # Local Contracts
 
+`POST /api/terminals` assigns an omitted/empty name from the frozen login catalog’s `term.defaultName` (`Terminal {count}`), starting at 1 and skipping names in the Linux user’s live/unclosed archive inventory. Use the existing settings/creation lock so concurrent requests cannot claim the same default. Explicit names, including reset replacements, remain exact; closed archives do not reserve numbers. Preserve inventory errors rather than guessing a name.
+
 Terminal sessions own GUI lifetime. After the existing terminal UID check, `GET /api/terminals/{id}/display` returns the running display's temporary VNC password; it never starts a display. Its `/ws` suffix bridges the private Unix VNC socket through authenticated, same-origin binary WebSocket frames. `/api/terminals/{id}/display/window` accepts POST to activate and DELETE to request a normal window close; both require CSRF and a window ID from that display. Accept no caller-provided destination. Logout revokes transports while retaining the terminal and applications.
 
 Use periodic WebSocket pings with bounded pong deadlines to detect failed terminal, VNC and clipboard connections. On VNC failure, cancel both bridge directions and release only that viewer; preserve the terminal, X display and applications. Clipboard transport recovers independently. `websocket.go` and `desktop.go` own the current timing values; their exact intervals are implementation tuning, not protocol compatibility requirements.

@@ -693,6 +693,7 @@
     "term.connectionRestored": "Sambungan dipulihkan",
     "term.control": "Kawalan",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kawalan telah beralih; semak input terakhir anda sebelum meneruskan",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Lepaskan fail",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: hantar · Ctrl+Enter: sisip · Shift+Enter: baris baharu",
     "term.inputIsBusyWaitBeforePastingMore": "Input sedang sibuk; tunggu sebelum menampal lagi",

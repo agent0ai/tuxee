@@ -693,6 +693,7 @@
     "term.connectionRestored": "החיבור שוחזר",
     "term.control": "מסוף בקרה",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "הבקרה זזה; בדוק את הקלט האחרון שלך לפני שתמשיך",
+    "term.defaultName": "מסוף {count}",
     "term.dropFiles": "זרוק קבצים כאן",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "הזן: שלח · Ctrl+Enter: הכנס · Shift+Enter: שורה חדשה",
     "term.inputIsBusyWaitBeforePastingMore": "הקלט תפוס; המתן לפני שתדביק עוד",

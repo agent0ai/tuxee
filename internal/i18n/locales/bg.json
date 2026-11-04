@@ -693,6 +693,7 @@
     "term.connectionRestored": "Връзката е възстановена",
     "term.control": "Контролен терминал",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Управлението е преместено; проверете последното си въвеждане, преди да продължите",
+    "term.defaultName": "Терминал {count}",
     "term.dropFiles": "Пуснете файлове тук",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Въведете: изпращане · Ctrl+Enter: вмъкване · Shift+Enter: нов ред",
     "term.inputIsBusyWaitBeforePastingMore": "Входът е зает; изчакайте, преди да поставите повече",

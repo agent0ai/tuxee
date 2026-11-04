@@ -693,6 +693,7 @@
     "term.connectionRestored": "Verbinding hersteld",
     "term.control": "Controleterminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Controle verplaatst; controleer uw laatste invoer voordat u verdergaat",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Zet hier bestanden neer",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: verzenden · Ctrl+Enter: invoegen · Shift+Enter: nieuwe regel",
     "term.inputIsBusyWaitBeforePastingMore": "Ingang is bezet; wacht voordat u meer plakt",

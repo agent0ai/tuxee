@@ -469,6 +469,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if input.Directory == "" {
 			input.Directory = settings.defaultDirectory(session.user.Home)
 		}
+		if input.Name == "" {
+			terminals, err := s.Terminals.ArchiveInventory(ctx, session.user)
+			if err != nil {
+				failure(w, 500, err)
+				return
+			}
+			names := make(map[string]bool)
+			for _, terminal := range terminals {
+				if terminal.ClosedAt == nil {
+					names[terminal.Name] = true
+				}
+			}
+			catalog := i18n.Catalog{Texts: session.translations.Texts}
+			for number := 1; number <= len(names)+1; number++ {
+				input.Name = catalog.Text(i18n.Message{Key: "term.defaultName", Vars: i18n.Vars{"count": number}})
+				if !names[input.Name] {
+					break
+				}
+			}
+		}
 		value, err := s.Terminals.Create(session.user, input.Directory, input.Name, input.Columns, input.Rows, input.Command, background, foreground, settings.ShellCommand, settings.UseTuxeePrompt == nil || *settings.UseTuxeePrompt, session.translations.Language)
 		if err != nil {
 			failure(w, 400, err)

@@ -693,6 +693,7 @@
     "term.connectionRestored": "A kapcsolat helyreállt",
     "term.control": "Vezérlőterminál",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "A vezérlés áthelyezve; Mielőtt folytatná, ellenőrizze az utolsó bevitelt",
+    "term.defaultName": "Terminál {count}",
     "term.dropFiles": "Dobja ide a fájlokat",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Bevitel: küldés · Ctrl+Enter: beszúrás · Shift+Enter: új sor",
     "term.inputIsBusyWaitBeforePastingMore": "A bemenet foglalt; várjon, mielőtt többet beillesztene",

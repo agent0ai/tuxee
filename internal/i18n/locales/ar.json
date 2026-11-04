@@ -693,6 +693,7 @@
     "term.connectionRestored": "تمت استعادة الاتصال",
     "term.control": "محطة التحكم",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "تم نقل التحكم؛ تحقق من إدخالك الأخير قبل المتابعة",
+    "term.defaultName": "طرفية {count}",
     "term.dropFiles": "إفلات ملفات",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "أدخل: أرسل · Ctrl+Enter: أدخل · Shift+Enter: سطر جديد",
     "term.inputIsBusyWaitBeforePastingMore": "الإدخال مشغول؛ انتظر قبل لصق المزيد",

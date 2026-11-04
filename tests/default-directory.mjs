@@ -82,6 +82,7 @@ try {
         await waitFor(async () => await filePath().inputValue() === path && await file.locator('.file-list.loading').count() === 0, 'file navigation');
     };
     const original = await info(terminalPanel.terminal);
+    assert.equal(original.name, 'Terminal 1');
     assert.equal(await cwd(original.id), home);
     await openSettings(); assert.equal(await dialog('Settings').getByLabel('Default directory', { exact: true }).inputValue(), '~');
     await saveSettings('relative', 400); assert.equal((await saved()).defaultDirectory, undefined);
@@ -91,6 +92,7 @@ try {
     await button('Close dialog', dialog('Settings')).click(); assert.equal((await saved()).defaultDirectory, '~/global folder');
     const defaultResponse = await api('/terminals', 'POST', { columns: 80, rows: 24 });
     assert.equal(defaultResponse.status(), 201); const defaultTerminal = await defaultResponse.json();
+    assert.equal(defaultTerminal.name, 'Terminal 2');
     assert.equal(await cwd(defaultTerminal.id), globalPath); await api(`/terminals/${defaultTerminal.id}`, 'DELETE');
     await openDirectory(wsID); assert.equal(await dialog('Default directory').getByLabel('Directory', { exact: true }).inputValue(), '~/global folder');
     await button('Save', dialog('Default directory')).click(); await dialog('Default directory').waitFor({ state: 'hidden' });
@@ -210,6 +212,7 @@ try {
             if (panel.kind === 'files') assert.equal(panel.path, old.path);
             else {
                 assert.notEqual(panel.terminal, old.terminal); assert.notEqual((await info(panel.terminal)).pid, (await info(old.terminal)).pid);
+                assert.notEqual((await info(panel.terminal)).name, (await info(old.terminal)).name, 'cloned desktops get fresh terminal numbers');
                 assert.equal(await cwd(panel.terminal), otherPath);
             }
         }

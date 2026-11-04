@@ -693,6 +693,7 @@
     "term.connectionRestored": "اتصال بازیابی شد",
     "term.control": "ترمینال کنترل",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "کنترل منتقل شد. قبل از ادامه، آخرین ورودی خود را بررسی کنید",
+    "term.defaultName": "پایانه {count}",
     "term.dropFiles": "رها کردن فایل‌ها",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "را وارد کنید: ارسال · Ctrl+Enter: درج · Shift+Enter: خط جدید",
     "term.inputIsBusyWaitBeforePastingMore": "ورودی مشغول است. قبل از چسباندن بیشتر صبر کنید",

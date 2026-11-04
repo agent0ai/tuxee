@@ -693,6 +693,7 @@
     "term.connectionRestored": "Bağlantı yeniden kuruldu",
     "term.control": "Kontrol terminali",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrol taşındı; devam etmeden önce son girişinizi kontrol edin",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Dosyaları buraya bırakın",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Girin: gönder · Ctrl+Enter: ekle · Shift+Enter: yeni satır",
     "term.inputIsBusyWaitBeforePastingMore": "Giriş meşgul; daha fazlasını yapıştırmadan önce bekleyin",

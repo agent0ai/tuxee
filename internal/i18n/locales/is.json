@@ -693,6 +693,7 @@
     "term.connectionRestored": "Tenging endurheimt",
     "term.control": "Stjórna",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Stjórnin færð; athugaðu síðasta inntak áður en þú heldur áfram",
+    "term.defaultName": "Skjáhermir {count}",
     "term.dropFiles": "Slepptu skrám hér",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Sláðu inn: senda · Ctrl+Enter: setja inn · Shift+Enter: ný lína",
     "term.inputIsBusyWaitBeforePastingMore": "Inntak er upptekið; bíddu áður en þú límir meira",

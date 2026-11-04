@@ -693,6 +693,7 @@
     "term.connectionRestored": "连接已恢复",
     "term.control": "控制",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "控制权已转移；继续前请检查上次输入",
+    "term.defaultName": "终端 {count}",
     "term.dropFiles": "拖放文件",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter：发送 · Ctrl+Enter：插入 · Shift+Enter：换行",
     "term.inputIsBusyWaitBeforePastingMore": "输入正忙；粘贴更多内容之前请稍候",

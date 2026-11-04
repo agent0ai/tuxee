@@ -693,6 +693,7 @@
     "term.connectionRestored": "接続が回復しました",
     "term.control": "操作",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "操作権が移りました。続行する前に最後の入力を確認してください",
+    "term.defaultName": "端末 {count}",
     "term.dropFiles": "ファイルをドロップ",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter：送信 · Ctrl+Enter：挿入 · Shift+Enter：改行",
     "term.inputIsBusyWaitBeforePastingMore": "入力がビジーです。さらに貼り付ける前に待ってください",

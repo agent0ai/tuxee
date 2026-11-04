@@ -693,6 +693,7 @@
     "term.connectionRestored": "Połączenie przywrócone",
     "term.control": "Sterowanie",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Sterowanie przekazano; przed kontynuowaniem sprawdź ostatni wprowadzony tekst",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Upuść pliki",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: wyślij · Ctrl+Enter: wstaw · Shift+Enter: nowa linia",
     "term.inputIsBusyWaitBeforePastingMore": "Wejście jest zajęte; poczekaj zanim wkleisz więcej",

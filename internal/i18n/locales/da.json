@@ -693,6 +693,7 @@
     "term.connectionRestored": "Forbindelsen genoprettet",
     "term.control": "Kontrol",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrol flyttet; tjek dit sidste input, før du fortsætter",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Slip filer her",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Indtast: send · Ctrl+Enter: indsæt · Shift+Enter: ny linje",
     "term.inputIsBusyWaitBeforePastingMore": "Input er optaget; vent, før du indsætter mere",

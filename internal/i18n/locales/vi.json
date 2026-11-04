@@ -693,6 +693,7 @@
     "term.connectionRestored": "Đã khôi phục kết nối",
     "term.control": "Điều khiển",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Điều khiển đã được di chuyển; kiểm tra đầu vào cuối cùng của bạn trước khi tiếp tục",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Thả tập tin ở đây",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Nhập: gửi · Ctrl+Enter: chèn · Shift+Enter: dòng mới",
     "term.inputIsBusyWaitBeforePastingMore": "Đầu vào đang bận; đợi trước khi dán thêm",

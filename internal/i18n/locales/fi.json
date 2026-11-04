@@ -693,6 +693,7 @@
     "term.connectionRestored": "Yhteys palautettu",
     "term.control": "Ohjauspääte",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Ohjaus siirretty; tarkista viimeisin syöte ennen kuin jatkat",
+    "term.defaultName": "Pääte {count}",
     "term.dropFiles": "Pudota tiedostot tähän",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Syötä: lähetä · Ctrl+Enter: lisää · Shift+Enter: uusi rivi",
     "term.inputIsBusyWaitBeforePastingMore": "Tulo on varattu; odota ennen kuin liität lisää",

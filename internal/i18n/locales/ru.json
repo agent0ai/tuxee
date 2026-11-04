@@ -693,6 +693,7 @@
     "term.connectionRestored": "Соединение восстановлено",
     "term.control": "Управление",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Управление передано; проверьте последний ввод перед продолжением",
+    "term.defaultName": "Терминал {count}",
     "term.dropFiles": "Перетащите файлы",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: отправить · Ctrl+Enter: вставить · Shift+Enter: новая строка",
     "term.inputIsBusyWaitBeforePastingMore": "Вход занят; подождите, прежде чем вставлять больше",

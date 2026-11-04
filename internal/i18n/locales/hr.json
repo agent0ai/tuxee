@@ -693,6 +693,7 @@
     "term.connectionRestored": "Veza je uspostavljena",
     "term.control": "Kontrolni terminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrola pomaknuta; prije nastavka provjerite zadnji unos",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Ovdje ispustite datoteke",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: slanje · Ctrl+Enter: umetanje · Shift+Enter: novi red",
     "term.inputIsBusyWaitBeforePastingMore": "Ulaz je zauzet; pričekajte prije nego zalijepite više",

@@ -693,6 +693,7 @@
     "term.connectionRestored": "कनेक्शन बहाल कर दिया गया",
     "term.control": "नियंत्रण टर्मिनल",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "नियंत्रण चला गया; जारी रखने से पहले अपना अंतिम इनपुट जांचें",
+    "term.defaultName": "टर्मिनल {count}",
     "term.dropFiles": "फ़ाइल यहां छोड़ें",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "दर्ज करें: भेजें · Ctrl+Enter: डालें · Shift+Enter: नई लाइन",
     "term.inputIsBusyWaitBeforePastingMore": "इनपुट व्यस्त है; अधिक चिपकाने से पहले प्रतीक्षा करें",

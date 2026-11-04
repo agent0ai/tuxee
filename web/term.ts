@@ -54,7 +54,7 @@ export class TerminalView implements View {
     private resetButton = button(t("term.resetTerminal"), 'Power', () => this.reset());
     private events = new AbortController();
     private control = button(t("app.takeControl"), 'Hand', () => this.sendControl({ type: 'take-control' }));
-    private name = t("common.terminal");
+    private name?: string;
     private archiveView?: HTMLElement;
     private terminalPane = el('div', 'terminal-pane');
     private updateArchiveScroll = () => {};

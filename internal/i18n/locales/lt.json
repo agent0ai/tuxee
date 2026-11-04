@@ -693,6 +693,7 @@
     "term.connectionRestored": "Ryšys atkurtas",
     "term.control": "Valdymo terminalas",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Valdymas perkeltas; prieš tęsdami patikrinkite paskutinę įvestį",
+    "term.defaultName": "Terminalas {count}",
     "term.dropFiles": "Numeskite failus čia",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Įveskite: siųsti · Ctrl+Enter: įterpti · Shift+Enter: nauja eilutė",
     "term.inputIsBusyWaitBeforePastingMore": "Įvestis užimta; palaukite prieš įklijuodami daugiau",

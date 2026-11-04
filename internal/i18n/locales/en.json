@@ -693,6 +693,7 @@
     "term.connectionRestored": "Connection restored",
     "term.control": "Control",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Control moved; check your last input before continuing",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Drop files",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: send · Ctrl+Enter: insert · Shift+Enter: new line",
     "term.inputIsBusyWaitBeforePastingMore": "Input is busy; wait before pasting more",

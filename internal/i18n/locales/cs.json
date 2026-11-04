@@ -693,6 +693,7 @@
     "term.connectionRestored": "Připojení bylo obnoveno",
     "term.control": "Ovládání",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Ovládání bylo předáno; před pokračováním zkontrolujte poslední vstup",
+    "term.defaultName": "Terminál {count}",
     "term.dropFiles": "Přetáhnout soubory",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: odeslat · Ctrl+Enter: vložit · Shift+Enter: nový řádek",
     "term.inputIsBusyWaitBeforePastingMore": "Vstup je zaneprázdněn; před dalším vložením počkejte",

@@ -693,6 +693,7 @@
     "term.connectionRestored": "S'ha restablert la connexió",
     "term.control": "Control",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "El control s'ha transferit; comproveu l'última entrada abans de continuar",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Deixa anar fitxers",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Retorn: envia · Ctrl+Retorn: insereix · Maj+Retorn: línia nova",
     "term.inputIsBusyWaitBeforePastingMore": "L'entrada està ocupada; espereu abans d'enganxar més text",

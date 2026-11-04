@@ -693,6 +693,7 @@
     "term.connectionRestored": "Ühendus taastatud",
     "term.control": "Juhtterminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Juhtimine liigutatud; enne jätkamist kontrollige oma viimast sisestust",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Pukseeri failid",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Sisesta: saada · Ctrl+Enter: sisesta · Shift+Enter: uus rida",
     "term.inputIsBusyWaitBeforePastingMore": "Sisend on hõivatud; oodake, enne kui kleepite rohkem",

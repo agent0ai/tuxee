@@ -693,6 +693,7 @@
     "term.connectionRestored": "Anslutningen återställd",
     "term.control": "Styrterminal",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrollen flyttas; kontrollera din senaste inmatning innan du fortsätter",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Släpp filer här",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Ange: skicka · Ctrl+Enter: infoga · Shift+Enter: ny rad",
     "term.inputIsBusyWaitBeforePastingMore": "Ingången är upptagen; vänta innan du klistrar in mer",

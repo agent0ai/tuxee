@@ -693,6 +693,7 @@
     "term.connectionRestored": "Veza je obnovljena",
     "term.control": "Kontrola",
     "term.controlMovedCheckYourLastInputBeforeContinuing": "Kontrola je preneta; proverite poslednji unos pre nastavka",
+    "term.defaultName": "Terminal {count}",
     "term.dropFiles": "Ispustite datoteke",
     "term.enterSendCtrlEnterInsertShiftEnterNewLine": "Enter: pošalji · Ctrl+Enter: umetni · Shift+Enter: novi red",
     "term.inputIsBusyWaitBeforePastingMore": "Unos je zauzet; sačekajte pre daljeg lepljenja",
