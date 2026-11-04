@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "リリースのダウンロードがサイズ制限を超えている",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "安全でないまたは過剰なダウンロードのリダイレクト",
     "commandShortcuts.title": "ショートカット",
+    "commandShortcuts.emptyHint": "よく使うターミナルやGUIのプログラムにすばやくアクセスできるよう、独自のコマンドをショートカットとして追加できます。",
     "commandShortcuts.add": "ショートカットを追加",
     "commandShortcuts.edit": "編集",
     "commandShortcuts.command": "コマンド",

@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "releasedownload overschrijdt de maximale grootte",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "onveilige of buitensporige downloadomleidingen",
     "commandShortcuts.title": "Snelkoppelingen",
+    "commandShortcuts.emptyHint": "Voeg eigen opdrachten toe als snelkoppelingen om veelgebruikte terminal- en grafische programma's snel te openen.",
     "commandShortcuts.add": "Snelkoppeling toevoegen",
     "commandShortcuts.edit": "Bewerken",
     "commandShortcuts.command": "Opdracht",

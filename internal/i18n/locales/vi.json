@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "tải xuống bản phát hành vượt quá giới hạn kích thước",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "chuyển hướng tải xuống không an toàn hoặc quá mức",
     "commandShortcuts.title": "Lối tắt",
+    "commandShortcuts.emptyHint": "Thêm lệnh tùy chỉnh làm lối tắt để truy cập nhanh các chương trình dòng lệnh và giao diện đồ họa thường dùng.",
     "commandShortcuts.add": "Thêm lối tắt",
     "commandShortcuts.edit": "Sửa",
     "commandShortcuts.command": "Lệnh",

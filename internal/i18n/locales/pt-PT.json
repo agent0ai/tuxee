@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "a transferência da versão excede o limite de tamanho",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "redirecionamentos de transferência inseguros ou excessivos",
     "commandShortcuts.title": "Atalhos",
+    "commandShortcuts.emptyHint": "Adicione comandos personalizados como atalhos para aceder rapidamente aos programas de terminal e gráficos que utiliza frequentemente.",
     "commandShortcuts.add": "Adicionar atalho",
     "commandShortcuts.edit": "Editar",
     "commandShortcuts.command": "Comando",

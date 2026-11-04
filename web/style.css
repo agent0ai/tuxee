@@ -854,6 +854,7 @@ h3 {
 .command-shortcuts-head, .command-shortcut-row { display: flex; align-items: center; gap: 4px; }
 .command-shortcuts-head { justify-content: space-between; padding-inline-start: 8px; }
 .command-shortcuts-rows { max-height: min(420px, calc(100dvh - 100px)); overflow-y: auto; overscroll-behavior: contain; }
+.command-shortcuts-empty { margin: 4px 8px 8px; font-size: 12px; }
 .command-shortcut-run { flex: 1; min-width: 0; justify-content: flex-start; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-shortcut-row > button, .command-shortcuts-head > button { min-height: 36px; }
 .command-shortcut-form textarea { width: 100%; min-width: 0; resize: vertical; font-family: monospace; }

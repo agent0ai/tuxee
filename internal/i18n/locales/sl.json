@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "prenos izdaje presega omejitev velikosti",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nevarne ali pretirane preusmeritve prenosov",
     "commandShortcuts.title": "Bližnjice",
+    "commandShortcuts.emptyHint": "Dodajte lastne ukaze kot bližnjice za hiter dostop do pogosto uporabljenih terminalskih in grafičnih programov.",
     "commandShortcuts.add": "Dodaj bližnjico",
     "commandShortcuts.edit": "Uredi",
     "commandShortcuts.command": "Ukaz",

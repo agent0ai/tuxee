@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "preuzimanje izdanja premašuje ograničenje veličine",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nesigurna ili pretjerana preusmjeravanja preuzimanja",
     "commandShortcuts.title": "Prečaci",
+    "commandShortcuts.emptyHint": "Dodajte vlastite naredbe kao prečace za brz pristup često korištenim terminalskim i grafičkim programima.",
     "commandShortcuts.add": "Dodaj prečac",
     "commandShortcuts.edit": "Uredi",
     "commandShortcuts.command": "Naredba",

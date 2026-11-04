@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "kiadás letöltése meghaladja a méretkorlátot",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nem biztonságos vagy túlzott letöltési átirányítások",
     "commandShortcuts.title": "Parancsikonok",
+    "commandShortcuts.emptyHint": "Adjon hozzá saját parancsokat parancsikonként a gyakran használt terminálos és grafikus programok gyors eléréséhez.",
     "commandShortcuts.add": "Parancsikon hozzáadása",
     "commandShortcuts.edit": "Szerkesztés",
     "commandShortcuts.command": "Parancs",

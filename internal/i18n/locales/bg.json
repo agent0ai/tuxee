@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "изтеглянето на версията надвишава ограничението за размер",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "опасни или прекомерни пренасочвания за изтегляне",
     "commandShortcuts.title": "Преки пътища",
+    "commandShortcuts.emptyHint": "Добавете собствени команди като преки пътища за бърз достъп до често използвани терминални и графични програми.",
     "commandShortcuts.add": "Добавяне на пряк път",
     "commandShortcuts.edit": "Редактиране",
     "commandShortcuts.command": "Команда",

@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "הורדת הגרסה חורגת ממגבלת הגודל",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "הפניות להורדה לא בטוחות או מוגזמות",
     "commandShortcuts.title": "קיצורי דרך",
+    "commandShortcuts.emptyHint": "הוסיפו פקודות מותאמות כקיצורי דרך לגישה מהירה לתוכניות מסוף ולתוכניות גרפיות שבהן אתם משתמשים לעיתים קרובות.",
     "commandShortcuts.add": "הוספת קיצור דרך",
     "commandShortcuts.edit": "עריכה",
     "commandShortcuts.command": "פקודה",

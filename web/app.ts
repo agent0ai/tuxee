@@ -1194,6 +1194,7 @@ function commandShortcutsMenu(anchor: HTMLElement) {
     add.setAttribute('role', 'menuitem'); add.disabled = (settings.commandShortcuts?.length || 0) >= 64;
     header.append(el('strong', '', t('commandShortcuts.title')), add); content.append(header);
     const rows = el('div', 'command-shortcuts-rows'); content.append(rows);
+    if (!settings.commandShortcuts?.length) rows.append(el('p', 'command-shortcuts-empty muted', t('commandShortcuts.emptyHint')));
     for (const [index, shortcut] of (settings.commandShortcuts || []).entries()) {
         const row = el('div', 'command-shortcut-row');
         const run = () => { close(); addPanel('terminal', defaultDirectory(current()), undefined, undefined, shortcut.command); };

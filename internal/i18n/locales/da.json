@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "udgivelsesdownload overskrider størrelsesgrænsen",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "usikre eller overdrevne download-omdirigeringer",
     "commandShortcuts.title": "Genveje",
+    "commandShortcuts.emptyHint": "Tilføj egne kommandoer som genveje for hurtig adgang til terminalprogrammer og grafiske programmer, du ofte bruger.",
     "commandShortcuts.add": "Tilføj genvej",
     "commandShortcuts.edit": "Rediger",
     "commandShortcuts.command": "Kommando",

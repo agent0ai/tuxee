@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "unduhan rilis melebihi batas ukuran",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "pengalihan unduhan yang tidak aman atau berlebihan",
     "commandShortcuts.title": "Pintasan",
+    "commandShortcuts.emptyHint": "Tambahkan perintah khusus sebagai pintasan untuk mengakses program terminal dan GUI yang sering digunakan dengan cepat.",
     "commandShortcuts.add": "Tambah pintasan",
     "commandShortcuts.edit": "Edit",
     "commandShortcuts.command": "Perintah",

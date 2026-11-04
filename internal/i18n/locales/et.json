@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "väljalaske allalaadimine ületab suurusepiirangu",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "ebaturvalised või liigsed allalaadimise ümbersuunamised",
     "commandShortcuts.title": "Otseteed",
+    "commandShortcuts.emptyHint": "Lisa kohandatud käske otseteedena, et avada kiiresti sagedasti kasutatavaid terminali- ja graafilisi programme.",
     "commandShortcuts.add": "Lisa otsetee",
     "commandShortcuts.edit": "Muuda",
     "commandShortcuts.command": "Käsk",

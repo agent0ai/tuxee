@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "تنزيل الإصدار يتجاوز الحد الأقصى للحجم",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "عمليات إعادة توجيه التنزيل غير الآمنة أو المفرطة",
     "commandShortcuts.title": "الاختصارات",
+    "commandShortcuts.emptyHint": "أضف أوامر مخصصة كاختصارات للوصول السريع إلى برامج الطرفية والواجهة الرسومية التي تستخدمها كثيرًا.",
     "commandShortcuts.add": "إضافة اختصار",
     "commandShortcuts.edit": "تعديل",
     "commandShortcuts.command": "الأمر",

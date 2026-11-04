@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "útgáfa niðurhal fer yfir stærðarmörk",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "óöruggar eða óhóflegar niðurhalstilvísanir",
     "commandShortcuts.title": "Flýtileiðir",
+    "commandShortcuts.emptyHint": "Bættu eigin skipunum við sem flýtileiðum til að opna fljótt skipanalínuforrit og myndræn forrit sem þú notar oft.",
     "commandShortcuts.add": "Bæta við flýtileið",
     "commandShortcuts.edit": "Breyta",
     "commandShortcuts.command": "Skipun",

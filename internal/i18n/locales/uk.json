@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "розмір завантаження випуску перевищує ліміт",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "небезпечні або надмірні перенаправлення завантажень",
     "commandShortcuts.title": "Ярлики",
+    "commandShortcuts.emptyHint": "Додайте власні команди як ярлики для швидкого доступу до часто використовуваних термінальних і графічних програм.",
     "commandShortcuts.add": "Додати ярлик",
     "commandShortcuts.edit": "Редагувати",
     "commandShortcuts.command": "Команда",

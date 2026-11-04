@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "julkaisun lataus ylittää kokorajoituksen",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "vaaralliset tai liialliset latausten uudelleenohjaukset",
     "commandShortcuts.title": "Pikakomennot",
+    "commandShortcuts.emptyHint": "Lisää omia komentoja pikavalinnoiksi, jotta pääset nopeasti usein käyttämiisi pääte- ja graafisiin ohjelmiin.",
     "commandShortcuts.add": "Lisää pikakomento",
     "commandShortcuts.edit": "Muokkaa",
     "commandShortcuts.command": "Komento",

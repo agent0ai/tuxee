@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "descărcarea lansării depășește limita de dimensiune",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "redirecționări de descărcare nesigure sau excesive",
     "commandShortcuts.title": "Scurtături",
+    "commandShortcuts.emptyHint": "Adăugați comenzi personalizate ca scurtături pentru acces rapid la programele de terminal și grafice folosite frecvent.",
     "commandShortcuts.add": "Adaugă scurtătură",
     "commandShortcuts.edit": "Editează",
     "commandShortcuts.command": "Comandă",

@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "發行版本下載超過大小上限",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "下載重新導向不安全或次數過多",
     "commandShortcuts.title": "捷徑",
+    "commandShortcuts.emptyHint": "將自訂指令新增為捷徑，快速存取常用的終端機與圖形介面程式。",
     "commandShortcuts.add": "新增捷徑",
     "commandShortcuts.edit": "編輯",
     "commandShortcuts.command": "指令",

@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "发布下载超出大小限制",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "不安全或过多的下载重定向",
     "commandShortcuts.title": "快捷方式",
+    "commandShortcuts.emptyHint": "将自定义命令添加为快捷方式，快速访问常用的终端和图形界面程序。",
     "commandShortcuts.add": "添加快捷方式",
     "commandShortcuts.edit": "编辑",
     "commandShortcuts.command": "命令",
