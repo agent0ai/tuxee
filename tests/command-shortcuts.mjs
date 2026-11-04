@@ -131,6 +131,54 @@ try {
     await closeTerminal();
     console.log('PASS multiline command executes once in desktop cwd under user UID; reconnect/rerender/refresh do not replay');
 
+    async function dragShortcut(x, y) {
+        await toggle.click();
+        const from = await rows.first().locator('.command-shortcut-run').boundingBox();
+        const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+        await page.mouse.move(grid.x + grid.width * x, grid.y + grid.height * y, { steps: 12 });
+        await page.locator('.new-panel-drag').waitFor();
+        assert.equal(await menu.count(), 0, 'dragging closes the shortcut menu');
+    }
+    await poll(async () => !(await getSettings()).workspaces[0].panels.some(p => p.kind === 'terminal'), 'closed panel was not saved');
+    const beforeDrag = await getSettings(), beforeCreates = creates;
+    for (const cancel of ['Escape', 'outside', 'pointercancel', 'blur']) {
+        await dragShortcut(.625, .25);
+        await page.locator('.dock-preview.visible:not(.invalid)').waitFor();
+        if (cancel === 'Escape') await page.keyboard.press('Escape');
+        if (cancel === 'outside') await page.mouse.move(10, 10, { steps: 8 });
+        if (cancel === 'pointercancel') await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel')));
+        if (cancel === 'blur') await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+        await page.mouse.up(); await page.waitForTimeout(300);
+        assert.equal(creates, beforeCreates, `${cancel} does not launch a command`);
+        assert.deepEqual((await getSettings()).workspaces, beforeDrag.workspaces, `${cancel} preserves layout`);
+        assert.equal(await page.locator('.new-panel-drag, .dock-preview.visible').count(), 0);
+    }
+    let launches = 0;
+    for (const [x, y, expected] of [[.625, .25, [2, 0, 1, 1]], [.5, .25, [1, 0, 2, 1]], [.5, .5, [1, 0, 2, 2]], [.995, .5, [2, 0, 2, 2]]]) {
+        if (x === .995) await page.locator('[data-panel=commands-files] .window-maximize').click();
+        await dragShortcut(x, y);
+        await page.locator('.dock-preview').evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished)));
+        const preview = await page.locator('.dock-preview.visible:not(.invalid)').boundingBox();
+        await page.mouse.up(); await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
+        assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => node === document.activeElement), 'dropped terminal receives focus');
+        await poll(async () => (await getSettings()).workspaces[0].panels.some(p => p.kind === 'terminal'), 'dropped panel was not saved');
+        const panel = (await getSettings()).workspaces[0].panels.find(p => p.kind === 'terminal');
+        assert.deepEqual([panel.x, panel.y, panel.w, panel.h], expected, 'drop uses the requested grid target');
+        assert.equal((await getSettings()).workspaces[0].maximized, undefined, 'drop returns to grid placement');
+        await page.waitForFunction(() => !document.querySelector('.panel-settling'));
+        const placed = await terminal.boundingBox();
+        for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(preview[key] - placed[key]) <= 1, `preview matches dropped ${key}`);
+        assert.equal(creates, beforeCreates + ++launches, 'drop launches exactly once');
+        assert.equal(run('cat', [home + '/cwd/cwd']), home + '/cwd');
+        assert.equal(run('cat', [home + '/cwd/count']), Array(launches + 1).fill('first\nsecond').join('\n'));
+        assert.ok(!('command' in panel), 'drag command is not persisted');
+        await page.reload(); await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
+        assert.equal(creates, beforeCreates + launches, 'reload does not replay a dropped command');
+        await closeTerminal();
+    }
+    console.log('PASS shortcut drag cancellation, cell/gap/crossing/edge placement, preview, focus and once-only command execution');
+
     // Real creation responses are delayed, retaining the production closure and focus lifecycle.
     for (const destination of ['file', 'workspace', 'closed']) {
         let release, ready;
@@ -141,7 +189,9 @@ try {
             await held; await route.fulfill({ response });
         };
         await page.route('**/api/terminals', intercept);
-        await toggle.click(); await rows.locator('.command-shortcut-run').click(); const id = await created;
+        if (destination === 'closed') { await dragShortcut(.625, .25); await page.mouse.up(); }
+        else { await toggle.click(); await rows.locator('.command-shortcut-run').click(); }
+        const id = await created;
         if (destination === 'file') await page.locator('[data-panel=commands-files] input').first().focus();
         if (destination === 'workspace') await page.locator('.workspace-tab').getByText('other', { exact: true }).click();
         let deleted;
@@ -200,6 +250,13 @@ try {
     assert.ok(await page.locator('.command-shortcuts-rows').evaluate(node => node.scrollHeight > node.clientHeight));
     await rows.last().locator('.component-menu').tap(); await page.getByRole('menuitem', { name: 'Run', exact: true }).tap();
     await page.getByRole('status').filter({ hasText: 'Desktop full' }).waitFor(); assert.equal(await terminal.count(), 0);
+    await page.setViewportSize({ width: 1280, height: 900 }); await page.waitForTimeout(350);
+    const fullCreates = creates;
+    await dragShortcut(.625, .25); await page.locator('.dock-preview.visible.invalid').waitFor();
+    await page.mouse.up(); await page.waitForTimeout(300);
+    assert.equal(creates, fullCreates, 'full desktop rejects a dragged command without launching');
+    assert.equal((await getSettings()).workspaces[0].panels.length, 32);
+    await page.setViewportSize({ width: 320, height: 700 }); await page.waitForTimeout(350);
     await mkdir('test-results/command-shortcuts', { recursive: true }); await toggle.tap();
     await page.screenshot({ path: 'test-results/command-shortcuts/mobile.png' }); await page.keyboard.press('Escape');
     await page.goto('about:blank'); const rtl = await login(context, user, 'ar');

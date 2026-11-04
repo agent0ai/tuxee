@@ -665,13 +665,14 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
     if (release) animation.finished.finally(release).catch(() => {});
     return animation;
 }
-function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
+function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: string) {
     if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
     if (existing && (mounted.items.get(existing.id)?.node.dataset.moving || mounted.items.get(existing.id)?.node.dataset.closing)) return;
     cancelDrag(); finishSlide();
     const value = mounted, ws = value.ws, restoring = !!existing && existing.id !== ws.maximized && (!!existing.minimized || !!ws.maximized);
-    // Overflow menus may detach their title while another desktop menu opens.
-    const trigger = restoring ? root : (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
+    const menu = (event.currentTarget as HTMLElement).closest<HTMLElement>('.popover-menu');
+    // Menu sources can detach during the gesture; capture on the stable app root.
+    const trigger = restoring || menu ? root : (event.target as Element).closest<HTMLElement>('.terminal-tab, .path-input') || event.currentTarget as HTMLElement;
     const panel = restoring || existing && existing.id === ws.maximized ? { ...existing!, minimized: false } : existing || newPanel(kind, defaultDirectory(ws));
     const node = existing && !restoring ? value.items.get(existing.id)!.node : el('section', 'panel new-panel-drag');
     node.getAnimations().forEach(animation => animation.cancel());
@@ -686,8 +687,8 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
     const dropTabs = workspaceTabs;
     const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; });
     const events = new AbortController();
-    const pointerEvents = restoring ? window : trigger;
-    if (!restoring) trigger.setPointerCapture(event.pointerId);
+    const pointerEvents = restoring || menu ? window : trigger;
+    if (!restoring && !menu) trigger.setPointerCapture(event.pointerId);
     function finish(cancelled = false) {
         events.abort(); cancelDrag = () => {};
         if (trigger.hasPointerCapture(event.pointerId)) trigger.releasePointerCapture(event.pointerId);
@@ -725,6 +726,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         let applied = false;
         if (!cancelled && where) {
             for (const next of where.layout) { const old = ws.panels.find(p => p.id === next.id); if (old) Object.assign(old, next); else ws.panels.push(Object.assign(panel, next)); }
+            if (!existing && command !== undefined) initialCommands.set(panel, command);
             applied = true;
         }
         node.style.transform = ''; node.classList.remove('panel-dragging');
@@ -755,7 +757,8 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         if (!active && bar) { const bounds = bar.getBoundingClientRect(); if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) return; }
         move.preventDefault();
         if (!active) {
-            if (restoring) trigger.setPointerCapture(event.pointerId);
+            if (restoring || menu) trigger.setPointerCapture(event.pointerId);
+            if (!existing) menu?.hidePopover();
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             if (revealBar) {
                 // Make room for the drop row without resizing live terminal or GUI content.
@@ -1196,6 +1199,7 @@ function commandShortcutsMenu(anchor: HTMLElement) {
         const run = () => { close(); addPanel('terminal', defaultDirectory(current()), undefined, undefined, shortcut.command); };
         const launch = button(shortcut.name, undefined, run, 'command-shortcut-run');
         launch.dir = 'auto'; launch.setAttribute('role', 'menuitem');
+        launch.onpointerdown = event => beginDrag(event, 'terminal', undefined, shortcut.command);
         const actions = (opener: HTMLElement, position?: { x: number; y: number }) => tabMenu(opener, shortcut.name, false, [
             [t('commandShortcuts.run'), 'Play', run],
             [t('commandShortcuts.edit'), 'Pencil', () => { close(); editCommandShortcut(index); }],
