@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('.test-state', { recursive: true });
 await build({ entryPoints: ['web/model.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.test-state/model.mjs' });
-const { directoryPath, newWorkspace, cloneWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, snapLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
+const { directoryPath, newWorkspace, cloneWorkspace, orientWorkspace, newPanel, split, validGrid, addCompact, place, gridDrop, screenSnap, dropLayout, rearrange, cycleLayout, expandPanel, expandAfterClose } = await import('../.test-state/model.mjs');
 for (const [path, expected] of [[undefined, '/home/test'], ['', '/home/test'], ['~', '/home/test'], ['~/projects with spaces', '/home/test/projects with spaces'], ['/tmp/', '/tmp'], ['/', '/']]) assert.equal(directoryPath(path, '/home/test'), expected);
 for (const path of ['relative', '~other', '/tmp/\0']) assert.throws(() => directoryPath(path, '/home/test'));
 for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280, 800, 4, 2, 3], [1440, 1000, 4, 2, 3], [1920, 1080, 4, 2, 4], [2560, 1080, 4, 2, 4], [5120, 1440, 4, 2, 4], [900, 1200, 2, 4, 2], [390, 844, 2, 4, 2], [844, 390, 4, 2, 2], [1000, 1000, 4, 2, 2]]) {
@@ -202,7 +202,7 @@ for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {
     while (ws.panels.length < Math.min(5,ws.columns*ws.rows)) addCompact(ws,newPanel('terminal','/'));
     const target = screenSnap(ws,width*.8,2,width,height);
     assert.ok(target);
-    const next = snapLayout(ws,ws.panels.at(-1),target);
+    const next = dropLayout(ws,ws.panels.at(-1),target,true);
     assert.ok(next && validGrid({...ws,panels:next}));
     assert.equal(next.length,ws.panels.length);
     const arranged = rearrange(ws,width,height);
@@ -296,6 +296,15 @@ console.log(`PASS ${closeChecks} terminal closures: every side of pairs, T layou
     ws.panels = [terminal];
     expandAfterClose(ws, second);
     assert.deepEqual([terminal.x, terminal.y, terminal.w, terminal.h], [0, 0, 4, 2]);
+}
+
+{
+    const closed = { ...newPanel('files', '/'), x: 1, y: 0, w: 1, h: 1, minimized: true };
+    const files = { ...newPanel('files', '/'), x: 0, y: 0, w: 1, h: 1 };
+    const terminal = { ...newPanel('terminal', '/'), x: 2, y: 0, w: 1, h: 1 };
+    const ws = { columns: 4, rows: 2, panels: [files, terminal, closed] };
+    expandAfterClose(ws, closed);
+    assert.deepEqual([terminal.x, terminal.w, files.w], [1, 2, 1], 'terminal wins an equal-size expansion tie');
 }
 
 function fixture(width, height, files, terminals) {
@@ -451,8 +460,8 @@ console.log('PASS wider ultrawide terminals, area priorities and custom-layout r
     const incoming = { ...newPanel('terminal', '/'), minimized: true, terminal: 'keep-session' };
     const geometry = structuredClone(full.panels);
     assert.ok(restorePanel(full, incoming));
-    assert.equal(full.panels[0].minimized, true, 'full restore swaps first row-major window');
-    assert.deepEqual(full.panels.slice(1, 8), geometry.slice(1), 'unaffected destination windows stay exact');
+    assert.equal(full.panels[7].minimized, true, 'full restore swaps bottom-right window');
+    assert.deepEqual(full.panels.slice(0, 7), geometry.slice(0, 7), 'unaffected destination windows stay exact');
     assert.equal(incoming.terminal, 'keep-session'); assert.equal(incoming.minimized, false);
     assert.equal(full.panels.length, 9); assert.ok(validGrid(full));
     incoming.minimized = true;
@@ -465,9 +474,23 @@ console.log('PASS wider ultrawide terminals, area priorities and custom-layout r
     assert.ok(validGrid(full)); assert.equal(restorePanel(full, newPanel('files', '/')), false);
     assert.equal(addCompact(full, newPanel('files', '/')), false);
     assert.equal(dropLayout(full, newPanel('files', '/'), { x: 0, y: 0, w: 1, h: 1 }), undefined);
-    assert.equal(snapLayout(full, newPanel('files', '/'), { x: 0, y: 0, w: 1, h: 1 }), undefined);
     const clone = cloneWorkspace(full, '/', []);
     assert.deepEqual(clone.panels.map(p => !!p.minimized), full.panels.map(p => !!p.minimized));
     assert.equal(visiblePanels(clone).length, visiblePanels(full).length);
     console.log('PASS minimized capacity, restore/swap identity, exact unaffected geometry, automatic exclusion and orientation');
 }
+for (const portrait of [false, true]) for (const source of ['visible', 'minimized', 'new']) {
+    const columns = portrait ? 2 : 4, rows = portrait ? 4 : 2;
+    const panels = Array.from({ length: 8 }, (_, i) => ({ ...newPanel('terminal', '/'), id: `p${i}`, x: i % columns, y: Math.floor(i / columns), minimized: source === 'minimized' && i === 1 }));
+    const ws = { id: 'max', name: 'Max', columns, rows, active: 'p0', maximized: 'p0', panels };
+    const before = structuredClone(ws), incoming = source === 'new' ? newPanel('files', '/') : panels[1];
+    const target = { x: 0, y: 0, w: 2, h: 2 };
+    const planned = dropLayout(ws, incoming, target, true);
+    assert.ok(planned && validGrid({ ...ws, panels: planned }));
+    assert.deepEqual(ws, before, 'maximized drop preview leaves saved state unchanged');
+    assert.deepEqual(planned.filter(p => !p.minimized).map(p => p.id).sort(), ['p0', incoming.id].sort());
+    const kept = planned.find(p => p.id === 'p0');
+    assert.deepEqual([kept.x, kept.y, kept.w, kept.h], portrait ? [0, 2, 2, 2] : [2, 0, 2, 2]);
+    for (const hidden of planned.filter(p => p.minimized)) assert.deepEqual(hidden, { ...before.panels.find(p => p.id === hidden.id), minimized: true });
+}
+console.log('PASS maximized drops compose two windows and preserve all other sessions in the bar');

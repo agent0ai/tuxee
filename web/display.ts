@@ -186,7 +186,7 @@ export class TerminalDisplay {
         this.controls.hidden = compact && !this.state?.windows?.length;
         clearTimeout(this.resizeTimer);
         this.resizeTimer = setTimeout(() => {
-            if (this.disposed || !this.frame.checkVisibility() || this.root.closest('.resizing-panel, .resizing-dividers')) return;
+            if (this.disposed || !this.frame.checkVisibility() || this.root.closest('.resizing-panel, .resizing-dividers, .resizing-content')) return;
             // Keep noVNC's viewport fixed until the outer panel has settled.
             this.screen.style.width = `${this.frame.clientWidth}px`;
             this.screen.style.height = `${this.frame.clientHeight}px`;

@@ -64,6 +64,20 @@ const full = workspace(Array.from({ length: 8 }, (_, i) => panel(String(i), i % 
 assert.equal(dropLayout(full, full.panels[0], { x: 0, y: 0, w: 2, h: 1 }), undefined, 'reject a full grid without deleting a panel');
 assert.equal(dropLayout(full, moving, { x: 0, y: 0, w: 1, h: 1 }), undefined, 'new panels do not vacate a cell');
 assert.equal(dropLayout(full, full.panels[0], { x: -1, y: 0, w: 2, h: 1 }), undefined);
+for (const source of [moving, full.panels[0]]) {
+    const before = structuredClone(full), rect = { x: 2, y: 0, w: 2, h: 2 };
+    const result = dropLayout(full, source, rect, true);
+    assert.ok(validGrid({ ...full, panels: result }));
+    assert.deepEqual(geometry(result.find(p => p.id === source.id)), [2, 0, 2, 2]);
+    assert.equal(result.filter(p => p.minimized).length, source === moving ? 4 : 3);
+    assert.deepEqual(result.filter(p => ['1', '4', '5'].includes(p.id)), full.panels.filter(p => ['1', '4', '5'].includes(p.id)));
+    assert.deepEqual(full, before);
+}
+
+const crowded = workspace([panel('fixed', 0, 0, 2, 2), panel('a', 2, 0, 1, 1), panel('b', 3, 0, 1, 1), panel('c', 2, 1, 1, 1)]);
+const rescued = dropLayout(crowded, moving, { x: 2, y: 0, w: 2, h: 2 }, true);
+assert.ok(validGrid({ ...crowded, panels: rescued }));
+assert.equal(rescued.filter(p => p.minimized).length, 0, 'shrink another window before minimizing displaced windows');
 console.log('PASS shared dividers and drop relocation: exact four-cell example, nearest free cell, move/shrink, coordinated blockers and full-grid rejection');
 
 let seed = 12345, checked = 0, slowest = 0;
@@ -88,6 +102,9 @@ for (const [columns, rows] of [[4, 2], [2, 4]]) for (let sample = 0; sample < 60
             const start = performance.now(), result = dropLayout(ws, source, target);
             slowest = Math.max(slowest, performance.now() - start); checked++;
             assert.equal(!!result, possible, JSON.stringify({ ws, source, target }));
+            const overflow = dropLayout(ws, source, target, true);
+            assert.ok(overflow && validGrid({ ...ws, panels: overflow }), 'every in-bounds drag/resize fits');
+            assert.equal(overflow.filter(p => p.minimized).length, Math.max(0, others.length - (columns * rows - w * h)), 'minimize only when all windows cannot fit');
             if (!result) continue;
             assert.ok(validGrid({ ...ws, panels: result }));
             assert.equal(result.length, others.length + 1);

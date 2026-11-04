@@ -800,8 +800,8 @@ export class TerminalView implements View {
     private fitSize() {
         if (this.disposed || this.cancelDrawerResize || !this.host.isConnected || this.host.clientWidth < 30 || this.host.clientHeight < 30)
             return;
+        if (this.root.closest('.resizing-panel, .resizing-dividers, .resizing-content')) return;
         this.term.refresh(0, this.term.rows - 1);
-        if (this.root.closest('.resizing-panel, .resizing-dividers')) return;
         if (!this.canUpload() || this.resizing)
             return;
         const proposed = terminalDimensions(this.term);

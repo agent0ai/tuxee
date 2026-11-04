@@ -134,6 +134,8 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
             window.addEventListener('pointermove', e => {
                 if (e.pointerId !== event.pointerId) return;
                 const delta = vertical ? e.clientY - event.clientY : e.clientX - event.clientX;
+                const zone = item.closest('.window-bar') && (parent.classList.contains('overflow-tabs') ? parent : item.closest<HTMLElement>('.window-bar'));
+                if (zone) { const bounds = zone.getBoundingClientRect(); if (e.clientX < bounds.left || e.clientX >= bounds.right || e.clientY < bounds.top || e.clientY >= bounds.bottom) { finish(); return; } }
                 if (!started) {
                     if (Math.abs(delta) < 5) return;
                     started = true; suppressClick = true; handle.setPointerCapture(event.pointerId);

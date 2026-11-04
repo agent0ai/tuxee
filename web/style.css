@@ -337,7 +337,7 @@ h3 {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  padding: 5px;
+  padding: 3px;
 }
 .grid-stack {
   height: 100% !important;
@@ -1158,7 +1158,7 @@ h3 {
 .panel-resize-sw { left: 0; cursor: sw-resize; clip-path: polygon(0 0,100% 100%,0 100%); }
 .compact-board .panel-resize { display: none; }
 .grid-vacancy { position: absolute; z-index: 110; pointer-events: none; padding: 5px; opacity: 0; transition: opacity .12s; }
-.grid-vacancy::after { content: ''; display: block; width: 100%; height: 100%; border: 1px dashed var(--line); border-radius: 10px; background: #5877ed0a; }
+.grid-vacancy::after { content: ''; display: block; width: 100%; height: 100%; border-radius: 10px; background: #5877ed0a; }
 .docking .grid-vacancy { opacity: .7; }
 .workspace-divider { position: absolute; z-index: 22; touch-action: none; outline: none; }
 .workspace-divider[data-axis=x] { cursor: ew-resize; }
@@ -1503,8 +1503,17 @@ pre, code, .process-label small {
 }
 
 /* Desktop window membership is independent of the saved grid. */
-.window-bar:not([hidden]) { display: flex; flex: 0 0 auto; padding: 2px 8px; min-height: 32px; background: transparent; }
-.window-bar .component-tab-item { background: var(--surface); }
+.window-bar { display: flex; position: relative; flex: 0 0 auto; align-items: center; padding: 0 6px; min-height: 27px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.window-bar .component-tab-item { border: 0; background: transparent; }
 .window-maximize.active { background: var(--accent-bg); color: var(--accent); }
 .window-minimize svg { transform: translateY(3px); }
-.maximized-board .panel-resize { display: none; }
+
+.window-bar .visible-tabs > .component-tab-item + .component-tab-item::before { content: none; }
+.window-bar .component-tab-item.tab-dragging { background: var(--raised); }
+.window-bar .component-tab { min-height: 25px; padding-block: 2px; border: 0; background: transparent; }
+.window-bar .component-tab:hover { background: transparent; }
+.window-bar .component-menu { min-width: 0; min-height: 23px; padding: 4px; margin-inline-end: 5px; }
+.window-bar .component-menu:hover { background: var(--raised); }
+.window-bar .overflow-toggle { min-height: 25px; padding: 2px 6px; }
+
+.window-drop-marker { position: absolute; top: 3px; bottom: 3px; width: 2px; background: var(--accent); border-radius: 2px; pointer-events: none; }

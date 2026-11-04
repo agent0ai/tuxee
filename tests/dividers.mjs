@@ -32,7 +32,7 @@ await page.addInitScript(() => {
     window.geometryFrames = {};
     const animate = Element.prototype.animate;
     Element.prototype.animate = function(frames, options) {
-        if (this.dataset.panel && Array.isArray(frames) && frames[0]?.width) window.geometryFrames[this.dataset.panel] = frames;
+        if (this.dataset.panel && Array.isArray(frames) && (frames[0]?.transform || frames[0]?.width)) window.geometryFrames[this.dataset.panel] = frames;
         return animate.call(this, frames, options);
     };
 });
@@ -73,7 +73,7 @@ async function drag(handle, dx, dy, cancel = false) {
     await page.mouse.up();
     if (!cancel) {
         const frames = await page.evaluate(() => window.geometryFrames.a);
-        if (frames?.length) assert.ok(Math.abs(parseFloat(frames[0].width) - live.width) < 2);
+        if (frames?.length) assert.ok(Math.abs(parseFloat(frames[0].width) - live.width) < 2, 'snap starts at the released frame size');
         else {
             const settled = await item('a').boundingBox();
             assert.ok(['x', 'y', 'width', 'height'].every(key => Math.abs(settled[key] - live[key]) < 2), 'a release already on the grid needs no animation');
@@ -204,7 +204,7 @@ try {
         { name: 'move and shrink', edge: 'se', panels: [panel('a', 0, 0, 1, 1), panel('b', 1, 0, 2, 1), panel('c', 0, 1, 2, 1), panel('d', 3, 0, 1, 2)], dx: 1.8, dy: 0, expected: [[0, 0, 3, 1], [2, 1, 1, 1], [0, 1, 2, 1], [3, 0, 1, 2]] },
         { name: 'southwest', edge: 'sw', panels: [panel('a', 2, 0, 2, 1), panel('b', 1, 0, 1, 1), panel('c', 0, 0, 1, 2)], dx: -.8, dy: 0, expected: [[1, 0, 3, 1], [1, 1, 1, 1], [0, 0, 1, 2]] },
         { name: 'two axes and blockers', edge: 'se', panels: [panel('a', 0, 0, 1, 1), panel('b', 1, 0, 1, 1), panel('c', 0, 1, 1, 1)], dx: .8, dy: .8, expected: [[0, 0, 2, 2], [2, 0, 1, 1], [2, 1, 1, 1]] },
-        { name: 'full grid', edge: 'se', panels: Array.from({ length: 8 }, (_, i) => panel(String.fromCharCode(97 + i), i % 4, Math.floor(i / 4), 1, 1)), dx: .8, dy: 0, invalid: true },
+        { name: 'full grid', edge: 'se', panels: Array.from({ length: 8 }, (_, i) => panel(String.fromCharCode(97 + i), i % 4, Math.floor(i / 4), 1, 1)), dx: .8, dy: 0, expected: [[0, 0, 2, 1], ...Array.from({ length: 7 }, (_, n) => [(n + 1) % 4, Math.floor((n + 1) / 4), 1, 1])] },
         { name: 'same cell', edge: 'se', panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)], dx: -.1, dy: -.1, expected: [[0, 0, 2, 2], [2, 0, 2, 2]], unchanged: true },
         { name: 'minimum', edge: 'se', panels: [panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)], dx: -8, dy: -8, expected: [[0, 0, 1, 1], [2, 0, 2, 2]] },
         { name: 'bounds', edge: 'se', panels: [panel('a', 1, 0, 1, 1), panel('b', 0, 0, 1, 2)], dx: 8, dy: 8, expected: [[1, 0, 3, 2], [0, 0, 1, 2]] },
@@ -218,12 +218,17 @@ try {
         const grip = await resizePoint(item('a').locator(`.panel-resize-${test.edge}`));
         await page.waitForTimeout(350);
         const sentBefore = terminalResizes;
+        const chromeBefore = await item('a').evaluate(node => ['.panel-header', '.panel-tools', '.terminal-footer'].map(selector => node.querySelector(selector).getBoundingClientRect().height));
+        const contentBefore = await item('a').locator('.xterm').boundingBox();
         await page.mouse.move(grip.x, grip.y); await page.mouse.down();
         await page.mouse.move(grip.x + test.dx * bounds.width / (test.portrait ? 2 : 4),
             grip.y + test.dy * bounds.height / (test.portrait ? 4 : 2), { steps: 6 });
         const preview = page.locator('.dock-preview[data-edge=resize]'); await preview.waitFor();
         await page.waitForTimeout(150);
         assert.equal(terminalResizes, sentBefore, 'paused panel preview does not resize any PTY');
+        assert.deepEqual(await item('a').evaluate(node => ['.panel-header', '.panel-tools', '.terminal-footer'].map(selector => node.querySelector(selector).getBoundingClientRect().height)), chromeBefore, 'resize keeps chrome at its normal size');
+        const contentDuring = await item('a').locator('.xterm').boundingBox();
+        assert.ok(Math.abs(contentDuring.width - contentBefore.width) < 1 && Math.abs(contentDuring.height - contentBefore.height) < 1, 'terminal content stays at its original pixel size while the frame clips or expands');
         assert.equal(await preview.evaluate(node => node.classList.contains('invalid')), !!test.invalid, test.name);
         for (const p of panels) assert.deepEqual(await rect(p.id), [p.x, p.y, p.w, p.h], 'preview preserves saved geometry');
         const live = await item('a').boundingBox();
@@ -234,8 +239,7 @@ try {
         const settled = await item('a').boundingBox();
         if (['x', 'y', 'width', 'height'].some(key => Math.abs(live[key] - settled[key]) > 2)) {
             assert.ok(frames?.length, 'animate the resized window into its snapped size');
-            for (const key of ['width', 'height']) assert.ok(Math.abs(parseFloat(frames[0][key]) - live[key]) < 2, 'animate from the exact released dimensions');
-            assert.ok(!frames[0].transform.includes('scale'), 'never scale terminal text');
+            assert.ok(frames[0].width && !frames[0].transform, 'snap animates the actual frame without scaling chrome');
         }
         if (expected[1].some((n, i) => n !== [panels[1].x, panels[1].y, panels[1].w, panels[1].h][i]))
             assert.ok(await page.evaluate(() => window.geometryFrames.b?.length), 'animate the affected neighbor');
@@ -243,7 +247,8 @@ try {
         assert.equal(await page.locator('.layout-cycle').getAttribute('data-mode'), test.invalid || test.unchanged ? '1' : '0');
         assert.equal(await page.locator('.resizing-panel, .panel-dragging, .dock-preview').count(), 0);
         if (test.name === 'move and shrink') await page.screenshot({ path: 'test-results/resize-move-and-shrink.png' });
-        await page.waitForTimeout(350); await page.reload(); await item('b').locator('.terminal-view[data-state=connected]').waitFor();
+        await page.waitForTimeout(350); await page.reload(); await item('b').locator('.terminal-view[data-state=connected]').waitFor({ state: test.name === 'full grid' ? 'attached' : 'visible' });
+        if (test.name === 'full grid') assert.equal(await item('b').isVisible(), false, 'displaced terminal stays minimized after reload');
         for (let i = 0; i < panels.length; i++) assert.deepEqual(await rect(panels[i].id), expected[i], `${test.name} persists`);
     }
     for (const cancel of ['Escape', 'blur', 'pointercancel', 'resize']) {
@@ -270,7 +275,7 @@ try {
     await page.waitForTimeout(220);
     assert.deepEqual(await rect('a'), [0, 0, 1, 2]); assert.deepEqual(await rect('b'), [1, 0, 3, 2]);
     assert.ok(await fileNode.evaluate(node => node === document.querySelector('[data-panel=b] .file-view')));
-    console.log('PASS panel edge/corner resize: trim, relocate, move/shrink, two blockers, bounds/minimums, rejection, cancellation, animation, DOM/PTY identity and persistence');
+    console.log('PASS panel edge/corner resize: trim, relocate, move/shrink, two blockers, bounds/minimums, minimization, cancellation, animation, DOM/PTY identity and persistence');
     await fixture([panel('a', 0, 0, 2, 2), panel('b', 2, 0, 2, 2)]);
     assert.equal(await page.locator('.layout-cycle').getAttribute('title'), 'Auto layout');
     await page.locator('.monitor-controls').waitFor({ state: 'visible' });
@@ -338,13 +343,15 @@ try {
         if (size === 'wide') { await page.setViewportSize({ width: 2560, height: 1080 }); await page.waitForTimeout(250); }
         await item('b').locator('.terminal-view[data-state=connected]').waitFor();
         const originalA = await item('a').locator('.xterm').elementHandle(), originalB = await item('b').locator('.xterm').elementHandle();
-        const fixed = await rect('c'), bounds = await page.locator('.grid-stack').boundingBox();
+        const fixed = await rect('c');
         const columns = portrait ? 2 : 4, rows = portrait ? 4 : 2;
         const expectedA = direction === 'bottom' ? [0, 1, 2, 1] : [1, 0, 1, 2];
         const expectedB = direction === 'bottom' ? [1, 0, 1, 1] : [0, 1, 1, 1];
         for (const cancel of [true, false]) {
             const head = await item('a').locator('.panel-header').boundingBox();
             await page.mouse.move(head.x + 45, head.y + head.height / 2); await page.mouse.down();
+            await page.mouse.move(head.x + 55, head.y + head.height / 2 + 20, { steps: 2 });
+            const bounds = await page.locator('.grid-stack').boundingBox();
             const x = direction === 'bottom' ? 1 : 1.5, y = direction === 'bottom' ? 1.5 : 1;
             const offset = cancel ? -8 : 8;
             await page.mouse.move(bounds.x + x * bounds.width / columns + (direction === 'bottom' ? offset : 0),
@@ -393,9 +400,10 @@ try {
     const fullGrid = await page.locator('.grid-stack').boundingBox(), add = await page.getByRole('button', { name: 'Add file browser', exact: true }).boundingBox();
     await page.mouse.move(add.x + add.width / 2, add.y + add.height / 2); await page.mouse.down();
     await page.mouse.move(fullGrid.x + fullGrid.width / 4, fullGrid.y + fullGrid.height / 4, { steps: 6 });
-    await page.locator('.dock-preview[data-edge=empty].invalid').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
-    assert.equal(await page.locator('[data-panel]').count(), 7, 'insufficient space never removes a window');
-    console.log('PASS bottom/right relocation, occupied/vacant-side previews, cancellation, animations, original terminals, persistence, full-grid rejection and compact header spacing');
+    await page.locator('.dock-preview[data-edge=empty]:not(.invalid)').waitFor(); await page.mouse.up(); await page.waitForTimeout(220);
+    assert.equal(await page.locator('[data-panel]').count(), 8, 'full-grid drop retains every window');
+    assert.equal((await (await api('/me')).json()).settings.workspaces[0].panels.filter(p => p.minimized).length, 1);
+    console.log('PASS bottom/right relocation, occupied/vacant-side previews, cancellation, animations, original terminals, persistence, full-grid minimization and compact header spacing');
     await fixture([panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 1), panel('c', 0, 1, 2, 1)], false, 1);
     const survivingTerminal = await item('a').locator('.terminal-view').elementHandle(), survivingFiles = await item('b').locator('.file-view').elementHandle();
     const previousFiles = await item('b').boundingBox(), previousTerminal = await item('a').boundingBox();
@@ -405,8 +413,7 @@ try {
     assert.deepEqual(await rect('b'), [0, 0, 2, 2]); assert.deepEqual(await rect('a'), [2, 0, 2, 2]);
     const frames = await page.evaluate(() => window.geometryFrames.b);
     assert.ok(frames?.length, 'expand the neighbor with the existing geometry animation');
-    assert.ok(Math.abs(parseFloat(frames[0].height) - previousFiles.height) < 2);
-    assert.ok(parseFloat(frames.at(-1).height) > previousFiles.height);
+    assert.ok(frames[0].width && !frames[0].transform, 'animate the frame without scaling its contents');
     assert.ok(await survivingFiles.evaluate(node => node === document.querySelector('[data-panel=b] .file-view')));
     assert.ok(await survivingTerminal.evaluate(node => node === document.querySelector('[data-panel=a] .terminal-view')));
     assert.deepEqual(await item('a').boundingBox(), previousTerminal);
