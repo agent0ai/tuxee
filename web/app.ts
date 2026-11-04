@@ -627,6 +627,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel) {
         if (!existing) node.remove();
         if (applied) { ws.active = panel.id; layoutChanged(ws, before); render(); }
         else renderVacancies(value);
+        if (applied && !existing && kind === 'terminal') focusActivePanel();
         const settled = existing ? node : applied ? value.items.get(panel.id)?.node : undefined;
         if (settled) {
             settled.getAnimations().forEach(animation => animation.cancel());
@@ -758,6 +759,7 @@ function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: Ter
         .sort((a, b) => b.w * b.h - a.w * a.h || Number(a.kind === 'terminal') - Number(b.kind === 'terminal'))[0];
     if (!(target ? splitPanel(target, panel) : addCompact(ws, panel, near))) throw new Error(t("app.workspaceFull"));
     ws.active = panel.id; layoutChanged(ws); render();
+    if (kind === 'terminal') focusActivePanel();
     return panel;
 }
 async function openFileBrowser(owner: Mounted, path: string, line?: number, column?: number) {
@@ -775,6 +777,7 @@ function addSplitPanel(kind: Kind, target: Panel) {
     const ws = current(), panel = newPanel(kind, defaultDirectory(ws));
     if (!splitPanel(target, panel)) return;
     ws.active = panel.id; layoutChanged(ws); render();
+    if (kind === 'terminal') focusActivePanel();
 }
 function stopPanel(panel: Panel, value?: Mounted) {
     if (panel.kind !== 'terminal') return;
@@ -1048,7 +1051,7 @@ async function runShortcut(action: string) {
     switch (action) {
         case 'desktop.add': await createWorkspace(); focusActivePanel(); break;
         case 'desktop.close': await closeWorkspace(ws); focusActivePanel(); break;
-        case 'panel.terminal': addPanel('terminal'); focusActivePanel(); break;
+        case 'panel.terminal': addPanel('terminal'); break;
         case 'panel.files': addPanel('files'); focusActivePanel(); break;
         case 'panel.close': {
             const panel = ws.panels.find(panel => panel.id === focused);

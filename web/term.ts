@@ -382,7 +382,7 @@ export class TerminalView implements View {
         this.root.tabIndex = -1;
         this.root.focus({ preventScroll: true });
         await this.starting;
-        if (!this.disposed && document.activeElement === this.root) {
+        if (!this.disposed && !this.closing && document.activeElement === this.root) {
             if (this.display.visible) this.display.focusContent(); else this.focusInput();
         }
     }
