@@ -58,6 +58,16 @@ try {
     const dialog = page.locator('dialog:has(.command-shortcut-form)');
     const rows = page.locator('.command-shortcut-row');
     const terminal = page.locator('[data-panel]').filter({ has: page.locator('.terminal-view') });
+    for (const theme of ['dark', 'light']) {
+        if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('.theme-toggle').click();
+        const buttons = await page.locator('.panel-additions > button').evaluateAll(nodes => nodes.map(node => ({
+            kind: node.dataset.kind || (node.classList.contains('command-shortcuts-toggle') ? 'shortcuts' : node.classList.contains('layout-cycle') ? 'layout' : ''),
+            color: getComputedStyle(node).color,
+        })));
+        assert.deepEqual(buttons.map(button => button.kind), ['files', 'terminal', 'shortcuts', 'layout']);
+        assert.equal(new Set(buttons.map(button => button.color)).size, 1, `${theme} toolbar colors match`);
+    }
+    await page.locator('.theme-toggle').click();
     const poll = async (check, message) => { for (let i = 0; i < 160; i++) { if (await check()) return; await page.waitForTimeout(50); } assert.fail(message); };
     const saved = async () => { await dialog.waitFor({ state: 'detached' }); await page.waitForTimeout(300); };
     async function add(name, command) {
@@ -160,6 +170,8 @@ try {
     console.log('PASS GUI shortcut opens real xterm and accepts input through authenticated display WebSocket');
 
     await page.setViewportSize({ width: 320, height: 700 }); await page.waitForTimeout(350); await toggle.tap();
+    const compactColors = await page.locator('.component-controls .add-panel, .command-shortcuts-toggle').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).color));
+    assert.equal(compactColors.length, 3); assert.equal(new Set(compactColors).size, 1, 'compact controls share the accent color');
     const box = await toggle.boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 320);
     await rows.first().locator('.component-menu').tap(); await page.getByRole('menuitem', { name: 'Edit', exact: true }).tap();
     await dialog.locator('textarea').fill(command + '\n');

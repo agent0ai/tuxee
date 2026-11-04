@@ -286,9 +286,15 @@ function renderChrome() {
     const right = el('div', 'topbar-right'), additions = el('div', 'panel-additions');
     for (const [kind, label, name] of [['files', t("app.addFileBrowser"), 'FolderPlus'], ['terminal', t("app.addTerminal"), 'SquareTerminal']] as const) {
         const add = button(label, name, () => addPanel(kind), 'add-panel');
+        add.dataset.kind = kind;
         add.onpointerdown = event => { if (!compact) beginDrag(event, kind); };
         additions.append(add);
     }
+    let closeCommands = () => {};
+    const commands = button(t('commandShortcuts.title'), 'Star', () => { closeCommands = commandShortcutsMenu(commands); }, 'command-shortcuts-toggle');
+    commands.setAttribute('aria-haspopup', 'menu');
+    (compact ? right : additions).append(commands);
+    chromeDisposers.push(() => closeCommands());
     if (!compact) {
         let collapseTimer: ReturnType<typeof setTimeout> | undefined;
         const collapseLater = () => {
@@ -310,11 +316,6 @@ function renderChrome() {
         additions.append(arrange);
     }
     if (!compact) right.append(additions);
-    let closeCommands = () => {};
-    const commands = button(t('commandShortcuts.title'), 'Star', () => { closeCommands = commandShortcutsMenu(commands); }, 'command-shortcuts-toggle');
-    commands.setAttribute('aria-haspopup', 'menu');
-    (compact ? right : additions).append(commands);
-    chromeDisposers.push(() => closeCommands());
     if (!compact && monitoring) {
         const monitor = el('div', 'monitor-controls');
         monitor.append(monitoring.summary()); right.append(monitor);

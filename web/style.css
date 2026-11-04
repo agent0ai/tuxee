@@ -293,7 +293,7 @@ h3 {
 :root[data-theme=light] .brand {
   mix-blend-mode: normal;
 }
-.add-panel {
+.add-panel, .command-shortcuts-toggle, .layout-cycle {
   color: var(--accent);
 }
 .workspace-tabs {
