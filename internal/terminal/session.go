@@ -119,7 +119,9 @@ type Session struct {
 type Attachment struct {
 	session         *Session
 	ID              string
+	viewer          string
 	Events          chan Event
+	Done            chan struct{}
 	queued          int
 	closed          bool
 	releaseSnapshot func()
@@ -477,6 +479,23 @@ func (m *Manager) acquireSnapshot(ctx context.Context) (func(), error) {
 }
 
 func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
+	return s.AttachViewer(ctx, "")
+}
+
+func (s *Session) AttachViewer(ctx context.Context, viewer string) (*Attachment, error) {
+	if viewer != "" {
+		s.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			s.mu.Unlock()
+			return nil, err
+		}
+		for _, old := range s.views {
+			if old.viewer == viewer {
+				s.detachLocked(old)
+			}
+		}
+		s.mu.Unlock()
+	}
 	release, err := s.manager.acquireSnapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -489,13 +508,24 @@ func (s *Session) Attach(ctx context.Context) (*Attachment, error) {
 	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if s.closed {
 		return nil, i18n.New("backend.terminal.terminalIsClosed")
+	}
+	// A concurrent reconnect may have attached while this recovery waited.
+	if viewer != "" {
+		for _, old := range s.views {
+			if old.viewer == viewer {
+				s.detachLocked(old)
+			}
+		}
 	}
 	if len(s.views) >= 8 {
 		return nil, i18n.New("backend.terminal.tooManyTerminalAttachments")
 	}
-	a := &Attachment{session: s, ID: newID(), Events: make(chan Event, 512), releaseSnapshot: release}
+	a := &Attachment{session: s, ID: newID(), viewer: viewer, Events: make(chan Event, 512), Done: make(chan struct{}), releaseSnapshot: release}
 	snapshot, err := s.engine.Capture()
 	if err != nil {
 		return nil, err
@@ -560,6 +590,7 @@ func (s *Session) detachLocked(a *Attachment) {
 	if s.controller == a.ID {
 		s.controller = ""
 	}
+	close(a.Done)
 	close(a.Events)
 }
 func (a *Attachment) Write(ctx context.Context, data []byte) error {

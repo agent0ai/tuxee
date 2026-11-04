@@ -58,7 +58,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     page.setDefaultTimeout(10000);
     const sockets = [];
-    page.on('websocket', socket => { if (/\/terminals\/[^/]+\/ws$/.test(socket.url())) sockets.push(socket); });
+    page.on('websocket', socket => { if (/\/terminals\/[^/]+\/ws$/.test(new URL(socket.url()).pathname)) sockets.push(socket); });
     const defaultFamily = 'ui-monospace, SFMono-Regular, Consolas, monospace';
     const customFamily = '"DejaVu Sans Mono", monospace';
     const font = (size, family = defaultFamily) => page.waitForFunction(({ size, family }) => {

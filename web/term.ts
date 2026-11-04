@@ -9,7 +9,7 @@ import { api, APIError, button, el, notify, ask, popover, confirmAction, focusPa
 import { registerFileDrop, registerUploadInput, setDropFeedback, shellPaths, animateFileDrop, type DraggedFile } from './file-drag';
 import { readFileClipboard } from './file-clipboard';
 import { uploadBatch, type UploadSource } from './transfers';
-import { join, type Panel, type Hooks, type View, type TerminalInfo } from './model';
+import { id, join, type Panel, type Hooks, type View, type TerminalInfo } from './model';
 const creating = new Map<string, Promise<TerminalInfo>>();
 export const TERMINAL_FONT = { size: 13, family: 'ui-monospace, SFMono-Regular, Consolas, monospace', maxFamilyLength: 512 } as const;
 function terminalFontFamily(value: string) {
@@ -29,6 +29,7 @@ export class TerminalView implements View {
     readonly term: Terminal;
     private display: TerminalDisplay;
     private socket?: WebSocket;
+    private viewer = id();
     private disposed = false;
     private controller = false;
     private ready = false;
@@ -70,6 +71,9 @@ export class TerminalView implements View {
     private hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')?.content || '';
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT.size, fontFamily: string = TERMINAL_FONT.family, command?: string) {
         fontFamily = terminalFontFamily(fontFamily);
+        window.addEventListener('tuxee-connected', () => {
+            if (this.socket && !this.ended && !this.resetting) this.connect();
+        }, { signal: this.events.signal });
         root.classList.add('terminal-view');
         Terminal.strings.promptLabel = t('terminal.inputLabel');
         Terminal.strings.tooMuchOutput = t('terminal.tooMuchOutput');
@@ -605,7 +609,7 @@ export class TerminalView implements View {
         this.resizing = false; this.lastSize = '';
         this.state('connecting');
         const terminal = this.panel.terminal;
-        const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${terminal}/ws`);
+        const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${terminal}/ws?viewer=${this.viewer}`);
         ws.binaryType = 'arraybuffer';
         let received = 0, queuedBytes = 0, queuedFrames = 0;
         const current = () => !this.disposed && this.socket === ws && ws.readyState === WebSocket.OPEN;

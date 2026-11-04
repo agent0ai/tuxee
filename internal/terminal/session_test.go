@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -240,6 +241,78 @@ func TestDetachedPTYAndController(t *testing.T) {
 	if _, err = m.Get(u, s.info.ID); err == nil {
 		t.Fatal("explicitly closed terminal remains listed")
 	}
+}
+
+func TestReconnectReplacesOnlyItsOwnViewer(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("credential-switching integration requires root")
+	}
+	u, err := identity.Lookup("root")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := NewManager()
+	defer m.Close()
+	s, err := m.Create(u, t.TempDir(), "test", 80, 24, "", "", "", "/bin/sh", false, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.AttachViewer(context.Background(), "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		<-a.Done
+		if len(m.recoveries) != 2 {
+			t.Error("stale snapshot permit released before transport closure")
+		}
+		a.Close()
+	}()
+	if event := <-a.Events; !event.Control {
+		t.Fatal("first viewer lacks control")
+	}
+	canceled, cancelNow := context.WithCancel(context.Background())
+	cancelNow()
+	if _, err := s.AttachViewer(canceled, "first"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled recovery: %v", err)
+	}
+	if err := a.Write(context.Background(), []byte("x")); err != nil {
+		t.Fatalf("canceled recovery detached the active viewer: %v", err)
+	}
+	b, err := s.AttachViewer(context.Background(), "second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bSnapshot := <-b.Events
+	if bSnapshot.Control {
+		t.Fatal("second viewer stole control")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	replacement, err := s.AttachViewer(ctx, "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { <-replacement.Done; replacement.Close() }()
+	if event := <-replacement.Events; !event.Control {
+		t.Fatal("replacement did not recover control")
+	}
+	if err := a.Write(context.Background(), []byte("x")); err == nil {
+		t.Fatal("stale attachment accepted input")
+	}
+	b.Release(bSnapshot)
+	if err := b.TakeControl(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := s.AttachViewer(ctx, "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event := <-again.Events; event.Control {
+		t.Fatal("replacement stole another viewer's control")
+	}
+	again.Close()
+	b.Close()
 }
 
 func TestManagerCloseWaitsForClosingTerminal(t *testing.T) {

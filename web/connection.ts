@@ -44,7 +44,9 @@ export class BackendConnection {
             request.signal.throwIfAborted();
             if (this.events.signal.aborted) return;
             if (!state.authenticated) this.expired();
+            const recovered = !!this.dialog && state.authenticated;
             this.hide();
+            if (recovered) window.dispatchEvent(new Event('tuxee-connected'));
         } catch {
             if (!this.events.signal.aborted && !document.hidden) this.show();
         } finally {

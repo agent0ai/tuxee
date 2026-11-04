@@ -80,6 +80,46 @@ func terminalAck(ctx context.Context, c *websocket.Conn, sequence uint64) error 
 	return c.Write(ctx, websocket.MessageText, data)
 }
 
+func TestTerminalViewerIDValidation(t *testing.T) {
+	_, _, address := terminalFixture(t, "")
+	for _, viewer := range []string{"short", strings.Repeat("g", 32), strings.Repeat("a", 33)} {
+		req, err := http.NewRequest("GET", address+"?viewer="+viewer, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Origin", "http://localhost")
+		response, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusBadRequest {
+			t.Fatalf("viewer %q: status %d", viewer, response.StatusCode)
+		}
+	}
+}
+
+func TestTerminalViewerReplacesUnacknowledgedSnapshot(t *testing.T) {
+	_, _, address := terminalFixture(t, "")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	first := dialTerminal(t, ctx, address+"?viewer="+strings.Repeat("a", 32))
+	defer first.CloseNow()
+	if event, _, err := readTerminalFrame(ctx, first); err != nil || !event.Control {
+		t.Fatalf("first snapshot: control=%v, error=%v", event.Control, err)
+	}
+	other := dialTerminal(t, ctx, address+"?viewer="+strings.Repeat("b", 32))
+	defer other.CloseNow()
+	if event, _, err := readTerminalFrame(ctx, other); err != nil || event.Control {
+		t.Fatalf("other snapshot: control=%v, error=%v", event.Control, err)
+	}
+	replacement := dialTerminal(t, ctx, address+"?viewer="+strings.Repeat("a", 32))
+	defer replacement.CloseNow()
+	if event, _, err := readTerminalFrame(ctx, replacement); err != nil || !event.Control {
+		t.Fatalf("replacement snapshot: control=%v, error=%v", event.Control, err)
+	}
+}
+
 func TestTerminalThroughput(t *testing.T) {
 	if os.Getenv("TUXEE_TERMINAL_BENCHMARK") == "" {
 		t.Skip("opt-in transport benchmark")

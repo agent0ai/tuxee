@@ -61,7 +61,7 @@ try {
         timers.add(timer);
     };
     // Delay both directions independently; preserve WebSocket ordering, with no per-message serialization delay.
-    await page.routeWebSocket('**/api/terminals/*/ws', socket => {
+    await page.routeWebSocket('**/api/terminals/*/ws*', socket => {
         connections++;
         const server = socket.connectToServer();
         socket.onMessage(message => forward(server, message));

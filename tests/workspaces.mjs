@@ -26,7 +26,7 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
 const page = await appPage(context), sockets = [], terminals = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('websocket', socket => {
-    if (!/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) return;
+    if (!/\/api\/terminals\/[^/]+\/ws$/.test(new URL(socket.url()).pathname)) return;
     const record = { url: socket.url(), closed: false, snapshots: 0 };
     sockets.push(record);
     socket.on('close', () => { record.closed = true; });

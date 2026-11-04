@@ -25,7 +25,7 @@ page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => {
     if (/^\/api\/terminals(?:\/[^/]+)?$/.test(new URL(request.url()).pathname) && ['POST', 'DELETE'].includes(request.method())) mutations.push(request);
 });
-page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) sockets.push(socket); });
+page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/ws$/.test(new URL(socket.url()).pathname)) sockets.push(socket); });
 page.on('response', async response => {
     if (response.url() === base + '/api/terminals' && response.request().method() === 'POST' && response.ok()) {
         created.push((await response.json()).id); creations++;

@@ -104,6 +104,8 @@ Terminal DELETE reports guardian cleanup failure and retains the server session/
 
 Content APIs use the same authenticated user worker. File-operation JSON is bounded at 8 MiB to accommodate escaped 1 MiB editor pages, including their original byte ranges and hashes. Inline previews allow only selected image/PDF/audio/video MIME types, never HTML/SVG. The /api/preview/{filename}?path= route carries the original filename in its URL and Content-Disposition for native viewers. Responses are private/no-store, use same-origin frames with restrictive CSP, and support validated single byte ranges plus HEAD. The main CSP permits local frames/media for those previews.
 
+Terminal WebSockets accept an optional `viewer` query parameter containing exactly 32 lowercase hexadecimal characters. Pass it to the owned terminal attachment to replace that view's stale transport; omitted IDs retain legacy attachment behavior. Authentication and origin checks remain required.
+
 # Work Guidance
 
 Keep frontend protocol and real-system tests in sync. Do not weaken shared ownership checks to accommodate a UI caller.

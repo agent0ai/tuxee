@@ -34,7 +34,7 @@ assert.equal((await api('/settings', 'PUT', settings)).status(), 200);
 const page = await appPage(context), errors = [], external = [], published = [], lists = [];
 const terminalInputs = [];
 page.on('websocket', socket => {
-    if (/\/api\/terminals\/[^/]+\/ws$/.test(socket.url())) socket.on('framesent', frame => {
+    if (/\/api\/terminals\/[^/]+\/ws$/.test(new URL(socket.url()).pathname)) socket.on('framesent', frame => {
         if (Buffer.isBuffer(frame.payload)) terminalInputs.push(frame.payload);
     });
 });

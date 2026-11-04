@@ -230,24 +230,41 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			failure(w, 403, i18n.New("backend.server.websocketOriginIsRequired"))
 			return
 		}
+		viewer := r.URL.Query().Get("viewer")
+		if viewer != "" && (len(viewer) != 32 || strings.Trim(viewer, "0123456789abcdef") != "") {
+			failure(w, 400, i18n.New("backend.server.invalidRequestBody"))
+			return
+		}
 		connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 			InsecureSkipVerify: true, CompressionMode: websocket.CompressionNoContextTakeover, CompressionThreshold: 1024,
 		})
 		if err != nil {
 			return
 		}
-		defer connection.CloseNow()
+		var attachment *terminal.Attachment
+		defer func() {
+			connection.CloseNow()
+			if attachment != nil {
+				attachment.Close()
+			}
+		}()
 		connection.SetReadLimit(65536)
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 		recovery, finishRecovery := context.WithTimeout(ctx, 2*time.Minute)
-		attachment, err := value.Attach(recovery)
+		attachment, err = value.AttachViewer(recovery, viewer)
 		finishRecovery()
 		if err != nil {
 			connection.Close(websocket.StatusTryAgainLater, err.Error())
 			return
 		}
-		defer attachment.Close()
+		go func() {
+			select {
+			case <-attachment.Done:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
 		go func() {
 			ticker := time.NewTicker(20 * time.Second)
 			defer ticker.Stop()

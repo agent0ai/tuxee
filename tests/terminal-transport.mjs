@@ -26,10 +26,12 @@ try {
     const info = await response.json(); terminals.push(info.id);
     const bundle = await build({ stdin: { contents: `
         import { TerminalView } from './web/term';
+        import { BackendConnection } from './web/connection';
         import { setCSRF } from './web/ui';
         import { setTranslations } from './web/i18n';
         import { retainedScrollback } from './web/terminal/state';
         window.retainedScrollback = retainedScrollback;
+        window.watchConnection = () => window.watcher = new BackendConnection(async () => {}, () => {});
         window.mount = (me, id) => {
             setTranslations(me.i18n);
             setCSRF(me.csrf);
@@ -41,8 +43,8 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     const sent = [], resizeRequests = [], trace=[], snapshots=[];
     let client, upstream, connections = 0, holdAcks = false, heldAcks = [], holdResize = false, heldResize = [];
-    let holdOutput = true, heldOutput = [];
-    await page.routeWebSocket('**/api/terminals/*/ws', ws => {
+    let holdOutput = true, heldOutput = [], keepUpstream = false;
+    await page.routeWebSocket('**/api/terminals/*/ws*', ws => {
         client = ws; upstream = ws.connectToServer(); connections++;
         const server = upstream;
         ws.onMessage(message => {
@@ -50,6 +52,7 @@ try {
             if (typeof message === 'string' && JSON.parse(message).type === 'resize') resizeRequests.push(JSON.parse(message));
             server.send(message);
         });
+        ws.onClose((code, reason) => { if (!keepUpstream) server.close({code, reason}); });
         server.onClose((code,reason)=>{trace.push(['server close',code,reason]); ws.close({code,reason});});
         server.onMessage(message => {
             if (holdOutput) { heldOutput.push(message); return; }
@@ -125,6 +128,36 @@ try {
     await idle();
     assert.equal(await page.evaluate(() => view.term.options.scrollback), await page.evaluate(() => retainedScrollback(view.term.cols, view.term.rows)));
     console.log('PASS real PTY binary output, input acknowledgement and canonical scrollback');
+
+    // The browser can lose its path while the server still sees the old socket as alive.
+    const beforeHealthyProbe = connections;
+    const firstProbe = page.waitForResponse(response => response.url().endsWith('/api/connection') && response.status() === 200);
+    await page.evaluate(() => watchConnection());
+    await firstProbe;
+    await page.waitForFunction(() => !watcher.request);
+    assert.equal(connections, beforeHealthyProbe, 'healthy probes do not reconnect terminals');
+    let releaseProbe;
+    const probe = new Promise(resolve => { releaseProbe = resolve; });
+    await page.route('**/api/connection', async route => { await probe; await route.continue().catch(() => {}); });
+    holdAcks = true; keepUpstream = true;
+    const sentBeforeOutage = sent.length, beforeOutage = connections;
+    await input("printf 'OUTAGE_%s\\n' ONCE\n");
+    for (let i = 0; !heldAcks.length && i < 100; i++) await page.waitForTimeout(20);
+    assert.equal(heldAcks.length, 1);
+    await page.evaluate(() => window.dispatchEvent(new Event('tuxee-connection-lost')));
+    await page.getByRole('dialog', { name: 'Connection lost, reconnecting...' }).waitFor();
+    releaseProbe(); await page.unroute('**/api/connection');
+    await page.getByRole('dialog', { name: 'Connection lost, reconnecting...' }).waitFor({state:'detached'});
+    for (let i = 0; connections === beforeOutage && i < 100; i++) await page.waitForTimeout(20);
+    assert.equal(connections, beforeOutage + 1);
+    holdAcks = false; heldAcks = []; keepUpstream = false;
+    await connected(); await idle();
+    await input("printf 'AUTO_%s\\n' RECOVERED\n");
+    await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('AUTO_RECOVERED'));
+    assert.equal(sent.slice(sentBeforeOutage).filter(v => Buffer.isBuffer(v) && v.toString().includes('OUTAGE_')).length, 1);
+    assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
+    await page.evaluate(() => watcher.dispose());
+    console.log('PASS automatic recovery from a half-open socket without replaying uncertain input or replacing the shell');
 
     let linkReferer;
     await context.route('https://terminal-link.invalid/**',route=>{linkReferer=route.request().headers().referer;return route.fulfill({body:'Terminal link test'});});
