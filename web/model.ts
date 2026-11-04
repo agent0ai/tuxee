@@ -79,6 +79,7 @@ export type Hooks = {
     title?: (name: string) => void;
 };
 export type View = {
+    tabLabel?: { title: string; icon: Element };
     renamePanel?: () => Promise<void>;
     dispose: () => void;
     resize?: () => void;

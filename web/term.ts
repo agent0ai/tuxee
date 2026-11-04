@@ -28,6 +28,7 @@ export async function terminateTerminal(panel: Panel) {
 export class TerminalView implements View {
     readonly term: Terminal;
     private display: TerminalDisplay;
+    get tabLabel() { return this.display.tabLabel; }
     private socket?: WebSocket;
     private viewer = id();
     private disposed = false;

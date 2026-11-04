@@ -1202,7 +1202,7 @@ h3 {
 .visible-tabs > .component-tab-item + .component-tab-item::before { content: ''; position: absolute; inset-inline-start: -3px; height: 14px; width: 1px; background: var(--muted); opacity: .2; }
 .component-tab { max-width: 140px; overflow: hidden; display: flex; gap: 5px; }
 .component-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.component-tab > svg { width: 13px; height: 13px; }
+.component-tab > svg, .component-tab > img { width: 13px; height: 13px; flex-shrink: 0; }
 .long-press, .long-press * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .compact .workspace-tab-item .workspace-menu, .component-menu { min-width: 32px; min-height: 36px; padding: 6px; margin: 0; }
 .overflow-tabs .workspace-menu { min-width: 32px; min-height: 36px; }

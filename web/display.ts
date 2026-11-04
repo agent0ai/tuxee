@@ -37,6 +37,11 @@ export class TerminalDisplay {
     private observer = new ResizeObserver(() => this.resize());
     visible = false;
     get connected() { return this.visible && !!this.clipboard && this.frame.getClientRects().length > 0 && this.frame.dataset.state === 'connected'; }
+    get tabLabel() {
+        const active = this.visible && this.state?.windows?.find(window => window.active);
+        const tab = active ? this.buttons.get(active.id)!.tab : this.terminalButton;
+        return { title: tab.title, icon: tab.firstElementChild! };
+    }
 
     constructor(private root: HTMLElement, private terminal: HTMLElement, private id: () => string | undefined, private focus: () => void, private user: User) {
         const header = root.closest('.panel')!.querySelector('.panel-header')!;

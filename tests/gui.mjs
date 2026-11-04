@@ -52,6 +52,13 @@ async function poll(check, message) {
     for (let i = 0; i < 100; i++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); }
     throw Error(message);
 }
+async function componentLabel(id, source) {
+    const expected = await source.evaluate(button => ({ title: button.title, icon: button.querySelector('svg, img').outerHTML }));
+    await poll(() => page.locator(`[data-component-name="${id}"]`).evaluate((button, expected) =>
+        button.title === expected.title && button.getAttribute('aria-label') === expected.title &&
+        button.querySelector('.component-tab-title').textContent === expected.title &&
+        button.querySelector('svg, img').outerHTML === expected.icon, expected), 'component tab did not follow its selected display');
+}
 const alive = async pid => {
     const value = await readFile(`/proc/${pid}/stat`, 'utf8').catch(() => '');
     return !!value && !/\) Z /.test(value);
@@ -391,7 +398,8 @@ try {
     await page.setViewportSize({ width: 1700, height: 1000 });
     await poll(() => runX(env, 'xdpyinfo', []).match(/dimensions:\s+(\d+x\d+)/)[1] !== sizeBefore, 'component resize did not resize the X display');
     await page.getByRole('button', { name: 'Add terminal', exact: true }).click();
-    const second = page.locator('.terminal-view').last();
+    const secondID = await page.locator('.terminal-view').last().evaluate(node => node.closest('[data-panel]').dataset.panel);
+    const second = page.locator(`[data-panel="${secondID}"] .terminal-view`);
     await poll(() => second.getAttribute('data-state').then(v => v === 'connected'), 'second terminal not connected');
     await launch(second, "xterm -fa 'DejaVu Sans Mono' -fs 11 -bg '#111827' -fg '#e5e7eb'");
     await page.waitForTimeout(700);
@@ -477,8 +485,25 @@ try {
     assert.ok(await headerFits());
     console.log('PASS selected titles, icon-only alternatives, overflow selection/keyboard input and preserved Close space');
 
+    const selected = await firstPanel.locator('.display-window.active').elementHandle();
+    const selectedID = await selected.getAttribute('data-window'), selectedTitle = await selected.getAttribute('title');
+    const oldIcon = await selected.evaluate(button => button.querySelector('img').src);
+    await firstPanel.locator('.window-minimize').click();
+    const minimized = page.locator('.window-bar [data-component-name="shell"]'); await minimized.waitFor();
+    await componentLabel('shell', selected);
+    runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', 'GUI <updated title>']);
+    runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_ICON', '32c', '-set', '_NET_WM_ICON', '1, 1, 4294901760']);
+    await poll(() => selected.evaluate((button, oldIcon) => button.title === 'GUI <updated title>' && button.querySelector('img')?.src !== oldIcon, oldIcon), 'native window metadata did not update');
+    await componentLabel('shell', selected);
+    assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).name, 'Terminal', 'GUI titles never rename the terminal');
+    runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', selectedTitle]);
+    await minimized.click(); await first.locator('canvas').waitFor();
+
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('.component-tab').filter({ hasText: 'Terminal' }).last().click();
+    const secondTab = page.locator(`[data-component-name="${secondID}"]`);
+    if (!await secondTab.isVisible()) await page.getByRole('button', { name: 'More components', exact: true }).click();
+    await secondTab.click();
+    await componentLabel(secondID, second.locator('.display-window.active'));
     await page.waitForTimeout(1000);
     const bounds = await second.locator('canvas').boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 391 && bounds.y + bounds.height <= 845);
@@ -493,7 +518,14 @@ try {
     await overflowMenu.getByRole('button', { name: 'Extra window 26', exact: true }).click();
     await poll(() => first.locator('.display-window.active').isVisible(), 'mobile header hid its selected window');
     await first.locator('.terminal-display[data-state=connected]').waitFor();
+    await componentLabel('shell', first.locator('.display-window.active'));
+    await first.locator('.terminal-tab').click();
+    await componentLabel('shell', first.locator('.terminal-tab'));
+    await moreWindows.click();
+    await overflowMenu.getByRole('button', { name: 'Extra window 26', exact: true }).click();
+    await componentLabel('shell', first.locator('.display-window.active'));
     await page.screenshot({ path: 'test-results/gui-mobile-windows.png' });
+    console.log('PASS minimized/mobile GUI icons and titles, hidden metadata updates and terminal selection without renaming the session');
 
     await page.setViewportSize({ width: 1440, height: 950 });
     const probeOpened = page.waitForEvent('websocket', socket => socket.url().endsWith(`/api/terminals/${panels[0].terminal}/display/ws`));
@@ -517,7 +549,7 @@ try {
     await poll(() => second.locator('.terminal-archive').isVisible(), 'shell exit did not show its archive');
     assert.equal(await second.locator('.terminal-display').isVisible(),false,'shell exit left a dead display visible');
     await poll(async () => !await alive(Number(shellLines[1])), 'shell exit left GUI app running');
-    await page.locator('.terminal-view').last().locator('..').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await second.locator('..').getByRole('button', { name: 'Close panel', exact: true }).click();
     await poll(() => api(`/terminals/${panels[1].terminal}`).then(response => response.json()).then(info => Boolean(info.closedAt)), 'closing panel left GUI session running');
     await poll(async () => !await alive(Number(shellLines[1])), 'closing panel left its shell running');
     assert.ok(await alive(input.pid));
@@ -550,6 +582,10 @@ try {
     assert.equal(await firstPanel.locator('.terminal-tab').evaluate(b => getComputedStyle(b).backgroundColor), 'rgba(0, 0, 0, 0)');
     assert.equal(await firstPanel.locator('.display-separator').isVisible(), false);
     assert.equal(await firstPanel.getByRole('button', { name: 'More windows', exact: true }).isVisible(), false);
+    await firstPanel.locator('.window-minimize').click();
+    await page.locator('.window-bar [data-component-name="shell"]').waitFor();
+    await componentLabel('shell', firstPanel.locator('.terminal-tab'));
+    await page.locator('[data-component-name="shell"]').click();
     await page.screenshot({ path: 'test-results/gui-released.png' });
     await page.keyboard.type(`echo RECLAIMED > ${fixture}/reclaimed.txt`); await page.keyboard.press('Enter');
     await poll(async () => !!await stat(`${fixture}/reclaimed.txt`).catch(() => false), 'terminal lost input after reclamation');

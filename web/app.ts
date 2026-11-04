@@ -347,7 +347,14 @@ function renderChrome() {
         const item = mounted!.items.get(panel.id)!;
         const group = el('div', 'component-tab-item'); group.classList.toggle('active', panel.id === ws.active);
         const tab = button(item.title.textContent || panel.kind, undefined, () => compact ? activatePanel(panel) : restoreWindow(panel), 'component-tab');
-        tab.replaceChildren(icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), el('span', 'component-tab-title', item.title.textContent || panel.kind));
+        const updateTab = () => {
+            const label = item.view.tabLabel, name = label?.title || item.title.textContent || panel.kind;
+            tab.title = name; tab.setAttribute('aria-label', name);
+            tab.replaceChildren(label?.icon.cloneNode(true) || icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), el('span', 'component-tab-title', name));
+        };
+        updateTab();
+        window.addEventListener('tuxee-tabs-changed', updateTab);
+        chromeDisposers.push(() => window.removeEventListener('tuxee-tabs-changed', updateTab));
         tab.dataset.componentName = panel.id;
         tab.classList.toggle('active', panel.id === ws.active); group.append(tab);
         tab.setAttribute('aria-haspopup', 'menu');
@@ -413,7 +420,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 grip.onpointerdown = event => beginPanelResize(item!.owner, panel, edge, event);
                 node.append(grip);
             }
-            const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; const tab = document.querySelector<HTMLButtonElement>(`[data-component-name="${panel.id}"]`); if (tab) { tab.querySelector('.component-tab-title')!.textContent = name; tab.title = name; tab.setAttribute('aria-label', name); window.dispatchEvent(new Event('tuxee-tabs-changed')); } } };
+            const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; window.dispatchEvent(new Event('tuxee-tabs-changed')); } };
             const command = initialCommands.get(panel); initialCommands.delete(panel);
             const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, command);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
