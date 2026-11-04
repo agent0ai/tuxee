@@ -61,6 +61,7 @@ type Layout struct {
 	Custom []PanelPosition `json:"custom"`
 }
 type Settings struct {
+	CommandShortcuts           []CommandShortcut     `json:"commandShortcuts,omitempty"`
 	HowToSeen                  bool                  `json:"howToSeen,omitempty"`
 	Shortcuts                  map[string][][]string `json:"shortcuts,omitempty"`
 	ClosedTerminalHistoryHours *int                  `json:"closedTerminalHistoryHours,omitempty"`
@@ -79,6 +80,10 @@ type Settings struct {
 	Current                    string                `json:"current"`
 	Workspaces                 []Workspace           `json:"workspaces"`
 	Monitoring                 *Monitoring           `json:"monitoring,omitempty"`
+}
+type CommandShortcut struct {
+	Name    string `json:"name"`
+	Command string `json:"command"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -107,6 +112,16 @@ func validateSettings(value *Settings) error {
 }
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
+	if len(value.CommandShortcuts) > 64 {
+		return i18n.New("commandShortcuts.invalid")
+	}
+	for i := range value.CommandShortcuts {
+		shortcut := &value.CommandShortcuts[i]
+		shortcut.Name = strings.TrimSpace(shortcut.Name)
+		if shortcut.Name == "" || len(utf16.Encode([]rune(shortcut.Name))) > 64 || strings.ContainsRune(shortcut.Name, 0) || strings.TrimSpace(shortcut.Command) == "" || len(shortcut.Command) > 16384 || strings.ContainsRune(shortcut.Command, 0) {
+			return i18n.New("commandShortcuts.invalid")
+		}
+	}
 	if err := validateShortcuts(value.Shortcuts); err != nil {
 		return err
 	}

@@ -58,6 +58,8 @@ Optional `shortcuts` uses the existing per-user `~/.config/tuxee/settings.json` 
 
 Optional `editorLineWrap` is a per-user editor display preference. Absent/null means enabled; explicit false must round-trip through saved/returned settings. It changes no file contents or page limits.
 
+Optional `commandShortcuts` is a per-user array of `{name, command}` in the existing atomic credential-dropped settings store, independent of keyboard `shortcuts`. On load/save accept at most 64 entries, trim/nonempty-check names and bound them to 64 UTF-16 units; preserve command content, requiring non-whitespace text and at most 16384 UTF-8 bytes, matching terminal creation. Reject NUL in either field. Settings never execute these commands. Explicit browser launches use the existing authenticated terminal creation API, cwd, user credentials and GUI environment; no new launch endpoint or privileged evaluation.
+
 Optional `uploadConcurrency` in per-user settings accepts only integers from 1 through 64 on load/save. Absent/null values are omitted from returned/saved JSON and use the browser's default of 4. This configures each browser upload batch; the server independently limits shared file operations to 64 and rejects excess operations with 429.
 
 `POST /api/upload?path=…&unique=true` streams a size-declared file through the credential-dropped worker and returns its actual `path`. The worker owns collision naming; the HTTP layer must not pre-check or retry destinations. Omitted/false unique keeps explicit no-overwrite behavior for New file. Directory upload preparation uses the existing files API's mkdir with unique or parents flags.

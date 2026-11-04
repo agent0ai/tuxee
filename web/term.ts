@@ -68,7 +68,7 @@ export class TerminalView implements View {
     private renderingStarted = performance.now();
     private renderingTimer?: ReturnType<typeof setTimeout>;
     private hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')?.content || '';
-    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT.size, fontFamily: string = TERMINAL_FONT.family) {
+    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT.size, fontFamily: string = TERMINAL_FONT.family, command?: string) {
         fontFamily = terminalFontFamily(fontFamily);
         root.classList.add('terminal-view');
         Terminal.strings.promptLabel = t('terminal.inputLabel');
@@ -363,7 +363,7 @@ export class TerminalView implements View {
         });
         this.observer = new ResizeObserver(() => { updateDrawerGrip(); this.closeText(); this.resize(); this.updateArchiveScroll(); });
         this.observer.observe(this.host); this.observer.observe(this.root);
-        this.starting = this.start().catch(error => { this.state('unavailable'); this.notice(error); });
+        this.starting = this.start(command).catch(error => { this.state('unavailable'); this.notice(error); });
     }
     private openLink(target: NonNullable<ReturnType<typeof terminalLink>>) {
         if ('url' in target) window.open(target.url, '_blank', 'noopener,noreferrer');
@@ -550,7 +550,7 @@ export class TerminalView implements View {
         recovery.append(message, restart);
         this.terminalPane.append(recovery);
     }
-    private async start() {
+    private async start(command?: string) {
         let info: TerminalInfo;
         if (this.panel.terminal) {
             try {
@@ -568,7 +568,7 @@ export class TerminalView implements View {
         else {
             let pending = creating.get(this.panel.id);
             if (!pending) {
-                pending = api<TerminalInfo>('/terminals', 'POST', { directory: this.panel.path, name: this.name, columns: 80, rows: 24 }).then(async (value) => { this.panel.terminal = value.id; await this.hooks.changed(true); return value; }).finally(() => creating.delete(this.panel.id));
+                pending = api<TerminalInfo>('/terminals', 'POST', { directory: this.panel.path, name: this.name, columns: 80, rows: 24, command }).then(async (value) => { this.panel.terminal = value.id; await this.hooks.changed(true); return value; }).finally(() => creating.delete(this.panel.id));
                 creating.set(this.panel.id, pending);
             }
             info = await pending;
