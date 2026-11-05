@@ -13,6 +13,7 @@ import (
 	"tuxee/internal/i18n"
 
 	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"tuxee/internal/terminal"
 )
 
@@ -48,17 +49,11 @@ func terminalOutput(ctx context.Context, connection *websocket.Conn, attachment 
 				copy(frame[8:], next.Data)
 				err = connection.Write(writeCtx, websocket.MessageBinary, frame)
 			} else {
-				writer, openErr := connection.Writer(writeCtx, websocket.MessageText)
-				err = openErr
-				if err == nil {
-					err = json.NewEncoder(writer).Encode(struct {
-						terminal.Event
-						Sequence uint64 `json:"sequence"`
-					}{*next, sequence})
-					if closeErr := writer.Close(); err == nil {
-						err = closeErr
-					}
-				}
+				// Safari needs compressed terminal messages in one frame, so avoid the streaming Writer API.
+				err = wsjson.Write(writeCtx, connection, struct {
+					terminal.Event
+					Sequence uint64 `json:"sequence"`
+				}{*next, sequence})
 			}
 			stop()
 			if err != nil {
