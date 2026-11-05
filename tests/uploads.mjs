@@ -395,7 +395,7 @@ try {
     await drawer.fill('copied: ');
     await copiedRow.click(); await page.keyboard.press('Control+c');
     const beforeCopied = await page.evaluate(() => window.batchCount);
-    await input.focus(); await page.keyboard.press('Shift+Insert');
+    await drawer.focus(); await page.keyboard.press('Control+v');
     assert.equal(await drawer.inputValue(), 'copied: ' + pathText(fixture + '/loose.txt'));
     assert.equal(await page.evaluate(() => window.batchCount), beforeCopied, 'Tuxee paths are reused without upload');
     await drawer.fill('dragged: ');
@@ -409,8 +409,6 @@ try {
     await page.evaluate(() => navigator.clipboard.writeText('ordinary text'));
     await page.keyboard.press('Control+v');
     assert.equal(await drawer.inputValue(), 'draft ordinary text');
-    const rendererImage = await pasteImage(input); published.push(rendererImage); await done(terminal);
-    assert.equal(await drawer.inputValue(), 'draft ordinary text' + pathText(rendererImage));
     check('drawer receives real clipboard images, file payloads, native file/folder drops and internal copies/drags at its selection');
 
     for (const startOpen of [true, false]) {
@@ -437,6 +435,57 @@ try {
     await toggleDrawer.click();
     assert.equal(terminalInputs.length, beforeDrawerInput, 'drawer file pastes and drops must never send PTY input');
     check('drawer upload completion preserves focus and draft across opening/closing, with no terminal input');
+
+    await toggleDrawer.click(); await drawer.fill('keep this draft');
+    await input.focus(); await page.keyboard.type(`printf '%s\\n' `);
+    const rendererImage = await pasteImage(input); published.push(rendererImage); await done(terminal);
+    assert.deepEqual(await readFile(rendererImage), png);
+    assert.equal(await drawer.inputValue(), 'keep this draft');
+    assert.ok(await input.evaluate(node => document.activeElement === node));
+
+    const rendererPaste = page.waitForResponse(response => response.ok() && response.url().includes('/api/upload?'));
+    assert.ok(await input.evaluate(node => {
+        const data = new DataTransfer(); data.items.add(new File(['terminal file bytes'], "terminal's file.txt", { type: 'text/plain' }));
+        const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data });
+        node.dispatchEvent(event); return event.defaultPrevented;
+    }));
+    const rendererFile = (await (await rendererPaste).json()).path; published.push(rendererFile); await done(terminal);
+    assert.equal(await readFile(rendererFile, 'utf8'), 'terminal file bytes');
+    assert.equal(await drawer.inputValue(), 'keep this draft');
+    assert.ok(await input.evaluate(node => document.activeElement === node));
+
+    await copiedRow.click(); await page.keyboard.press('Control+c');
+    const beforeRendererCopy = await page.evaluate(() => window.batchCount);
+    await input.focus(); await page.keyboard.press('Shift+Insert');
+    assert.equal(await page.evaluate(() => window.batchCount), beforeRendererCopy, 'Tuxee paths are reused without upload');
+    await page.evaluate(() => navigator.clipboard.writeText(' text-paste-ok'));
+    await page.keyboard.press('Control+Shift+V');
+    assert.equal(await drawer.inputValue(), 'keep this draft');
+    await page.keyboard.type(` > '${fixture}/focused-paste'`);
+    await assert.rejects(stat(fixture + '/focused-paste'), 'pasting must not submit the command');
+    await page.keyboard.press('Enter');
+    await expectFile(fixture + '/focused-paste', `${rendererImage}\n${rendererFile}\n${fixture}/loose.txt\ntext-paste-ok\n`);
+    check('focused terminal receives clipboard images, files, Tuxee paths and text while the drawer stays unchanged');
+
+    for (const toDrawer of [false, true]) {
+        if (!toDrawer) await toggleDrawer.click();
+        let uploadStarted;
+        const started = new Promise(resolve => { uploadStarted = resolve; });
+        const held = new Promise(resolve => { releaseUploads = resolve; });
+        const holdPaste = async route => { uploadStarted(); await held; await route.continue(); };
+        await page.route('**/api/upload?*', holdPaste);
+        const pendingPaste = pasteImage(toDrawer ? drawer : input);
+        await started;
+        await toggleDrawer.click();
+        const focused = toDrawer ? input : drawer;
+        releaseUploads();
+        const delayedImage = await pendingPaste; published.push(delayedImage); await done(terminal);
+        await page.unroute('**/api/upload?*', holdPaste);
+        assert.equal(await drawer.inputValue(), 'keep this draft' + (toDrawer ? pathText(delayedImage) : ''));
+        assert.ok(await focused.evaluate(node => document.activeElement === node), 'clipboard upload completion stole focus');
+        if (!toDrawer) { await input.focus(); await page.keyboard.press('Control+c'); }
+    }
+    check('clipboard uploads keep their original focused destination when focus changes or the drawer closes');
 
     await mkdir(fixture + '/other'); await chown(fixture + '/other', uid, gid);
     await cdp.send('Network.enable');

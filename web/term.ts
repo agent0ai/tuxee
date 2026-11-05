@@ -107,7 +107,7 @@ export class TerminalView implements View {
             leave: () => setDropFeedback(root),
             upload: (sources, point) => { void this.uploadFiles(sources, point); },
             paste: data => {
-                if (this.drawer.hidden || this.display.visible) return false;
+                if (document.activeElement !== this.drawer || this.display.visible) return false;
                 try {
                     const clipboard = readFileClipboard(data, this.hooks.user.uid);
                     if (!clipboard) return false;
@@ -432,7 +432,7 @@ export class TerminalView implements View {
     private canUpload() { return this.ready && this.controller && !this.ended && !this.disposed && !this.closing; }
     private canDrop() { return this.display?.visible ? this.display.connected && !this.disposed && !this.closing : this.canUpload(); }
     private pasteFiles(files: DraggedFile[], point?: { clientX: number; clientY: number }, toDrawer = !this.drawer.hidden) {
-        const target = toDrawer || !this.drawer.hidden ? this.drawer : this.host;
+        const target = toDrawer || point && !this.drawer.hidden ? this.drawer : this.host;
         const text = shellPaths(files);
         if (target === this.drawer) {
             this.drawer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste' }));
@@ -443,7 +443,7 @@ export class TerminalView implements View {
         if (point && target.checkVisibility()) animateFileDrop(files, point, target);
     }
     private async uploadFiles(sources: UploadSource[], point?: { clientX: number; clientY: number }) {
-        const toDrawer = !this.drawer.hidden;
+        const toDrawer = point ? !this.drawer.hidden : document.activeElement === this.drawer;
         let target: ReturnType<TerminalDisplay['dropTarget']> | undefined;
         if (this.display.visible) {
             try { target = this.display.dropTarget(point); } catch (error) { this.notice(error); return; }
