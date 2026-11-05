@@ -62,7 +62,7 @@ func TestShellUmask(t *testing.T) {
 			m := NewManager()
 			defer m.Close()
 			command := `printf data > file; mkdir folder; sh -c 'printf child > child'; printf '%s' "$$" > pid`
-			startup := command
+			startup := command + "\nexit"
 			if tc.interactive {
 				startup = ""
 			}
@@ -371,7 +371,7 @@ func TestReattachEndedProcessReportsExit(t *testing.T) {
 	}
 	m := NewManager()
 	defer m.Close()
-	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'", "", "", "/bin/sh", false, "en")
+	s, err := m.Create(user, t.TempDir(), "ended", 80, 24, "printf 'DONE'; exit", "", "", "/bin/sh", false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}

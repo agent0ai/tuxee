@@ -178,7 +178,7 @@ func TestExplicitCloseAfterNaturalExit(t *testing.T) {
 	m := NewManager()
 	m.HistoryInstance = "archive-race"
 	defer m.Close()
-	s, err := m.Create(user, user.Home, "exit", 80, 24, "printf final", "", "", user.Shell, false, "en")
+	s, err := m.Create(user, user.Home, "exit", 80, 24, "printf final; exit", "", "", user.Shell, false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}

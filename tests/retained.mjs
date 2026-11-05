@@ -52,7 +52,7 @@ try {
     const listed = await create('Inactive workspace');
     const lost = await create('Lost running service');
     const attached = await create('Attached outside layout');
-    const ended = await create('Ended outside layout', 'printf DONE');
+    const ended = await create('Ended outside layout', 'printf DONE; exit');
     const workspaces = [
         { id: 'work', name: 'Files', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: fields[5], x: 0, y: 0, w: 2, h: 2 }] },
         { id: 'inactive', name: 'Inactive', columns: 4, rows: 2, active: 'listed', panels: [{ id: 'listed', kind: 'terminal', terminal: listed.id, x: 0, y: 0, w: 4, h: 2 }] },

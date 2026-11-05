@@ -6,7 +6,6 @@ export TUXEE_SHELL_DIR
 _tuxee_shell() {
     SHELL=$(command -v "$1") || { printf 'Shell not found: %s\n' "$1" >&2; return 127; }
     export SHELL
-    if [ -n "$_tuxee_run_command" ]; then exec "$@" -lc "$_tuxee_run_command"; fi
     if [ -z "$TUXEE_SHELL_DIR" ]; then unset TUXEE_SHELL_DIR; exec "$@" -l; fi
     _tuxee_program=$1
     shift
@@ -28,8 +27,15 @@ _tuxee_shell() {
             export ZDOTDIR=$TUXEE_SHELL_DIR
             exec "$_tuxee_program" "$@" -l
             ;;
-        fish) exec "$_tuxee_program" "$@" -l --init-command 'source "$TUXEE_SHELL_DIR/prompt.fish"; set -e TUXEE_SHELL_DIR' ;;
-        *) unset TUXEE_SHELL_DIR; exec "$_tuxee_program" "$@" -l ;;
+        fish) exec "$_tuxee_program" "$@" -l --init-command 'source "$TUXEE_SHELL_DIR/shell.fish"' ;;
+        *)
+            if [ -n "$_tuxee_run_command" ]; then
+                export TUXEE_ENV=${ENV-} ENV=$TUXEE_SHELL_DIR/shell.env
+            else
+                unset TUXEE_SHELL_DIR
+            fi
+            exec "$_tuxee_program" "$@" -il
+            ;;
     esac
 }
 eval "_tuxee_shell $1"

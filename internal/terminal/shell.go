@@ -14,7 +14,7 @@ import (
 //go:embed shell-launch.sh
 var shellLauncher string
 
-//go:embed shell.bashrc prompt.bash prompt.zsh prompt.fish shell.zshenv shell.zprofile shell.zshrc
+//go:embed shell.bashrc prompt.bash prompt.zsh prompt.fish shell.zshenv shell.zprofile shell.zshrc shell.zlogin shell.fish shell.env
 var shellFiles embed.FS
 
 func prepareShell(user identity.User, shell, command string, prompt bool) (*exec.Cmd, func(), error) {
@@ -23,7 +23,7 @@ func prepareShell(user identity.User, shell, command string, prompt bool) (*exec
 	}
 	cleanup := func() {}
 	directory := ""
-	if prompt && command == "" {
+	if prompt || command != "" {
 		var err error
 		directory, err = os.MkdirTemp("/tmp", "tuxee-shell-*")
 		if err != nil {
@@ -32,7 +32,14 @@ func prepareShell(user identity.User, shell, command string, prompt bool) (*exec
 		cleanup = func() { os.RemoveAll(directory) }
 		entries, _ := shellFiles.ReadDir(".")
 		for _, entry := range entries {
+			if !prompt && strings.HasPrefix(entry.Name(), "prompt.") {
+				continue
+			}
 			data, err := shellFiles.ReadFile(entry.Name())
+			switch entry.Name() {
+			case "shell.bashrc", "shell.zlogin", "shell.fish", "shell.env":
+				data = append(data, []byte("\n"+command+"\n")...)
+			}
 			path := filepath.Join(directory, strings.Replace(entry.Name(), "shell.z", ".z", 1))
 			if err == nil {
 				err = os.WriteFile(path, data, 0600)

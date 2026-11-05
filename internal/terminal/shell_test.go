@@ -24,8 +24,12 @@ func TestShellPrompt(t *testing.T) {
 			t.Run(shell, func(t *testing.T) { t.Skipf("%s is not installed", shell) })
 			continue
 		}
-		for _, enabled := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/%t", shell, enabled), func(t *testing.T) {
+		for _, mode := range []struct{ prompt, command bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
+			enabled, command := mode.prompt, ""
+			if mode.command {
+				command = `printf '%s' "$PROFILE_LOADED$RC_LOADED" > initial`
+			}
+			t.Run(fmt.Sprintf("%s/%t/command=%t", shell, enabled, command != ""), func(t *testing.T) {
 				home, err := os.MkdirTemp("", "tuxee-prompt-user-*")
 				if err != nil {
 					t.Fatal(err)
@@ -39,7 +43,8 @@ func TestShellPrompt(t *testing.T) {
 					".bash_profile":            "PROFILE_LOADED=yes\nsource ~/.bashrc\n",
 					".bashrc":                  "RC_LOADED=yes\nPS1='SYSTEM> '\nPROMPT_COMMAND=': existing-hook'\n",
 					".zprofile":                "PROFILE_LOADED=yes\n",
-					".zshrc":                   "RC_LOADED=yes\nPROMPT='SYSTEM> '\n",
+					".zshrc":                   "RC_LOADED=rc\nPROMPT='SYSTEM> '\n",
+					".zlogin":                  "RC_LOADED=yes\n",
 					".config/fish/config.fish": "set -g PROFILE_LOADED yes\nset -g RC_LOADED yes\nfunction fish_prompt; printf 'SYSTEM> '; end\n",
 				}
 				for name, data := range profiles {
@@ -58,7 +63,7 @@ func TestShellPrompt(t *testing.T) {
 					selected = `'/bin/bash' --login`
 				}
 				mask := syscall.Umask(0077)
-				s, err := m.Create(user, home, "prompt", 80, 24, "", "", "", selected, enabled, "en")
+				s, err := m.Create(user, home, "prompt", 80, 24, command, "", "", selected, enabled, "en")
 				syscall.Umask(mask)
 				if err != nil {
 					t.Fatal(err)
@@ -103,6 +108,11 @@ func TestShellPrompt(t *testing.T) {
 				}
 				if enabled && (!strings.Contains(string(data), "❯ ") || strings.Contains(string(data), "SYSTEM>")) || !enabled && string(data) != "SYSTEM> " {
 					t.Fatalf("unexpected prompt: %q", data)
+				}
+				if command != "" {
+					if data, err := os.ReadFile(filepath.Join(home, "initial")); err != nil || string(data) != "yesyes" {
+						t.Fatalf("initial command ran before startup files: %q, %v", data, err)
+					}
 				}
 				for name, expected := range profiles {
 					data, err := os.ReadFile(filepath.Join(home, name))
@@ -153,6 +163,90 @@ func TestPromptLengthsAndLiteralNames(t *testing.T) {
 					t.Fatal("prompt name was executed")
 				}
 			})
+		}
+	}
+}
+
+func TestShellCommand(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("credential-switching integration requires root")
+	}
+	for _, shell := range []string{"bash", "zsh", "fish", "sh"} {
+		if _, err := exec.LookPath(shell); err != nil {
+			t.Run(shell, func(t *testing.T) { t.Skipf("%s is not installed", shell) })
+			continue
+		}
+		for _, prompt := range []bool{false, true} {
+			for _, interrupt := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/prompt=%t/interrupt=%t", shell, prompt, interrupt), func(t *testing.T) {
+					home, err := os.MkdirTemp("", "tuxee-command-user-*")
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer os.RemoveAll(home)
+					if err := os.Chown(home, 65534, 65534); err != nil {
+						t.Fatal(err)
+					}
+					user := identity.User{Name: "nobody", UID: 65534, GID: 65534, Home: home, Shell: "/bin/sh"}
+					m := NewManager()
+					defer m.Close()
+					command := "printf once >> runs\nmkdir work\ncd work\nfalse"
+					if interrupt {
+						command = "printf once >> runs\nmkdir work\ncd work\nsh -c 'printf ready > ready; exec sleep 300'"
+					}
+					s, err := m.Create(user, home, "command", 80, 24, command, "", "", shell, prompt, "en")
+					if err != nil {
+						t.Fatal(err)
+					}
+					a, err := s.Attach(context.Background())
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer a.Close()
+					if interrupt {
+						deadline := time.Now().Add(5 * time.Second)
+						for {
+							if _, err := os.Stat(filepath.Join(home, "work/ready")); err == nil {
+								break
+							}
+							if time.Now().After(deadline) {
+								t.Fatal("initial command did not start")
+							}
+							time.Sleep(10 * time.Millisecond)
+						}
+						if err := a.Write(context.Background(), []byte{3}); err != nil {
+							t.Fatal(err)
+						}
+					}
+					pid, status := "$$", "$?"
+					if shell == "fish" {
+						pid, status = "$fish_pid", "$status"
+					}
+					input := fmt.Sprintf("printf '%%s\\n' %s %s > after\nexit\n", status, pid)
+					if err := a.Write(context.Background(), []byte(input)); err != nil {
+						t.Fatal(err)
+					}
+					select {
+					case <-s.exited:
+					case <-time.After(5 * time.Second):
+						t.Fatal("shell did not accept input after the command")
+					}
+					data, err := os.ReadFile(filepath.Join(home, "work/after"))
+					wantStatus := "1"
+					if interrupt {
+						wantStatus = "130"
+					}
+					if err != nil || string(data) != wantStatus+"\n"+strconv.Itoa(s.Info().PID)+"\n" {
+						t.Fatalf("command status, cwd or shell PID changed: %q, %v", data, err)
+					}
+					if data, err := os.ReadFile(filepath.Join(home, "runs")); err != nil || string(data) != "once" {
+						t.Fatalf("initial command did not run exactly once: %q, %v", data, err)
+					}
+					if _, err := os.Stat(s.shellDirectory); !os.IsNotExist(err) {
+						t.Fatal("startup scripts were not cleaned up")
+					}
+				})
+			}
 		}
 	}
 }

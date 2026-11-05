@@ -4,5 +4,5 @@ for _tuxee_profile in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"
     if [[ -r $_tuxee_profile ]]; then source "$_tuxee_profile"; break; fi
 done
 unset _tuxee_profile _tuxee_prompt_ps1
-source "$TUXEE_SHELL_DIR/prompt.bash"
+[[ ! -r "$TUXEE_SHELL_DIR/prompt.bash" ]] || source "$TUXEE_SHELL_DIR/prompt.bash"
 unset TUXEE_SHELL_DIR

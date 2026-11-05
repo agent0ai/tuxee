@@ -51,7 +51,7 @@ try {
     csrf = await login();
     const api = (path, method='GET', data) => context.request.fetch(base+'/api'+path,{method,data,headers:{'X-Tuxee-CSRF':csrf,'X-Tuxee-Client':'web'}});
     const json = async (path, method='GET', data, status=200) => { const response=await api(path,method,data); assert.equal(response.status(),status,await response.text()); return response.json(); };
-    const create = (command, name='Archive fixture') => json('/terminals','POST',{directory:user.home,columns:80,rows:24,command,name},201);
+    const create = (command, name='Archive fixture') => json('/terminals','POST',{directory:user.home,columns:80,rows:24,command:command ? command+'\nexit' : command,name},201);
     const output = id => json(`/terminals/${id}/archive`);
     const folder = id => `${user.home}/.local/state/tuxee/terminals/${id}`;
     const disk = async id => ({ text: await readFile(folder(id)+'/output.txt', 'utf8') });

@@ -38,7 +38,7 @@ try {
     }
     assert.ok(base, 'TUXEE_TEST_URL is required with a container');
     browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, hasTouch: true, serviceWorkers: 'block' });
     const login = async (context, name, language = 'en') => {
         assert.equal((await context.request.post(base + '/api/login', { data: { username: name, password, language }, headers: { 'X-Tuxee-Client': 'web' } })).status(), 200);
         return (await context.request.get(base + '/api/me')).json();
@@ -118,7 +118,7 @@ try {
     await dialog.getByRole('button', { name: 'Save', exact: true }).click(); assert.ok(await dialog.isVisible());
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.ok(await toggle.evaluate(node => node === document.activeElement), 'modal cancel restores opener');
-    const command = "pwd > cwd\nprintf 'first\\nsecond\\n' >> count\nexec sleep 300";
+    const command = "pwd > cwd\nprintf 'first\\nsecond\\n' >> count\nfalse";
     await add('<b>Multiline</b>', command);
     assert.equal((await getSettings()).commandShortcuts[0].command, command);
     await page.reload(); await toggle.click();
@@ -146,6 +146,7 @@ try {
     await toggle.click(); await rows.locator('.command-shortcut-run').click();
     await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
     assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => node === document.activeElement));
+    await poll(() => { try { return run('cat', [home + '/cwd/count']) === 'first\nsecond'; } catch { return false; } }, 'initial command did not complete');
     assert.equal(run('cat', [home + '/cwd/cwd']), home + '/cwd'); assert.equal(run('cat', [home + '/cwd/count']), 'first\nsecond');
     assert.equal(run('stat', ['-c', '%U', home + '/cwd/count']), user);
     assert.equal(creates, 1);
@@ -157,8 +158,13 @@ try {
     assert.equal(await terminal.locator('[data-terminal]').getAttribute('data-terminal'), firstID); assert.equal(creates, 1);
     assert.equal(run('cat', [home + '/cwd/count']), 'first\nsecond');
     assert.ok(!(await getSettings()).workspaces.some(w => w.panels.some(p => 'command' in p)), 'launch command is not persisted on panels');
+    assert.equal((await (await api('/terminals/' + firstID)).json()).exited, false);
+    await terminal.locator('.xterm-helper-textarea').focus();
+    await page.keyboard.type('printf usable > after-shortcut'); await page.keyboard.press('Enter');
+    await poll(() => { try { return run('cat', [home + '/cwd/after-shortcut']) === 'usable'; } catch { return false; } }, 'shell did not accept input after failed shortcut');
+    assert.equal(await terminal.locator('.terminal-archive').count(), 0);
     await closeTerminal();
-    console.log('PASS multiline command executes once in desktop cwd under user UID; reconnect/rerender/refresh do not replay');
+    console.log('PASS multiline shortcut returns to a usable shell after failure; reconnect/rerender/refresh do not replay');
 
     async function dragShortcut(x, y) {
         await toggle.click();
@@ -244,17 +250,17 @@ try {
 
     // Real creation responses are delayed, retaining the production closure and focus lifecycle.
     for (const destination of ['file', 'workspace', 'closed']) {
-        let release, ready;
-        const held = new Promise(resolve => release = resolve), created = new Promise(resolve => ready = resolve);
+        let release, id;
+        const held = new Promise(resolve => release = resolve);
         const intercept = async route => {
             if (route.request().method() !== 'POST') return route.continue();
-            const response = await route.fetch(); assert.equal(response.status(), 201); ready((await response.json()).id);
+            const response = await route.fetch(); assert.equal(response.status(), 201); id = (await response.json()).id;
             await held; await route.fulfill({ response });
         };
         await page.route('**/api/terminals', intercept);
         if (destination === 'closed') { await dragShortcut(.625, .25); await page.mouse.up(); }
         else { await toggle.click(); await rows.locator('.command-shortcut-run').click(); }
-        const id = await created;
+        await poll(() => id, 'terminal creation was not intercepted');
         if (destination === 'file') await page.locator('[data-panel=commands-files] input').first().focus();
         if (destination === 'workspace') await page.locator('.workspace-tab').getByText('other', { exact: true }).click();
         let deleted;
@@ -279,8 +285,14 @@ try {
     const canvas = terminal.locator('canvas'); await canvas.waitFor({ state: 'visible', timeout: 20000 });
     await canvas.click({ position: { x: 90, y: 80 } }); await page.keyboard.type(`printf gui > '${home}/gui-input'`); await page.keyboard.press('Enter');
     await poll(() => { try { return run('cat', [home + '/gui-input']) === 'gui'; } catch { return false; } }, 'real xterm input did not arrive over VNC');
+    await page.keyboard.type('exit'); await page.keyboard.press('Enter');
+    await canvas.waitFor({ state: 'hidden' });
+    await terminal.locator('.xterm-helper-textarea').focus();
+    await page.keyboard.type('printf usable > after-gui'); await page.keyboard.press('Enter');
+    await poll(() => { try { return run('cat', [home + '/cwd/after-gui']) === 'usable'; } catch { return false; } }, 'shell did not accept input after GUI exit');
+    assert.equal(await terminal.locator('.terminal-archive').count(), 0);
     await closeTerminal();
-    console.log('PASS GUI shortcut opens real xterm and accepts input through authenticated display WebSocket');
+    console.log('PASS GUI shortcut accepts real xterm input and returns to a usable shell after GUI exit');
 
     await page.setViewportSize({ width: 320, height: 700 }); await page.waitForTimeout(350); await toggle.tap();
     const compactColors = await page.locator('.component-controls .add-panel, .command-shortcuts-toggle').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).color));
