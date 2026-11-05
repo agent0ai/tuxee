@@ -48,16 +48,18 @@ func terminalOutput(ctx context.Context, connection *websocket.Conn, attachment 
 				copy(frame[8:], next.Data)
 				err = connection.Write(writeCtx, websocket.MessageBinary, frame)
 			} else {
-				writer, openErr := connection.Writer(writeCtx, websocket.MessageText)
-				err = openErr
+				// Write whole text frames in one call: connection.Writer streams the
+				// message as several frames (payload, a short continuation and an empty
+				// final continuation), and WebKit closes the socket when a compressed
+				// message arrives fragmented — Safari then loses terminal input after
+				// every keystroke. See TestTerminalMessagesArriveAsSingleFrames.
+				payload, marshalErr := json.Marshal(struct {
+					terminal.Event
+					Sequence uint64 `json:"sequence"`
+				}{*next, sequence})
+				err = marshalErr
 				if err == nil {
-					err = json.NewEncoder(writer).Encode(struct {
-						terminal.Event
-						Sequence uint64 `json:"sequence"`
-					}{*next, sequence})
-					if closeErr := writer.Close(); err == nil {
-						err = closeErr
-					}
+					err = connection.Write(writeCtx, websocket.MessageText, payload)
 				}
 			}
 			stop()
