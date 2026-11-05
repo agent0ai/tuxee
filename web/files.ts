@@ -24,6 +24,7 @@ type Entry = {
     deleted?: string;
 };
 const trashPath = 'trash:///';
+const archiveExtension = /\.(tar\.(gz|bz2|xz)|tgz|tbz2|txz|zip|7z|rar|tar)$/i;
 const instances = new Set<FileView>();
 export class FileView implements View {
     get pinned() { return !!this.panel.pinned; }
@@ -107,7 +108,7 @@ export class FileView implements View {
         };
         root.closest('.panel')!.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
-        const actionButtons = this.actionButtons = [button(t("files.parentDirectory"), 'ArrowUp', () => this.parent(), 'file-navigation'), button(t("app.homeDirectory"), 'House', () => this.navigate(hooks.defaultDirectory()), 'file-navigation'), button(t("files.trashBin"), 'Trash2', () => this.navigate(trashPath), 'file-navigation'), button(t("files.restore"), 'Undo2', () => this.restore()), button(t("files.emptyBin"), 'Trash2', () => this.emptyTrash()), button(t("files.refreshFiles"), 'RefreshCw', () => this.refresh()), button(t("files.newFolder"), 'FolderPlus', () => this.mkdir()), button(t("files.newFile"), 'FilePlus', () => this.createFile()), button(t("files.uploadFiles"), 'Upload', () => this.uploadInput.click()), button(t("files.downloadSelected"), 'Download', () => this.downloadSelected()), button(t("common.cut"), 'Scissors', () => this.copySelection(true)), button(t("common.copy"), 'Copy', () => this.copySelection()), button(t("common.paste"), 'ClipboardPaste', () => this.paste()), button(t("files.openTerminalHere"), 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
+        const actionButtons = this.actionButtons = [button(t("files.parentDirectory"), 'ArrowUp', () => this.parent(), 'file-navigation'), button(t("app.homeDirectory"), 'House', () => this.navigate(hooks.defaultDirectory()), 'file-navigation'), button(t("files.trashBin"), 'Trash2', () => this.navigate(trashPath), 'file-navigation'), button(t("files.restore"), 'Undo2', () => this.restore()), button(t("files.emptyBin"), 'ListX', () => this.selected.size ? this.remove(true) : this.emptyTrash()), button(t("files.refreshFiles"), 'RefreshCw', () => this.refresh()), button(t("files.newFolder"), 'FolderPlus', () => this.mkdir()), button(t("files.newFile"), 'FilePlus', () => this.createFile()), button(t("files.uploadFiles"), 'Upload', () => this.uploadInput.click()), button(t("files.downloadSelected"), 'Download', () => this.downloadSelected()), button(t("common.cut"), 'Scissors', () => this.copySelection(true)), button(t("common.copy"), 'Copy', () => this.copySelection()), button(t("common.paste"), 'ClipboardPaste', () => this.paste()), button(t("files.openTerminalHere"), 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
         const actionIDs = ['parent', 'home', 'trash', 'restore', 'empty', 'refresh', 'mkdir', 'create', 'upload', 'download', 'cut', 'copy', 'paste', 'terminal'];
         actionButtons.forEach((button, index) => button.dataset.action = actionIDs[index]);
         const separator = el('span', 'file-navigation-separator', '|'); separator.setAttribute('aria-hidden', 'true');
@@ -621,9 +622,16 @@ export class FileView implements View {
         this.showHidden.checked = this.inTrash || this.hiddenFiles;
         this.propertiesButton.disabled = this.inTrash && !this.selected.size;
         for (const action of this.actionButtons) {
+            if (['empty', 'delete'].includes(action.dataset.action!)) {
+                const selected = this.inTrash && this.selected.size > 0;
+                action.dataset.action = selected ? 'delete' : 'empty';
+                action.title = t(selected ? 'files.deletePermanently' : 'files.emptyBin');
+                action.setAttribute('aria-label', action.title);
+                action.replaceChildren(icon(selected ? 'Trash2' : 'ListX'));
+            }
             action.disabled = ['download', 'cut', 'copy'].includes(action.dataset.action!) ? !this.selected.size || this.inTrash
                 : action.dataset.action === 'restore' ? !this.selected.size
-                : action.dataset.action === 'empty' ? !this.entries.length
+                : ['empty', 'delete'].includes(action.dataset.action!) ? !this.entries.length
                 : this.inTrash && ['mkdir', 'create', 'upload', 'paste', 'terminal'].includes(action.dataset.action!);
         }
         this.status.textContent = t("files.selectionSummary", { count: this.filter || rows.length !== this.entries.length ? `${rows.length}/${this.entries.length}` : this.entries.length, selection: this.selected.size ? t('files.selectedCount', { count: this.selected.size }) : '' });
@@ -740,7 +748,7 @@ export class FileView implements View {
         if (entry.directory) return !!await this.navigate(entry.path, '');
         const open = async () => {
             if (this.disposed || signal?.aborted) return false;
-            if (/\.(zip|7z|tar|tgz|tbz2|txz|tar\.(gz|bz2|xz))$/i.test(entry.name)) { await this.archiveDialog(true, entry); return true; }
+            if (archiveExtension.test(entry.name)) { await this.archiveDialog(true, entry); return true; }
             this.request?.abort(); this.request = undefined;
             const parent = entry.path.split('/').slice(0, -1).join('/') || '/';
             const files = parent === this.panel.path ? this.visibleEntries().filter(file => !file.directory) : [];
@@ -775,7 +783,7 @@ export class FileView implements View {
         const capabilities = await api('/files', 'POST', { operation: 'archive-formats', path: this.panel.path });
         const content = el('form', 'form'), filename = el('input'), format = el('select'), password = el('input');
         scopeNotifications(content, this.root);
-        const base = entries.length === 1 ? entries[0].name.replace(/\.(tar\.(gz|bz2|xz)|tgz|tbz2|txz|zip|7z|tar)$/i, '') : t('files.archive');
+        const base = entries.length === 1 ? entries[0].name.replace(archiveExtension, '') || t('files.archive') : t('files.archive');
         filename.required = true; filename.setAttribute('aria-label', extract ? t("files.extractFolder") : t("files.archiveName"));
         password.type = 'password'; password.autocomplete = 'off'; password.setAttribute('aria-label', t("files.archivePassword"));
         const field = (title: string, input: HTMLElement) => { const label = el('label', 'field', title); label.append(input); content.append(label); return label; };
@@ -866,7 +874,7 @@ export class FileView implements View {
         }
         if (overflow.length) content.append(el('hr', 'menu-separator'));
         for (const [id, label, name, action] of this.inTrash ? (background ? [
-            ['empty', t("files.emptyBin"), 'Trash2', () => this.emptyTrash()]
+            ['empty', t("files.emptyBin"), 'ListX', () => this.emptyTrash()]
         ] as const : [
             ['restore', t("files.restore"), 'Undo2', () => this.restore()], ['delete', t("files.deletePermanently"), 'Trash2', () => this.remove(true)]
         ] as const) : background ? [

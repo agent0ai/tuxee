@@ -138,6 +138,51 @@ try {
     assert.equal(await confirmation.getByRole('checkbox').count(), 0);
     await confirmation.getByRole('button', { name: 'Delete permanently', exact: true }).click(); await row('discard').waitFor({ state: 'detached' });
     await absent(discarded.path); await absent(trash + '/info/discard.trashinfo');
+    // The bin toolbar deletes only the selection, including through its overflow.
+    const pruned = [];
+    for (const [root, name] of [[home, 'prune-home'], [volume, 'prune-mounted']]) {
+        await op({ operation: 'mkdir', path: root + '/' + name });
+        pruned.push(await op({ operation: 'trash', path: root + '/' + name }));
+    }
+    await button('Refresh files').click(); await row('prune-home').waitFor();
+    const emptyIcon = await button('Empty bin').locator('svg').innerHTML();
+    await row('prune-home').click();
+    assert.equal(await button('Delete permanently').getAttribute('title'), 'Delete permanently');
+    assert.notEqual(await button('Delete permanently').locator('svg').innerHTML(), emptyIcon);
+    await row('prune-home').click({ modifiers: ['Control'] });
+    assert.equal(await button('Empty bin').locator('svg').innerHTML(), emptyIcon);
+    const deletions = [];
+    const recordDeletion = request => {
+        if (!request.url().endsWith('/api/files')) return;
+        const data = request.postDataJSON();
+        if (['trash-delete', 'trash-empty'].includes(data?.operation)) deletions.push(data);
+    };
+    page.on('request', recordDeletion);
+    await row('prune-home').click(); await button('Delete permanently').click();
+    await confirmation.getByText('Permanently delete 1 folder?', { exact: true }).waitFor();
+    await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+    assert.deepEqual(deletions, []);
+    for (const entry of pruned) assert.ok((await lstat(entry.path)).isDirectory());
+    await row('prune-mounted').click({ modifiers: ['Control'] });
+    await file.locator('..').evaluate(node => node.style.width = '180px');
+    await button('Delete permanently').waitFor({ state: 'hidden' });
+    await button('File actions').click();
+    assert.equal(await page.getByRole('menuitem', { name: 'Delete permanently', exact: true }).count(), 1);
+    assert.equal(await page.getByRole('menuitem', { name: 'Empty bin', exact: true }).count(), 0);
+    await page.getByRole('menuitem', { name: 'Delete permanently', exact: true }).click();
+    await confirmation.getByText('Permanently delete 2 folders?', { exact: true }).waitFor();
+    await confirmation.getByRole('button', { name: 'Delete permanently', exact: true }).click();
+    await row('prune-home').waitFor({ state: 'detached' }); await row('prune-mounted').waitFor({ state: 'detached' });
+    page.off('request', recordDeletion);
+    assert.deepEqual(deletions, [{ operation: 'trash-delete', paths: pruned.map(entry => entry.path) }]);
+    for (const entry of pruned) {
+        await absent(entry.path); await absent(entry.path.replace('/files/', '/info/') + '.trashinfo');
+    }
+    assert.equal(await readFile(trash + '/files/folder/child', 'utf8'), 'nested');
+    assert.equal(await readFile(mounted.path, 'utf8'), 'mounted');
+    for (const path of [trash + '/info/folder.trashinfo', volumeTrash + '/info/mounted.txt.trashinfo']) assert.ok((await lstat(path)).isFile());
+    await file.locator('..').evaluate(node => node.style.removeProperty('width'));
+    await button('Empty bin').waitFor();
     await page.waitForTimeout(600); await page.reload(); await row('mounted.txt').waitFor();
     assert.ok(await hidden.isChecked()); assert.ok(await hidden.isDisabled());
     await mkdir('test-results', { recursive: true });
@@ -147,6 +192,11 @@ try {
         await page.waitForTimeout(250);
         assert.ok(await file.locator('.file-actions').evaluate(node => node.scrollWidth <= node.clientWidth));
         await page.screenshot({ path: `test-results/trash-${width}.png` });
+        await row('mounted.txt').getByRole('checkbox').check();
+        assert.equal(await file.locator('[data-action=delete]').getAttribute('aria-label'), 'Delete permanently');
+        await page.screenshot({ path: `test-results/trash-selected-${width}.png` });
+        await row('mounted.txt').getByRole('checkbox').uncheck();
+        assert.equal(await file.locator('[data-action=empty]').getAttribute('aria-label'), 'Empty bin');
     }
     await page.setViewportSize({ width: 1280, height: 900 });
     await button('Empty bin').click();
@@ -221,7 +271,7 @@ try {
     for (const name of ['Download selected', 'Cut', 'Copy']) assert.ok(await page.getByRole('menuitem', { name, exact: true }).isDisabled());
     await page.keyboard.press('Escape');
     assert.deepEqual(errors, []);
-    console.log('PASS standard desktop trash reuse, mixed confirmation, checkbox/Shift+Delete, credentials, restore collisions, real mounted trash, empty/cancel, reload, mobile bounds and disabled actions/overflow');
+    console.log('PASS standard desktop trash reuse, mixed confirmation, checkbox/Shift+Delete, credentials, restore collisions, real mounted trash, selected toolbar/overflow delete and cancellation, empty/cancel, reload, mobile bounds and disabled actions/overflow');
 } finally {
     await browser?.close(); server.kill('SIGTERM'); await stopped;
     run('userdel', [user]);

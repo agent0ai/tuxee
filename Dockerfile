@@ -53,10 +53,10 @@ FROM scratch AS audio-runtime
 COPY --from=audio-package /tuxee-audio.tar.gz /tuxee-audio.tar.gz
 
 FROM debian:trixie-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip tini curl \
+RUN sed -i 's/^Components: main$/Components: main contrib non-free/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip 7zip-rar tini curl \
     matchbox-window-manager xterm fonts-dejavu-core x11-xkb-utils xkb-data dbus \
     libnettle8t64 libunwind8 libjpeg62-turbo libpixman-1-0 libxfont2 libstdc++6 \
-    && sed -i 's/^Components: main$/Components: main contrib non-free/' /etc/apt/sources.list.d/debian.sources \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
     && chmod 0700 /var/lib/tuxee \
