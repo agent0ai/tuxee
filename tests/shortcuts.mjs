@@ -172,8 +172,11 @@ try {
     await page.route(base + '/api/settings', route => route.fulfill({ status:400, json:{error:'save rejected'} }));
     await save(400); await page.unroute(base + '/api/settings'); await page.keyboard.press('Escape');
     assert.equal((await saved()).shortcuts['app.settings'], undefined);
-    await record('app.about'); await page.keyboard.press('Control+Shift+j'); await page.keyboard.press('Escape');
-    await editor.getByRole('button',{name:'Close dialog',exact:true}).click();
+    await record('app.about'); await page.keyboard.press('Control+Shift+j'); await page.mouse.click(3, 3);
+    await recorder.waitFor({ state: 'detached' });
+    assert.ok(await editor.isVisible(), 'outside click closes only the top modal');
+    assert.deepEqual((await saved()).shortcuts['app.about'][1], ['Control+Shift+KeyU'], 'outside dismissal discards the unsaved recording');
+    await page.mouse.click(3, 3); await editor.waitFor({ state: 'detached' });
     await page.keyboard.press('Control+Shift+u'); await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');
     await page.reload(); await page.locator('.user-menu-button').waitFor();
     await page.keyboard.press('Control+Shift+u'); await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');

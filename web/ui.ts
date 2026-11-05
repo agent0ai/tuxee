@@ -128,7 +128,29 @@ export function modal(title: string, content: HTMLElement): {
     body.append(content);
     dialog.append(head, body);
     document.body.append(dialog);
-    dialog.onclose = () => dialog.remove();
+    const outside = (event: MouseEvent) => {
+        const rect = dialog.getBoundingClientRect();
+        return event.target === dialog && (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < rect.top || event.clientY >= rect.bottom);
+    };
+    let cancelPress = () => {};
+    dialog.addEventListener('pointerdown', event => {
+        cancelPress();
+        if (!event.isPrimary || event.button !== 0 || !outside(event)) return;
+        const press = new AbortController(), signal = press.signal;
+        cancelPress = () => press.abort();
+        const moved = (next: MouseEvent) => Math.hypot(next.clientX - event.clientX, next.clientY - event.clientY) > 5;
+        window.addEventListener('pointermove', move => { if (move.pointerId === event.pointerId && moved(move)) cancelPress(); }, { capture: true, signal });
+        // Native backdrops target only the top dialog; wait for click to avoid release click-through.
+        window.addEventListener('click', click => {
+            cancelPress();
+            if (click.button === 0 && !moved(click) && outside(click) && dialog.open && dialog.dispatchEvent(new Event('cancel', { cancelable: true }))) dialog.close();
+        }, { capture: true, once: true, signal });
+        window.addEventListener('blur', cancelPress, { once: true, signal });
+        for (const type of ['pointerdown', 'pointercancel', 'keydown', 'resize', 'dragstart']) {
+            window.addEventListener(type, cancelPress, { capture: true, once: true, signal });
+        }
+    });
+    dialog.onclose = () => { cancelPress(); dialog.remove(); };
     dialog.showModal();
     return { dialog, close: () => dialog.close() };
 }
