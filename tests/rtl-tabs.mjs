@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
+import { readFile } from 'node:fs/promises';
+
+const catalog = JSON.parse(await readFile('internal/i18n/locales/en.json', 'utf8'));
 
 const bundle = await build({ stdin: { contents: `
     import { overflowTabs } from './web/overflow';
     import { setTranslations } from './web/i18n';
-    setTranslations({ language: 'en', direction: document.documentElement.dir, texts: {}, languages: [], cookie: '' });
+    setTranslations({ language: 'en', direction: document.documentElement.dir, texts: ${JSON.stringify(catalog.texts)}, languages: [], cookie: '' });
     const host = document.querySelector('#host');
     const items = ['first', 'second', 'third'].map((id, i) => {
         const item = document.createElement('div'), handle = document.createElement('button');
@@ -46,10 +49,32 @@ try {
         await drag('first', 'third', true); assert.deepEqual(await order(), ['first', 'second', 'third']);
         await drag('first', 'third'); assert.deepEqual(await order(), ['second', 'third', 'first'], `${dir}: unequal-width pointer reorder`);
         await drag('first', 'second'); assert.deepEqual(await order(), ['first', 'second', 'third'], `${dir}: reverse pointer reorder`);
+        await page.locator('#host').evaluate(node => node.style.width = '280px');
+        await page.waitForFunction(() => document.querySelector('.visible-tabs').children.length === 2);
+        await page.getByRole('button', { name: 'More', exact: true }).click();
+        await drag('third', 'first', true);
+        assert.deepEqual(await order(), ['first', 'second', 'third'], `${dir}: cancelled overflow-to-bar drag`);
+        await page.getByRole('button', { name: 'More', exact: true }).click();
+        const source = await page.locator('#third button').boundingBox(), target = await page.locator('#first').boundingBox();
+        await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2); await page.mouse.down();
+        await page.mouse.move(target.x + (dir === 'rtl' ? target.width - 2 : 2), target.y + target.height / 2, { steps: 12 });
+        await page.mouse.up();
+        assert.deepEqual(await order(), ['third', 'first', 'second'], `${dir}: lone overflow entry moves into the bar`);
+        assert.equal(await page.locator('.visible-tabs #third').count(), 1);
+        await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished.catch(() => {}))));
+        const back = await page.locator('#third button').boundingBox(), more = await page.locator('.overflow-toggle').boundingBox();
+        await page.mouse.move(back.x + back.width / 2, back.y + back.height / 2); await page.mouse.down();
+        await page.mouse.move(more.x + more.width / 2, more.y + more.height / 2, { steps: 12 });
+        await page.locator('.overflow-tabs:popover-open').waitFor();
+        const last = await page.locator('#second').boundingBox();
+        await page.mouse.move(last.x + last.width / 2, last.y + last.height - 2, { steps: 12 });
+        await page.mouse.up();
+        assert.deepEqual(await order(), ['first', 'second', 'third'], `${dir}: bar-to-overflow drag opens the menu and inserts after its last entry`);
+        assert.equal(await page.locator('.tab-drag-preview, .tab-drag-away, .tab-drop-before, .tab-drop-after').count(), 0);
         await page.locator('#host').evaluate(node => node.style.width = '50px');
         await page.getByRole('button', { name: 'More', exact: true }).click();
         await drag('third', 'first'); assert.deepEqual(await order(), ['third', 'first', 'second'], `${dir}: vertical overflow stays top-to-bottom`);
         await page.close();
     }
-    console.log('i18n: LTR/RTL pointer and keyboard tab reordering, cancellation and vertical overflow passed.');
+    console.log('i18n: LTR/RTL pointer and keyboard tab reordering, cancellation and bidirectional overflow transfers passed.');
 } finally { await browser.close(); }

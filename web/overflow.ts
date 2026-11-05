@@ -40,7 +40,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
             dragging?.dispose();
             bound = [...items];
-            dragging = reorderTabs(items, more, () => { fit(); reorder(items); });
+            dragging = reorderTabs(items, more, visible, menu, () => { fit(); reorder(items); });
         }
         close();
         visible.replaceChildren(...items); more.hidden = false;
@@ -68,7 +68,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     return () => { dragging?.dispose(); observer.disconnect(); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
 }
 
-function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => void) {
+function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLElement, menu: HTMLElement, changed: () => void) {
     const events = new AbortController(), signal = events.signal;
     let cancel = () => {}, suppressClick = false;
     const duration = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180;
@@ -98,7 +98,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
             if (!event.isPrimary || event.button !== 0) return;
             cancel();
             const parent = item.parentElement!, siblings = [...parent.children] as HTMLElement[];
-            if (siblings.length < 2) return;
+            if (items.length < 2) return;
             siblings.forEach(tab => tab.getAnimations().forEach(animation => animation.cancel()));
             const vertical = parent.classList.contains('overflow-tabs');
             const rtl = !vertical && getComputedStyle(parent).direction === 'rtl';
@@ -109,15 +109,20 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
             const gap = parseFloat(getComputedStyle(parent).gap) || 0;
             const gesture = new AbortController(), signal = gesture.signal;
             let started = false, order = siblings;
+            let destination: number | undefined, preview: HTMLElement | undefined;
+            const bar = more.closest<HTMLElement>('.window-bar');
+            const clearTarget = () => items.forEach(tab => tab.classList.remove('tab-drop-before', 'tab-drop-after'));
             function finish(commit = false) {
                 gesture.abort(); cancel = () => {};
                 if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+                preview?.remove(); clearTarget(); item.classList.remove('tab-drag-away');
                 if (!started) return;
                 const before = new Map(siblings.map(tab => [tab, tab.getBoundingClientRect()]));
                 for (const tab of siblings) {
                     tab.classList.remove('tab-shifting', 'tab-dragging'); tab.style.removeProperty('transform');
                 }
-                if (commit && order.indexOf(item) !== siblings.indexOf(item)) {
+                if (commit && destination !== undefined) move(item, destination);
+                else if (commit && order.indexOf(item) !== siblings.indexOf(item)) {
                     const logical = rtl ? [...order].reverse() : order;
                     const next = logical[logical.indexOf(item) + 1], previous = logical[logical.indexOf(item) - 1];
                     const remaining = items.filter(tab => tab !== item);
@@ -134,15 +139,51 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
             window.addEventListener('pointermove', e => {
                 if (e.pointerId !== event.pointerId) return;
                 const delta = vertical ? e.clientY - event.clientY : e.clientX - event.clientX;
-                const zone = item.closest('.window-bar') && (parent.classList.contains('overflow-tabs') ? parent : item.closest<HTMLElement>('.window-bar'));
-                if (zone) { const bounds = zone.getBoundingClientRect(); if (e.clientX < bounds.left || e.clientX >= bounds.right || e.clientY < bounds.top || e.clientY >= bounds.bottom) { finish(); return; } }
+                const inside = (node: HTMLElement, margin = 0) => {
+                    const r = node.getBoundingClientRect();
+                    return node.checkVisibility() && e.clientX >= r.left - margin && e.clientX < r.right + margin && e.clientY >= r.top - margin && e.clientY < r.bottom + margin;
+                };
+                const bounds = bar?.getBoundingClientRect();
+                // Keep diagonal paths from an overflow entry to the bar inside the reorder gesture.
+                const progress = bounds && vertical ? (event.clientY - e.clientY) / (event.clientY - bounds.bottom) : -1;
+                const towardBar = bounds && progress >= 0 && progress <= 1 &&
+                    e.clientX >= event.clientX + (bounds.left - event.clientX) * progress - 4 &&
+                    e.clientX <= event.clientX + (bounds.right - event.clientX) * progress + 4;
+                if (bar && !inside(bar) && !inside(menu, 4) && !towardBar) { finish(); return; }
                 if (!started) {
-                    if (Math.abs(delta) < 5) return;
+                    if (Math.hypot(e.clientX - event.clientX, e.clientY - event.clientY) < 5) return;
                     started = true; suppressClick = true; handle.setPointerCapture(event.pointerId);
                     item.classList.add('tab-dragging');
                     siblings.filter(tab => tab !== item).forEach(tab => tab.classList.add('tab-shifting'));
                 }
                 e.preventDefault();
+                if (inside(more) && !menu.matches(':popover-open')) more.click();
+                const target = inside(menu, 4) ? menu : inside(bar || visible) ? visible : undefined;
+                clearTarget(); destination = undefined;
+                if (target !== parent) {
+                    order = siblings;
+                    siblings.forEach(tab => tab.style.removeProperty('transform'));
+                    item.classList.add('tab-drag-away');
+                    if (!preview) {
+                        preview = el('div', 'tab-drag-preview', handle.textContent || handle.getAttribute('aria-label') || '');
+                        preview.setAttribute('aria-hidden', 'true'); preview.popover = 'manual';
+                        document.body.append(preview); preview.showPopover();
+                    }
+                    preview.style.left = `${e.clientX + 12}px`; preview.style.top = `${e.clientY + 12}px`;
+                    if (target) {
+                        const tabs = [...target.children] as HTMLElement[], remaining = items.filter(tab => tab !== item);
+                        const reversed = target === visible && getComputedStyle(visible).direction === 'rtl';
+                        const next = tabs.find(tab => {
+                            const r = tab.getBoundingClientRect();
+                            return target === menu ? e.clientY < r.y + r.height / 2 : reversed ? e.clientX > r.x + r.width / 2 : e.clientX < r.x + r.width / 2;
+                        });
+                        const previous = tabs.at(-1);
+                        destination = next ? remaining.indexOf(next) : previous ? remaining.indexOf(previous) + 1 : 0;
+                        (next || previous)?.classList.add(next ? 'tab-drop-before' : 'tab-drop-after');
+                    }
+                    return;
+                }
+                preview?.remove(); preview = undefined; item.classList.remove('tab-drag-away');
                 const offset = Math.max(first[axis] - original[axis], Math.min(delta, last[axis] + last[size] - original[axis] - original[size]));
                 const start = original[axis] + offset, end = start + original[size];
                 order = siblings.filter(tab => tab !== item);
@@ -158,7 +199,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, changed: () => voi
                     tab.style.transform = vertical ? `translateY(${shift}px)` : `translateX(${shift}px)`;
                     position += rect[size] + gap;
                 }
-            }, { signal, passive: false });
+            }, { signal, passive: false, capture: true });
             window.addEventListener('pointerup', e => { if (e.pointerId === event.pointerId) finish(true); }, { signal });
             window.addEventListener('pointercancel', cancel, { signal });
             handle.addEventListener('lostpointercapture', cancel, { signal });

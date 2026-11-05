@@ -1142,6 +1142,14 @@ h3 {
 .tab-shifting { transition: transform .18s cubic-bezier(.2,.7,.2,1); }
 .tab-dragging { z-index: 1; background: var(--raised); box-shadow: 0 2px 8px #0003; opacity: .9; }
 .tab-dragging > button:first-child { cursor: grabbing; }
+.tab-drag-away { opacity: .3; }
+.tab-drag-preview { position: fixed; inset: auto; margin: 0; padding: 6px 10px; max-width: 240px; border: 1px solid var(--accent); border-radius: 6px; background: var(--raised); color: var(--text); pointer-events: none; }
+.tab-drop-before { box-shadow: inset 2px 0 var(--accent); }
+.tab-drop-after { box-shadow: inset -2px 0 var(--accent); }
+[dir=rtl] .tab-drop-before { box-shadow: inset -2px 0 var(--accent); }
+[dir=rtl] .tab-drop-after { box-shadow: inset 2px 0 var(--accent); }
+.overflow-tabs .tab-drop-before { box-shadow: inset 0 2px var(--accent); }
+.overflow-tabs .tab-drop-after { box-shadow: inset 0 -2px var(--accent); }
 @media (prefers-reduced-motion: reduce) { .tab-shifting { transition: none; } }
 .panel-header { cursor: grab; user-select: none; }
 .panel-header:active { cursor: grabbing; }

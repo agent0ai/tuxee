@@ -47,7 +47,8 @@ const menu = page.locator('.menu-actions.popover-menu');
 const panel = id => page.locator(`[data-panel="${id}"]`);
 const tab = id => page.locator(`[data-component-name="${id}"]`);
 const snapshot = async () => (await (await api('/me')).json()).settings;
-const saved = () => page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT');
+const saved = order => page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT' &&
+    (!order || JSON.stringify(response.request().postDataJSON().workspaces.map(ws => ws.id)) === JSON.stringify(order)));
 const check = text => console.log('PASS ' + text);
 async function reveal(id) {
     if (!await tab(id).isVisible()) await page.getByRole('button', { name: 'More components', exact: true }).tap();
@@ -189,7 +190,7 @@ try {
     await dragWorkspace('work', 'other-4');
     assert.ok(await page.locator('.tab-shifting').evaluateAll(nodes => nodes.some(node => getComputedStyle(node).transform !== 'none' && parseFloat(getComputedStyle(node).transitionDuration) > 0)));
     await page.screenshot({ path: 'test-results/workspace-tabs-drag.png' });
-    save = saved(); await page.mouse.up(); await save;
+    save = saved([...originalOrder.slice(1), 'work']); await page.mouse.up(); await save;
     assert.deepEqual(await workspaceOrder(), [...originalOrder.slice(1), 'work']);
     assert.equal((await snapshot()).current, 'work');
     assert.ok(await liveTerminal.evaluate(node => node === document.querySelector('[data-panel="panel-6"] .terminal-view')));
@@ -197,9 +198,10 @@ try {
     assert.equal((await (await api(`/terminals/${terminalID}`)).json()).pid, terminalPID);
     await page.reload(); await page.waitForFunction(() => document.querySelector('[data-panel="panel-6"] .terminal-view')?.dataset.state === 'connected');
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
-    await page.waitForTimeout(350); // Let restored titles finish the shared tab fitting before dragging.
+    await page.waitForFunction(() => [...document.querySelectorAll('.file-view')].every(node => node.querySelector('.file-entry') && !node.querySelector('.file-list.loading')));
+    await page.evaluate(() => new Promise(requestAnimationFrame)); // Restored file titles refit the shared tab strips.
     assert.deepEqual(await page.locator('.workspace-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace)), [...originalOrder.slice(1), 'work']);
-    await dragWorkspace('work', 'other-0'); save = saved(); await page.mouse.up(); await save;
+    await dragWorkspace('work', 'other-0'); save = saved(originalOrder); await page.mouse.up(); await save;
     assert.deepEqual(await workspaceOrder(), originalOrder);
 
     for (const cancel of ['escape', 'pointercancel', 'blur', 'resize']) {
@@ -218,17 +220,34 @@ try {
     const hidden = await page.locator('.overflow-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace));
     assert.ok(hidden.length >= 2);
     await dragWorkspace(hidden[0], hidden.at(-1), true);
-    save = saved(); await page.mouse.up(); await save;
     const reordered = originalOrder.filter(id => id !== hidden[0]);
     reordered.splice(reordered.indexOf(hidden.at(-1)) + 1, 0, hidden[0]);
+    save = saved(reordered); await page.mouse.up(); await save;
     assert.deepEqual(await workspaceOrder(), reordered, 'overflow entries reorder without losing hidden workspaces');
     assert.equal((await snapshot()).current, 'work');
+    await page.getByRole('button', { name: 'More desktops', exact: true }).click();
+    const overflowSource = hidden.at(-1), source = await workspace(overflowSource).locator('.workspace-tab').boundingBox();
+    const firstVisible = await page.locator('.workspace-tabs .visible-tabs .workspace-tab-item').first().getAttribute('data-workspace');
+    const transferTarget = await workspace(firstVisible).boundingBox(), connectionsBeforeTransfer = sockets.length;
+    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2); await page.mouse.down();
+    await page.mouse.move(transferTarget.x + 2, transferTarget.y + transferTarget.height / 2, { steps: 12 });
+    const transferred = reordered.filter(id => id !== overflowSource);
+    transferred.splice(transferred.indexOf(firstVisible), 0, overflowSource);
+    save = saved(transferred); await page.mouse.up(); await save;
+    assert.deepEqual(await workspaceOrder(), transferred, 'overflow tab moves into the visible bar');
+    assert.ok(await workspace(overflowSource).evaluate(node => !!node.closest('.visible-tabs')));
+    assert.equal((await snapshot()).current, 'work');
+    assert.equal(sockets.length, connectionsBeforeTransfer, 'overflow transfer does not reconnect terminals');
+    await page.reload(); await page.waitForFunction(() => document.querySelectorAll('.terminal-view').length === 2 && [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
+    await page.waitForFunction(() => [...document.querySelectorAll('.file-view')].every(node => node.querySelector('.file-entry') && !node.querySelector('.file-list.loading')));
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    assert.deepEqual(await workspaceOrder(), transferred, 'overflow transfer persists after reload');
     await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
-    const keyboardTab = workspace('other-4').locator('.workspace-tab');
-    const beforeKeyboard = await workspaceOrder(), keyboardIndex = beforeKeyboard.indexOf('other-4');
-    await keyboardTab.focus(); save = saved(); await page.keyboard.press('Alt+ArrowLeft'); await save;
+    const keyboardTab = workspace('other-0').locator('.workspace-tab');
+    const beforeKeyboard = await workspaceOrder(), keyboardIndex = beforeKeyboard.indexOf('other-0');
     const afterKeyboard = [...beforeKeyboard];
-    afterKeyboard.splice(keyboardIndex, 1); afterKeyboard.splice(keyboardIndex - 1, 0, 'other-4');
+    afterKeyboard.splice(keyboardIndex, 1); afterKeyboard.splice(keyboardIndex - 1, 0, 'other-0');
+    await keyboardTab.focus(); save = saved(afterKeyboard); await page.keyboard.press('Alt+ArrowLeft'); await save;
     assert.deepEqual(await workspaceOrder(), afterKeyboard);
     assert.ok(await keyboardTab.evaluate(node => node === document.activeElement));
     await page.emulateMedia({ reducedMotion: 'reduce' });

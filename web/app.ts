@@ -759,6 +759,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         if (move.pointerId !== event.pointerId) return;
         const dx = move.clientX - startX, dy = move.clientY - startY;
         if (!active && Math.hypot(dx, dy) < 5) return;
+        if (!active && bar && move.defaultPrevented) return; // Tab reordering owns the bar and its overflow, including the gap.
         if (!active && bar) { const bounds = bar.getBoundingClientRect(); if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) return; }
         move.preventDefault();
         if (!active) {

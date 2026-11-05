@@ -95,6 +95,42 @@ try {
         if (cancel) await page.keyboard.press('Escape');
         await page.mouse.up(); await settled();
     }
+    await fixture([workspace('origin', [shell(), ...Array.from({ length: 12 }, (_, i) => panel(`hidden${i}`, 0, 0, 1, 1, { minimized: true }))])]);
+    const more = page.locator('.window-bar .overflow-toggle');
+    for (const maximized of [false, true]) {
+        // Initial file-view saves may still be queued; wait for this reorder's settings.
+        const saved = first => page.waitForResponse(r => {
+            if (r.url() !== base + '/api/settings' || r.request().method() !== 'PUT') return false;
+            const ws = r.request().postDataJSON().workspaces[0];
+            return ws.maximized === (maximized ? 'shell' : undefined) && ws.panels.filter(p => p.minimized)[0]?.id === first;
+        });
+        if (maximized) { const save = saved('hidden0'); await maximize('shell'); await save; }
+        const beforeTransfer = await current(), connectionCount = sockets.length;
+        for (const cancel of [true, false]) {
+            await more.click();
+            const source = await title('hidden11').boundingBox(), target = await title('hidden0').boundingBox();
+            await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2); await page.mouse.down();
+            await page.mouse.move(target.x + 2, target.y + target.height / 2, { steps: 20 });
+            assert.equal(await page.locator('.panel-dragging').count(), 0, 'overflow-to-bar reordering never starts a window restore');
+            if (cancel) await page.keyboard.press('Escape');
+            else { await mkdir('test-results', { recursive: true }); await page.screenshot({ path: 'test-results/window-tabs-overflow-drag.png' }); }
+            const save = cancel ? undefined : saved('hidden11');
+            await page.mouse.up(); await save; await settled();
+            if (cancel) assert.deepEqual(await current(), beforeTransfer, 'cancelled transfer preserves all window state');
+        }
+        assert.deepEqual((await current()).panels.filter(p => p.minimized).map(p => p.id), ['hidden11', ...Array.from({ length: 11 }, (_, i) => `hidden${i}`)]);
+        assert.equal(await title('hidden11').evaluate(n => !!n.closest('.visible-tabs')), true);
+        const back = await title('hidden11').boundingBox(), toggle = await more.boundingBox();
+        await page.mouse.move(back.x + back.width / 2, back.y + back.height / 2); await page.mouse.down();
+        await page.mouse.move(toggle.x + toggle.width / 2, toggle.y + toggle.height / 2, { steps: 12 });
+        const last = await title('hidden10').boundingBox();
+        await page.mouse.move(last.x + last.width / 2, last.y + last.height - 2, { steps: 12 });
+        const save = saved('hidden0'); await page.mouse.up(); await save; await settled();
+        assert.deepEqual(await current(), beforeTransfer, 'moving a bar tab back into overflow preserves geometry, selection and membership');
+        assert.equal(sockets.length, connectionCount, 'transfers preserve terminal connections');
+        console.log(`PASS ${maximized ? 'maximized' : 'minimized'} overflow/bar transfers in both directions and cancellation`);
+    }
+
     const sketch = (ws, incoming) => Array.from({ length: 2 }, (_, y) => Array.from({ length: 4 }, (_, x) => {
         const p = ws.panels.find(p => !p.minimized && x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h);
         return p?.id === incoming ? 'D' : p?.id === 'shell' ? 'C' : p?.id || ' ';
@@ -409,7 +445,7 @@ try {
     console.log('PASS minimized tab reorder, maximized drag and full-desktop creation');
 
     await fixture([workspace('origin', [shell(), ...Array.from({ length: 24 }, (_, i) => panel(`hidden${i}`, 0, 0, 1, 1, { minimized: true }))]), ...Array.from({ length: 11 }, (_, i) => workspace(`Long desktop number ${i}`, []))]);
-    const more = page.locator('.window-bar .overflow-toggle'); await more.click();
+    await more.click();
     await page.locator('[data-component-menu=hidden23]').click();
     await menu.getByRole('menuitem', { name: 'Close', exact: true }).click(); await settled();
     assert.equal((await current()).panels.some(p => p.id === 'hidden23'), false);
