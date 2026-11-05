@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "sürüm indirme boyut sınırını aşıyor",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "güvenli olmayan veya aşırı indirme yönlendirmeleri",
     "commandShortcuts.title": "Kısayollar",
+    "commandShortcuts.empty": "Kısayol yok",
     "commandShortcuts.emptyHint": "Sık kullandığınız terminal ve grafik arayüzlü programlara hızla erişmek için özel komutları kısayol olarak ekleyin.",
     "commandShortcuts.add": "Kısayol ekle",
     "commandShortcuts.edit": "Düzenle",

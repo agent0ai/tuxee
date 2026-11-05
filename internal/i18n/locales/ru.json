@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "загрузка релиза превышает ограничение по размеру",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "небезопасные или чрезмерные перенаправления загрузки",
     "commandShortcuts.title": "Ярлыки",
+    "commandShortcuts.empty": "Нет ярлыков",
     "commandShortcuts.emptyHint": "Добавьте свои команды как ярлыки для быстрого доступа к часто используемым терминальным и графическим программам.",
     "commandShortcuts.add": "Добавить ярлык",
     "commandShortcuts.edit": "Изменить",

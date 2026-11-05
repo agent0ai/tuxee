@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "Η λήψη της έκδοσης υπερβαίνει το όριο μεγέθους",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "μη ασφαλείς ή υπερβολικές ανακατευθύνσεις λήψης",
     "commandShortcuts.title": "Συντομεύσεις",
+    "commandShortcuts.empty": "Καμία συντόμευση",
     "commandShortcuts.emptyHint": "Προσθέστε δικές σας εντολές ως συντομεύσεις για γρήγορη πρόσβαση σε προγράμματα τερματικού και γραφικού περιβάλλοντος που χρησιμοποιείτε συχνά.",
     "commandShortcuts.add": "Προσθήκη συντόμευσης",
     "commandShortcuts.edit": "Επεξεργασία",

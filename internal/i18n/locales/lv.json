@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "laidiena lejupielāde pārsniedz lieluma ierobežojumu",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nedrošas vai pārmērīgas lejupielādes novirzīšanas",
     "commandShortcuts.title": "Saīsnes",
+    "commandShortcuts.empty": "Nav saīšņu",
     "commandShortcuts.emptyHint": "Pievienojiet savas komandas kā saīsnes, lai ātri piekļūtu bieži izmantotām termināļa un grafiskajām programmām.",
     "commandShortcuts.add": "Pievienot saīsni",
     "commandShortcuts.edit": "Rediģēt",

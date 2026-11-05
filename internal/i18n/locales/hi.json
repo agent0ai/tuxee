@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "रिलीज़ डाउनलोड आकार सीमा से अधिक है",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "असुरक्षित या अत्यधिक डाउनलोड रीडायरेक्ट",
     "commandShortcuts.title": "शॉर्टकट",
+    "commandShortcuts.empty": "कोई शॉर्टकट नहीं",
     "commandShortcuts.emptyHint": "अक्सर इस्तेमाल होने वाले टर्मिनल और GUI प्रोग्राम तक तुरंत पहुँचने के लिए अपने कमांड शॉर्टकट के रूप में जोड़ें।",
     "commandShortcuts.add": "शॉर्टकट जोड़ें",
     "commandShortcuts.edit": "संपादित करें",

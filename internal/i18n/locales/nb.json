@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "utgivelsesnedlastingen overskrider størrelsesgrensen",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "usikre eller overdreven nedlastingsomdirigeringer",
     "commandShortcuts.title": "Snarveier",
+    "commandShortcuts.empty": "Ingen snarveier",
     "commandShortcuts.emptyHint": "Legg til egne kommandoer som snarveier for rask tilgang til terminalprogrammer og grafiske programmer du bruker ofte.",
     "commandShortcuts.add": "Legg til snarvei",
     "commandShortcuts.edit": "Rediger",

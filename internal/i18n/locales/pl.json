@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "Wersja do pobrania przekracza limit rozmiaru",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "niebezpieczne lub nadmierne przekierowania pobierania",
     "commandShortcuts.title": "Skróty",
+    "commandShortcuts.empty": "Brak skrótów",
     "commandShortcuts.emptyHint": "Dodaj własne polecenia jako skróty, aby szybko otwierać często używane programy terminalowe i graficzne.",
     "commandShortcuts.add": "Dodaj skrót",
     "commandShortcuts.edit": "Edytuj",

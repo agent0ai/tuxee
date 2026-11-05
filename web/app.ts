@@ -195,14 +195,12 @@ function mountWorkspace(ws: Workspace): Mounted {
         event.preventDefault(); event.stopPropagation();
         const rect = value.gridEl.getBoundingClientRect();
         const near = { x: (event.clientX - rect.x) / rect.width * ws.columns, y: (event.clientY - rect.y) / rect.height * ws.rows };
-        const content = el('div', 'menu-actions');
-        let close = () => {};
-        for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const) {
-            const control = button(label, name, () => { close(); addPanel(kind, defaultDirectory(ws), undefined, near); });
-            control.append(el('span', '', label)); control.setAttribute('role', 'menuitem');
-            control.disabled = ws.panels.length >= MAX_PANELS; content.append(control);
-        }
-        ({ close } = popover({ x: event.clientX, y: event.clientY }, content));
+        const disabled = ws.panels.length >= MAX_PANELS;
+        tabMenu(document.activeElement as HTMLElement, t('app.workspace'), false, [
+            [t('app.addTerminal'), 'SquareTerminal', () => addPanel('terminal', defaultDirectory(ws), undefined, near), disabled],
+            [t('app.addFileBrowser'), 'FolderPlus', () => addPanel('files', defaultDirectory(ws), undefined, near), disabled],
+            commandShortcutAdditions(command => addPanel('terminal', defaultDirectory(ws), undefined, near, command), disabled),
+        ], { x: event.clientX, y: event.clientY });
     };
     warmWorkspaces.set(ws.id, value);
     return value;
@@ -881,11 +879,12 @@ async function openFileBrowser(owner: Mounted, path: string, line?: number, colu
     activatePanel(panel);
     view.focusOpened();
 }
-function addSplitPanel(kind: Kind, target: Panel) {
+function addSplitPanel(kind: Kind, target: Panel, command?: string) {
     const ws = current();
-    if (visiblePanels(ws).length === 8) { addPanel(kind); return; }
+    if (visiblePanels(ws).length === 8) { addPanel(kind, defaultDirectory(ws), undefined, undefined, command); return; }
     const panel = newPanel(kind, defaultDirectory(ws));
     if (!splitPanel(target, panel)) return;
+    if (command !== undefined) initialCommands.set(panel, command);
     ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
 }
@@ -1090,9 +1089,10 @@ function toggleMaximize(panel: Panel) {
 function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: number }, header = false) {
     const item = mounted!.items.get(panel.id)!;
     const actions: (TabAction | TabSubmenu)[] = header ? [] : [[t("app.activate"), 'ArrowRight', () => activatePanel(panel), panel.id === current().active]];
+    const disabled = current().panels.length >= MAX_PANELS || visiblePanels(current()).length < 8 && (panel.minimized || panel.w === 1 && panel.h === 1);
     for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const)
-        actions.push([label, name, () => addSplitPanel(kind, panel), current().panels.length >= MAX_PANELS || visiblePanels(current()).length < 8 && (panel.minimized || panel.w === 1 && panel.h === 1)]);
-    actions.push(workspaceMoves(panel));
+        actions.push([label, name, () => addSplitPanel(kind, panel), disabled]);
+    actions.push(commandShortcutAdditions(command => addSplitPanel('terminal', panel, command), disabled), workspaceMoves(panel));
     if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
     const control = item.tools.querySelector<HTMLButtonElement>('[data-action="take-control"]');
@@ -1100,7 +1100,7 @@ function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y
     tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
 }
 type TabAction = [string, Parameters<typeof icon>[0], () => unknown, boolean?];
-type TabSubmenu = { label: string; items: { label: string; disabled: boolean; description: string; action: () => unknown }[] };
+type TabSubmenu = { label: string; icon?: Parameters<typeof icon>[0]; empty?: string; items: { label: string; icon?: Parameters<typeof icon>[0]; disabled?: boolean; description?: string; action: () => unknown }[] };
 function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (TabAction | TabSubmenu)[], position?: { x: number; y: number }) {
     const content = el('div', 'menu-actions');
     content.setAttribute('aria-label', title);
@@ -1111,7 +1111,7 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
         if (!Array.isArray(entry)) {
             const children = el('div', 'menu-actions menu-submenu'); children.hidden = true;
             children.setAttribute('role', 'menu'); children.setAttribute('aria-label', entry.label);
-            const toggle = button(entry.label, 'MoveRight', () => expand(children.hidden));
+            const toggle = button(entry.label, entry.icon || 'MoveRight', () => expand(children.hidden));
             toggle.append(el('span', '', entry.label), icon('ChevronRight')); toggle.setAttribute('role', 'menuitem'); toggle.setAttribute('aria-haspopup', 'menu'); toggle.setAttribute('aria-expanded', 'false');
             const expand = (open: boolean) => {
                 children.hidden = !open; toggle.setAttribute('aria-expanded', String(open));
@@ -1120,10 +1120,13 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
                     children.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
                 } else toggle.focus();
             };
+            const rows = entry.empty ? el('div', 'command-shortcuts-head') : children;
+            if (entry.empty) { rows.append(el('span', 'muted', entry.empty)); children.append(rows); }
             for (const target of entry.items) {
-                const choice = button(target.label, 'LayoutPanelTop', () => { close(); return target.action(); });
-                choice.append(el('span', '', target.label)); choice.disabled = target.disabled; choice.title = target.description || target.label;
-                choice.setAttribute('role', 'menuitem'); children.append(choice);
+                const choice = button(target.label, target.icon || 'LayoutPanelTop', () => { close(); return target.action(); });
+                if (!entry.empty) choice.append(el('span', '', target.label));
+                choice.disabled = !!target.disabled; choice.title = target.description || target.label;
+                choice.setAttribute('role', 'menuitem'); rows.append(choice);
             }
             toggle.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight')) { event.preventDefault(); expand(true); } });
             children.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft')) { event.preventDefault(); event.stopPropagation(); expand(false); } });
@@ -1186,6 +1189,16 @@ function refreshTerminals(): Promise<boolean> {
     return terminalRefresh;
 }
 
+function commandShortcutAdditions(run: (command: string) => unknown, disabled: boolean): TabSubmenu {
+    const shortcuts = settings.commandShortcuts || [];
+    return {
+        label: t('commandShortcuts.title'), icon: 'Star',
+        empty: shortcuts.length ? undefined : t('commandShortcuts.empty'),
+        items: shortcuts.length
+            ? shortcuts.map(shortcut => ({ label: shortcut.name, icon: 'Play', disabled, action: () => run(shortcut.command) }))
+            : [{ label: t('commandShortcuts.add'), icon: 'Plus', action: () => editCommandShortcut() }],
+    };
+}
 async function saveCommandShortcuts(value: CommandShortcut[]) {
     const previous = settings.commandShortcuts;
     settings.commandShortcuts = value;

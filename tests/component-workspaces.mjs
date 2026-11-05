@@ -77,7 +77,7 @@ try {
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'origin', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 5 }, workspaces: [
         ws('origin', 'Origin', [panel('files', 0, 0, 1, 2), panel('shell', 1, 0, 1, 2, 'terminal')]),
         ws('destination', 'Destination', [panel('neighbor', 0, 0, 1, 2)]),
-        ws('full', 'Full', Array.from({ length: 8 }, (_, i) => panel(`full-${i}`, i % 4, Math.floor(i / 4), 1, 1))),
+        ws('full', 'Full', Array.from({ length: 32 }, (_, i) => ({ ...panel(`full-${i}`, i % 4, Math.floor(i % 8 / 4), 1, 1), minimized: i >= 8 }))),
         ws('fresh', 'Fresh', []),
         ...Array.from({ length: 8 }, (_, i) => ws(`extra-${i}`, `Extra ${i}`, [])),
     ] })).status(), 200);
@@ -85,7 +85,7 @@ try {
     const shellDOM = await item('shell').locator('.xterm').elementHandle(), filesDOM = await item('files').elementHandle();
     const grid = await page.locator('.grid-stack').boundingBox();
     await page.mouse.click(grid.x + grid.width * .88, grid.y + grid.height * .75, { button: 'right' });
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Shortcuts']);
     await page.screenshot({ path: 'test-results/component-add-menu.png' });
     const save = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === 3);
     await menu.getByRole('menuitem', { name: 'Add file browser', exact: true }).click(); await save;
@@ -102,7 +102,7 @@ try {
     console.log('PASS blank-space menu places a component at the closest cell and expands it without replacing neighbors');
 
     await headerMenu('shell');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Move to desktop', 'Rename', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Add terminal', 'Add file browser', 'Shortcuts', 'Move to desktop', 'Rename', 'Close']);
     await menu.getByRole('menuitem', { name: 'Move to desktop', exact: true }).press('ArrowRight');
     assert.ok(await menu.getByRole('menuitem', { name: 'Origin', exact: true }).isDisabled());
     assert.ok(await menu.getByRole('menuitem', { name: 'Full', exact: true }).isDisabled());
@@ -258,7 +258,7 @@ try {
         if (!options.navbar) {
             if (compact) await page.locator('[data-component-menu=target]').click(); else await headerMenu('target');
             const actions = await menu.getByRole('menuitem').allTextContents();
-            assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to desktop') + 1), ['Add terminal', 'Add file browser', 'Move to desktop']);
+            assert.deepEqual(actions.slice(actions.indexOf('Add terminal'), actions.indexOf('Move to desktop') + 1), ['Add terminal', 'Add file browser', 'Shortcuts', 'Move to desktop']);
         }
         if (!expectedTarget) {
             for (const label of ['Add terminal', 'Add file browser']) assert.ok(await menu.getByRole('menuitem', { name: label, exact: true }).isDisabled());

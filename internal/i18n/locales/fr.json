@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "Le téléchargement de la version dépasse la taille limite",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "redirections de téléchargement dangereuses ou excessives",
     "commandShortcuts.title": "Raccourcis",
+    "commandShortcuts.empty": "Aucun raccourci",
     "commandShortcuts.emptyHint": "Ajoutez des commandes personnalisées comme raccourcis pour accéder rapidement aux programmes en terminal et graphiques souvent utilisés.",
     "commandShortcuts.add": "Ajouter un raccourci",
     "commandShortcuts.edit": "Modifier",

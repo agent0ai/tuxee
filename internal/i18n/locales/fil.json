@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "Ang pag-download ng release ay lumampas sa limitasyon sa laki",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "hindi ligtas o labis na pag-redirect sa pag-download",
     "commandShortcuts.title": "Mga shortcut",
+    "commandShortcuts.empty": "Walang shortcut",
     "commandShortcuts.emptyHint": "Magdagdag ng mga sariling command bilang shortcut para mabilis na mabuksan ang madalas gamitin na mga programang pang-terminal at GUI.",
     "commandShortcuts.add": "Magdagdag ng shortcut",
     "commandShortcuts.edit": "I-edit",

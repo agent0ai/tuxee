@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "il download della versione supera il limite di dimensione",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "reindirizzamenti di download non sicuri o eccessivi",
     "commandShortcuts.title": "Scorciatoie",
+    "commandShortcuts.empty": "Nessuna scorciatoia",
     "commandShortcuts.emptyHint": "Aggiungi comandi personalizzati come scorciatoie per accedere rapidamente ai programmi da terminale e grafici che usi spesso.",
     "commandShortcuts.add": "Aggiungi scorciatoia",
     "commandShortcuts.edit": "Modifica",

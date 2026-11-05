@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "릴리스 다운로드가 크기 제한을 초과했습니다.",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "안전하지 않거나 과도한 다운로드 리디렉션",
     "commandShortcuts.title": "바로가기",
+    "commandShortcuts.empty": "바로가기 없음",
     "commandShortcuts.emptyHint": "자주 사용하는 터미널 및 GUI 프로그램에 빠르게 접근할 수 있도록 사용자 지정 명령을 바로가기로 추가하세요.",
     "commandShortcuts.add": "바로가기 추가",
     "commandShortcuts.edit": "편집",

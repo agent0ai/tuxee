@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "Release-Download überschreitet die Größenbegrenzung",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "unsichere oder zu viele Downloadweiterleitungen",
     "commandShortcuts.title": "Kurzbefehle",
+    "commandShortcuts.empty": "Keine Kurzbefehle",
     "commandShortcuts.emptyHint": "Füge eigene Befehle als Verknüpfungen hinzu, um häufig genutzte Terminalprogramme und grafische Anwendungen schnell zu öffnen.",
     "commandShortcuts.add": "Kurzbefehl hinzufügen",
     "commandShortcuts.edit": "Bearbeiten",

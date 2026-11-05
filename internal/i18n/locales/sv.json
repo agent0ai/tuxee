@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "versionens nedladdning överskrider storleksgränsen",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "osäkra eller överdrivna nedladdningsomdirigeringar",
     "commandShortcuts.title": "Genvägar",
+    "commandShortcuts.empty": "Inga genvägar",
     "commandShortcuts.emptyHint": "Lägg till egna kommandon som genvägar för snabb åtkomst till terminalprogram och grafiska program du ofta använder.",
     "commandShortcuts.add": "Lägg till genväg",
     "commandShortcuts.edit": "Redigera",

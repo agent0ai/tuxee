@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "muat turun keluaran melebihi had saiz",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "lencongan muat turun tidak selamat atau terlalu banyak",
     "commandShortcuts.title": "Pintasan",
+    "commandShortcuts.empty": "Tiada pintasan",
     "commandShortcuts.emptyHint": "Tambah perintah tersuai sebagai pintasan untuk mengakses program terminal dan GUI yang kerap digunakan dengan cepat.",
     "commandShortcuts.add": "Tambah pintasan",
     "commandShortcuts.edit": "Edit",

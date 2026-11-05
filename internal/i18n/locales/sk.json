@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "sťahované vydanie prekračuje limit veľkosti",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nebezpečné alebo nadmerné presmerovania sťahovania",
     "commandShortcuts.title": "Skratky",
+    "commandShortcuts.empty": "Žiadne skratky",
     "commandShortcuts.emptyHint": "Pridajte vlastné príkazy ako skratky na rýchly prístup k často používaným terminálovým a grafickým programom.",
     "commandShortcuts.add": "Pridať skratku",
     "commandShortcuts.edit": "Upraviť",

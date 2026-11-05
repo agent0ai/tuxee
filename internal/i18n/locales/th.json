@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "การดาวน์โหลดที่วางจำหน่ายเกินขีดจำกัดขนาด",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "การเปลี่ยนเส้นทางการดาวน์โหลดที่ไม่ปลอดภัยหรือมากเกินไป",
     "commandShortcuts.title": "ทางลัด",
+    "commandShortcuts.empty": "ไม่มีทางลัด",
     "commandShortcuts.emptyHint": "เพิ่มคำสั่งที่กำหนดเองเป็นทางลัดเพื่อเข้าถึงโปรแกรมเทอร์มินัลและโปรแกรมแบบกราฟิกที่ใช้บ่อยได้อย่างรวดเร็ว",
     "commandShortcuts.add": "เพิ่มทางลัด",
     "commandShortcuts.edit": "แก้ไข",

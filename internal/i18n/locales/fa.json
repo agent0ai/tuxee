@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "دانلود نسخه از حد مجاز بیشتر است",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "تغییر مسیرهای دانلود ناامن یا بیش از حد",
     "commandShortcuts.title": "میان‌برها",
+    "commandShortcuts.empty": "میان‌بری نیست",
     "commandShortcuts.emptyHint": "فرمان‌های دلخواه را به‌صورت میان‌بر اضافه کنید تا به برنامه‌های ترمینال و گرافیکی پرکاربرد سریع دسترسی داشته باشید.",
     "commandShortcuts.add": "افزودن میان‌بر",
     "commandShortcuts.edit": "ویرایش",

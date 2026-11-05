@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "la baixada de la versió supera el límit de mida",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "redireccions de baixada insegures o excessives",
     "commandShortcuts.title": "Dreceres",
+    "commandShortcuts.empty": "Cap drecera",
     "commandShortcuts.emptyHint": "Afegiu ordres personalitzades com a dreceres per accedir ràpidament als programes de terminal i gràfics que feu servir sovint.",
     "commandShortcuts.add": "Afegeix una drecera",
     "commandShortcuts.edit": "Edita",

@@ -83,6 +83,35 @@ try {
         } else await terminal.getByRole('button', { name: 'Close panel', exact: true }).click();
         await response; await terminal.waitFor({ state: 'detached' });
     }
+    await mkdir('test-results/command-shortcuts', { recursive: true });
+    const contextMenu = page.locator('.menu-actions.popover-menu'), submenu = contextMenu.locator('.menu-submenu').first();
+    async function openAddMenu(source) {
+        if (source === 'blank') {
+            const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
+            await page.mouse.click(grid.x + grid.width * .875, grid.y + grid.height * .75, { button: 'right' });
+        } else if (source === 'compact') await page.locator('[data-component-menu=commands-files]').tap();
+        else await page.locator('[data-panel=commands-files] .panel-header').click({ button: 'right', position: { x: 20, y: 10 } });
+        const labels = await contextMenu.getByRole('menuitem').allTextContents();
+        assert.deepEqual(labels.slice(labels.indexOf('Add terminal'), labels.indexOf('Add terminal') + 3), ['Add terminal', 'Add file browser', 'Shortcuts']);
+        const shortcuts = contextMenu.getByRole('menuitem', { name: 'Shortcuts', exact: true });
+        assert.equal(await shortcuts.locator('svg').first().innerHTML(), await toggle.locator('svg').innerHTML(), 'same Star as the navbar');
+        await shortcuts.press('ArrowRight'); await submenu.waitFor({ state: 'visible' });
+    }
+    for (const source of ['blank', 'header', 'compact']) {
+        if (source === 'compact') await page.setViewportSize({ width: 320, height: 700 });
+        await openAddMenu(source);
+        const empty = submenu.locator('.muted'), plus = submenu.getByRole('menuitem', { name: 'Add shortcut', exact: true });
+        assert.equal(await empty.textContent(), 'No shortcuts');
+        const labelBox = await empty.boundingBox(), plusBox = await plus.boundingBox();
+        assert.ok(labelBox.y >= plusBox.y && labelBox.y + labelBox.height <= plusBox.y + plusBox.height, 'empty label and Plus share one row');
+        if (source === 'header') await page.screenshot({ path: 'test-results/command-shortcuts/context-empty.png' });
+        await plus.click(); await dialog.waitFor();
+        assert.equal(await contextMenu.count(), 0);
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.waitForTimeout(350);
+    console.log('PASS empty desktop/header/compact shortcut submenus, shared Star and inline Plus editor');
     await toggle.click(); await menu.getByRole('menuitem').click();
     assert.equal(await dialog.locator('textarea').getAttribute('rows'), '3');
     await dialog.locator('[name=name]').fill('  '); await dialog.locator('[name=command]').fill('pwd');
@@ -179,6 +208,40 @@ try {
     }
     console.log('PASS shortcut drag cancellation, cell/gap/crossing/edge placement, preview, focus and once-only command execution');
 
+    await poll(async () => !(await getSettings()).workspaces[0].panels.some(p => p.kind === 'terminal'), 'closed drop was not saved');
+    const menuSettings = await getSettings();
+    for (const source of ['blank', 'header', 'compact', 'eight']) {
+        await page.waitForTimeout(350); await page.goto('about:blank');
+        const panels = source === 'eight'
+            ? Array.from({ length: 8 }, (_, i) => ({ id: i ? `cell-${i}` : 'commands-files', kind: 'files', path: home, x: i % 4, y: Math.floor(i / 4), w: 1, h: 1 }))
+            : [{ ...preferences.workspaces[0].panels[0], w: source === 'blank' ? 1 : 2 }];
+        assert.equal((await api('/settings', 'PUT', { ...menuSettings, workspaces: [{ ...preferences.workspaces[0], panels }, menuSettings.workspaces[1]] })).status(), 200);
+        await page.setViewportSize(source === 'compact' ? { width: 320, height: 700 } : { width: 1280, height: 900 });
+        await page.goto(base); await page.locator('[data-panel=commands-files]').waitFor();
+        const originalDOM = await page.locator('[data-panel=commands-files]').elementHandle(), before = creates;
+        await openAddMenu(source);
+        if (source === 'header') await page.screenshot({ path: 'test-results/command-shortcuts/context-list.png' });
+        await submenu.getByRole('menuitem', { name: 'Multiline', exact: true }).press('ArrowLeft');
+        assert.equal(await contextMenu.getByRole('menuitem', { name: 'Shortcuts', exact: true }).getAttribute('aria-expanded'), 'false');
+        await page.keyboard.press('ArrowRight'); await page.keyboard.press('Enter');
+        await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
+        await poll(async () => (await getSettings()).workspaces[0].panels.some(p => p.kind === 'terminal'), 'menu launch was not saved');
+        const ws = (await getSettings()).workspaces[0], added = ws.panels.find(p => p.kind === 'terminal');
+        const expected = source === 'blank' ? [1, 0, 3, 2] : source === 'eight' ? [3, 1, 1, 1] : source === 'compact' ? [1, 0, 1, 2] : [0, 1, 2, 1];
+        assert.deepEqual([added.x, added.y, added.w, added.h], expected, `${source} placement`);
+        assert.equal(creates, before + 1); assert.equal(run('cat', [home + '/cwd/cwd']), home + '/cwd');
+        assert.ok(await originalDOM.evaluate(node => node === document.querySelector('[data-panel=commands-files]')), 'preserve existing component');
+        assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => node === document.activeElement));
+        if (source === 'eight') assert.equal(ws.panels.find(p => p.id === 'cell-7').minimized, true);
+        await page.reload(); await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
+        assert.equal(creates, before + 1, 'menu command never replays on reload');
+        await closeTerminal();
+    }
+    await page.waitForTimeout(350); await page.goto('about:blank');
+    assert.equal((await api('/settings', 'PUT', menuSettings)).status(), 200);
+    await page.setViewportSize({ width: 1280, height: 900 }); await page.goto(base);
+    console.log('PASS context shortcut placement, split, compact, eight-window replacement, focus, cwd and no replay');
+
     // Real creation responses are delayed, retaining the production closure and focus lifecycle.
     for (const destination of ['file', 'workspace', 'closed']) {
         let release, ready;
@@ -250,6 +313,11 @@ try {
     assert.ok(await page.locator('.command-shortcuts-rows').evaluate(node => node.scrollHeight > node.clientHeight));
     await rows.last().locator('.component-menu').tap(); await page.getByRole('menuitem', { name: 'Run', exact: true }).tap();
     await page.getByRole('status').filter({ hasText: 'Desktop full' }).waitFor(); assert.equal(await terminal.count(), 0);
+    await page.locator('[data-component-menu=full-0]').tap();
+    await contextMenu.getByRole('menuitem', { name: 'Shortcuts', exact: true }).tap();
+    assert.equal(await submenu.getByRole('menuitem').count(), 50);
+    assert.ok(await submenu.locator('button').evaluateAll(nodes => nodes.every(node => node.disabled)), 'full desktop disables every shortcut launch');
+    await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1280, height: 900 }); await page.waitForTimeout(350);
     const fullCreates = creates;
     await dragShortcut(.625, .25); await page.locator('.dock-preview.visible.invalid').waitFor();

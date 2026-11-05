@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "stahované vydání překračuje limit velikosti",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "nebezpečná přesměrování při stahování nebo příliš mnoho přesměrování",
     "commandShortcuts.title": "Zkratky",
+    "commandShortcuts.empty": "Žádné zkratky",
     "commandShortcuts.emptyHint": "Přidejte vlastní příkazy jako zkratky pro rychlý přístup k často používaným terminálovým i grafickým programům.",
     "commandShortcuts.add": "Přidat zkratku",
     "commandShortcuts.edit": "Upravit",

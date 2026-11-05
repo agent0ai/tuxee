@@ -336,6 +336,7 @@
     "backend.update.releaseDownloadExceedsSizeLimit": "release download exceeds size limit",
     "backend.update.unsafeOrExcessiveDownloadRedirects": "unsafe or excessive download redirects",
     "commandShortcuts.title": "Shortcuts",
+    "commandShortcuts.empty": "No shortcuts",
     "commandShortcuts.emptyHint": "Add custom commands as shortcuts for quick access to frequently used terminal and GUI programs.",
     "commandShortcuts.add": "Add shortcut",
     "commandShortcuts.edit": "Edit",
