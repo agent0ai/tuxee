@@ -37,6 +37,8 @@ export class TerminalView implements View {
     private ended = false;
     private attempt = 0;
     private reconnect?: ReturnType<typeof setTimeout>;
+    private probe?: { nonce: string; timer: ReturnType<typeof setTimeout> };
+    private renderedTerminal?: string;
     private resizeTimer?: ReturnType<typeof setTimeout>;
     private observer: ResizeObserver;
     private queue: Uint8Array[] = [];
@@ -51,6 +53,7 @@ export class TerminalView implements View {
     private starting: Promise<void>;
     private closing = false;
     private resetting = false;
+    private reconnectButton = button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); });
     private resetButton = button(t("term.resetTerminal"), 'Power', () => this.reset());
     private events = new AbortController();
     private control = button(t("app.takeControl"), 'Hand', () => this.sendControl({ type: 'take-control' }));
@@ -72,8 +75,10 @@ export class TerminalView implements View {
     private hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')?.content || '';
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, fontSize: number = TERMINAL_FONT.size, fontFamily: string = TERMINAL_FONT.family, command?: string) {
         fontFamily = terminalFontFamily(fontFamily);
-        window.addEventListener('tuxee-connected', () => {
-            if (this.socket && !this.ended && !this.resetting) this.connect();
+        for (const event of ['tuxee-connected', 'focus']) window.addEventListener(event, this.checkConnection, { signal: this.events.signal });
+        document.addEventListener('visibilitychange', () => {
+            this.clearProbe();
+            if (!document.hidden) this.checkConnection();
         }, { signal: this.events.signal });
         root.classList.add('terminal-view');
         Terminal.strings.promptLabel = t('terminal.inputLabel');
@@ -81,6 +86,7 @@ export class TerminalView implements View {
         this.term = new Terminal({ allowProposedApi: true, fontFamily, fontSize, lineHeight: 1, cursorBlink: true, disableStdin: true, scrollback: retainedScrollback(80, 24),
             theme: { ...terminalTheme, selectionBackground: '#58a6ff9e', selectionInactiveBackground: '#58a6ff6b' } });
         installTerminalUnicode(this.term);
+        this.reconnectButton.dataset.action = 'reconnect-terminal';
         this.control.dataset.action = 'take-control';
         this.control.append(el('span', '', t("term.control")));
         this.control.hidden = true;
@@ -332,7 +338,7 @@ export class TerminalView implements View {
         left.append(toggle, previousInput, nextInput, historySeparator, text);
         const separator = el('span', 'terminal-footer-separator', '|');
         separator.setAttribute('aria-hidden', 'true');
-        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.rename()), browse, button(t("term.reconnectTerminal"), 'RefreshCw', () => { if (!this.resetting) this.connect(); }), this.resetButton, separator, top, bottom);
+        right.append(button(t("term.renameTerminal"), 'Pencil', () => this.rename()), browse, this.reconnectButton, this.resetButton, separator, top, bottom);
         footer.append(left, right); this.surface.append(drawerGrip, drawer, footer);
         updateScroll();
         this.rendering.setAttribute('role', 'status');
@@ -341,8 +347,9 @@ export class TerminalView implements View {
         this.term.onRender(() => {
             this.rendering.style.backgroundColor = this.term.element!.style.backgroundColor;
             updateScroll();
+            if (this.ready) this.renderedTerminal = this.panel.terminal;
             if (this.ready && this.rendering.isConnected && !this.renderingTimer) {
-                // Keep even a fast reconnect visible without delaying recovery or input.
+                // Keep initial loading visible without delaying recovery or input.
                 this.renderingTimer = setTimeout(() => {
                     this.renderingTimer = undefined;
                     if (this.ready) this.rendering.remove();
@@ -463,6 +470,9 @@ export class TerminalView implements View {
     private state(value: string) {
         if (value !== 'connected' && value !== 'viewing') this.resizeDisplay.release();
         this.root.dataset.state = value;
+        const recovering = value === 'connecting' || value === 'disconnected' || value === 'unavailable';
+        this.reconnectButton.setAttribute('aria-busy', String(recovering));
+        this.reconnectButton.title = recovering ? t("term.loading") : t("term.reconnectTerminal");
         this.term.options.disableStdin = !this.canUpload();
         this.control.hidden = !this.ready || this.controller || this.ended;
         this.root.classList.toggle('read-only', !this.controller);
@@ -594,9 +604,27 @@ export class TerminalView implements View {
             this.connect();
         }
     }
+    private clearProbe() {
+        clearTimeout(this.probe?.timer);
+        this.probe = undefined;
+    }
+    private checkConnection = async () => {
+        await this.starting;
+        if (document.hidden || this.disposed || this.closing || this.ended || this.resetting) return;
+        const socket = this.socket;
+        if (!socket) { this.connect(); return; }
+        if (!this.ready || socket.readyState !== WebSocket.OPEN || this.probe) return;
+        const nonce = id();
+        this.probe = { nonce, timer: setTimeout(() => {
+            this.clearProbe();
+            if (!document.hidden && this.socket === socket) this.connect();
+        }, 8000) };
+        this.sendControl({ type: 'ping', nonce });
+    };
     private connect() {
-        if (this.disposed || this.closing || !this.panel.terminal)
+        if (this.disposed || this.closing || document.hidden || !this.panel.terminal)
             return;
+        this.clearProbe();
         clearTimeout(this.reconnect);
         const previous = this.socket; this.socket = undefined; previous?.close();
         this.ready = false;
@@ -604,7 +632,8 @@ export class TerminalView implements View {
         clearTimeout(this.renderingTimer); this.renderingTimer = undefined;
         this.renderingStarted = performance.now();
         this.rendering.style.backgroundColor = getComputedStyle(this.term.element!).backgroundColor;
-        this.host.append(this.rendering);
+        if (this.renderedTerminal !== this.panel.terminal) this.host.append(this.rendering);
+        else this.rendering.remove();
         this.controller = false;
         this.discardInput();
         this.resizing = false; this.lastSize = '';
@@ -630,13 +659,17 @@ export class TerminalView implements View {
                     if (!value || typeof value !== 'object') throw Error(t("term.invalidTerminalMessage"));
                     if (value.type !== 'snapshot' && bytes > 1 << 20) throw Error(t("term.terminalMessageIsTooLarge"));
                 }
-                const unsequenced = value.type === 'ack' || value.type === 'resize-ack' || (value.type === 'error' && value.sequence === undefined);
+                const unsequenced = value.type === 'pong' || value.type === 'ack' || value.type === 'resize-ack' || (value.type === 'error' && value.sequence === undefined);
                 if (!unsequenced) {
                     if (!Number.isSafeInteger(value.sequence) || value.sequence !== received + 1 || (!received && value.type !== 'snapshot'))
                         throw Error(t("term.terminalOutputIsOutOfOrder"));
                     received = value.sequence;
                 }
                 switch (value.type) {
+                    case 'pong':
+                        if (value.sequence !== undefined || typeof value.nonce !== 'string' || !/^[0-9a-f]{32}$/.test(value.nonce)) throw Error(t("term.invalidTerminalMessage"));
+                        if (value.nonce === this.probe?.nonce) this.clearProbe();
+                        return;
                     case 'ack':
                         if (!this.inFlight.length || value.sequence !== undefined) throw Error(t("term.unexpectedTerminalInputAcknowledgement"));
                         this.pendingBytes -= this.inFlight.shift()!; this.flushInput(); return;
@@ -694,7 +727,9 @@ export class TerminalView implements View {
                     };
                     switch (value.type) {
                         case 'snapshot':
-                            restoreTerminal(this.term, value.snapshot);
+                            this.resizeDisplay.begin();
+                            try { restoreTerminal(this.term, value.snapshot, this.renderedTerminal === terminal); }
+                            finally { this.resizeDisplay.release(); }
                             this.display.update(value.display);
                             this.ready = true; this.controller = value.control; this.attempt = 0;
                             if (this.uncertainInput) {
@@ -727,6 +762,7 @@ export class TerminalView implements View {
         ws.onclose = () => {
             if (this.disposed || this.socket !== ws)
                 return;
+            this.clearProbe();
             this.socket = undefined; this.ready = false; this.discardInput();
             if (this.ended) {
                 this.state('ended');
@@ -735,6 +771,7 @@ export class TerminalView implements View {
             if (!this.closing) window.dispatchEvent(new Event('tuxee-connection-check'));
             this.state('disconnected');
             this.reconnect = setTimeout(async () => {
+                if (document.hidden) return;
                 try {
                     const info = await api<TerminalInfo>(`/terminals/${terminal}`);
                     if (info.exited) { await this.showArchive(terminal); return; }
@@ -864,5 +901,5 @@ export class TerminalView implements View {
             .finally(() => { this.resetting = this.resetButton.disabled = false; });
         return this.starting;
     }
-    dispose() { this.disposed = true; this.cancelDrawerResize?.(); this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
+    dispose() { this.clearProbe(); this.disposed = true; this.cancelDrawerResize?.(); this.closeText(); this.events.abort(); this.control.remove(); clearTimeout(this.reconnect); clearTimeout(this.resizeTimer); clearTimeout(this.renderingTimer); this.socket?.close(); this.observer.disconnect(); this.display.dispose(); this.term.dispose(); }
 }

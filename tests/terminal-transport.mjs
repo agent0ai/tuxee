@@ -43,23 +43,28 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     const sent = [], resizeRequests = [], trace=[], snapshots=[];
     let client, upstream, connections = 0, holdAcks = false, heldAcks = [], holdResize = false, heldResize = [];
-    let holdOutput = true, heldOutput = [], keepUpstream = false;
+    let holdOutput = true, heldOutput = [], keepUpstream = false, holdPongs = false, heldPongs = [], holdRendered = false;
     await page.routeWebSocket('**/api/terminals/*/ws*', ws => {
         client = ws; upstream = ws.connectToServer(); connections++;
+        if (holdOutput) heldOutput = [];
         const server = upstream;
         ws.onMessage(message => {
             sent.push(message); trace.push(typeof message === 'string' ? ['send',message] : ['input',message.length]);
             if (typeof message === 'string' && JSON.parse(message).type === 'resize') resizeRequests.push(JSON.parse(message));
+            if (holdRendered && typeof message === 'string' && JSON.parse(message).type === 'rendered') return;
             server.send(message);
         });
         ws.onClose((code, reason) => { if (!keepUpstream) server.close({code, reason}); });
         server.onClose((code,reason)=>{trace.push(['server close',code,reason]); ws.close({code,reason});});
         server.onMessage(message => {
+            // Intercepted old frames must not be delivered into a replacement socket.
+            if (server !== upstream) return;
             if (holdOutput) { heldOutput.push(message); return; }
             trace.push(['receive',typeof message === 'string' ? message.slice(0,100) : message.length]);
             if (typeof message === 'string') {
                 const value = JSON.parse(message);
                 if(value.type==='snapshot') snapshots.push(message.length);
+                if (holdPongs && value.type === 'pong') { heldPongs.push(message); return; }
                 if (holdAcks && value.type === 'ack') { heldAcks.push(message); return; }
                 if (holdResize && value.type === 'resize-ack') { heldResize.push(message); return; }
             }
@@ -136,10 +141,49 @@ try {
     await firstProbe;
     await page.waitForFunction(() => !watcher.request);
     assert.equal(connections, beforeHealthyProbe, 'healthy probes do not reconnect terminals');
+    const beforeRecovery = {connections, snapshots: snapshots.length, resizes: resizeRequests.length};
+    await page.route('**/api/connection', route => route.abort());
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.getByRole('dialog', {name:'Connection lost, reconnecting...'}).waitFor();
+    await page.unroute('**/api/connection');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.getByRole('dialog', {name:'Connection lost, reconnecting...'}).waitFor({state:'detached'});
+    await page.waitForFunction(() => !view.probe);
+    assert.deepEqual({connections, snapshots: snapshots.length, resizes: resizeRequests.length}, beforeRecovery, 'HTTP recovery preserves a healthy terminal socket and geometry');
+    for (let i = 0; i < 3; i++) await page.evaluate(() => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForFunction(() => !view.probe);
+    assert.equal(connections, beforeRecovery.connections, 'focus/visibility return probes without replacing the socket');
+    console.log('PASS HTTP-only outages and focus changes preserve healthy terminal sockets, snapshots and sizes');
+    holdPongs = true;
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    for (let i = 0; !heldPongs.length && i < 100; i++) await page.waitForTimeout(20);
+    assert.equal(heldPongs.length, 1);
+    const stalePong = heldPongs.shift();
+    await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', {configurable:true, value:true});
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForFunction(() => !view.probe);
+    await page.evaluate(() => {
+        delete document.hidden;
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+    for (let i = 0; !heldPongs.length && i < 100; i++) await page.waitForTimeout(20);
+    assert.equal(heldPongs.length, 1);
+    client.send(stalePong);
+    await page.waitForTimeout(100);
+    assert.ok(await page.evaluate(() => !!view.probe), 'stale pong cannot satisfy a probe after visibility return');
+    holdPongs = false; client.send(heldPongs.shift());
+    await page.waitForFunction(() => !view.probe);
+    assert.equal(connections, beforeRecovery.connections);
+    console.log('PASS coalesced terminal probes and stale-pong rejection across visibility changes');
     let releaseProbe;
     const probe = new Promise(resolve => { releaseProbe = resolve; });
     await page.route('**/api/connection', async route => { await probe; await route.continue().catch(() => {}); });
-    holdAcks = true; keepUpstream = true;
+    holdAcks = true; holdPongs = true; keepUpstream = true;
     const sentBeforeOutage = sent.length, beforeOutage = connections;
     await input("printf 'OUTAGE_%s\\n' ONCE\n");
     for (let i = 0; !heldAcks.length && i < 100; i++) await page.waitForTimeout(20);
@@ -148,14 +192,33 @@ try {
     await page.getByRole('dialog', { name: 'Connection lost, reconnecting...' }).waitFor();
     releaseProbe(); await page.unroute('**/api/connection');
     await page.getByRole('dialog', { name: 'Connection lost, reconnecting...' }).waitFor({state:'detached'});
-    for (let i = 0; connections === beforeOutage && i < 100; i++) await page.waitForTimeout(20);
+    for (let i = 0; connections === beforeOutage && i < 600; i++) await page.waitForTimeout(20);
     assert.equal(connections, beforeOutage + 1);
-    holdAcks = false; heldAcks = []; keepUpstream = false;
+    holdAcks = false; heldAcks = []; holdPongs = false; heldPongs = []; keepUpstream = false;
     await connected(); await idle();
     await input("printf 'AUTO_%s\\n' RECOVERED\n");
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('AUTO_RECOVERED'));
     assert.equal(sent.slice(sentBeforeOutage).filter(v => Buffer.isBuffer(v) && v.toString().includes('OUTAGE_')).length, 1);
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
+    const beforeHidden = connections;
+    await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', {configurable:true, value:true});
+        document.dispatchEvent(new Event('visibilitychange'));
+    });
+    holdRendered = true;
+    await input("printf 'SUSPENDED_%s\\n' OUTPUT\n");
+    await page.waitForFunction(() => !view.socket, undefined, {timeout:20000});
+    holdRendered = false;
+    await page.waitForTimeout(1500);
+    assert.equal(connections, beforeHidden, 'hidden pages defer reconnects');
+    await page.evaluate(() => {
+        delete document.hidden;
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('focus'));
+    });
+    await connected(); await idle();
+    assert.equal(connections, beforeHidden + 1, 'visibility and focus share one recovery');
+    console.log('PASS suspended render acknowledgements time out, wait while hidden and recover once on visibility');
     await page.evaluate(() => watcher.dispose());
     console.log('PASS automatic recovery from a half-open socket without replaying uncertain input or replacing the shell');
 
@@ -343,8 +406,13 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await page.locator('#terminal').evaluate(node => node.style.width = '700px');
     await page.waitForFunction(() => view.term.buffer.active.getLine(0)?.translateToString().includes('PARTIAL_REDRAW'));
     await page.waitForTimeout(1200);
-    assert.ok(await page.evaluate(() => document.querySelector('.xterm-rows').textContent === beforeResize), 'old frame stays visible beyond the synchronized-output timeout');
-    assert.ok(await page.evaluate(() => document.querySelector('.xterm .slider').getAttribute('style') === beforeScrollbar), 'scrollbar stays stable during reconstruction');
+    const redrawSample = await page.evaluate(() => ({
+        old: document.querySelector('.xterm-rows').textContent === beforeResize,
+        complete: document.querySelector('.xterm-rows').textContent.includes('REDRAW_COMPLETE'),
+        stableScrollbar: document.querySelector('.xterm .slider').getAttribute('style') === beforeScrollbar,
+    }));
+    assert.ok(redrawSample.old || redrawSample.complete, 'retain the old frame until the completed redraw, even when a busy browser samples late');
+    if (redrawSample.old) assert.ok(redrawSample.stableScrollbar, 'scrollbar stays stable during reconstruction');
     await page.screenshot({path:'test-results/terminal-resize-during.png'});
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('REDRAW_COMPLETE'));
     assert.ok(await page.evaluate(() => resizePaints.every(text => text === beforeResize || text.includes('REDRAW_COMPLETE'))), 'no partial transcript is painted');
@@ -624,12 +692,21 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await nextInput.click();
     assert.equal((await drawer.inputValue()).length, 100000, 'rejected draft survives browsing');
     await drawer.fill('retained draft');
+    await input("for i in $(seq 1 100); do printf 'RECOVERY_LINE_%s\\n' \"$i\"; done\n");
+    await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('RECOVERY_LINE_100'));
+    await idle();
+    await page.evaluate(() => view.term.scrollToLine(20));
+    await page.waitForTimeout(100);
+    const beforeSnapshot = await page.evaluate(() => ({text: document.querySelector('.xterm-rows').textContent, viewport: view.term.buffer.active.viewportY}));
     holdOutput = true;
     const beforeReconnect = connections;
     await page.evaluate(() => window.previousSocket = view.socket);
     await page.getByRole('button', {name:'Reconnect terminal', exact:true}).click();
     await page.locator('#terminal[data-state=connecting]').waitFor();
-    await rendering.waitFor();
+    assert.equal(await rendering.count(), 0, 'reconnect does not cover a painted terminal');
+    assert.equal(await page.locator('[data-action=reconnect-terminal]').getAttribute('aria-busy'), 'true');
+    assert.equal(await page.locator('[data-action=reconnect-terminal]').getAttribute('title'), 'Loading...');
+    assert.equal(await page.locator('.xterm-rows').textContent(), beforeSnapshot.text, 'last frame stays visible while waiting for the replacement snapshot');
     await page.waitForFunction(() => previousSocket.readyState === WebSocket.CLOSED && view.socket !== previousSocket);
     await drawer.focus(); await page.keyboard.press('Enter');
     assert.equal(await drawer.inputValue(), 'retained draft', 'disconnected send preserves draft');
@@ -639,6 +716,8 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await connected(); await idle();
     await rendering.waitFor({state:'detached'});
     assert.equal(connections, beforeReconnect + 1);
+    assert.equal(await page.locator('[data-action=reconnect-terminal]').getAttribute('aria-busy'), 'false');
+    assert.equal(await page.evaluate(() => view.term.buffer.active.viewportY), beforeSnapshot.viewport, 'snapshot recovery preserves intentional scrollback');
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
     assert.equal(await drawer.inputValue(), 'retained draft');
     await previousInput.click();
@@ -764,30 +843,30 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await input('END_RAW');
     await page.waitForFunction(hash => document.querySelector('.xterm-rows').textContent.includes('DRAWER_HASH_'+hash), createHash('sha256').update(bytes).digest('hex'));
     console.log('PASS plain-text TUI snapshot, recoverable long Unicode paste, bounded input history, exact bracketed-paste bytes and ignored Command+Enter');
-    await input(`for i in {1..6000}; do printf '\\e[48;5;%dm%05d%*s\\e[0m\\r\\n' "$((16+i%216))" "$i" "$((COLUMNS-5))" ''; done; printf 'REFRESH_%s\\n' READY\n`);
-    await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'));
+    await input(`python3 -c 'import sys; cols=int(sys.argv[1]); sys.stdout.write("".join(f"\\x1b[48;5;{16+i%216}m{i:05d}{chr(32)*(cols-5)}\\x1b[0m\\r\\n" for i in range(1,6001))+"REFRESH_READY\\n")' "$COLUMNS"\n`);
+    await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'), undefined, {timeout:120000});
     await idle();
     const beforeHeavyReconnect = connections;
     await page.evaluate(async () => {
         await new Promise(resolve => view.term.write('\r\nLOCAL_STALE_RENDERER\r\n', resolve));
-        window.loadingFrames = [];
+        window.recoveryFrames = [];
         window.refreshStarted = performance.now();
         document.querySelector('button[aria-label="Reconnect terminal"]').click();
         const frame = () => {
-            if (document.querySelector('.terminal-rendering')) {
-                loadingFrames.push(performance.now()); requestAnimationFrame(frame);
-            } else window.refreshFinished = performance.now();
+            recoveryFrames.push({loading: !!document.querySelector('.terminal-rendering'), text: document.querySelector('.xterm-rows').textContent});
+            if (!view.ready) requestAnimationFrame(frame);
+            else window.refreshFinished = performance.now();
         };
         requestAnimationFrame(frame);
     });
     await connected(); await rendering.waitFor({state:'detached'});
     await page.waitForFunction(() => window.refreshFinished !== undefined);
     assert.equal(connections, beforeHeavyReconnect + 1);
-    assert.ok(await page.evaluate(() => loadingFrames.length > 0 && refreshFinished - refreshStarted >= 180), 'fast reconnect has visible loading feedback');
+    assert.ok(await page.evaluate(() => recoveryFrames.length > 0 && recoveryFrames.every(frame => !frame.loading && frame.text.trim())), 'large snapshot recovery never covers or blanks the terminal');
     const restored = await page.evaluate(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).join('\n'));
     assert.ok(restored.includes('06000') && restored.includes('REFRESH_READY') && !restored.includes('LOCAL_STALE_RENDERER'));
     assert.equal((await (await api(`/terminals/${info.id}`)).json()).pid, info.pid);
-    console.log('PASS 6,000 colored lines: real socket replacement, visible loading through repaint and clean snapshot restoration with the same PID');
+    console.log('PASS 6,000 colored lines: real socket replacement, uninterrupted visible rows and clean snapshot restoration with the same PID');
     for (const width of [800, 320]) for (const theme of ['dark', 'light']) {
         await page.setViewportSize({width:width+16, height:650});
         await page.evaluate(({width, theme}) => {

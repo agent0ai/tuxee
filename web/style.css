@@ -660,6 +660,7 @@ h3 {
 .terminal-footer { flex-shrink: 0; background: var(--surface); }
 .terminal-footer > div { display: flex; align-items: center; gap: 4px; }
 .terminal-footer button { min-width: 24px; }
+.terminal-footer [data-action=reconnect-terminal][aria-busy=true] { color: var(--warning); }
 .terminal-footer-separator { flex-shrink: 0; color: var(--line); }
 .terminal-input { flex-shrink: 0; width: 100%; min-height: calc(1lh + 18px); max-height: calc(100% - 72px); border-radius: 0; resize: none; font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .terminal-input-resize { position: relative; z-index: 1; flex: 0 0 10px; margin: -5px 0; cursor: ns-resize; touch-action: none; }

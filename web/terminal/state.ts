@@ -382,11 +382,14 @@ export function captureTerminal(terminal: any) {
   return result;
 }
 
-export function restoreTerminal(terminal: any, snapshot: any) {
+export function restoreTerminal(terminal: any, snapshot: any, preserveViewport = false) {
   validateSnapshot(snapshot);
   if (snapshot.version !== "the8020.xterm-6.0.0.2") {
     throw new MessageError("engine.unknownStateVersion");
   }
+  const active = terminal.buffer.active;
+  const viewportY = preserveViewport && active.type === "normal" && snapshot.active === "normal" &&
+      terminal.cols === snapshot.cols && active.viewportY < active.baseY ? active.viewportY : undefined;
   terminal.options.scrollback = snapshot.scrollback;
   terminal.resize(snapshot.cols, snapshot.rows);
   terminal.reset();
@@ -456,6 +459,10 @@ export function restoreTerminal(terminal: any, snapshot: any) {
       entry.lines.push(marker);
       marker.onDispose(() => links._removeMarkerFromLink(entry, marker));
     }
+  }
+  if (viewportY !== undefined) {
+    b.active.ydisp = Math.min(viewportY, b.active.ybase);
+    c._bufferService.isUserScrolling = b.active.ydisp < b.active.ybase;
   }
   // Install the restored scroll range before input or rendering sees the view.
   c._viewport?._sync();

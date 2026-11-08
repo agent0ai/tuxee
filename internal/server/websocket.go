@@ -334,6 +334,7 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 			}
 			var input struct {
 				Type     string `json:"type"`
+				Nonce    string `json:"nonce"`
 				Columns  int    `json:"columns"`
 				Rows     int    `json:"rows"`
 				Sequence uint64 `json:"sequence"`
@@ -343,6 +344,17 @@ func (s *Server) terminalRoute(w http.ResponseWriter, r *http.Request, session *
 				return
 			}
 			switch input.Type {
+			case "ping":
+				if len(input.Nonce) != 32 || strings.Trim(input.Nonce, "0123456789abcdef") != "" {
+					err = i18n.New("backend.server.invalidTerminalControlMessage")
+				} else {
+					writeCtx, stop := context.WithTimeout(ctx, 10*time.Second)
+					err = wsjson.Write(writeCtx, connection, struct {
+						Type  string `json:"type"`
+						Nonce string `json:"nonce"`
+					}{"pong", input.Nonce})
+					stop()
+				}
 			case "rendered":
 				ack := terminalAckRequest{sequence: input.Sequence, done: make(chan error, 1)}
 				select {

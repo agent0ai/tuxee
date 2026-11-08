@@ -196,6 +196,52 @@ func dialTerminal(t *testing.T, ctx context.Context, address string) *websocket.
 	return c
 }
 
+func TestTerminalProbe(t *testing.T) {
+	_, session, address := terminalFixture(t, "exec sleep 60")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, ready := range []bool{false, true} {
+		c := dialTerminal(t, ctx, address)
+		_, sequence, err := readTerminalFrame(ctx, c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ready {
+			if err := terminalAck(ctx, c, sequence); err != nil {
+				t.Fatal(err)
+			}
+		}
+		nonce := strings.Repeat("a", 32)
+		if err := c.Write(ctx, websocket.MessageText, []byte(`{"type":"ping","nonce":"`+nonce+`"}`)); err != nil {
+			t.Fatal(err)
+		}
+		for {
+			kind, data, err := c.Read(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if kind != websocket.MessageText {
+				continue
+			}
+			var value map[string]any
+			if err := json.Unmarshal(data, &value); err != nil {
+				t.Fatal(err)
+			}
+			if value["type"] != "pong" {
+				continue
+			}
+			if len(value) != 2 || value["nonce"] != nonce {
+				t.Fatalf("unexpected probe reply: %s", data)
+			}
+			break
+		}
+		c.CloseNow()
+	}
+	if session.Info().Exited {
+		t.Fatal("probe ended the terminal")
+	}
+}
+
 func TestTerminalProtocolRejectsInvalidInput(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -210,6 +256,8 @@ func TestTerminalProtocolRejectsInvalidInput(t *testing.T) {
 		{"zero-ack", websocket.MessageText, `{"type":"rendered","sequence":0}`, true},
 		{"invalid-size", websocket.MessageText, `{"type":"resize","columns":501,"rows":24}`, true},
 		{"invalid-json", websocket.MessageText, `{`, true},
+		{"missing-probe-nonce", websocket.MessageText, `{"type":"ping"}`, true},
+		{"invalid-probe-nonce", websocket.MessageText, `{"type":"ping","nonce":"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}`, true},
 		{"unknown-control", websocket.MessageText, `{"type":"unknown"}`, true},
 		{"oversized-control", websocket.MessageText, strings.Repeat(" ", 4097), true},
 		{"oversized-input", websocket.MessageBinary, strings.Repeat("x", 65537), true},

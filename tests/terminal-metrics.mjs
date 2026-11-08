@@ -238,6 +238,49 @@ try {
             assert.equal(scrolling.afterScroll.view, scrolling.duringRedraw.view, 'redraw completion preserves deliberate scrolling');
             assert.equal(scrolling.following.view, scrolling.following.base, 'redrawing at the bottom keeps following output');
             console.log('PASS redraw scroll range, scroll-on-input and preserved intentional scrollback');
+            const recovery = await page.evaluate(async () => {
+                const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                const write = data => new Promise(resolve => term.write(data, resolve));
+                const text = () => document.querySelector('.xterm-rows').textContent;
+                const snapshot = await canonical(Array.from({length:120}, (_,i)=>`RECOVERY_${i}\r\n`).join(''), 80, 12);
+                term.reset(); term.resize(80,12);
+                await write(Array.from({length:100}, (_,i)=>`RECOVERY_${i}\r\n`).join(''));
+                term.scrollToLine(20); await paint();
+                const before = text();
+                resizeDisplay.begin();
+                restoreTerminal(term, snapshot, true);
+                const during = text();
+                resizeDisplay.release(); await paint();
+                const restored = {text:text(),view:term.buffer.active.viewportY};
+                await write('MORE_OUTPUT\r\n'); await paint();
+                const afterOutput = term.buffer.active.viewportY;
+                term.scrollToBottom();
+                resizeDisplay.begin(); restoreTerminal(term, snapshot, true); resizeDisplay.release(); await paint();
+                const bottom = term.buffer.active.viewportY === term.buffer.active.baseY;
+                // A snapshot captured inside a synchronized frame must not blank the old DOM.
+                const synchronized = await canonical('\x1b[?2026hNEW_SNAPSHOT',80,12);
+                const beforeSync = text();
+                resizeDisplay.begin(); restoreTerminal(term,synchronized,true); const duringSync = text(); resizeDisplay.release();
+                await paint(); const heldSync = text();
+                await write('\x1b[?2026l'); await paint(); const endedSync = text();
+                term.scrollToLine(0);
+                const alternate = await canonical('\x1b[?1049hALTERNATE',80,12);
+                resizeDisplay.begin(); restoreTerminal(term,alternate,true); resizeDisplay.release(); await paint();
+                const alt = {type:term.buffer.active.type,view:term.buffer.active.viewportY,text:text()};
+                return {before,during,restored,afterOutput,bottom,beforeSync,duringSync,heldSync,endedSync,alt};
+            });
+            assert.equal(recovery.during, recovery.before, 'snapshot replacement retains the old DOM until restoration completes');
+            assert.equal(recovery.restored.view, 20);
+            assert.equal(recovery.restored.text, recovery.before, "same-width recovery preserves the reader's rows");
+            assert.equal(recovery.afterOutput, 20, 'output after recovery does not force a reader to the bottom');
+            assert.ok(recovery.bottom, 'bottom-following survives recovery');
+            assert.equal(recovery.duringSync, recovery.beforeSync, 'synchronized snapshot restoration does not blank the previous image');
+            assert.ok(recovery.heldSync === recovery.beforeSync || recovery.heldSync.includes('NEW_SNAPSHOT'), 'present the old image or the restored snapshot, never a blank intermediate frame');
+            assert.ok(recovery.endedSync.includes('NEW_SNAPSHOT'));
+            assert.deepEqual([recovery.alt.type,recovery.alt.view], ['alternate',0]);
+            assert.ok(recovery.alt.text.includes('ALTERNATE'));
+            console.log('PASS atomic snapshot recovery, synchronized snapshots, reader scrollback and bottom-following');
+
         }
         await page.evaluate(async () => {
             const snapshot = await window.canonical('\x1b[?1049h\x1b[48;2;17;25;39m👋' + ' '.repeat(94) + '\r\n👍' + ' '.repeat(94), 96, 25);
