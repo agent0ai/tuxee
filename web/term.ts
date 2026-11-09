@@ -643,6 +643,11 @@ export class TerminalView implements View {
         ws.binaryType = 'arraybuffer';
         let received = 0, queuedBytes = 0, queuedFrames = 0;
         const current = () => !this.disposed && this.socket === ws && ws.readyState === WebSocket.OPEN;
+        let pendingRender = 0;
+        const acknowledge = () => {
+            const sequence = pendingRender; pendingRender = 0;
+            if (sequence && current()) this.sendControl({ type: 'rendered', sequence });
+        };
         const failed = (error: unknown) => { if (current()) { this.ready = false; this.state('disconnected'); this.notice(error); ws.close(); } };
         ws.onmessage = event => {
             if (!current()) return;
@@ -721,7 +726,10 @@ export class TerminalView implements View {
                     }
                     const rendered = () => {
                         if (!current()) return;
-                        this.sendControl({ type: 'rendered', sequence: value.sequence });
+                        // Share one cumulative acknowledgement per parser turn, including hidden views.
+                        if (!pendingRender && value.type === 'data') queueMicrotask(acknowledge);
+                        pendingRender = value.sequence;
+                        if (value.type !== 'data') acknowledge();
                         queuedFrames--; queuedBytes -= bytes;
                         this.state(this.ended ? 'ended' : this.controller ? 'connected' : 'viewing');
                     };

@@ -54,6 +54,26 @@ try {
             }, detached);
             assert.ok(Math.abs(error) < .5, `DPR ${dpr}, ${detached ? 'detached' : 'hidden'} font measurement leaves stale row spacing: ${error}`);
         }
+        for (const detached of [false, true]) {
+            await page.evaluate(detached => {
+                window.hiddenHost = document.querySelector('#terminal');
+                if (detached) hiddenHost.remove(); else hiddenHost.hidden = true;
+            }, detached);
+            await page.waitForFunction(() => term._core._renderService._isPaused);
+            const hidden = await page.evaluate(async () => {
+                const rows = hiddenHost.querySelector('.xterm-rows'), before = rows.innerHTML;
+                await new Promise(resolve => term.write('\r\n' + Array.from({ length: 30 }, (_, i) => `HIDDEN_BACKGROUND_${i}\r\n`).join(''), resolve));
+                term.select(0, term.buffer.active.baseY, 6);
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                return { before, after: rows.innerHTML, selection: term.getSelection() };
+            });
+            assert.equal(hidden.after, hidden.before, 'hidden output/selection must not repaint terminal rows');
+            assert.equal(hidden.selection, 'HIDDEN', 'hidden selection state stays current');
+            await page.evaluate(detached => { if (detached) document.body.append(hiddenHost); else hiddenHost.hidden = false; }, detached);
+            await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('HIDDEN_BACKGROUND_29'));
+            assert.equal(await page.evaluate(() => term.getSelection()), hidden.selection, 'showing preserves selection');
+            await page.evaluate(() => term.clearSelection());
+        }
         for (const font of ['monospace', 'DejaVu Sans Mono', 'Liberation Mono']) {
             const cases = await page.evaluate(async font => {
                 const term = window.term;

@@ -14,7 +14,7 @@ The novnc child owns the pinned noVNC desktop client; integration stays in web/d
 
 # Local Contracts
 
-Keep vendor chunks intact and matched except the shell command-list, Go numeric-token and search-announcement fixes below and the documented noVNC resource-lifetime and framebuffer-size fixes described in its child contract. Build resolves all local language imports into the self-contained index. No CDN or remote imports. Verbatim licenses live in third_party/CODEMIRROR-LICENSES.txt; source attribution lives in THIRD_PARTY_NOTICES.md.
+Keep vendor chunks intact and matched except the shell command-list, Go numeric-token and search-announcement fixes below and the documented noVNC resource-lifetime, framebuffer-size and visibility flow-control changes described in its child contract. Build resolves all local language imports into the self-contained index. No CDN or remote imports. Verbatim licenses live in third_party/CODEMIRROR-LICENSES.txt; source attribution lives in THIRD_PARTY_NOTICES.md.
 
 `code-editor/shell-XT4L6IAW.js` adds `exec` to the bundled shell mode's built-in command list. Preserve this fix when updating unless upstream includes it; command recognition otherwise retains the upstream static list.
 
@@ -33,4 +33,4 @@ npm run build verifies no external runtime imports. npm run test:features checks
 
 # Child DOX Index
 
-- [novnc/AGENTS.md](novnc/AGENTS.md): noVNC 1.6.0 ES modules, documented probe cleanup and bundled pako.
+- [novnc/AGENTS.md](novnc/AGENTS.md): noVNC 1.6.0 ES modules, viewer flow control, documented fixes and bundled pako.

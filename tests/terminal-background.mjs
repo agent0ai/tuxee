@@ -111,8 +111,16 @@ try {
         const palette = await snapshotBackground(terminal.id);
         assert.equal(palette.colors[257], 0x14283cff); assert.equal(palette.defaults[257], 0x14283cff);
     }
+    await page.waitForFunction(() => !document.querySelector('[data-panel=b]'));
+    await warmNode.evaluate(node => {
+        window.hiddenTerminalPaints = 0;
+        new MutationObserver(records => hiddenTerminalPaints += records.length).observe(node.querySelector('.xterm-rows'), { childList: true, subtree: true, attributes: true, characterData: true });
+    });
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     await surface('rgb(248, 249, 252)');
+    await warmNode.waitForElementState('hidden');
+    assert.equal(await warmNode.evaluate(node => node.style.backgroundColor), 'rgb(248, 249, 252)', 'hidden palette follows the theme');
+    assert.equal(await page.evaluate(() => hiddenTerminalPaints), 0, 'hidden terminal rows are not repainted for theme changes');
     const lightPicker = dialog.getByLabel('Light terminal background', { exact: true });
     await open(); assert.equal(await lightPicker.inputValue(), '#f8f9fc');
     assert.ok(await picker.evaluate((node, light) => node.getBoundingClientRect().left < light.getBoundingClientRect().left, await lightPicker.elementHandle()));

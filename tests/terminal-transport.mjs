@@ -368,9 +368,23 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     // Fill the real transport window while parsing is held, then drain it in order.
     await page.evaluate(() => {
         const write = view.term.write.bind(view.term);
-        window.outputWrites = [];
-        view.term.write = (data, callback) => outputWrites.push(() => write(data, callback));
-        window.releaseOutput = () => { view.term.write = write; for (const submit of outputWrites) submit(); };
+        const send = view.socket.send.bind(view.socket);
+        window.outputAcks = []; window.parsedOutputs = 0; window.lastOutputSequence = 0;
+        const received = event => {
+            const sequence = event.data instanceof ArrayBuffer ? Number(new DataView(event.data).getBigUint64(0)) : JSON.parse(event.data).sequence;
+            if (sequence) lastOutputSequence = sequence;
+        };
+        view.socket.addEventListener('message', received);
+        view.socket.send = message => {
+            if (typeof message === 'string' && JSON.parse(message).type === 'rendered') outputAcks.push(JSON.parse(message).sequence);
+            send(message);
+        };
+        window.outputWrites = []; window.outputCallbacks = [];
+        const trackedWrite = (data, callback) => write(data, () => { parsedOutputs++; if (outputCallbacks) outputCallbacks.push(callback); else callback(); });
+        view.term.write = (data, callback) => outputWrites.push(() => trackedWrite(data, callback));
+        window.releaseOutput = () => { view.term.write = trackedWrite; for (const submit of outputWrites) submit(); };
+        window.releaseCallbacks = () => { const callbacks = outputCallbacks; outputCallbacks = null; for (const callback of callbacks) callback(); };
+        window.restoreOutput = () => { view.term.write = write; view.socket.send = send; view.socket.removeEventListener('message', received); };
     });
     const burst = `import os\nfor i in range(2000): os.write(1,('BATCH_%04d '%i+'x'*30+'\\r\\n').encode())\nos.write(1,b'BATCH_DONE\\r\\n')\n`;
     await input(`python3 -c "import base64;exec(base64.b64decode('${Buffer.from(burst).toString('base64')}'))"\n`);
@@ -381,12 +395,34 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(resizeRequests.length, barrierStart+1);
     await page.waitForTimeout(150);
     assert.equal(await page.evaluate(() => view.term.cols), columns, 'resize waits for preceding writes');
+    assert.equal(await page.evaluate(() => outputAcks.length), 0, 'unparsed output and its resize barrier cannot be acknowledged');
+    await page.locator('#terminal').evaluate(node => node.style.display = 'none');
+    await page.waitForFunction(() => view.term._core._renderService._isPaused);
+    const cpu = await context.newCDPSession(page);
+    await cpu.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     await page.evaluate(() => releaseOutput());
+    await page.waitForFunction(() => outputCallbacks.length >= 8);
+    assert.equal(await page.evaluate(() => outputAcks.length), 0, 'acknowledgements wait for write completion callbacks');
+    await page.evaluate(() => releaseCallbacks());
+    await page.waitForFunction(() => !view.displayWrites.size && [...Array(view.term.buffer.active.length)].some((_, i) => view.term.buffer.active.getLine(i).translateToString().includes('BATCH_DONE')));
+    await page.waitForFunction(() => outputAcks.at(-1) === lastOutputSequence);
+    const batching = await page.evaluate(() => ({ parsed: parsedOutputs, acknowledgements: outputAcks.length }));
+    console.log('Output acknowledgement batch:', JSON.stringify(batching));
+    assert.ok(batching.acknowledgements < batching.parsed, 'completed output shares cumulative acknowledgements even while hidden and CPU-throttled');
+    // Drain a paint queued before hiding; subsequent hidden output must not repaint.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const hiddenRows = await page.locator('.xterm-rows').textContent();
+    await input("printf 'HIDDEN_%s\\n' TAIL\n");
+    await page.waitForFunction(() => [...Array(view.term.buffer.active.length)].some((_, i) => view.term.buffer.active.getLine(i).translateToString().includes('HIDDEN_TAIL')) && outputAcks.at(-1) === lastOutputSequence);
+    assert.equal(await page.locator('.xterm-rows').textContent(), hiddenRows, 'hidden terminal output is parsed without repainting rows');
+    await page.evaluate(() => restoreOutput());
+    await cpu.send('Emulation.setCPUThrottlingRate', { rate: 1 }); await cpu.detach();
+    await page.locator('#terminal').evaluate(node => node.style.display = '');
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('BATCH_DONE'));
     await idle();
     const batchHistory = await page.evaluate(() => [...Array(view.term.buffer.active.length)].map((_,i) => view.term.buffer.active.getLine(i).translateToString()).join('\n'));
-    assert.equal((batchHistory.match(/BATCH_\d{4}/g) || []).length, 2000);
-    assert.ok(await page.evaluate(() => view.term.cols) !== columns);
+    assert.deepEqual(batchHistory.match(/BATCH_\d{4}/g), Array.from({ length: 2000 }, (_, i) => `BATCH_${String(i).padStart(4, '0')}`));
+    await page.waitForFunction(columns => view.term.cols !== columns, columns);
     console.log('PASS output pipelines while parsing is pending; resize is an ordered barrier and all 2,000 rows survive');
 
     // A real SIGWINCH handler rebuilds scrollback slowly, beyond xterm's one-second timeout.
@@ -437,7 +473,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.deepEqual(errors,[]);
     console.log('PASS malformed output disconnects only its view and recovers the same shell');
     await input("seq -f 'HISTORY_%04g' 1 2000; printf 'HISTORY_%s\\n' END\n");
-    await page.waitForFunction(()=>[...Array(view.term.buffer.active.length)].some((_,i)=>view.term.buffer.active.getLine(i).translateToString().includes('HISTORY_END')));
+    await page.waitForFunction(()=>[...Array(view.term.buffer.active.length)].some((_,i)=>view.term.buffer.active.getLine(i).translateToString().includes('HISTORY_END')), null, { timeout: 120000 });
     await idle();
     client.close({code:4000}); upstream.close({code:4000});
     await page.locator('#terminal[data-state=disconnected]').waitFor(); await connected(); await idle();
@@ -844,6 +880,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await page.waitForFunction(hash => document.querySelector('.xterm-rows').textContent.includes('DRAWER_HASH_'+hash), createHash('sha256').update(bytes).digest('hex'));
     console.log('PASS plain-text TUI snapshot, recoverable long Unicode paste, bounded input history, exact bracketed-paste bytes and ignored Command+Enter');
     await input(`python3 -c 'import sys; cols=int(sys.argv[1]); sys.stdout.write("".join(f"\\x1b[48;5;{16+i%216}m{i:05d}{chr(32)*(cols-5)}\\x1b[0m\\r\\n" for i in range(1,6001))+"REFRESH_READY\\n")' "$COLUMNS"\n`);
+    // Bulk scrollback checks validate recovery; terminal-latency.mjs owns the interactive timing budget.
     await page.waitForFunction(() => Array.from({length:view.term.buffer.active.length}, (_,i) => view.term.buffer.active.getLine(i).translateToString(true)).includes('REFRESH_READY'), undefined, {timeout:120000});
     await idle();
     const beforeHeavyReconnect = connections;

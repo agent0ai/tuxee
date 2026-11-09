@@ -16,7 +16,8 @@ window.connect("destroy", Gtk.main_quit)
 box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin=24)
 window.add(box)
 box.pack_start(Gtk.Label(label="Terminal display — real Linux application"), False, False, 0)
-box.pack_start(Gtk.Label(label="Keyboard, dialogs and additional windows"), False, False, 0)
+activity = Gtk.Label(label="Keyboard, dialogs and additional windows")
+box.pack_start(activity, False, False, 0)
 entry = Gtk.Entry(placeholder_text="Type here and press Enter")
 box.pack_start(entry, False, False, 0)
 result = Gtk.Label(label="Waiting for input")
@@ -92,6 +93,8 @@ entry.grab_focus()
 
 
 def report():
+    if os.path.exists(sys.argv[1] + ".animate"):
+        activity.set_text("Streaming frame %d" % GLib.get_monotonic_time())
     values = {}
     for name, widget in controls.items():
         x, y = widget.translate_coordinates(window, 0, 0)

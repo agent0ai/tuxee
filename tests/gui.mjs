@@ -42,8 +42,12 @@ let displayResizes = 0;
 page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:')) external.push(request.url()); });
 page.on('websocket', socket => { if (/\/api\/terminals\/[^/]+\/display\/ws$/.test(socket.url())) {
-    const value = { closed: false }; sockets.push(value); socket.on('close', () => value.closed = true);
-    socket.on('framesent', ({ payload }) => { if (typeof payload !== 'string' && payload[0] === 251) displayResizes++; });
+    const value = { closed: false, url: socket.url(), bytes: 0, regions: [] }; sockets.push(value); socket.on('close', () => value.closed = true);
+    socket.on('framereceived', ({ payload }) => value.bytes += payload.length);
+    socket.on('framesent', ({ payload }) => {
+        if (typeof payload !== 'string' && payload[0] === 251) displayResizes++;
+        if (typeof payload !== 'string' && payload[0] === 150 && payload.length === 10) value.regions.push([payload.readUInt16BE(6), payload.readUInt16BE(8)]);
+    });
 } });
 let csrf, original;
 const appPIDs = [], runtimes = [];
@@ -51,6 +55,14 @@ const api = (path, method = 'GET', data) => context.request.fetch(base + '/api' 
 async function poll(check, message) {
     for (let i = 0; i < 100; i++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 100)); }
     throw Error(message);
+}
+async function paused(stream) {
+    await poll(() => stream.regions.at(-1)?.every(size => size === 0), 'hidden GUI did not pause its update region');
+    await poll(async () => { const bytes = stream.bytes; await page.waitForTimeout(300); return bytes === stream.bytes; }, 'hidden GUI kept streaming');
+    const bytes = stream.bytes;
+    await page.waitForTimeout(700);
+    assert.equal(stream.bytes, bytes, 'hidden GUI must stop framebuffer traffic');
+    assert.equal(stream.closed, false, 'pausing preserves the connection');
 }
 async function componentLabel(id, source) {
     const expected = await source.evaluate(button => ({ title: button.title, icon: button.querySelector('svg, img').outerHTML }));
@@ -134,7 +146,8 @@ async function panelFocus(id, screenshot) {
                 .map(([x, y]) => [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3));
         }, { png, bounds });
         const accent = panels.find(panel => panel.id === id).accent.match(/\d+/g).map(Number);
-        for (const pixel of pixels) assert.deepEqual(pixel, accent, 'both pixels of every panel edge must stay visible above its contents');
+        // PNG/canvas color conversion can round a channel by one.
+        for (const pixel of pixels) assert.ok(pixel.every((channel, i) => Math.abs(channel - accent[i]) <= 1), 'both pixels of every panel edge must stay visible above its contents');
     }
 }
 function runX(env, command, args) {
@@ -415,11 +428,21 @@ try {
     await page.getByRole('button', { name: 'Rearrange desktop', exact: true }).click();
     assert.equal(await page.locator('.terminal-view').count(), 2, 'auto layout discarded GUI panels');
     assert.ok(await terminalDOM.evaluate(node => node === document.querySelector('[data-panel="shell"] .xterm')));
+    const stream = sockets.findLast(socket => !socket.closed && socket.url.endsWith(`/api/terminals/${terminal.id}/display/ws`));
+    await writeFile(`${fixture}/input.json.animate`, '');
+    const beforeAnimation = stream.bytes;
+    await poll(() => stream.bytes > beforeAnimation, 'visible GUI did not stream animation');
+    const beforeSwitch = sockets.length;
     await page.getByRole('button', { name: 'New desktop', exact: true }).click();
     await page.locator('[data-workspace]:not([data-workspace="gui-proof"]) .terminal-view[data-state=connected]').waitFor();
+    await paused(stream);
+    const beforeResume = stream.bytes;
     const savedWorkspace = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().current === 'gui-proof');
     await page.getByRole('button', { name: 'GUI proof', exact: true }).click();
     await savedWorkspace;
+    await poll(() => stream.regions.at(-1)?.every(size => size > 0) && stream.bytes > beforeResume, 'GUI updates did not resume');
+    assert.equal(sockets.length, beforeSwitch, 'warm return must not reconnect VNC');
+    await rm(`${fixture}/input.json.animate`);
     assert.ok(await canvasDOM.evaluate(node => node === document.querySelector('.terminal-view canvas')));
     await poll(async () => (await (await api('/me')).json()).settings.current === 'gui-proof', 'workspace selection was not saved');
     await page.reload();
@@ -488,8 +511,10 @@ try {
     const selected = await firstPanel.locator('.display-window.active').elementHandle();
     const selectedID = await selected.getAttribute('data-window'), selectedTitle = await selected.getAttribute('title');
     const oldIcon = await selected.evaluate(button => button.querySelector('img').src);
+    const minimizedStream = sockets.findLast(socket => !socket.closed && socket.url.endsWith(`/api/terminals/${terminal.id}/display/ws`));
     await firstPanel.locator('.window-minimize').click();
     const minimized = page.locator('.window-bar [data-component-name="shell"]'); await minimized.waitFor();
+    await paused(minimizedStream);
     await componentLabel('shell', selected);
     runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', 'GUI <updated title>']);
     runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_ICON', '32c', '-set', '_NET_WM_ICON', '1, 1, 4294901760']);
@@ -498,6 +523,7 @@ try {
     assert.equal((await (await api(`/terminals/${terminal.id}`)).json()).name, 'Terminal', 'GUI titles never rename the terminal');
     runX(env, 'xprop', ['-id', selectedID, '-f', '_NET_WM_NAME', '8u', '-set', '_NET_WM_NAME', selectedTitle]);
     await minimized.click(); await first.locator('canvas').waitFor();
+    await poll(() => minimizedStream.regions.at(-1)?.every(size => size > 0), 'restored GUI did not resume updates');
 
     await page.setViewportSize({ width: 390, height: 844 });
     const secondTab = page.locator(`[data-component-name="${secondID}"]`);

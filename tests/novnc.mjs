@@ -49,7 +49,40 @@ try {
             RFB.prototype._requestRemoteResize.call(view);
             return calls;
         }), [[800, 600]]);
+        await page.evaluate(() => {
+            const RFB = window.ResizeRFB;
+            for (const continuous of [false, true]) {
+                const calls = [];
+                RFB.messages.enableContinuousUpdates = (_, enabled, x, y, w, h) => calls.push(['continuous', enabled, w, h]);
+                RFB.messages.fbUpdateRequest = (_, incremental, x, y, w, h) => calls.push(['request', incremental, w, h]);
+                const view = Object.assign(Object.create(RFB.prototype), {
+                    _rfbConnectionState: 'connected', _updatesPaused: false, _enabledContinuousUpdates: continuous,
+                    _fbWidth: 800, _fbHeight: 600, _FBU: { rects: 0 },
+                    _sock: { rQshift8: () => 0 }, _framebufferUpdate: () => true,
+                });
+                const expect = expected => { if (JSON.stringify(calls) !== JSON.stringify(expected)) throw Error(JSON.stringify({ calls, expected })); };
+                view.updatesPaused = true; view.updatesPaused = true;
+                view._normalMsg();
+                expect(continuous ? [['continuous', true, 0, 0]] : []);
+                calls.length = 0;
+                view._fbWidth = 1024; view._fbHeight = 768;
+                view._updateContinuousUpdates();
+                expect(continuous ? [['continuous', true, 0, 0]] : []);
+                calls.length = 0;
+                view.updatesPaused = false; view.updatesPaused = false;
+                expect([[continuous ? 'continuous' : 'request', true, 1024, 768]]);
+                calls.length = 0;
+                view._normalMsg();
+                expect(continuous ? [] : [['request', true, 1024, 768]]);
+                view._rfbConnectionState = 'connecting'; view.updatesPaused = true;
+                calls.length = 0;
+                view._supportsContinuousUpdates = false;
+                view._sock.rQshift8 = () => 150;
+                view._normalMsg();
+                expect([['continuous', true, 0, 0]]);
+            }
+        });
         await page.close();
     }
 } finally { await browser.close(); }
-console.log('PASS noVNC decoder cleanup and valid framebuffer sizes for hidden/visible viewers');
+console.log('PASS noVNC decoder cleanup, valid framebuffer sizes and paused/resumed continuous and legacy updates');

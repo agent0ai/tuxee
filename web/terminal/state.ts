@@ -792,14 +792,20 @@ export function installTerminalResize(terminal: any): { begin(): void; release()
 // origin in a view: keyboard, paste, focus, and mouse events outside parsing keep
 // their ordinary xterm encoding. The canonical headless owner answers queries.
 export function installTerminalView(terminal: any): void {
+  const render = terminal._core._renderService, renderer = render._renderer.value;
+  const renderRows = renderer.renderRows.bind(renderer);
+  // Selection and focus refreshes can bypass xterm's visibility check.
+  renderer.renderRows = (...args: any[]) => {
+    if (render._isPaused) { render._needsFullRefresh = true; return; }
+    return renderRows(...args);
+  };
   const theme = terminal._core._themeService;
   // Whole rows leave spare pixels; paint the entire surface with the active palette.
   const paintBackground = () => terminal.element.style.backgroundColor = theme.colors.background.css;
   paintBackground();
   terminal._core._register(theme.onChangeColors(paintBackground));
   onSynchronizedOutputEnd(terminal, () => {
-    const render = terminal._core._renderService;
-    if (!render || render._isPaused) return;
+    if (render._isPaused) return;
     // DEC 2026 reset already queued the completed rows. Flush that render now:
     // the next begin marker can otherwise suppress its animation frame forever.
     render._renderDebouncer.dispose();

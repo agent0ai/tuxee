@@ -35,6 +35,11 @@ export class TerminalDisplay {
     private attempt = 0;
     private focusOnConnect = false;
     private observer = new ResizeObserver(() => this.resize());
+    private intersecting = false;
+    private visibility = new IntersectionObserver(entries => {
+        this.intersecting = entries[entries.length - 1].isIntersecting;
+        this.updateStreaming();
+    });
     visible = false;
     get connected() { return this.visible && !!this.clipboard && this.frame.getClientRects().length > 0 && this.frame.dataset.state === 'connected'; }
     get tabLabel() {
@@ -50,6 +55,8 @@ export class TerminalDisplay {
         this.status.setAttribute('role', 'status');
         this.frame.append(this.screen, this.status); this.frame.hidden = true;
         root.append(this.frame);
+        this.visibility.observe(this.frame);
+        document.addEventListener('visibilitychange', () => this.updateStreaming(), { signal: this.events.signal });
         this.update();
         document.addEventListener('focusin', event => { this.focusOnConnect = this.root.contains(event.target as Node); }, { signal: this.events.signal });
         this.observer.observe(this.frame);
@@ -152,6 +159,7 @@ export class TerminalDisplay {
             const url = new URL(`/api/terminals/${this.id()}/display/ws`, location.href);
             url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const rfb = this.rfb = new RFB(this.screen, url.href, { credentials: session });
+            this.updateStreaming();
             rfb.scaleViewport = true; rfb.resizeSession = true; rfb.background = '#111827'; this.resize();
             rfb.addEventListener('connect', () => {
                 if (this.rfb !== rfb) return;
@@ -226,6 +234,10 @@ export class TerminalDisplay {
         }
     }
 
+    private updateStreaming() {
+        if (this.rfb) this.rfb.updatesPaused = document.hidden || !this.intersecting;
+    }
+
     private disconnect() {
         clearTimeout(this.reconnect); this.reconnect = undefined;
         clearTimeout(this.connecting); this.connecting = undefined;
@@ -236,5 +248,5 @@ export class TerminalDisplay {
         this.screen.replaceChildren(); delete this.frame.dataset.state;
     }
 
-    dispose() { this.disposed = true; clearTimeout(this.resizeTimer); this.observer.disconnect(); this.events.abort(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
+    dispose() { this.disposed = true; clearTimeout(this.resizeTimer); this.observer.disconnect(); this.visibility.disconnect(); this.events.abort(); this.closeMenu(); for (const item of this.buttons.values()) item.dispose(); this.disposeOverflow(); this.disconnect(); this.controls.remove(); this.frame.remove(); }
 }

@@ -47,7 +47,9 @@ try {
     const bundle = await build({ stdin: { contents: `
         import { TerminalView } from './web/term';
         import { setCSRF } from './web/ui';
+        import { setTranslations } from './web/i18n';
         window.mount = (me, id) => {
+            setTranslations(me.i18n);
             setCSRF(me.csrf);
             window.view = new TerminalView(document.querySelector('#terminal'), {id:'test',kind:'terminal',terminal:id}, {user:me.user, defaultDirectory:()=>me.user.home, changed(){}});
         };

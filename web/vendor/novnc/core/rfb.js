@@ -294,6 +294,7 @@ export default class RFB extends EventTargetMixin {
         this.focusOnClick = true;
 
         this._viewOnly = false;
+        this._updatesPaused = false;
         this._clipViewport = false;
         this._clippingViewport = false;
         this._scaleViewport = false;
@@ -310,6 +311,19 @@ export default class RFB extends EventTargetMixin {
     }
 
     // ===== PROPERTIES =====
+
+    get updatesPaused() { return this._updatesPaused; }
+    set updatesPaused(paused) {
+        if (this._updatesPaused === paused) { return; }
+        this._updatesPaused = paused;
+        if (this._rfbConnectionState !== 'connected') { return; }
+        if (this._enabledContinuousUpdates) {
+            this._updateContinuousUpdates();
+        } else if (!paused) {
+            RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
+                                         this._fbWidth, this._fbHeight);
+        }
+    }
 
     get viewOnly() { return this._viewOnly; }
     set viewOnly(viewOnly) {
@@ -2577,7 +2591,7 @@ export default class RFB extends EventTargetMixin {
         switch (msgType) {
             case 0:  // FramebufferUpdate
                 ret = this._framebufferUpdate();
-                if (ret && !this._enabledContinuousUpdates) {
+                if (ret && !this._enabledContinuousUpdates && !this._updatesPaused) {
                     RFB.messages.fbUpdateRequest(this._sock, true, 0, 0,
                                                  this._fbWidth, this._fbHeight);
                 }
@@ -3004,8 +3018,10 @@ export default class RFB extends EventTargetMixin {
     _updateContinuousUpdates() {
         if (!this._enabledContinuousUpdates) { return; }
 
+        // An empty region pauses pixels without renegotiating continuous updates.
         RFB.messages.enableContinuousUpdates(this._sock, true, 0, 0,
-                                             this._fbWidth, this._fbHeight);
+                                             this._updatesPaused ? 0 : this._fbWidth,
+                                             this._updatesPaused ? 0 : this._fbHeight);
     }
 
     // Handle resize-messages from the server
