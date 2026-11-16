@@ -2,10 +2,8 @@ import { GridStack } from 'gridstack';
 import '@xterm/xterm/css/xterm.css';
 import 'gridstack/dist/gridstack.css';
 import './style.css';
-import horizontalLogo from './tuxee-logo-horizontal.webp';
 import emblemLogo from './tuxee-logo-emblem.webp';
 import verticalLogo from './tuxee-logo-vertical.webp';
-import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
@@ -249,12 +247,10 @@ function renderChrome() {
     root.classList.toggle('compact', compact);
     const top = el('header', 'topbar');
     const brand = el('img', 'brand');
-    brand.src = settings.theme === 'light'
-        ? (compact ? emblemLogoLight : horizontalLogoLight)
-        : (compact ? emblemLogo : horizontalLogo);
+    brand.src = settings.theme === 'light' ? emblemLogoLight : emblemLogo;
     brand.alt = t("app.tuxee");
-    brand.width = compact ? 128 : 320;
-    brand.height = compact ? 117 : 128;
+    brand.width = 128;
+    brand.height = 117;
     brand.draggable = false;
     const about = button(t("app.aboutTuxee"), undefined, openAbout, 'brand-button');
     about.setAttribute('aria-haspopup', 'dialog');

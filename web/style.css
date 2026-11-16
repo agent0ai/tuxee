@@ -276,19 +276,14 @@ h3 {
   background: var(--surface);
 }
 .brand {
-  width: 80px;
-  height: 32px;
-  margin-inline-end: 8px;
+  width: 32px;
+  height: 30px;
   object-fit: contain;
   border-radius: 4px;
   mix-blend-mode: lighten;
 }
 .brand-button, .compact .topbar .brand-button {
   padding: 2px;
-  margin-inline-end: 6px;
-}
-.brand-button .brand {
-  margin-inline-end: 0;
 }
 :root[data-theme=light] .brand {
   mix-blend-mode: normal;
@@ -300,7 +295,6 @@ h3 {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-inline-start: 8px;
   overflow: hidden;
   flex: 0 1 auto;
   min-width: 0;
@@ -1027,11 +1021,6 @@ h3 {
   padding: 0 8px;
   gap: 2px;
 }
-.compact .brand {
-  width: 32px;
-  height: 30px;
-  margin-inline-end: 4px;
-}
 .compact .topbar button {
   padding: 6px;
   min-width: 29px;
@@ -1193,7 +1182,8 @@ h3 {
 .compact-board .grid-stack-item-content.panel:focus-within::after { border-width: 2px; border-radius: 0; }
 
 .topbar > button, .brand, .topbar-right { flex-shrink: 0; }
-.topbar-right { gap: 3px; }
+.topbar-right { gap: 2px; }
+.topbar-right > button, .topbar .panel-additions > button { padding-inline: 6px; }
 .visible-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .visible-tabs > *, .overflow-toggle { flex-shrink: 0; }
 .workspace-tab { max-width: 160px; overflow: hidden; text-overflow: ellipsis; display: block; }
@@ -1211,7 +1201,6 @@ h3 {
 .overflow-tabs .workspace-tab, .overflow-tabs .component-tab { flex: 1; text-align: start; justify-content: flex-start; max-width: 240px; }
 .popover-menu { max-width: calc(100vw - 8px); max-height: calc(100dvh - 8px); overflow-y: auto; }
 .menu-username { display: flex; align-items: center; gap: 8px; padding: 7px 12px; color: var(--muted); overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
-.compact .workspace-tabs { margin-inline-start: 2px; }
 .compact .workspace-tab { max-width: 100px; font-size: 11px; }
 .compact .file-nav { padding: 4px 4px 2px; }
 .compact .file-actions { padding: 0 4px 2px; }
@@ -1240,10 +1229,9 @@ h3 {
 
 .workspace-controls { display: flex; align-items: center; min-width: 0; flex: 1; gap: 4px; }
 .workspace-controls > button { flex-shrink: 0; }
-.panel-additions { display: flex; gap: 2px; margin-inline: 2em 0; padding-inline: 3px; border-inline: 1px solid var(--line); }
-.compact .panel-additions { flex-shrink: 0; margin: 0; padding-inline: 4px 0; border-inline-end: 0; gap: 0; }
+.panel-additions { display: flex; gap: 2px; }
+.compact .panel-additions { flex-shrink: 0; gap: 0; }
 .compact .topbar-right { gap: 0; }
-.compact .workspace-tabs { margin-inline-start: 0; }
 .compact .workspace-tab { max-width: 84px; }
 
 .file-view::before { content: attr(data-drop-hint); position: absolute; top: calc(50% + 24px); left: 50%; transform: translateX(-50%); z-index: 46; font-size: 12px; color: #ccd4e8; pointer-events: none; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .08s ease-out, visibility 0s linear .08s; }
@@ -1312,9 +1300,8 @@ h3 {
 .file-entry { user-select: none; }
 .file-drag-group.invalid { opacity: .5; }
 
-.monitor-controls { padding-inline-end: 3px; border-inline-end: 1px solid var(--line); }
 .monitor-controls:has(> .monitor-summary[hidden]) { display: none; }
-.monitor-summary { padding: 3px 6px; min-width: 0; border-radius: 8px; }
+.monitor-summary { padding: 3px 0; min-width: 0; border-radius: 8px; }
 .monitor-strip { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .monitor-chip, .monitor-card, .connection-progress, .retained-row { --monitor-purple: #ad94f7; --monitor-green: #36cfa7; }
 :root[data-theme=light] .monitor-chip, :root[data-theme=light] .monitor-card, :root[data-theme=light] .connection-progress, :root[data-theme=light] .retained-row { --monitor-purple: #7953bf; --monitor-green: #187b66; }

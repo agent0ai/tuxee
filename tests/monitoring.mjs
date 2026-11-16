@@ -47,7 +47,8 @@ try {
  assert.deepEqual(await summary.locator('.monitor-label').allTextContents(),['CPU','RAM','DISK','NET']);
  const tools=await page.locator('.panel-additions').boundingBox(),widget=await summary.boundingBox(),theme=await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).boundingBox();
  assert.ok(tools.x+tools.width<=widget.x&&widget.x+widget.width<theme.x);
- assert.equal(await page.locator('.monitor-controls').evaluate(node=>getComputedStyle(node).borderInlineEndWidth),'1px');
+ assert.ok(await page.locator('.topbar .panel-additions, .monitor-controls').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).borderInlineStartWidth==='0px'&&getComputedStyle(node).borderInlineEndWidth==='0px')));
+ assert.equal(await summary.evaluate(node=>getComputedStyle(node).paddingInline),'0px');
  await page.waitForFunction(()=>document.querySelector('.monitor-summary .monitor-value')?.textContent!=='—');
  await summary.click();await dialog.getByRole('heading',{name:'CPU',exact:true}).waitFor();assert.equal(await dialog.locator('.monitor-card').count(),4);assert.equal(await dialog.locator('.monitor-scope').count(),0);
  assert.ok(await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).isVisible());
