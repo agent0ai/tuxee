@@ -92,7 +92,8 @@ export class Monitoring {
             const reading = el('span', 'monitor-network-value');
             reading.setAttribute('aria-label', metric.detail);
             for (const direction of ['download', 'upload'] as const) {
-                const value = el('span', `monitor-${direction}`), arrow = icon(direction === 'download' ? 'ArrowDown' : 'ArrowUp');
+                const value = el('span', `monitor-${direction}`), arrow = icon(direction === 'download' ? 'MoveDown' : 'MoveUp');
+                arrow.setAttribute('viewBox', '6 0 12 24');
                 arrow.setAttribute('aria-hidden', 'true');
                 value.append(arrow, this.reading(metric.network[`${direction}Text`])); reading.append(value);
             }
