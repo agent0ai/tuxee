@@ -1243,6 +1243,7 @@ h3 {
 .component-notification-stack { position: absolute; right: 8px; top: 43px; width: min(360px, calc(100% - 16px)); max-height: 50%; gap: 6px; z-index: 60; }
 .component-notification-stack > div { gap: inherit; }
 .compact-board .component-notification-stack { top: 8px; }
+.panel:has(> .file-view) > .component-notification-stack { top: 6.5em; }
 .file-entry:focus { outline: none; }
 .file-list.keyboard-focus .file-entry:focus { outline: 1px solid var(--accent); outline-offset: -3px; }
 
