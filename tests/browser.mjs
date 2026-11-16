@@ -543,7 +543,7 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('.popover-menu').waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('user-menu-button')), true);
-    await page.locator('.user-menu-button .username').click();
+    await page.getByRole('button', { name: 'User menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     const parallelUploads = page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
     assert.equal(await parallelUploads.inputValue(), '4');

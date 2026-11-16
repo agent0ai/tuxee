@@ -325,12 +325,9 @@ function renderChrome() {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme; changed(); renderChrome();
     }, 'theme-toggle'));
-    for (const input of [false, true]) {
-        const sound = audioControl(input);
-        right.append(sound.control); chromeDisposers.push(sound.dispose);
-    }
-    const account = button(t("app.userMenu"), undefined, () => userMenu(account), 'user-menu-button');
-    account.replaceChildren(el('span', 'username', user.name), icon('Menu'));
+    const sound = audioControl();
+    right.append(sound.control); chromeDisposers.push(sound.dispose);
+    const account = button(t("app.userMenu"), 'Menu', () => userMenu(account), 'user-menu-button');
     account.setAttribute('aria-haspopup', 'menu');
     setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
     right.append(account); top.append(right);

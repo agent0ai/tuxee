@@ -133,10 +133,10 @@ try {
         await page.waitForFunction(() => document.querySelector('.layout-label')?.getBoundingClientRect().width === 0);
     }
     assert.deepEqual(await page.evaluate(() => window.shortcutInputs), [], 'layout shortcuts must send no PTY bytes');
-    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted');
-    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100%');
-    await hotkey('PageDown'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 95%');
-    await hotkey('PageUp'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100%');
+    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted · Microphone: 0%');
+    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100% · Microphone: 0%');
+    await hotkey('PageDown'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 95% · Microphone: 0%');
+    await hotkey('PageUp'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100% · Microphone: 0%');
     for (const [key, title] of [['m','Resource monitor'],['h','About Tuxee'],['s','Settings'],['r','Retained terminals'],['x','Restart Tuxee?']]) {
         await hotkey(key); const dialog = page.getByRole('dialog', { name: title, exact: true }); await dialog.waitFor();
         await hotkey('Enter'); assert.equal(await page.locator('.terminal-view').count(), 1, 'modal must block application shortcuts');

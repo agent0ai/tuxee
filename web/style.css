@@ -321,13 +321,6 @@ h3 {
   align-items: center;
   gap: 8px;
 }
-.username {
-  font-size: 12px;
-  color: var(--muted);
-  max-width: 130px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .component-controls {
   display: none;
 }
@@ -1039,9 +1032,6 @@ h3 {
   height: 30px;
   margin-inline-end: 4px;
 }
-.compact .username {
-  display: none;
-}
 .compact .topbar button {
   padding: 6px;
   min-width: 29px;
@@ -1191,7 +1181,8 @@ h3 {
 .popover-menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 190px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 32px #0003; }
 .popover-menu::backdrop { background: transparent; }
 .popover-menu:not(:popover-open) { display: none; }
-.volume-popover { min-width: 0; width: 40px; padding: 6px 3px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.volume-popover { min-width: 0; width: 80px; padding: 6px 3px; display: flex; gap: 8px; }
+.volume-channel { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .volume-popover input { writing-mode: vertical-lr; direction: rtl; width: 24px; min-height: 0; flex: 1; padding: 0; margin: 0; border: 0; accent-color: var(--accent); cursor: pointer; }
 .volume-popover button { flex-shrink: 0; width: 30px; padding: 4px; }
 .file-drop-animation { position: fixed; z-index: 1500; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 9px 12px; max-width: 240px; overflow: hidden; white-space: nowrap; background: var(--accent-bg); color: var(--text); border: 1px solid var(--accent); border-radius: 7px; box-shadow: 0 8px 24px #0003; }
@@ -1494,7 +1485,7 @@ pre, code, .process-label small {
   direction: ltr;
   unicode-bidi: isolate;
 }
-.file-name, .username, .panel-title, .display-title, .component-tab-title { unicode-bidi: plaintext; }
+.file-name, .panel-title, .display-title, .component-tab-title { unicode-bidi: plaintext; }
 :root[dir=rtl] input[role=switch]:checked::before { transform: translateX(-12px); }
 :root[dir=rtl] .directional-icon { transform: scaleX(-1); }
 :root[dir=rtl] .process-fold[aria-expanded=false] svg { transform: rotate(90deg); }

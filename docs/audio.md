@@ -56,9 +56,10 @@ shell or listening browser alone starts no audio process. GUI and command-line
 apps use the same mixer, independently of X11. Other Linux users remain isolated.
 Applications must support PulseAudio; ALSA-only apps are not covered.
 
-Audio starts at 100% on each page load. The speaker to the right of the theme switcher
+Speaker volume starts at 100% on each page load; the microphone starts muted. The speaker to the right of the theme switcher
 controls the single mixed stream in that browser, including terminals outside mounted workspaces.
-It opens a vertical 0–100% slider in 1% steps with Mute/Unmute at the bottom,
+It opens speaker and microphone sliders side by side, each with a vertical
+0–100% range in 1% steps and its own Mute/Unmute button at the bottom,
 in a popup four times the navigation bar's height. The header icon indicates
 muted, low or high volume. The bottom button keeps its mute icon and highlights
 only while muted. Unmute restores the last nonzero level. Volume changes apply live
@@ -97,7 +98,7 @@ CPU comparison; application and browser memory are additional.
 
 ## Microphone
 
-The microphone control beside the speaker has its own vertical level slider and mute button. It starts muted; unmute or raise its level to request browser permission. It needs HTTPS (or localhost). Speaker mute does not mute the microphone. Mute/zero, logout, reload, connection failure and page closure stop capture; retry requires explicit unmute. Desktop switches and hiding GUI panels leave an enabled microphone active. All applications for that Linux user can record it; a second browser cannot transmit simultaneously.
+The top-bar volume button opens a mixer with speaker and microphone sliders side by side, each with its own mute button. The volume button highlights while the microphone is active and its tooltip reports both levels. The microphone starts muted; unmute or raise its level to request browser permission. It needs HTTPS (or localhost). Speaker mute does not mute the microphone. Mute/zero, logout, reload, connection failure and page closure stop capture; retry requires explicit unmute. Desktop switches and hiding GUI panels leave an enabled microphone active. All applications for that Linux user can record it; a second browser cannot transmit simultaneously.
 
 The browser sends 48 kHz mono s16le PCM in 20 ms packets: 96,000 bytes/s before transport overhead. Native Web Audio gain controls level. A local AudioWorklet bounds its queued messages; stale/congested capture stops rather than building a delayed recording. Browser echo cancellation is requested; automatic gain and noise suppression are disabled so the slider controls level. Physical-device behavior varies.
 

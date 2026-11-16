@@ -162,10 +162,10 @@ try {
     await page.goto(base); const view = page.locator('.terminal-view[data-state=connected]'); await view.waitFor();
     assert.deepEqual(await audioProcesses(), [], 'ordinary terminal must not start audio');
     if (plain) {
-        await page.locator('.microphone-toggle').click();
+        await page.locator('.volume-toggle').click();
         await page.getByRole('button', { name: 'Unmute microphone', exact: true }).click();
         await page.getByText('Microphone requires HTTPS or localhost.', { exact: true }).waitFor();
-        assert.equal(await page.locator('.microphone-toggle').getAttribute('title'), 'Microphone: 0%');
+        assert.equal(await page.getByRole('slider', { name: 'Microphone', exact: true }).inputValue(), '0');
         await page.keyboard.press('Escape');
     }
     const bursts = Buffer.alloc(48000 * 4 * 3);
@@ -225,19 +225,19 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
     await page.keyboard.press('ArrowDown'); assert.equal(await slider.inputValue(), '25');
     const bounds = await page.locator('.volume-popover').boundingBox(), header = await page.locator('.topbar').boundingBox(), toggle = await page.locator('.volume-toggle').boundingBox();
     assert.equal(bounds.height, header.height * 4);
-    assert.ok(bounds.y > toggle.y + toggle.height && Math.abs(bounds.x + bounds.width / 2 - toggle.x - toggle.width / 2) < 5, 'slider must open directly below its button');
-    const muteIcon = await page.locator('.volume-popover button svg').innerHTML();
+    assert.ok(bounds.y > toggle.y + toggle.height && Math.abs(bounds.x + bounds.width - toggle.x - toggle.width) < 5, 'mixer must open below and align with its button');
+    const muteIcon = await page.locator('.volume-channel[data-channel=speaker] button svg').innerHTML();
     await (await soundMenu('Mute')).click();
-    assert.equal(await page.locator('.volume-popover button svg').innerHTML(), muteIcon, 'mute icon stays fixed');
-    assert.equal(await page.locator('.volume-popover button.active[aria-pressed=true]').count(), 1, 'muted button is highlighted');
+    assert.equal(await page.locator('.volume-channel[data-channel=speaker] button svg').innerHTML(), muteIcon, 'mute icon stays fixed');
+    assert.equal(await page.locator('.volume-channel[data-channel=speaker] button.active[aria-pressed=true]').count(), 1, 'muted button is highlighted');
     await poll(async () => sockets.every(s => s.closed), 'mute must stop capture');
     assert.equal(await slider.inputValue(), '0');
     assert.notEqual(await page.locator('.volume-toggle svg').innerHTML(), lowIcon, 'mute uses the muted speaker');
     await (await soundMenu('Unmute')).click();
     assert.equal(await slider.inputValue(), '25', 'unmute restores the previous level');
-    assert.equal(await page.locator('.volume-popover button svg').innerHTML(), muteIcon);
-    assert.equal(await page.locator('.volume-popover button.active').count(), 0, 'unmute clears the highlight');
-    assert.equal(await page.locator('.volume-popover button').getAttribute('aria-pressed'), 'false');
+    assert.equal(await page.locator('.volume-channel[data-channel=speaker] button svg').innerHTML(), muteIcon);
+    assert.equal(await page.locator('.volume-channel[data-channel=speaker] button.active').count(), 0, 'unmute clears the highlight');
+    assert.equal(await page.locator('.volume-channel[data-channel=speaker] button').getAttribute('aria-pressed'), 'false');
     await poll(async () => (await spectrum()).length === 2 && (await spectrum()).every((v, i) => Math.abs(v.rms / results.stereo[i].rms - .25) < .03), 'unmute must restore actual volume');
     await slider.focus(); await page.keyboard.press('Home');
     await poll(async () => sockets.every(s => s.closed), 'zero on the slider must also stop capture');
