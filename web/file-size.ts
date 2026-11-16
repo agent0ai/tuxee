@@ -29,7 +29,7 @@ export function folderSize(paths: string[], signal: AbortSignal): HTMLElement {
         heartbeat();
         try {
             const headers = requestHeaders();
-            const response = await fetch('/api/file-size', {
+            const response = await fetch('api/file-size', {
                 method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths }), signal: current.signal
             });

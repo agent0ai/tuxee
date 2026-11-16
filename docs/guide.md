@@ -135,6 +135,12 @@ passes, regardless of activity-count availability, and 1 otherwise, including
 stopped, unknown and instance-selection errors.
 `tuxee service status` continues to report systemd’s service status separately.
 
+## Reverse-proxy subpaths
+
+Tuxee also works under a path such as `https://example.com/tuxee/`. Configure the proxy to redirect `/tuxee` to `/tuxee/`, strip `/tuxee` before forwarding HTTP and WebSocket requests, and preserve the public Host. Browser URLs resolve within that directory; no Tuxee base-path setting is needed. Root deployments keep working as before.
+
+For social/link previews, have the proxy overwrite `X-Forwarded-Prefix` with `/tuxee` (or the full nested mount path) and send `X-Forwarded-Proto: https` when it terminates TLS. Tuxee validates the prefix and uses it only for public metadata URLs. Without that header, the application works but social metadata points to the hostname root. Authentication, origin/CSRF checks and instance-specific cookies retain their existing rules; URL paths do not isolate mutually untrusted applications on one origin.
+
 ## Listening ports
 
 `TUXEE_HTTP_PORT` and `TUXEE_HTTPS_PORT` select the actual listening ports in

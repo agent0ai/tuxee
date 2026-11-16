@@ -18,7 +18,7 @@ self.addEventListener('message', event => {
 });
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url), id = url.searchParams.get('transfer');
-    if (url.origin !== self.location.origin || url.pathname !== '/api/download' || !id)
+    if (url.origin !== self.location.origin || url.pathname !== new URL('api/download', self.registration.scope).pathname || !id)
         return;
     event.respondWith((async () => {
         const item = downloads.get(id);

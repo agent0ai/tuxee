@@ -143,7 +143,7 @@ function showLogin() {
     cancelTransfers();
     setUploadConcurrency();
     root.replaceChildren();
-    location.replace('/');
+    location.replace('./');
 }
 async function load(signal?: AbortSignal) {
     const value = await api<{
@@ -1628,7 +1628,7 @@ async function openSettings() {
     details.append(el('h3', '', t("app.connection")), el('p', '', !https ? t("app.plainHTTP") : certificate === 'public' ? t("settings.certificateExpiry", { date: new Date(tls.expires).toLocaleString(locale()) }) : certificate === 'local' ? t("app.encryptedWithALocalCertificate") : t("app.encryptedHTTPS")));
     if (certificate === 'local') {
         const link = el('a', 'text-link', t("app.downloadLocalCACertificate"));
-        link.href = '/api/tls/ca';
+        link.href = 'api/tls/ca';
         link.download = 'tuxee-local-ca.crt';
         details.append(link);
     }

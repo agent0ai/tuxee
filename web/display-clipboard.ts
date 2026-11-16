@@ -19,7 +19,7 @@ export function displayClipboard(screen: HTMLElement, rfb: RFB, owner: HTMLEleme
     let pending: Copy | undefined, fallback: HTMLElement | undefined, closeDialog: (() => void) | undefined;
     let version = 0, interacted = false, pasteShift = false, remoteVersion = -1, pasting = false;
     let reading: AbortController | undefined;
-    const url = new URL('/api' + options.path + '/clipboard/events', location.href);
+    const url = new URL('api' + options.path + '/clipboard/events', location.href);
     url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let changes: WebSocket | undefined, attempt = 0;
     let reconnect: ReturnType<typeof setTimeout> | undefined, connecting: ReturnType<typeof setTimeout> | undefined;

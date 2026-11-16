@@ -2,12 +2,12 @@ const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')!;
 const emblem = new Image();
 let markerColor = '';
 emblem.onload = () => setFaviconColor(markerColor);
-emblem.src = '/favicon.png';
+emblem.src = 'favicon.png';
 
 export function setFaviconColor(color = '') {
     markerColor = color;
     if (!color || !emblem.complete || !emblem.naturalWidth) {
-        link.href = '/favicon.png';
+        link.href = 'favicon.png';
         return;
     }
     const canvas = document.createElement('canvas');

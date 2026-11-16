@@ -164,7 +164,7 @@ try {
             for (const image of await images.all()) {
                 await image.scrollIntoViewIfNeeded();
                 await image.evaluate(node => node.decode());
-                const src = await image.getAttribute('src'); assert.match(src, /^\/assets\/howto-[a-z-]+-[A-Z0-9]+\.webp$/);
+                const src = await image.evaluate(img => new URL(img.src).pathname); assert.match(src, /^\/assets\/howto-[a-z-]+-[A-Z0-9]+\.webp$/);
                 assert.ok(src.startsWith(`/assets/howto-${['', 'desktop', 'terminal', 'files', 'gui', 'tips'][n]}`));
                 assert.equal(await image.getAttribute('loading'), 'lazy');
                 const response = await context.request.get(base + src);

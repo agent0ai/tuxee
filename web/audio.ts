@@ -96,7 +96,7 @@ class UserAudio {
             await context.resume();
             if (this.context !== context) return;
             unlock.abort();
-            const url = new URL('/api/audio', location.href);
+            const url = new URL('api/audio', location.href);
             url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const socket = this.socket = new WebSocket(url);
             socket.binaryType = 'arraybuffer';

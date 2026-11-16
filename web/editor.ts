@@ -290,7 +290,7 @@ export class FileInspector {
         this.page = undefined; this.draft = undefined; this.pageIndex = 0; this.positions = [{ offset: 0, line: 1 }]; this.loading = false;
         this.body.replaceChildren();
         this.changed(this.file.path, false);
-        const kind = mediaKind(this.file.name), url = `/api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
+        const kind = mediaKind(this.file.name), url = `api/preview/${encodeURIComponent(this.file.name)}?path=${encodeURIComponent(this.file.path)}`;
         this.media = kind !== undefined;
         if (kind === 'image') {
             this.imageViewer = new ImageViewer(this.body, url, this.file.name);

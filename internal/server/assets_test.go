@@ -175,6 +175,49 @@ func TestBrandingOrigin(t *testing.T) {
 	}
 }
 
+func TestBrandingPrefix(t *testing.T) {
+	for _, test := range []struct{ prefix, suffix string }{
+		{"", ""}, {"/", ""}, {"/tuxee", "/tuxee"}, {"/tuxee/", "/tuxee"},
+		{"/tools/tuxee", "/tools/tuxee"}, {"/my%20tools/tuxee", "/my%20tools/tuxee"},
+		{"tuxee", ""}, {"https://evil.test/tuxee", ""}, {"//evil.test", ""},
+		{"/../tuxee", ""}, {"/tools/../tuxee", ""}, {"/tools//tuxee", ""},
+		{"/%2e%2e/tuxee", ""}, {"/%2fhost", ""}, {"/tuxee?x=y", ""}, {"/tuxee#", ""},
+		{"/tuxee,/other", ""}, {"/tuxee\\other", ""}, {"/tuxee%5cother", ""},
+		{"/tuxee%0d%0aX-Test:yes", ""}, {"/bad%xx", ""},
+	} {
+		for _, authenticated := range []bool{false, true} {
+			s := New("test-instance", nil, nil, nil, "", web.Assets())
+			r := httptest.NewRequest("GET", "http://tuxee.test/index.html", nil)
+			if authenticated {
+				r = assetRequest(t, s, "GET", "/index.html")
+			}
+			r.Header.Set("X-Forwarded-Prefix", test.prefix)
+			response := httptest.NewRecorder()
+			s.ServeHTTP(response, r)
+			for _, tag := range []string{
+				`property="og:url" content="http://tuxee.test` + test.suffix + `/"`,
+				`property="og:image" content="http://tuxee.test` + test.suffix + `/social-preview.jpg"`,
+				`name="twitter:image" content="http://tuxee.test` + test.suffix + `/social-preview.jpg"`,
+			} {
+				if response.Code != 200 || !strings.Contains(response.Body.String(), tag) {
+					t.Fatalf("prefix %q, authenticated %v: missing %s", test.prefix, authenticated, tag)
+				}
+			}
+			if s.origin(r) != "http://tuxee.test" {
+				t.Fatal("metadata prefix changed the security origin")
+			}
+			r.Header.Set("Origin", "http://tuxee.test")
+			if !s.allowedOrigin(r) {
+				t.Fatal("metadata prefix rejected the real origin")
+			}
+			r.Header.Set("Origin", "https://evil.test")
+			if s.allowedOrigin(r) {
+				t.Fatal("metadata prefix admitted a foreign origin")
+			}
+		}
+	}
+}
+
 func TestAuthenticatedServerIdentity(t *testing.T) {
 	hostname, err := os.Hostname()
 	if err != nil {

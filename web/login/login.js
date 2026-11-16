@@ -14,7 +14,7 @@ function el(tag, cls = '', text = '') {
 async function api(path, body) {
     let response;
     try {
-        response = await fetch('/api' + path, {
+        response = await fetch('api' + path, {
             method: body === undefined ? 'GET' : 'POST', cache: 'no-store',
             headers: { 'Content-Type': 'application/json', 'X-Tuxee-Client': 'web' },
             body: body === undefined ? undefined : JSON.stringify(body)
@@ -27,7 +27,7 @@ async function api(path, body) {
 }
 const page = el('div', 'login-page'), content = el('div', 'login-content'), form = el('form', 'login-form');
 const logo = el('img', 'login-logo');
-logo.src = '/login-logo.webp'; logo.width = logo.height = 512; logo.draggable = false;
+logo.src = 'login-logo.webp'; logo.width = logo.height = 512; logo.draggable = false;
 const language = el('select', 'login-language');
 language.name = 'language'; language.dir = 'ltr';
 for (const item of catalog.languages) {
@@ -86,7 +86,7 @@ form.onsubmit = async event => {
     const value = password.value; password.value = '';
     try {
         await api('/login', { username: username.value, password: value, language: catalog.language });
-        location.replace('/');
+        location.replace('./');
     } catch (error) { status.textContent = error.message; language.disabled = submit.disabled = false; }
 };
 content.append(form); page.append(content); document.querySelector('#app').append(page);
@@ -98,5 +98,5 @@ window.addEventListener('resize', viewport); visualViewport?.addEventListener('r
 if (username.autofocus) username.focus();
 // A login in another tab becomes visible on return, without idle polling.
 window.addEventListener('focus', () => {
-    if (!submit.disabled) void api('/connection').then(state => { if (state.authenticated) location.replace('/'); }).catch(() => {});
+    if (!submit.disabled) void api('/connection').then(state => { if (state.authenticated) location.replace('./'); }).catch(() => {});
 });

@@ -61,7 +61,7 @@ const check = (label) => console.log(`PASS ${label}`);
 async function login(user) { await page.locator('[name=username]').fill(user.name); await page.locator('[name=password]').fill(user.password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.locator('.topbar').waitFor(); await page.waitForFunction(() => { const terminal = document.querySelector('.panel-body.terminal-view'); return terminal ? terminal.dataset.state === 'connected' : !!document.querySelector('.file-view'); }); }
 async function checkFavicon(color, target = page) {
     if (!color) {
-        assert.equal(await target.locator('link[rel="icon"]').getAttribute('href'), '/favicon.png');
+        assert.equal(await target.locator('link[rel="icon"]').evaluate(link => link.href), new URL('favicon.png', target.url()).href);
         return;
     }
     const rgb = color.match(/\w\w/g).map(value => parseInt(value, 16));

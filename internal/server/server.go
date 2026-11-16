@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -141,6 +142,17 @@ func (s *Server) origin(r *http.Request) string {
 	}
 	return scheme + "://" + r.Host
 }
+func (s *Server) brandingBase(r *http.Request) string {
+	base := s.origin(r)
+	value := strings.TrimSuffix(r.Header.Get("X-Forwarded-Prefix"), "/")
+	prefix, err := url.Parse(value)
+	// A proxy prefix affects public metadata only, never origin admission or cookies.
+	if err == nil && prefix.Scheme == "" && prefix.Host == "" && strings.HasPrefix(prefix.Path, "/") &&
+		path.Clean(prefix.Path) == prefix.Path && !strings.ContainsAny(value, "?#,\\") && !strings.ContainsAny(prefix.Path, "\\\r\n") {
+		base += prefix.EscapedPath()
+	}
+	return base
+}
 func (s *Server) allowedOrigin(r *http.Request) bool {
 	check := *r
 	// API GETs include interactive WebSockets; apply unsafe-request checks to every method.
@@ -249,7 +261,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"{{tagline}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.tagline"})),
 				"{{previewAlt}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.previewAlt"})),
 				"{{loading}}", html.EscapeString((&i18n.Catalog{Texts: bundle.Texts}).Text(i18n.Message{Key: "app.loading"})),
-				"{{origin}}", html.EscapeString(s.origin(r)),
+				"{{origin}}", html.EscapeString(s.brandingBase(r)),
 				"{{hostname}}", html.EscapeString(hostname),
 				"{{version}}", html.EscapeString(version),
 			).Replace(string(data)))

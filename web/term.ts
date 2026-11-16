@@ -639,7 +639,9 @@ export class TerminalView implements View {
         this.resizing = false; this.lastSize = '';
         this.state('connecting');
         const terminal = this.panel.terminal;
-        const ws = this.socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminals/${terminal}/ws?viewer=${this.viewer}`);
+        const url = new URL(`api/terminals/${terminal}/ws?viewer=${this.viewer}`, location.href);
+        url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = this.socket = new WebSocket(url);
         ws.binaryType = 'arraybuffer';
         let received = 0, queuedBytes = 0, queuedFrames = 0;
         const current = () => !this.disposed && this.socket === ws && ws.readyState === WebSocket.OPEN;

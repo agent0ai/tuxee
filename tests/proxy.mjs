@@ -19,19 +19,17 @@ async function freePort() {
     await new Promise(resolve => listener.close(resolve));
     return port;
 }
-const user = 'tuxee-poc-proxy';
-if (spawnSync('getent', ['passwd', user]).status !== 0)
-    run('useradd', ['-m', '-s', '/bin/bash', '-c', 'Tuxee prototype test', user]);
+const user = `tuxee-proxy-${process.pid}`;
+run('useradd', ['-m', '-s', '/bin/bash', '-c', 'Tuxee prototype test', user]);
 const fields = run('getent', ['passwd', user]).split(':'), home = fields[5];
 assert.equal(fields[4], 'Tuxee prototype test', 'refusing unrelated account');
 const password = randomBytes(24).toString('base64url');
 run('chpasswd', [], `${user}:${password}\n`);
 const state = await mkdtemp('/tmp/tuxee-proxy-');
 const settingsPath = `${home}/.config/tuxee/settings.json`;
-const original = await readFile(settingsPath).catch(error => { if (error.code !== 'ENOENT') throw error; });
 let service, browser, proxy;
 const sockets = new Set();
-let forwarded = true, stopped;
+let forwarded = true, prefix = '', stopped;
 try {
     await mkdir(`${home}/.config/tuxee`, { recursive: true });
     await chown(`${home}/.config`, Number(fields[2]), Number(fields[3]));
@@ -62,13 +60,18 @@ try {
     run('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', `${state}/key.pem`, '-out', `${state}/cert.pem`, '-days', '1', '-subj', '/CN=localhost']);
     const headers = request => {
         const result = { ...request.headers };
-        delete result['x-forwarded-proto'];
+        delete result['x-forwarded-proto']; delete result['x-forwarded-prefix'];
+        if (prefix) result['x-forwarded-prefix'] = prefix;
         if (forwarded) result['x-forwarded-proto'] = 'https';
         return result;
     };
     proxy = https.createServer({ key: await readFile(`${state}/key.pem`), cert: await readFile(`${state}/cert.pem`) }, (request, response) => {
+        if (prefix && new URL(request.url, 'http://proxy').pathname === prefix) {
+            response.writeHead(308, { Location: prefix + '/' + new URL(request.url, 'http://proxy').search }).end(); return;
+        }
+        if (!request.url.startsWith(prefix + '/')) { response.writeHead(404).end(); return; }
         const transport = backend.startsWith('https:') ? https : http;
-        const upstream = transport.request(new URL(request.url, backend), { method: request.method, headers: headers(request), rejectUnauthorized: false }, remote => {
+        const upstream = transport.request(new URL(request.url.slice(prefix.length), backend), { method: request.method, headers: headers(request), rejectUnauthorized: false }, remote => {
             response.writeHead(remote.statusCode, remote.headers); remote.pipe(response);
         });
         upstream.on('error', error => response.destroy(error));
@@ -76,8 +79,9 @@ try {
     });
     proxy.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
     proxy.on('upgrade', (request, socket, head) => {
+        if (!request.url.startsWith(prefix + '/')) { socket.destroy(); return; }
         const transport = backend.startsWith('https:') ? https : http;
-        const upstream = transport.request(new URL(request.url, backend), { headers: headers(request), rejectUnauthorized: false });
+        const upstream = transport.request(new URL(request.url.slice(prefix.length), backend), { headers: headers(request), rejectUnauthorized: false });
         upstream.on('upgrade', (response, remote, remoteHead) => {
             socket.write(`HTTP/1.1 ${response.statusCode} ${response.statusMessage}\r\n${Object.entries(response.headers).map(([key, value]) => `${key}: ${value}`).join('\r\n')}\r\n\r\n`);
             if (remoteHead.length) socket.write(remoteHead);
@@ -90,7 +94,8 @@ try {
         upstream.on('error', () => socket.destroy()); upstream.end();
     });
     await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve));
-    browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
+    // Service workers need the fixture certificate bypass at browser level.
+    browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox', '--ignore-certificate-errors'] });
     await mkdir('test-results', { recursive: true });
     let terminalID;
     for (const test of [
@@ -98,29 +103,67 @@ try {
         { name: 'direct-https', base: secure, label: 'Encrypted with a local certificate', source: 'local' },
         { name: 'forwarded', host: '127.0.0.1', forwarded: true, source: 'http' },
         { name: 'origin-only', host: 'localhost', source: 'http' },
+        { name: 'prefixed', host: '127.0.0.1', forwarded: true, prefix: '/tuxee', source: 'http' },
+        { name: 'prefixed-index', host: '127.0.0.1', forwarded: true, prefix: '/tools/tuxee', index: true, source: 'http' },
         { name: 'reencrypted', host: '127.0.0.1', forwarded: true, tlsBackend: true, source: 'https' },
     ]) {
-        forwarded = !!test.forwarded;
+        forwarded = !!test.forwarded; prefix = test.prefix || '';
         backend = test.tlsBackend ? secure : plain;
-        const base = test.base || `https://${test.host}:${proxy.address().port}`;
+        const base = test.base || `https://${test.host}:${proxy.address().port}${prefix}`;
         const encrypted = base.startsWith('https:');
         const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 950 } });
         const page = await appPage(context), errors = [], connected = [];
         page.on('pageerror', error => errors.push(error.message));
         page.on('websocket', socket => { assert.ok(socket.url().startsWith(encrypted ? 'wss://' : 'ws://')); socket.on('framereceived', () => connected.push(socket.url())); });
-        await page.goto(base);
+        await page.goto(base + (test.index ? '/index.html' : ''));
+        if (prefix) assert.equal(page.url(), base + (test.index ? '/index.html' : '/'));
+        if (forwarded) {
+            const preview = await page.locator('meta[property="og:image"]').getAttribute('content');
+            assert.equal(preview, base + '/social-preview.jpg');
+            assert.equal((await context.request.get(preview)).status(), 200);
+        }
         if (forwarded) assert.equal(await page.locator('meta[property="og:url"]').getAttribute('content'), base + '/');
         await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
         const login = page.waitForResponse(response => response.url().endsWith('/api/login'));
         await page.getByRole('button', { name: 'Sign in', exact: true }).click();
         const loginResponse = await login;
         assert.equal(loginResponse.status(), 200);
-        assert.equal((await loginResponse.request().allHeaders()).origin, base);
+        assert.equal((await loginResponse.request().allHeaders()).origin, new URL(base).origin);
         const cookieName = `tuxee_session_${(await readFile(`${state}/instance-id`, 'utf8')).trim()}`;
         const cookie = (await context.cookies()).find(cookie => cookie.name === cookieName);
         assert.ok(cookie && cookie.secure === encrypted && cookie.httpOnly && cookie.sameSite === 'Strict');
         const terminal = page.locator('.terminal-view[data-state=connected]');
         await terminal.waitFor(); await page.locator('.file-view').waitFor();
+        assert.equal(page.url(), base + '/', 'login stays at the public base');
+        if (prefix) {
+            await page.waitForFunction(() => [...document.images].filter(img => img.offsetParent).every(img => img.complete && img.naturalWidth > 0));
+            const file = page.locator('.file-view').first();
+            const payload = Buffer.from('prefix upload/download verification');
+            await file.locator('input[type=file]').first().setInputFiles({ name: 'prefix-check.txt', mimeType: 'text/plain', buffer: payload });
+            const row = file.locator('.file-entry').filter({ has: page.locator('.file-name span', { hasText: /^prefix-check\.txt$/ }) });
+            await row.waitFor();
+            assert.deepEqual(await readFile(home + '/prefix-check.txt'), payload);
+            await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+            assert.equal(await page.evaluate(() => navigator.serviceWorker.controller.scriptURL), base + '/sw.js');
+            await page.evaluate(() => {
+                window.downloadComplete = false;
+                navigator.serviceWorker.addEventListener('message', event => { if (event.data?.done) window.downloadComplete = true; });
+            });
+            const downloading = page.waitForEvent('download');
+            await row.click({ button: 'right' });
+            await page.getByRole('menuitem', { name: 'Download', exact: true }).click();
+            const downloaded = await downloading;
+            assert.equal(await downloaded.failure(), null);
+            assert.deepEqual(await readFile(await downloaded.path()), payload);
+            await page.waitForFunction(() => window.downloadComplete);
+            await rm(home + '/prefix-check.txt');
+            await file.locator('input[type=file]').first().setInputFiles({ name: 'prefix-image.png', mimeType: 'image/png', buffer: await readFile('web/favicon.png') });
+            await file.locator('.file-entry').filter({ has: page.locator('.file-name span', { hasText: /^prefix-image\.png$/ }) }).dblclick();
+            await file.locator('.image-viewport[data-ready]').waitFor();
+            assert.ok((await file.locator('.image-viewport img').evaluate(img => img.src)).startsWith(base + '/api/preview/'));
+            await file.getByRole('button', { name: 'Back to files', exact: true }).click();
+            await rm(home + '/prefix-image.png');
+        }
         const tls = await (await context.request.get(base + '/api/tls')).json();
         assert.equal(tls.source, test.source);
         if (test.source !== 'local') assert.deepEqual(Object.keys(tls), ['source']);
@@ -161,10 +204,11 @@ try {
             const response = await context.request.fetch(base + path, { method: path.endsWith('login') ? 'POST' : 'GET', headers: { Origin: 'https://evil.test' } });
             assert.equal(response.status(), 403, 'foreign origin was accepted');
         }
-        assert.equal((await context.request.post(base + '/api/logout', { headers: { Origin: base } })).status(), 403, 'CSRF token was not required');
+        assert.equal((await context.request.post(base + '/api/logout', { headers: { Origin: new URL(base).origin } })).status(), 403, 'CSRF token was not required');
         await page.getByRole('button', { name: 'User menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
         await page.locator('[name=username]').waitFor();
+        assert.equal(page.url(), base + '/', 'logout stays at the public base');
         assert.ok(!(await context.cookies()).some(cookie => cookie.name === cookieName));
         assert.deepEqual(await (await context.request.get(base + '/api/connection')).json(), { authenticated: false });
         assert.deepEqual(errors, []);
@@ -176,8 +220,8 @@ try {
     for (const socket of sockets) socket.destroy();
     if (proxy) await new Promise(resolve => proxy.close(resolve));
     service?.kill('SIGTERM'); if (stopped) await stopped;
-    if (original) { await writeFile(settingsPath, original); await chown(settingsPath, Number(fields[2]), Number(fields[3])); }
-    else await rm(settingsPath, { force: true });
-    await rm(`${home}/tuxee-proxy-input.txt`, { force: true });
+    const killed = spawnSync('pkill', ['-KILL', '-u', fields[2]]);
+    assert.ok([0, 1].includes(killed.status));
+    run('userdel', ['-r', user]);
     await rm(state, { recursive: true, force: true });
 }

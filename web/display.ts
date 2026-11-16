@@ -156,7 +156,7 @@ export class TerminalDisplay {
         try {
             const session = await api<{ password: string }>(`/terminals/${this.id()}/display`, 'GET', undefined, request.signal);
             if (this.disposed || request.signal.aborted) return;
-            const url = new URL(`/api/terminals/${this.id()}/display/ws`, location.href);
+            const url = new URL(`api/terminals/${this.id()}/display/ws`, location.href);
             url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const rfb = this.rfb = new RFB(this.screen, url.href, { credentials: session });
             this.updateStreaming();

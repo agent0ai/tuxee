@@ -42,7 +42,7 @@ export async function upload(path: string, file: File, signal: AbortSignal, uniq
     signal.throwIfAborted();
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest(), abort = () => xhr.abort();
-        xhr.open('POST', `/api/upload?path=${encodeURIComponent(path)}&unique=${unique}`);
+        xhr.open('POST', `api/upload?path=${encodeURIComponent(path)}&unique=${unique}`);
         for (const [name, value] of Object.entries(requestHeaders())) xhr.setRequestHeader(name, value);
         xhr.setRequestHeader('X-Tuxee-Size', String(file.size));
         xhr.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.min(event.loaded, file.size)); };
@@ -149,7 +149,7 @@ export function prepareDownloads() {
         if (!('serviceWorker' in navigator) || !isSecureContext)
             return false;
         try {
-            await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.register('sw.js');
             await navigator.serviceWorker.ready;
             if (!navigator.serviceWorker.controller)
                 await new Promise<void>(resolve => { const timeout = setTimeout(resolve, 3000); navigator.serviceWorker.addEventListener('controllerchange', () => { clearTimeout(timeout); resolve(); }, { once: true }); });
@@ -183,7 +183,7 @@ export async function download(path: string, name: string, owner?: HTMLElement) 
         create(id, t("transfers.downloading", { name }), () => navigator.serviceWorker.controller?.postMessage({ cancel: id }), owner);
     }
     const link = el('a');
-    link.href = `/api/download?path=${encodeURIComponent(path)}&transfer=${id}`;
+    link.href = `api/download?path=${encodeURIComponent(path)}&transfer=${id}`;
     // Content-Disposition starts the download; the download attribute bypasses service workers in Chromium.
     document.body.append(link);
     link.click();
@@ -199,7 +199,7 @@ export async function downloadArchive(path: string, paths: string[], owner?: HTM
         token = prepared.token;
         controller.signal.throwIfAborted();
         frame = el('iframe'); frame.hidden = true;
-        frame.src = `/api/download?archive=${encodeURIComponent(token)}`;
+        frame.src = `api/download?archive=${encodeURIComponent(token)}`;
         document.body.append(frame);
         while (!controller.signal.aborted) {
             const status = await api<{ size: number; done: boolean; error?: string }>(`/download-archive?token=${encodeURIComponent(token)}`, 'GET', undefined, controller.signal);

@@ -97,7 +97,7 @@ try {
     await page.locator('.login-form').waitFor();
     assert.equal(await page.evaluate(() => window.authenticatedPage), undefined, 'logout replaces the private document');
     assert.equal(await page.title(), 'Tuxee');
-    assert.equal(await page.locator('link[rel=icon]').getAttribute('href'), '/favicon.png');
+    assert.equal(await page.locator('link[rel=icon]').evaluate(link => link.href), base + '/favicon.png');
     assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--server-marker-border')), '');
     assert.equal(await (await context.request.get(base)).text(), publicHTML, 'anonymous HTML stays identical after authenticated use');
     await login(); await checkPrivate();

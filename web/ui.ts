@@ -72,7 +72,7 @@ export function requestHeaders() { return { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Clien
 export async function api<T = any>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
     const token = csrf;
     try {
-        const response = await fetch(`/api${path}`, { method, cache: 'no-store', headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
+        const response = await fetch(`api${path}`, { method, cache: 'no-store', headers: { ...requestHeaders(), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal });
         if (response.status >= 500) window.dispatchEvent(new Event('tuxee-connection-check'));
         if (!response.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) throw new Error(t("ui.unexpectedAPIResponse"));
         const data = await response.json();
