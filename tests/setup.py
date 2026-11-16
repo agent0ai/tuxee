@@ -67,6 +67,7 @@ cp "/release/$asset" "$output"
             self.write(f"/bundle/usr/local/bin/tuxee-{name}", f"""#!/bin/sh
 exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
 """, 0o755)
+        self.write("/bundle/usr/local/lib/tuxee-audio/lib/pulseaudio/modules/module-remap-source.so", "fixture")
         (self.root / "release").mkdir()
         for arch in ("amd64", "arm64"):
             asset = f"tuxee-audio-linux-{arch}.tar.gz"
@@ -99,6 +100,19 @@ exec "$(dirname "$0")/../lib/tuxee-audio/bin/{name}" "$@"
         self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
         self.assertEqual(list((self.root / "tmp").iterdir()), [], "temporary downloads leaked")
         return result
+
+    def test_missing_microphone_module_preserves_open_runtime_files(self):
+        self.run_script()
+        runtime = self.root / "usr/local/lib/tuxee-audio"
+        (runtime / "lib/pulseaudio/modules/module-remap-source.so").unlink()
+        binary = runtime / "bin/pulseaudio"
+        old = binary.read_text() + "# retained mapping\n"
+        binary.write_text(old)
+        with binary.open() as retained:
+            self.run_script()
+            self.assertEqual(retained.read(), old)
+            self.assertNotEqual(binary.read_text(), old)
+        self.assertTrue((runtime / "lib/pulseaudio/modules/module-remap-source.so").is_file())
 
     def test_ready_audio_skips_slow_work_and_allows_later_steps(self):
         self.run_script()

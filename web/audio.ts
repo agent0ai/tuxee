@@ -1,3 +1,4 @@
+import { microphone } from './microphone';
 import { t } from './i18n';
 import { button, el, icon, notify, popover } from './ui';
 
@@ -12,34 +13,39 @@ function setVolume(value: number) {
 export const toggleMute = () => setVolume(volume > 0 ? 0 : lastVolume);
 export const adjustVolume = (delta: number) => setVolume(volume + delta);
 
-export function audioControl() {
+export function audioControl(input = false) {
+    const level = () => input ? microphone.volume : volume;
+    const change = (value: number) => input ? microphone.setVolume(value) : setVolume(value);
+    const toggle = () => change(level() ? 0 : input ? microphone.lastVolume : lastVolume);
     let close = () => {};
     const slider = el('input');
     slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1';
-    slider.setAttribute('aria-label', t("audio.audioVolume"));
+    slider.setAttribute('aria-label', t(input ? "audio.microphone" : "audio.audioVolume"));
     slider.setAttribute('aria-orientation', 'vertical');
-    const mute = button(t("audio.muteAudio"), 'VolumeX', toggleMute);
-    const control = button(t("audio.audio"), 'Volume2', () => {
+    const mute = button(t(input ? "audio.muteMicrophone" : "audio.muteAudio"), input ? 'MicOff' : 'VolumeX', toggle);
+    const control = button(t(input ? "audio.microphone" : "audio.audio"), input ? 'MicOff' : 'Volume2', () => {
         if (control.getAttribute('aria-expanded') === 'true') { close(); return; }
         const content = el('div', 'volume-popover');
-        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t("audio.audio"));
+        content.setAttribute('role', 'dialog'); content.setAttribute('aria-label', t(input ? "audio.microphone" : "audio.audio"));
         content.style.height = `${control.closest('header')!.getBoundingClientRect().height * 4}px`;
         content.append(slider, mute);
         ({ close } = popover(control, content));
-    }, 'volume-toggle');
+    }, input ? 'microphone-toggle' : 'volume-toggle');
     control.setAttribute('aria-haspopup', 'dialog'); control.setAttribute('aria-expanded', 'false');
     const update = () => {
-        const name = volume === 0 ? 'VolumeX' : volume <= 50 ? 'Volume1' : 'Volume2';
+        const volume = level();
+        const name = input ? (volume ? 'Mic' : 'MicOff') : volume === 0 ? 'VolumeX' : volume <= 50 ? 'Volume1' : 'Volume2';
         control.replaceChildren(icon(name));
-        control.title = volume === 0 ? t("audio.audioMuted") : t("audio.percent", { volume });
+        control.title = input ? t("audio.microphonePercent", { volume }) : volume === 0 ? t("audio.audioMuted") : t("audio.percent", { volume });
+        control.classList.toggle('active', input && volume > 0);
         control.setAttribute('aria-label', control.title);
         slider.value = String(volume); slider.setAttribute('aria-valuetext', `${volume}%`);
         mute.classList.toggle('active', volume === 0);
         mute.setAttribute('aria-pressed', String(volume === 0));
-        mute.title = volume > 0 ? t("audio.muteAudio") : t("audio.unmuteAudio");
+        mute.title = input ? t(volume ? "audio.muteMicrophone" : "audio.unmuteMicrophone") : volume > 0 ? t("audio.muteAudio") : t("audio.unmuteAudio");
         mute.setAttribute('aria-label', mute.title);
     };
-    slider.oninput = () => setVolume(slider.valueAsNumber);
+    slider.oninput = () => change(slider.valueAsNumber);
     volumeListeners.add(update); update();
     return { control, dispose: () => { close(); volumeListeners.delete(update); } };
 }
@@ -56,6 +62,8 @@ class UserAudio {
     private position?: number;
 
     available(value: boolean) {
+        microphone.available = value;
+        if (!value) microphone.close();
         this.ready = value;
         this.failed = false;
         if (value) void this.start();
@@ -137,3 +145,4 @@ class UserAudio {
 }
 
 export const audio = new UserAudio();
+microphone.onchange = () => volumeListeners.forEach(update => update());

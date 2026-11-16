@@ -22,6 +22,7 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Audio: private server and capture tool; leave Debian's audio stack untouched.
 audio_ready() {
+    test -r /usr/local/lib/tuxee-audio/lib/pulseaudio/modules/module-remap-source.so &&
     /usr/local/bin/tuxee-pulseaudio --version >/dev/null 2>&1 &&
         /usr/local/bin/tuxee-pacat --version >/dev/null 2>&1
 }
@@ -61,7 +62,8 @@ ensure_audio() (
     stage/usr/local/bin/tuxee-pulseaudio --version
     stage/usr/local/bin/tuxee-pacat --version
     mkdir -p /usr/local/lib /usr/local/bin
-    cp -a stage/usr/local/lib/tuxee-audio /usr/local/lib/
+    # Keep mapped libraries intact in retained audio processes.
+    cp -a --remove-destination stage/usr/local/lib/tuxee-audio /usr/local/lib/
     install -m 0755 stage/usr/local/bin/tuxee-pulseaudio stage/usr/local/bin/tuxee-pacat /usr/local/bin/
     audio_ready
     echo 'Tuxee audio runtime installed'

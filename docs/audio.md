@@ -29,7 +29,7 @@ The shared browser player adds no npm dependency or separate production asset.
 
 The Docker recipe adds no Debian runtime packages. A separate build stage compiles
 PulseAudio and libsndfile with optional features disabled, then copies only
-`pulseaudio`, `pacat`, the native Unix protocol and null-sink modules, their private
+`pulseaudio`, `pacat`, the native Unix protocol, null-sink and remap-source modules, their private
 libraries and licenses. The output uses libc, libm and libcap already present in
 the image. A dependency check rejects unexpected libraries. Private wrappers keep
 the stripped libraries out of other applications' library search paths. Build
@@ -95,6 +95,18 @@ PulseAudio server and one capture process while GUI and terminal-only apps
 played together. This is a process snapshot, not peak memory or a controlled
 CPU comparison; application and browser memory are additional.
 
+## Microphone
+
+The microphone control beside the speaker has its own vertical level slider and mute button. It starts muted; unmute or raise its level to request browser permission. It needs HTTPS (or localhost). Speaker mute does not mute the microphone. Mute/zero, logout, reload, connection failure and page closure stop capture; retry requires explicit unmute. Desktop switches and hiding GUI panels leave an enabled microphone active. All applications for that Linux user can record it; a second browser cannot transmit simultaneously.
+
+The browser sends 48 kHz mono s16le PCM in 20 ms packets: 96,000 bytes/s before transport overhead. Native Web Audio gain controls level. A local AudioWorklet bounds its queued messages; stale/congested capture stops rather than building a delayed recording. Browser echo cancellation is requested; automatic gain and noise suppression are disabled so the slider controls level. Physical-device behavior varies.
+
+The existing private PulseAudio runtime feeds these packets through `pacat` into a separate null sink and exposes a remapped `tuxee-microphone` source as the recording default. Speaker capture still reads only `tuxee.monitor`. There are no codecs, npm additions, host sound devices or extra audio daemons. The additional remap module measured 27,096 bytes in the amd64 build; earlier arm64 footprint figures above predate this addition.
+
+Container upgrade setup installs the updated runtime module without replacing mapped library inodes. Already-running retained audio runtimes keep their old configuration: microphone support becomes available after the user's last retained terminal closes and a new terminal starts. Tuxee does not terminate applications to apply this. Native installations need the updated optional audio runtime too. Applications must support PulseAudio and select its default input or `tuxee-microphone`.
+
+Run `node tests/microphone-worklet.mjs` and, with the updated runtime on PATH, `node tests/microphone.mjs`. These use deterministic Chromium microphone input; real hardware, Safari/iOS and congested WAN capture require separate validation.
+
 ## Reproduce
 
 From the repository root, with the existing GUI/runtime dependencies installed:
@@ -119,7 +131,7 @@ only that test account's password, restore its settings and clean their isolated
 service and applications. Run browser suites sequentially. The HTTP test uses a
 non-loopback address and asserts that the browser does not consider it a secure
 context. The HTTPS continuity observer is test-only and uses a CSP bypass for its
-injected worklet; production uses neither that bypass nor a worklet.
+injected worklet; production speaker playback uses neither that bypass nor a worklet; microphone capture loads its own same-origin worklet under the normal CSP.
 
 Artifacts are `test-results/audio-{https,http}.json`, desktop/mobile screenshots
 and failure diagnostics. Both protocols verify terminal-only playback before any
@@ -150,10 +162,9 @@ capture client or proving routing.
 
 ## Remaining validation
 
-Docker is unavailable in the agent environment. The user built the arm64 Docker
+The audio-runtime Docker target was built on amd64 for microphone support. The user built the arm64 Docker
 image and confirmed YouTube audio from container Chromium reached host Brave
 with the initial sound-button UI. The agent tests measure Chromium’s rendered
-output. Final Docker layer sizes, amd64 compilation, Safari/iOS and WAN lip-sync
-remain unverified; the shared audio runtime still needs a rebuilt container. Microphone forwarding and Opus compression
-are outside this experiment. Source-built libraries require explicit version
+output. Final Docker layer sizes, Safari/iOS and WAN lip-sync
+remain unverified; the shared audio runtime still needs a rebuilt container. Opus compression remains outside this implementation. Microphone behavior is described above. Source-built libraries require explicit version
 maintenance; Debian package upgrades do not update these private copies.

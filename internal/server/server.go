@@ -336,6 +336,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case r.URL.Path == "/api/microphone" && r.Method == "GET":
+		s.userMicrophone(w, r, session)
 	case r.URL.Path == "/api/audio" && r.Method == "GET":
 		s.userAudio(w, r, session)
 	case r.URL.Path == "/api/restart" && r.Method == "POST":

@@ -6,7 +6,7 @@ Lazy X11 displays owned by retained terminals.
 
 # Ownership
 
-Prepare private display endpoints and credentials, start/stop the runtime, proxy local X connections, and report, activate and close native windows. Terminal owns endpoint lifetime and browser events; server owns admission and VNC transport. The sibling audio package owns user audio independently of displays.
+Prepare private display endpoints and credentials, start/stop the runtime, proxy local X connections, and report, activate and close native windows. Terminal owns endpoint lifetime and browser events; server owns admission and VNC transport. The sibling audio package owns speaker playback and microphone forwarding independently of displays.
 
 # Local Contracts
 
@@ -21,7 +21,7 @@ Display state retains structured i18n `text` alongside diagnostic `error`; lifec
 - clipboard.go owns XFixes CLIPBOARD ownership notifications and bounded TARGETS/TIMESTAMP/MULTIPLE/INCR selection transfers. Keep one incoming clipboard payload per active display, 16 MiB PNG/16 megapixels, 256 KiB text/path bytes, at most 1,000 local absolute file paths, 16 viewers and 16 outgoing incremental transfers. Use versioned reads with ten-second cancellation and fresh requestor windows; release transfers/subscriptions when the display ends. Reject remote file URIs and malformed paths; never read file contents in the server identity. Publish file references as copy, including GNOME and URI-list formats; never implement DELETE or propagate file-cut deletion.
 - drop.go owns bounded XDND Copy negotiation at a validated window/coordinate, including proxy validation and rejection/timeout feedback. Preserve source files and let the target app decide open/import behavior. Serve drop selections while negotiating; no polling, shell commands or automatic path-paste fallback.
 - Watch EWMH property events through XGB; no polling process. Bound window lists, names and icon properties; convert icons to 32-pixel PNGs. Activate/close only a window in this display's current list. Close sends EWMH `_NET_CLOSE_WINDOW` through Matchbox, preserving the application's normal save/cancel prompts.
-- No desktop environment, command launcher, microphone forwarding, GPU support, automatic application crash restart; a new client connection may retry startup. Displays separate windows, not filesystem/process permissions.
+- No desktop environment, command launcher, GPU support, automatic application crash restart; a new client connection may retry startup. Displays separate windows, not filesystem/process permissions.
 
 Persistent displays use guardian job 2; slots 1–4 hold the opaque manifest, filesystem/abstract listener descriptors and backend address. Accepted streams stay owned by the guardian until relay commit/rejection. Restore XGB/window/clipboard observers without killing existing applications if observer attachment fails. Validate upstream peer UID before handshake and delegate restored user-path deletion to the credential-dropped file worker.
 

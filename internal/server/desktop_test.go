@@ -29,6 +29,9 @@ func TestDisplayAdmission(t *testing.T) {
 		method, path, token, origin, csrf string
 		status                            int
 	}{
+		{"GET", "/api/microphone", "", "http://tuxee.test", "", 401},
+		{"GET", "/api/microphone", "token", "", "", 403},
+		{"GET", "/api/microphone", "token", "http://evil.test", "", 403},
 		{"GET", "/api/audio", "", "http://tuxee.test", "", 401},
 		{"GET", "/api/audio", "token", "", "", 403},
 		{"GET", "/api/audio", "token", "http://evil.test", "", 403},

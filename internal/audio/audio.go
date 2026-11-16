@@ -45,6 +45,7 @@ type runtime struct {
 	process    *exec.Cmd
 	exited     chan struct{}
 	capture    *capture
+	microphone *Microphone
 	listeners  map[chan []byte]struct{}
 	keeper     *keeper.Client
 	job        *keeper.Job
@@ -230,6 +231,8 @@ func prepareOwned(user identity.User, owner *keeper.Client, instance string) (*r
 	}
 	// A monitor cannot retract delivered samples when a new playback client rewinds the sink.
 	config := fmt.Sprintf("load-module module-null-sink sink_name=tuxee format=s16le channels=2 rate=48000 norewinds=true\nset-default-sink tuxee\nset-default-source tuxee.monitor\nload-module module-native-protocol-unix socket=%s/pulse/native auth-cookie=%s/cookie\n", dir, dir)
+	// Older audio bundles retain playback; microphone support needs the remap module.
+	config += ".ifexists module-remap-source.so\nload-module module-null-sink sink_name=tuxee-microphone-input format=s16le channels=1 rate=48000 norewinds=true\nload-module module-remap-source master=tuxee-microphone-input.monitor source_name=tuxee-microphone channels=1 master_channel_map=mono channel_map=mono source_properties=device.description=Tuxee_Microphone\nset-default-source tuxee-microphone\n.endif\n"
 	if err = os.WriteFile(dir+"/default.pa", []byte(config), 0600); err != nil {
 		return nil, err
 	}
@@ -484,6 +487,10 @@ func (a *runtime) stopCaptureLocked() {
 }
 
 func (a *runtime) stopLocked() {
+	if a.microphone != nil {
+		a.microphone.cancel()
+		<-a.microphone.done
+	}
 	a.stopCaptureLocked()
 	if a.job != nil {
 		_ = a.job.Signal(unix.SIGKILL)

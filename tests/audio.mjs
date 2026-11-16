@@ -161,6 +161,13 @@ try {
     assert.equal((await api('/settings', 'PUT', { theme: 'dark', current: 'audio-proof', workspaces: [{ id: 'audio-proof', name: 'Audio proof', columns: 4, rows: 2, active: 'audio-shell', panels: [{ id: 'audio-shell', kind: 'terminal', terminal: terminal.id, path: fields[5], x: 0, y: 0, w: 4, h: 2 }] }] })).status(), 200);
     await page.goto(base); const view = page.locator('.terminal-view[data-state=connected]'); await view.waitFor();
     assert.deepEqual(await audioProcesses(), [], 'ordinary terminal must not start audio');
+    if (plain) {
+        await page.locator('.microphone-toggle').click();
+        await page.getByRole('button', { name: 'Unmute microphone', exact: true }).click();
+        await page.getByText('Microphone requires HTTPS or localhost.', { exact: true }).waitFor();
+        assert.equal(await page.locator('.microphone-toggle').getAttribute('title'), 'Microphone: 0%');
+        await page.keyboard.press('Escape');
+    }
     const bursts = Buffer.alloc(48000 * 4 * 3);
     for (const [start, value] of [[0, 256], [62400, 1]]) for (let i = start; i < start + 4800; i++) {
         bursts.writeInt16LE(value, i * 4); bursts.writeInt16LE(-value, i * 4 + 2);

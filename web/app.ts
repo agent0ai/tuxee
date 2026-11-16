@@ -325,8 +325,10 @@ function renderChrome() {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme; changed(); renderChrome();
     }, 'theme-toggle'));
-    const sound = audioControl();
-    right.append(sound.control); chromeDisposers.push(sound.dispose);
+    for (const input of [false, true]) {
+        const sound = audioControl(input);
+        right.append(sound.control); chromeDisposers.push(sound.dispose);
+    }
     const account = button(t("app.userMenu"), undefined, () => userMenu(account), 'user-menu-button');
     account.replaceChildren(el('span', 'username', user.name), icon('Menu'));
     account.setAttribute('aria-haspopup', 'menu');

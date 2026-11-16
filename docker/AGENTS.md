@@ -52,7 +52,7 @@ GUI/frontend/runtime stages use Debian Trixie variants; runtime uses `debian:tri
 
 # Work Guidance
 
-`build-audio.sh OUTPUT` builds SHA-256-pinned PulseAudio 17.0 and libsndfile 1.2.2 in a separate stage. Disable optional audio-server integrations and libsndfile's external codecs; applications decode their own media. Copy only the server, capture utility, native-protocol/null-sink modules, private shared libraries and licenses. Keep libltdl private with its Debian copyright; do not install the broad PulseAudio/FFmpeg packages in runtime. The two `tuxee-*` wrappers confine library lookup to `/usr/local/lib/tuxee-audio`; preserve normal Debian audio libraries and package metadata. Check every shipped executable/module for missing or accidental codec dependencies. See `../docs/audio.md` for measured sizes and limitations.
+`build-audio.sh OUTPUT` builds SHA-256-pinned PulseAudio 17.0 and libsndfile 1.2.2 in a separate stage. Disable optional audio-server integrations and libsndfile's external codecs; applications decode their own media. Copy only the server, capture utility, native-protocol/null-sink/remap-source modules, private shared libraries and licenses. Keep libltdl private with its Debian copyright; do not install the broad PulseAudio/FFmpeg packages in runtime. The two `tuxee-*` wrappers confine library lookup to `/usr/local/lib/tuxee-audio`; preserve normal Debian audio libraries and package metadata. Check every shipped executable/module for missing or accidental codec dependencies. See `../docs/audio.md` for measured sizes and limitations.
 
 Keep runtime files here and keep the root Docker/Compose entry points usable.
 
