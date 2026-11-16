@@ -207,7 +207,7 @@ export class TerminalView implements View {
             historyIndex = history.length; restore(liveDraft); editGroup = '';
             updateHistory();
         };
-        drawer.rows = 3; drawer.hidden = true; drawer.spellcheck = false; drawer.readOnly = true;
+        drawer.rows = 1; drawer.hidden = true; drawer.spellcheck = false; drawer.readOnly = true;
         updateHistory();
         drawer.setAttribute('autocapitalize', 'off'); drawer.setAttribute('autocorrect', 'off');
         drawer.setAttribute('aria-label', t("term.terminalInputDrawer"));

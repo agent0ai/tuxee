@@ -587,7 +587,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     assert.equal(await drawer.inputValue(), '', 'empty history leaves the empty drawer unchanged');
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     await page.waitForFunction(rows => view.term.rows < rows, initialRows); await idle();
-    assert.equal(await drawer.getAttribute('rows'), '3');
+    assert.ok(await drawer.evaluate(node => Math.abs(node.getBoundingClientRect().height - parseFloat(getComputedStyle(node).minHeight)) < 1), 'drawer opens at its CSS minimum height');
     assert.equal(await drawer.getAttribute('placeholder'), 'Enter: send · Ctrl+Enter: insert · Shift+Enter: new line');
     const drawerGrip = page.getByRole('separator', {name:'Resize terminal input', exact:true});
     const startHeight = (await drawer.boundingBox()).height;
@@ -628,13 +628,13 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         assert.equal(resizeRequests.length, before, `${cancel} must not resize the PTY`);
     }
     await drawerGrip.focus(); await page.keyboard.press('Home'); await page.waitForTimeout(250); await idle();
-    assert.ok((await drawer.boundingBox()).height < startHeight, 'keyboard can shrink to one line');
+    assert.equal((await drawer.boundingBox()).height, startHeight, 'keyboard minimum matches the opening height');
     await page.keyboard.press('End'); await page.waitForTimeout(250); await idle();
     assert.ok((await page.locator('.terminal-host').boundingBox()).height >= 39, 'maximum leaves terminal visible');
     await drawer.evaluate(node => node.style.height = '');
     await page.waitForTimeout(250); await idle();
     await page.evaluate(() => view.term.refresh = originalRefresh);
-    console.log('PASS three-line drawer, drag preview without PTY resize/redraw, one release resize, retained height/draft, cancellation and keyboard bounds');
+    console.log('PASS minimum-height drawer, drag preview without PTY resize/redraw, one release resize, retained height/draft, cancellation and keyboard bounds');
     await page.evaluate(() => view.term.scrollToTop());
     await drawer.fill('printf DRAWER_ONE'); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-rows').textContent.includes('DRAWER_ONE'));
@@ -761,7 +761,7 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
     await nextInput.click();
     assert.equal(await drawer.inputValue(), 'retained draft');
     console.log('PASS input history visibility/bounds, exact sent originals, editable recall, live draft, resend, deduplication and rejection/reconnect');
-    console.log('PASS text history, no-resize popover, three-line input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
+    console.log('PASS text history, no-resize popover, minimum-height input, send/paste/newline/IME, rejection and reconnect draft/PID preservation');
 
     // A real raw-mode TUI receives exact paste framing and Enter bytes.
     await drawer.fill('');
@@ -913,7 +913,8 @@ finally: termios.tcsetattr(0,termios.TCSANOW,old)
         }, {width, theme});
         await drawer.fill('one\ntwo\nthree\nfour\nfive\nsix\nseven');
         await page.waitForTimeout(250); await idle();
-        assert.ok(await drawer.evaluate(node => node.scrollHeight > node.clientHeight), 'input scrolls beyond three lines');
+        assert.ok(await drawer.evaluate(node => Math.abs(node.getBoundingClientRect().height - parseFloat(getComputedStyle(node).minHeight)) < 1), 'desktop/compact drawer defaults to its CSS minimum height');
+        assert.ok(await drawer.evaluate(node => node.scrollHeight > node.clientHeight), 'overflowing input scrolls');
         if (width === 320 && theme === 'dark') {
             const touch = await context.newCDPSession(page), before = resizeRequests.length;
             const rows = await page.evaluate(() => view.term.rows), bounds = await drawerGrip.boundingBox();
