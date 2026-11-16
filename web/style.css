@@ -1170,7 +1170,7 @@ h3 {
 .popover-menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 190px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 32px #0003; }
 .popover-menu::backdrop { background: transparent; }
 .popover-menu:not(:popover-open) { display: none; }
-.volume-popover { min-width: 0; width: 80px; padding: 6px 3px; display: flex; gap: 8px; }
+.volume-popover { min-width: 0; width: 68px; padding: 6px 3px; display: flex; gap: 0; }
 .volume-channel { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .volume-popover input { writing-mode: vertical-lr; direction: rtl; width: 24px; min-height: 0; flex: 1; padding: 0; margin: 0; border: 0; accent-color: var(--accent); cursor: pointer; }
 .volume-popover button { flex-shrink: 0; width: 30px; padding: 4px; }

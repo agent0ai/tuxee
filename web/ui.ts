@@ -202,7 +202,7 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
     }, { signal: events.signal });
     return () => { events.abort(); cancelPress(); cancelRelease(); target.classList.remove('long-press'); };
 }
-export function popover(anchor: HTMLElement | { x: number; y: number }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement) {
+export function popover(anchor: HTMLElement | { x: number; y: number }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement, centerOn?: HTMLElement) {
     const control = anchor instanceof HTMLElement ? anchor : undefined;
     const parent = (control || returnFocus)?.closest<HTMLElement>('.popover-menu:popover-open');
     while (popovers.length && popovers.at(-1)!.content !== parent) popovers.at(-1)!.close();
@@ -215,7 +215,10 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
     (parent || document.body).append(content);
     content.showPopover();
     const rect = control?.getBoundingClientRect();
-    const left = rect ? rect.right - content.offsetWidth : (anchor as { x: number }).x;
+    const centered = centerOn?.getBoundingClientRect();
+    const left = rect
+        ? centered ? rect.left + rect.width / 2 - (centered.left + centered.width / 2 - content.getBoundingClientRect().left) : rect.right - content.offsetWidth
+        : (anchor as { x: number }).x;
     const top = rect ? rect.bottom + 4 : (anchor as { y: number }).y;
     content.style.left = `${Math.max(4, Math.min(left, innerWidth - content.offsetWidth - 4))}px`;
     content.style.top = `${Math.max(4, Math.min(top, innerHeight - content.offsetHeight - 4))}px`;

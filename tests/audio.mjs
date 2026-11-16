@@ -225,7 +225,8 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
     await page.keyboard.press('ArrowDown'); assert.equal(await slider.inputValue(), '25');
     const bounds = await page.locator('.volume-popover').boundingBox(), header = await page.locator('.topbar').boundingBox(), toggle = await page.locator('.volume-toggle').boundingBox();
     assert.equal(bounds.height, header.height * 4);
-    assert.ok(bounds.y > toggle.y + toggle.height && Math.abs(bounds.x + bounds.width - toggle.x - toggle.width) < 5, 'mixer must open below and align with its button');
+    const speakerBounds = await page.locator('.volume-channel[data-channel=speaker] input').boundingBox();
+    assert.ok(bounds.y > toggle.y + toggle.height && Math.abs(speakerBounds.x + speakerBounds.width / 2 - toggle.x - toggle.width / 2) < 1, 'speaker must open centered below its button');
     const muteIcon = await page.locator('.volume-channel[data-channel=speaker] button svg').innerHTML();
     await (await soundMenu('Mute')).click();
     assert.equal(await page.locator('.volume-channel[data-channel=speaker] button svg').innerHTML(), muteIcon, 'mute icon stays fixed');
