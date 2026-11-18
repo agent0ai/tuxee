@@ -304,13 +304,25 @@ try {
         await page.mouse.move(1400, 900);
         await page.screenshot({ path: `test-results/window-bar-${theme}.png` });
     }
+    const minimizeResizes = terminalResizes;
     let head = await item('shell').locator('.panel-header').boundingBox();
     let aTab = await title('a').boundingBox(), cTab = await title('c').boundingBox();
     await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
     await page.mouse.move((aTab.x + aTab.width + cTab.x) / 2, aTab.y + aTab.height / 2, { steps: 12 });
-    assert.equal(await page.locator('.window-drop-marker:visible').count(), 1);
+    assert.equal(await page.locator('.tab-placeholder').count(), 1);
+    assert.equal(await page.locator('.tab-drag-preview .component-tab').count(), 1);
+    assert.equal(await page.locator('.tab-drag-preview .component-menu svg').count(), 1);
+    assert.equal(await page.locator('.window-drop-marker').count(), 0);
+    await page.waitForTimeout(220);
+    const gap = await page.locator('.tab-placeholder').boundingBox(), tabPreview = await page.locator('.tab-drag-preview').boundingBox();
+    assert.ok(Math.abs(gap.width - tabPreview.width) < 1 && Math.abs(gap.height - tabPreview.height) < 1, 'window morphs to the real tab dimensions');
+    assert.ok((await title('c').boundingBox()).x >= gap.x + gap.width, 'neighbor makes room for the incoming window');
+    assert.equal(await item('shell').locator('.xterm').count(), 1, 'preview never clones the terminal');
+    await page.screenshot({ path: 'test-results/window-tab-morph.png' });
+    assert.equal(terminalResizes, minimizeResizes, 'tab preview keeps terminal dimensions');
     await page.mouse.up(); await settled();
     assert.deepEqual((await current()).panels.filter(p => p.minimized).map(p => p.id), ['a', 'shell', 'c'], 'drop between tabs minimizes in place');
+    assert.equal(terminalResizes, minimizeResizes, 'settling into the tab never resizes the hidden terminal');
     assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, pid);
     await fixture([workspace('origin', [shell()])]);
     await maximize('shell');

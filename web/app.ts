@@ -8,7 +8,7 @@ import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
 import { visiblePanels, canAddPanel, MAX_PANELS, restorePanel, id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, cloneWorkspace, orientWorkspace, split, validGrid, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
-import { overflowTabs } from './overflow';
+import { overflowTabs, overflowTabDrop } from './overflow';
 import { FileView } from './files';
 import { clearFileCut } from './file-clipboard';
 import { TerminalView, terminateTerminal, TERMINAL_FONT } from './term';
@@ -337,25 +337,15 @@ function renderChrome() {
     const barPanels = compact ? ws.panels : ws.panels.filter(p => ws.maximized ? p.id !== ws.maximized : p.minimized);
     componentControls.hidden = !compact && !barPanels.length;
     for (const panel of barPanels) {
-        const item = mounted!.items.get(panel.id)!;
-        const group = el('div', 'component-tab-item'); group.classList.toggle('active', panel.id === ws.active);
-        const tab = button(item.title.textContent || panel.kind, undefined, () => compact ? activatePanel(panel) : restoreWindow(panel), 'component-tab');
-        const updateTab = () => {
-            const label = item.view.tabLabel, name = label?.title || item.title.textContent || panel.kind;
-            tab.title = name; tab.setAttribute('aria-label', name);
-            tab.replaceChildren(label?.icon.cloneNode(true) || icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), el('span', 'component-tab-title', name));
-        };
-        updateTab();
+        const { group, tab, menu, updateTab } = componentTab(panel, () => compact ? activatePanel(panel) : restoreWindow(panel));
         window.addEventListener('tuxee-tabs-changed', updateTab);
         chromeDisposers.push(() => window.removeEventListener('tuxee-tabs-changed', updateTab));
         tab.dataset.componentName = panel.id;
-        tab.classList.toggle('active', panel.id === ws.active); group.append(tab);
         tab.setAttribute('aria-haspopup', 'menu');
         chromeDisposers.push(bindContextMenu(group, position => compact ? componentMenu(panel, tab, position) : windowMenu(panel, tab, position), compact));
         if (!compact) tab.onpointerdown = event => beginDrag(event, panel.kind, panel);
-        const menu = button(t("app.componentMenu"), 'ChevronDown', () => compact ? componentMenu(panel, menu) : windowMenu(panel, menu), 'component-menu');
+        menu.onclick = () => compact ? componentMenu(panel, menu) : windowMenu(panel, menu);
         menu.dataset.componentMenu = panel.id;
-        menu.setAttribute('aria-haspopup', 'menu'); group.append(menu);
         components.push(group);
     }
     root.prepend(top, componentControls);
@@ -364,12 +354,27 @@ function renderChrome() {
         settings.workspaces = items.map(item => settings.workspaces.find(ws => ws.id === item.dataset.workspace)!);
         changed();
     }));
-    if (compact || barPanels.length) chromeDisposers.push(overflowTabs(componentTabs, components, t("app.moreComponents"), compact ? undefined : items => {
+    chromeDisposers.push(overflowTabs(componentTabs, components, t("app.moreComponents"), compact ? undefined : items => {
         const ordered = items.map(item => ws.panels.find(p => p.id === item.querySelector<HTMLElement>('[data-component-name]')!.dataset.componentName)!);
         let index = 0; ws.panels = ws.panels.map(p => barPanels.includes(p) ? ordered[index++] : p); changed();
     }));
     mounted?.grid?.cellHeight(cellHeight(mounted));
     mounted?.items.forEach(item => item.view.resize?.());
+}
+function componentTab(panel: Panel, activate?: () => void) {
+    const item = mounted!.items.get(panel.id)!;
+    const group = el('div', 'component-tab-item'), tab = button('', undefined, activate, 'component-tab');
+    const menu = button(t("app.componentMenu"), 'ChevronDown', undefined, 'component-menu');
+    group.classList.toggle('active', panel.id === current().active);
+    tab.classList.toggle('active', panel.id === current().active);
+    menu.setAttribute('aria-haspopup', 'menu'); group.append(tab, menu);
+    const updateTab = () => {
+        const label = item.view.tabLabel, name = label?.title || item.title.textContent || panel.kind;
+        tab.title = name; tab.setAttribute('aria-label', name);
+        tab.replaceChildren(label?.icon.cloneNode(true) || icon(panel.kind === 'files' ? 'Folder' : 'SquareTerminal'), el('span', 'component-tab-title', name));
+    };
+    updateTab();
+    return { group, tab, menu, updateTab };
 }
 function cellHeight(value: Mounted) { return Math.max(140, value.gridEl.clientHeight / value.ws.rows); }
 function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
@@ -681,7 +686,8 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
     const bar = restoring ? (event.currentTarget as HTMLElement).closest<HTMLElement>('.overflow-tabs, .window-bar') : null;
     const windowBar = root.querySelector<HTMLElement>('.window-bar')!;
     const revealBar = !!existing && windowBar.hidden;
-    const marker = el('div', 'window-drop-marker');
+    let tabPreview: ReturnType<typeof overflowTabDrop> | undefined;
+    let morph: Animation | undefined;
     let dragScale = 1, dragOffsetY = 0;
     let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined, barTarget: string | null | undefined;
     const dropTabs = workspaceTabs;
@@ -693,12 +699,12 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         events.abort(); cancelDrag = () => {};
         if (trigger.hasPointerCapture(event.pointerId)) trigger.releasePointerCapture(event.pointerId);
         if (!active) return;
-        const released = node.getBoundingClientRect();
+        const released = tabPreview?.rect() || node.getBoundingClientRect();
+        tabPreview?.dispose(); morph?.cancel(); node.classList.remove('panel-tab-preview');
         const stopClick = (click: Event) => { click.preventDefault(); click.stopImmediatePropagation(); };
         trigger.addEventListener('click', stopClick, { capture: true, once: true });
         setTimeout(() => trigger.removeEventListener('click', stopClick, true), 100);
         dragging = false; hidePreview(); value.board.classList.remove('docking'); clearTabs();
-        marker.remove();
         if (revealBar) {
             windowBar.hidden = true;
             for (const property of ['height', 'transform', 'transform-origin']) value.board.style.removeProperty(property);
@@ -719,7 +725,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             const index = barTarget === null ? ws.panels.length : ws.panels.findIndex(p => p.id === barTarget);
             ws.panels.splice(index < 0 ? ws.panels.length : index, 0, existing);
             if (restoring) { changed(); renderChrome(); }
-            else { delete ws.maximized; existing.minimized = false; minimizeWindow(existing); }
+            else { delete ws.maximized; existing.minimized = false; minimizeWindow(existing, released); }
             return;
         }
         const before = ws.panels.map(p => ({ ...p }));
@@ -742,6 +748,16 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             const animation = animateGeometry(settled, released, destination);
             animation.finished.finally(() => settled.classList.remove('panel-settling')).catch(() => {});
         }
+    }
+    function leaveBar() {
+        if (!tabPreview) return;
+        const from = tabPreview.rect(); tabPreview.dispose(); tabPreview = undefined;
+        node.classList.remove('panel-tab-preview'); morph?.cancel();
+        const to = node.getBoundingClientRect(), transform = node.style.transform;
+        morph = node.animate([
+            { transformOrigin: 'top left', transform: `${transform} translate(${from.x - to.x}px, ${(from.y - to.y) / dragScale}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 },
+            { transformOrigin: 'top left', transform, opacity: .8 }
+        ], { duration: duration(180), easing: 'cubic-bezier(.2,.7,.2,1)' });
     }
     cancelDrag = () => finish(true);
     document.addEventListener('keydown', key => { if (key.key === 'Escape') { key.preventDefault(); finish(true); } }, { capture: true, signal: events.signal });
@@ -770,7 +786,6 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
                 Object.assign(value.board.style, { transformOrigin: 'top left', transform: `scaleY(${dragScale})` });
                 dragOffsetY = origin.y - node.getBoundingClientRect().y;
             }
-            if (existing) windowBar.append(marker);
             renderVacancies(value, existing);
             if (!existing || restoring) {
                 node.append(icon(kind === 'files' ? 'Folder' : 'SquareTerminal'));
@@ -779,31 +794,39 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             }
         }
         node.style.transform = `translate(${dx}px, ${(dy + dragOffsetY) / dragScale}px)`;
-        workspaceTarget = undefined; barTarget = undefined; marker.hidden = true;
+        workspaceTarget = undefined; barTarget = undefined;
         clearTabs();
         if (existing) {
             const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
                 if (more.getAttribute('aria-expanded') !== 'true') more.click();
-                where = undefined; hidePreview(); return;
+                leaveBar(); where = undefined; hidePreview(); return;
             }
             const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
             if (tab) {
                 workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
                 tab.dataset.componentDrop = workspaceTarget !== ws && (workspaceTarget!.panels.length < MAX_PANELS) ? 'allowed' : 'blocked';
-                where = undefined; hidePreview(); return;
+                leaveBar(); where = undefined; hidePreview(); return;
             }
         }
         if (existing) {
-            const bounds = windowBar.getBoundingClientRect();
-            if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
-                const tabs = [...windowBar.querySelectorAll<HTMLElement>('.visible-tabs .component-tab-item')].filter(tab => tab.querySelector<HTMLElement>('[data-component-name]')?.dataset.componentName !== existing.id);
-                const rtl = getComputedStyle(windowBar).direction === 'rtl';
-                const next = tabs.find(tab => { const r = tab.getBoundingClientRect(); return rtl ? move.clientX > r.left + r.width / 2 : move.clientX < r.left + r.width / 2; });
-                const last = tabs.at(-1), edge = next?.getBoundingClientRect() || last?.getBoundingClientRect();
-                barTarget = next?.querySelector<HTMLElement>('[data-component-name]')?.dataset.componentName || null;
-                const x = edge ? next ? (rtl ? edge.right : edge.left) : (rtl ? edge.left : edge.right) : bounds.left + 8;
-                marker.style.left = `${x - bounds.left}px`; marker.hidden = false; where = undefined; hidePreview(); return;
+            const host = windowBar.querySelector<HTMLElement>('.component-tabs')!;
+            if (!tabPreview) {
+                const bounds = windowBar.getBoundingClientRect();
+                if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
+                    const source = host.querySelector<HTMLElement>(`[data-component-name="${existing.id}"]`)?.parentElement || componentTab(existing).group;
+                    tabPreview = overflowTabDrop(host, source, move, node.getBoundingClientRect());
+                    node.classList.add('panel-tab-preview');
+                    morph?.cancel(); morph = node.animate([{ opacity: .8 }, { opacity: 0 }], { duration: duration(180) });
+                }
+            }
+            if (tabPreview) {
+                const next = tabPreview.move(move);
+                if (next !== undefined) {
+                    barTarget = next?.querySelector<HTMLElement>('[data-component-name]')?.dataset.componentName || null;
+                    where = undefined; hidePreview(); return;
+                }
+                leaveBar();
             }
         }
         const grid = value.gridEl.getBoundingClientRect(), cellW = grid.width / ws.columns, cellH = grid.height / ws.rows;
@@ -1048,11 +1071,12 @@ function restoreWindow(panel: Panel) {
     const node = mounted?.items.get(panel.id)?.node;
     if (node && !node.hidden && from?.width) animateGeometry(node, from, node.getBoundingClientRect());
 }
-function minimizeWindow(panel: Panel) {
+function minimizeWindow(panel: Panel, from?: DOMRect) {
     const value = mounted, item = value?.items.get(panel.id);
     if (!value || !item || value.compact || value.ws.maximized || item.node.dataset.closing || item.node.dataset.moving) return;
     windowAnimations.get(item.node)?.();
-    const from = item.node.getBoundingClientRect();
+    const size = item.node.getBoundingClientRect();
+    from ||= size;
     panel.minimized = true;
     expandAfterClose(value.ws, panel, value.ws.panels.filter(p => !value.items.get(p.id)?.node.dataset.closing));
     layoutChanged(value.ws); render(); focusActivePanel();
@@ -1061,10 +1085,10 @@ function minimizeWindow(panel: Panel) {
     const to = (tab?.checkVisibility() ? tab : root.querySelector<HTMLElement>('.window-bar .overflow-toggle'))?.getBoundingClientRect();
     if (!to?.width || !from.width || !duration(320)) return;
     const node = item.node, style = node.getAttribute('style'), flight = el('div', 'grid-stack component-flight');
-    Object.assign(flight.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${from.width}px`, height: `${from.height}px` });
+    Object.assign(flight.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${size.width}px`, height: `${size.height}px` });
     Object.assign(node.style, { left: '0', top: '0', width: '100%', height: '100%' });
     node.hidden = false; node.inert = true; flight.append(node); document.body.append(flight);
-    const animation = flight.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 0 }], { duration: duration(320), easing: 'cubic-bezier(.2,.7,.2,1)' });
+    const animation = flight.animate([{ transform: `scale(${from.width / size.width}, ${from.height / size.height})`, opacity: 1 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / size.width}, ${to.height / size.height})`, opacity: 0 }], { duration: duration(320), easing: 'cubic-bezier(.2,.7,.2,1)' });
     const cancel = () => {
         if (windowAnimations.get(node) !== cancel) return;
         windowAnimations.delete(node); animation.cancel(); node.inert = false; node.hidden = true;

@@ -183,12 +183,17 @@ try {
         const forward = vertical ? target.y > source.y : target.x > source.x;
         await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
         await page.mouse.down();
-        await page.mouse.move(vertical ? source.x + source.width / 2 : target.x + (forward ? target.width - 2 : 2),
-            vertical ? target.y + (forward ? target.height - 2 : 2) : source.y + source.height / 2, { steps: 8 });
+        const x = vertical ? source.x + source.width / 2 : target.x + (forward ? target.width - 2 : 2);
+        const y = vertical ? target.y + (forward ? target.height - 2 : 2) : source.y + source.height / 2;
+        await page.mouse.move((source.x + source.width / 2 + x) / 2, (source.y + source.height / 2 + y) / 2, { steps: 4 });
+        const animated = await page.locator('.tab-shifting').evaluateAll(nodes => nodes.some(node => node.getAnimations().some(animation => animation.effect.getTiming().duration > 0)));
+        await page.mouse.move(x, y, { steps: 4 });
         assert.ok(await workspace(from).evaluate(node => node.classList.contains('tab-dragging')));
+        return animated;
     }
-    await dragWorkspace('work', 'other-4');
-    assert.ok(await page.locator('.tab-shifting').evaluateAll(nodes => nodes.some(node => getComputedStyle(node).transform !== 'none' && parseFloat(getComputedStyle(node).transitionDuration) > 0)));
+    assert.ok(await dragWorkspace('work', 'other-4'), 'neighbors animate around the moving gap');
+    assert.equal(await page.locator('.tab-placeholder').count(), 1);
+    assert.equal(await page.locator('.tab-drag-preview .workspace-menu svg').count(), 1);
     await page.screenshot({ path: 'test-results/workspace-tabs-drag.png' });
     save = saved([...originalOrder.slice(1), 'work']); await page.mouse.up(); await save;
     assert.deepEqual(await workspaceOrder(), [...originalOrder.slice(1), 'work']);
