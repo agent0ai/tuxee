@@ -1122,7 +1122,7 @@ h3 {
 .tab-shifting { transition: transform .18s cubic-bezier(.2,.7,.2,1); }
 .tab-dragging { z-index: 1; background: var(--raised); box-shadow: 0 2px 8px #0003; opacity: .9; }
 .tab-dragging > button:first-child { cursor: grabbing; }
-.tab-placeholder { visibility: hidden; pointer-events: none; }
+.tab-placeholder, [data-tab-drag-source] { visibility: hidden; pointer-events: none; }
 .tab-drag-preview { position: fixed; inset: auto; margin: 0; padding: 0; border: 0; background: transparent; overflow: visible; pointer-events: none; }
 .tab-drag-preview > div { width: 100%; height: 100%; max-width: none; box-sizing: border-box; }
 .tab-drag-preview::backdrop { display: none; }

@@ -684,6 +684,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
     const origin = existing && !restoring ? node.getBoundingClientRect() : new DOMRect(event.clientX, event.clientY, 180, 100);
     const startX = event.clientX, startY = event.clientY;
     const bar = restoring ? (event.currentTarget as HTMLElement).closest<HTMLElement>('.overflow-tabs, .window-bar') : null;
+    const sourceTab = restoring ? (event.currentTarget as HTMLElement).closest<HTMLElement>('.component-tab-item') : null;
     const windowBar = root.querySelector<HTMLElement>('.window-bar')!;
     const revealBar = !!existing && windowBar.hidden;
     let tabPreview: ReturnType<typeof overflowTabDrop> | undefined;
@@ -701,6 +702,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         if (!active) return;
         const released = tabPreview?.rect() || node.getBoundingClientRect();
         tabPreview?.dispose(); morph?.cancel(); node.classList.remove('panel-tab-preview');
+        sourceTab?.removeAttribute('data-tab-drag-source');
         const stopClick = (click: Event) => { click.preventDefault(); click.stopImmediatePropagation(); };
         trigger.addEventListener('click', stopClick, { capture: true, once: true });
         setTimeout(() => trigger.removeEventListener('click', stopClick, true), 100);
@@ -777,6 +779,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             if (restoring || menu) trigger.setPointerCapture(event.pointerId);
             if (!existing) menu?.hidePopover();
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
+            sourceTab?.setAttribute('data-tab-drag-source', '');
             if (revealBar) {
                 // Make room for the drop row without resizing live terminal or GUI content.
                 const height = value.board.clientHeight;
@@ -814,7 +817,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             if (!tabPreview) {
                 const bounds = windowBar.getBoundingClientRect();
                 if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
-                    const source = host.querySelector<HTMLElement>(`[data-component-name="${existing.id}"]`)?.parentElement || componentTab(existing).group;
+                    const source = sourceTab || componentTab(existing).group;
                     tabPreview = overflowTabDrop(host, source, move, node.getBoundingClientRect());
                     node.classList.add('panel-tab-preview');
                     morph?.cancel(); morph = node.animate([{ opacity: .8 }, { opacity: 0 }], { duration: duration(180) });

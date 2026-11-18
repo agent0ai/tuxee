@@ -95,6 +95,49 @@ try {
         if (cancel) await page.keyboard.press('Escape');
         await page.mouse.up(); await settled();
     }
+    for (const maximized of [false, true]) for (const overflow of [false, true]) {
+        const hidden = Array.from({ length: 12 }, (_, i) => panel(`handoff${i}`, 0, 0, 1, 1, { minimized: true }));
+        await fixture([workspace('origin', [panel('visible', 0, 0, 4, 2), ...(overflow ? [...hidden, shell(true)] : [shell(true), ...hidden])])]);
+        if (maximized) await maximize('visible');
+        const before = await current(), connectionCount = sockets.length;
+        for (const cancel of [true, false]) {
+            if (!await title('shell').isVisible()) await page.locator('.window-bar .overflow-toggle').click();
+            const source = await title('shell').boundingBox();
+            const group = await title('shell').locator('..').elementHandle();
+            const bar = await page.locator('.window-bar').boundingBox();
+            const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
+            const destination = { x: grid.x + grid.width / 2, y: grid.y + grid.height * .75 };
+            await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2); await page.mouse.down();
+            await page.mouse.move(source.x + source.width / 2 + 8, source.y + source.height / 2, { steps: 2 });
+            assert.equal(await group.evaluate(n => getComputedStyle(n).visibility), 'hidden', 'reordering lifts the source tab');
+            await page.mouse.move(destination.x, destination.y, { steps: 12 });
+            await page.locator('.panel-dragging').waitFor();
+            assert.equal(await group.evaluate(n => getComputedStyle(n).visibility), 'hidden', 'desktop handoff must not return a visible source copy');
+            if (cancel) {
+                await page.mouse.move(bar.x + 20, bar.y + bar.height / 2, { steps: 12 });
+                assert.ok(await page.locator('.tab-drag-preview .component-tab').isVisible(), 'returning to the bar shows the dragged tab');
+                assert.equal(await title('shell').count(), 1, 'bar reentry reuses the original source tab');
+                await page.mouse.move(destination.x, destination.y, { steps: 12 });
+                assert.equal(await group.evaluate(n => getComputedStyle(n).visibility), 'hidden', 'leaving the bar again keeps the source lifted');
+                await page.keyboard.press('Escape');
+            }
+            await page.mouse.up(); await settled();
+            assert.equal(await page.locator('.tab-drag-preview, .panel-dragging').count(), 0);
+            if (cancel) {
+                assert.deepEqual(await current(), before, 'cancellation preserves window state and order');
+                if (!await title('shell').isVisible()) await page.locator('.window-bar .overflow-toggle').click();
+                assert.ok(await title('shell').isVisible(), 'cancellation restores the source tab');
+                await page.keyboard.press('Escape');
+            } else {
+                assert.equal(await title('shell').count(), 0, 'desktop drop removes the source tab');
+                assert.ok(await item('shell').isVisible());
+            }
+            assert.equal(sockets.length, connectionCount, 'handoff preserves terminal connections');
+            assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, terminal.pid);
+        }
+    }
+    console.log('PASS lifted window tabs stay hidden across desktop handoff, bar reentry, cancellation and restoration');
+
     await fixture([workspace('origin', [shell(), ...Array.from({ length: 12 }, (_, i) => panel(`hidden${i}`, 0, 0, 1, 1, { minimized: true }))])]);
     const more = page.locator('.window-bar .overflow-toggle');
     for (const maximized of [false, true]) {
