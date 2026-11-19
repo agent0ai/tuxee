@@ -143,7 +143,7 @@ export class TerminalDisplay {
         });
         close.append(el('span', '', t("common.close"))); close.setAttribute('role', 'menuitem'); content.append(close);
         const rect = anchor.getBoundingClientRect();
-        ({ close: this.closeMenu } = popover(position || { x: rect.left, y: rect.bottom }, content, anchor));
+        ({ close: this.closeMenu } = popover(position || { x: rect.left, y: rect.bottom, opener: anchor }, content, anchor));
     }
 
     private async connect() {

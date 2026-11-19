@@ -1162,7 +1162,7 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
     }
     const rect = tab.getBoundingClientRect();
     const returnFocus = tab.classList.contains('panel-header') ? document.activeElement as HTMLElement : tab;
-    ({ close } = popover(position || { x: rect.left, y: rect.bottom }, content, returnFocus));
+    ({ close } = popover(position || { x: rect.left, y: rect.bottom, opener: tab instanceof HTMLButtonElement ? tab : undefined }, content, returnFocus));
 }
 async function closeWorkspace(ws = current()) {
     const value = warmWorkspaces.get(ws.id);

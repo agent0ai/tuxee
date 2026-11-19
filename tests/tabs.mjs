@@ -50,6 +50,13 @@ const snapshot = async () => (await (await api('/me')).json()).settings;
 const saved = order => page.waitForResponse(response => response.url() === base + '/api/settings' && response.request().method() === 'PUT' &&
     (!order || JSON.stringify(response.request().postDataJSON().workspaces.map(ws => ws.id)) === JSON.stringify(order)));
 const check = text => console.log('PASS ' + text);
+async function toggleDropdown(opener, popup, touch = false) {
+    for (const visible of [true, false, true, false]) {
+        await opener[touch ? 'tap' : 'click']();
+        assert.equal(await popup.isVisible(), visible, 'opener toggles its dropdown');
+        assert.equal(await opener.getAttribute('aria-expanded'), String(visible));
+    }
+}
 async function reveal(id) {
     if (!await tab(id).isVisible()) await page.getByRole('button', { name: 'More components', exact: true }).tap();
     return tab(id);
@@ -90,6 +97,8 @@ try {
     await page.goto(base);
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].length === 2 &&
         [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
+    await toggleDropdown(page.locator('.user-menu-button'), page.locator('.account-menu'));
+    await toggleDropdown(page.locator('.workspace-menu').first(), menu);
     const initialNames = await page.locator('.terminal-tab .panel-title').allTextContents();
     assert.equal(new Set(initialNames).size, 2);
     initialNames.forEach(name => assert.match(name, /^Terminal \d+$/));
@@ -118,6 +127,7 @@ try {
     await page.setViewportSize({ width: 1024, height: 1000 }); await page.waitForTimeout(250);
     const visibleBefore = await page.locator('.workspace-tabs .visible-tabs .workspace-tab-item').count();
     assert.ok(visibleBefore < settings.workspaces.length, 'monitor forces desktop overflow in the fixture');
+    await toggleDropdown(page.locator('.workspace-tabs .overflow-toggle'), page.locator('.overflow-tabs:popover-open'));
     await page.locator('.monitor-summary').click();
     const monitor = page.getByRole('dialog', { name: 'Resource monitor', exact: true });
     const displayWidget = monitor.getByRole('switch', { name: 'Display resource monitor widget', exact: true });
@@ -270,6 +280,7 @@ try {
     await page.locator('.compact').waitFor(); await page.waitForTimeout(250);
     assert.equal(await page.locator('.component-tabs .panel-tools').count(), 0);
     assert.ok(await page.locator('.workspace-tabs .workspace-menu').first().isVisible());
+    await toggleDropdown(page.locator('.component-tabs .overflow-toggle'), page.locator('.overflow-tabs:popover-open'), true);
     for (const width of [390, 320]) {
         await page.setViewportSize({ width, height: 844 }); await page.waitForTimeout(250);
         for (const id of ['work', 'other-4']) {
@@ -277,6 +288,7 @@ try {
             const arrow = workspace(id).getByRole('button', { name: 'Desktop menu', exact: true });
             const overflow = await arrow.evaluate(node => !!node.closest('.overflow-tabs'));
             const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
+            await toggleDropdown(arrow, menu, true);
             await arrow.tap(); await menu.waitFor();
             if (overflow) assert.ok(await page.locator('.overflow-tabs:popover-open').isVisible(), 'workspace options retain their overflow list');
             if (overflow) await page.screenshot({ path: `test-results/workspace-overflow-options-${width}.png` });
@@ -290,6 +302,7 @@ try {
             const label = await reveal(id), arrow = label.locator('..').getByRole('button', { name: 'Component menu', exact: true });
             const overflow = await arrow.evaluate(node => !!node.closest('.overflow-tabs'));
             const bounds = await arrow.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
+            await toggleDropdown(arrow, menu, true);
             await arrow.tap(); await menu.waitFor(); assert.ok(await panel('panel-0').isVisible());
             if (overflow) assert.ok(await page.locator('.overflow-tabs:popover-open').isVisible(), 'component options retain their overflow list');
             if (overflow) await page.screenshot({ path: `test-results/component-overflow-options-${width}.png` });

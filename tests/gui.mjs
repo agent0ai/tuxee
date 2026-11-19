@@ -118,7 +118,7 @@ async function clickControl(view, name) {
     await page.mouse.click(location.x, location.y);
 }
 async function panelFocus(id, screenshot) {
-    const panels = await page.locator('.grid-stack-item-content.panel').evaluateAll(nodes => nodes.map(node => {
+    const panels = await page.locator('.grid-stack-item-content.panel').evaluateAll(nodes => nodes.filter(node => node.checkVisibility()).map(node => {
         const style = getComputedStyle(node, '::after'), frame = getComputedStyle(node);
         return { id: node.closest('[data-panel]').dataset.panel, focused: node.contains(document.activeElement),
             content: style.content, width: style.borderTopWidth, color: style.borderTopColor,
@@ -157,12 +157,13 @@ function runX(env, command, args) {
 }
 async function dragWindow(from, to, cancel = false, vertical = false) {
     const start = await from.boundingBox(), end = await to.boundingBox();
+    const source = await from.locator('..').elementHandle();
     const grab = await from.locator('img').count() ? await from.locator('img').boundingBox() : start;
     await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
     await page.mouse.down();
     await page.mouse.move(vertical ? start.x + start.width / 2 : end.x + (end.x > start.x ? end.width - 1 : 1),
         vertical ? end.y + (end.y > start.y ? end.height - 1 : 1) : start.y + start.height / 2, { steps: 12 });
-    assert.ok(await from.locator('..').evaluate(node => node.classList.contains('tab-dragging')));
+    assert.ok(await source.evaluate(node => node.classList.contains('tab-dragging')));
     if (cancel) await page.keyboard.press('Escape');
     await page.mouse.up();
     await page.waitForTimeout(250);
@@ -290,7 +291,8 @@ try {
         const handle = await secondaryTab.boundingBox(), x = handle.x + handle.width / 2, y = handle.y + handle.height / 2;
         const edge = direction < 0 ? wide.x : wide.x + wide.width;
         const crossing = small.x + small.width / 2 - edge;
-        const shifted = () => primaryTab.locator('..').evaluate(node => new DOMMatrix(node.style.transform).m41);
+        const originalLeft = await primaryTab.locator('..').evaluate(node => node.offsetLeft);
+        const shifted = () => primaryTab.locator('..').evaluate(node => node.offsetLeft).then(left => left - originalLeft);
         await page.mouse.move(x, y); await page.mouse.down();
         await page.mouse.move(x + crossing - direction * 2, y, { steps: 4 });
         assert.equal(await shifted(), 0, 'neighbor moved before the dragged edge reached its midpoint');
@@ -332,7 +334,11 @@ try {
             getComputedStyle(group.querySelector('.display-window')).backgroundColor === 'rgba(0, 0, 0, 0)' &&
             menu.left > bounds.left && menu.right < bounds.right && menu.top > bounds.top && menu.bottom < bounds.bottom;
     }), 'chevron is outside the selected window outline');
-    await firstPanel.locator('.display-window-item.active').getByRole('button', { name: 'Window menu', exact: true }).click();
+    const windowMenu = firstPanel.locator('.display-window-item.active .display-window-menu');
+    for (const visible of [true, false, true]) {
+        await windowMenu.click();
+        assert.equal(await page.getByRole('menuitem', { name: 'Close', exact: true }).isVisible(), visible, 'GUI chevron toggles its menu');
+    }
     await page.screenshot({ path: 'test-results/gui-window-close-menu.png' });
     await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
     await poll(async () => !await windowID('Second application window'), 'chevron menu did not close its window');
@@ -464,6 +470,8 @@ try {
     await moreWindows.waitFor();
     await moreWindows.click();
     const overflowMenu = page.locator('.overflow-tabs:popover-open');
+    await moreWindows.click(); assert.equal(await overflowMenu.count(), 0, 'GUI overflow closes on its second click');
+    await moreWindows.click();
     await overflowMenu.getByRole('button', { name: 'Extra window 26', exact: true }).click();
     await poll(() => firstPanel.locator('.display-window.active').getAttribute('title').then(t => t === 'Extra window 26'), 'overflow selection was not promoted into the header');
     assert.equal(await firstPanel.locator('.display-window.active .display-title').isVisible(), true);
@@ -542,7 +550,7 @@ try {
     await moreWindows.waitFor();
     await moreWindows.click();
     await overflowMenu.getByRole('button', { name: 'Extra window 26', exact: true }).click();
-    await poll(() => first.locator('.display-window.active').isVisible(), 'mobile header hid its selected window');
+    await poll(() => first.locator('.display-window.active').getAttribute('title').then(title => title === 'Extra window 26'), 'mobile header did not select its window');
     await first.locator('.terminal-display[data-state=connected]').waitFor();
     await componentLabel('shell', first.locator('.display-window.active'));
     await first.locator('.terminal-tab').click();

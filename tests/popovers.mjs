@@ -4,8 +4,8 @@ import { chromium } from 'playwright';
 
 const bundle = await build({ stdin: { contents: `
     import { button, el, popover } from './web/ui';
-    const root = button('Overflow'), unrelated = button('Unrelated');
-    document.body.append(root, unrelated);
+    const root = button('Overflow'), unrelated = button('Unrelated'), positioned = button('Positioned');
+    document.body.append(root, unrelated, positioned);
     function open(anchor, label, pointed = false) {
         const menu = el('div'); menu.id = label;
         const first = button(label + ' first'), next = button(label + ' next');
@@ -17,16 +17,35 @@ const bundle = await build({ stdin: { contents: `
     }
     root.onclick = () => window.rootMenu = open(root, 'root');
     unrelated.onclick = () => open(unrelated, 'unrelated');
+    positioned.onclick = () => {
+        const rect = positioned.getBoundingClientRect();
+        popover({x: rect.right + 5, y: rect.top, opener: positioned}, button('Positioned action'), positioned);
+    };
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'iife' });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 try {
-    const page = await browser.newPage({ viewport: { width: 1000, height: 700 } }), errors = [];
+    const page = await browser.newPage({ viewport: { width: 1000, height: 700 }, hasTouch: true }), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.setContent('<style>.popover-menu {position:fixed;inset:auto;margin:0;padding:8px} button {display:block} [aria-label=Unrelated] {position:absolute;left:600px;top:8px}</style>');
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
     const button = name => page.getByRole('button', { name, exact: true });
     const count = async expected => assert.equal(await page.locator(':popover-open').count(), expected);
     const focused = async name => assert.ok(await button(name).evaluate(node => node === document.activeElement), name + ' has focus');
+
+    for (const name of ['Overflow', 'Positioned']) for (const gesture of ['click', 'tap', 'Enter', 'Space']) {
+        const opener = button(name);
+        const activate = async () => {
+            if (gesture === 'click' || gesture === 'tap') await opener[gesture]();
+            else { await opener.focus(); await page.keyboard.press(gesture); }
+        };
+        for (const expected of [1, 0, 1, 0]) {
+            await activate(); await count(expected);
+            assert.equal(await opener.getAttribute('aria-expanded'), String(!!expected), `${name}: ${gesture} toggles expanded state`);
+        }
+        await focused(name);
+    }
+    await button('Overflow').click(); await button('root first').click();
+    await button('Overflow').click(); await count(0); await focused('Overflow');
 
     await button('Overflow').click();
     await button('root first').click();

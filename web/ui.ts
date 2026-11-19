@@ -202,19 +202,19 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
     }, { signal: events.signal });
     return () => { events.abort(); cancelPress(); cancelRelease(); target.classList.remove('long-press'); };
 }
-export function popover(anchor: HTMLElement | { x: number; y: number }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement, centerOn?: HTMLElement) {
-    const control = anchor instanceof HTMLElement ? anchor : undefined;
+export function popover(anchor: HTMLElement | { x: number; y: number; opener?: HTMLElement }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement, centerOn?: HTMLElement) {
+    const control = anchor instanceof HTMLElement ? anchor : anchor.opener;
     const parent = (control || returnFocus)?.closest<HTMLElement>('.popover-menu:popover-open');
     while (popovers.length && popovers.at(-1)!.content !== parent) popovers.at(-1)!.close();
     content.classList.add('popover-menu');
-    // A right-click opens before pointerup; native light-dismiss would immediately close it.
-    content.popover = control ? 'auto' : 'manual';
+    // Own dismissal so a second opener click closes once instead of dismissing before reopening.
+    content.popover = 'manual';
     if (!content.hasAttribute('role')) content.setAttribute('role', 'menu');
     const events = new AbortController();
     control?.setAttribute('aria-expanded', 'true');
     (parent || document.body).append(content);
     content.showPopover();
-    const rect = control?.getBoundingClientRect();
+    const rect = anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : undefined;
     const centered = centerOn?.getBoundingClientRect();
     const left = rect
         ? centered ? rect.left + rect.width / 2 - (centered.left + centered.width / 2 - content.getBoundingClientRect().left) : rect.right - content.offsetWidth
@@ -230,7 +230,10 @@ export function popover(anchor: HTMLElement | { x: number; y: number }, content:
         if (content.matches(':popover-open')) content.hidePopover();
         content.remove(); events.abort(); control?.setAttribute('aria-expanded', 'false');
     };
-    if (!control) document.addEventListener('pointerdown', event => { if (!content.contains(event.target as Node)) close(); }, { capture: true, signal: events.signal });
+    document.addEventListener('pointerdown', event => {
+        if (!content.contains(event.target as Node) && !control?.contains(event.target as Node)) close();
+    }, { capture: true, signal: events.signal });
+    control?.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); close(); }, { capture: true, signal: events.signal });
     content.addEventListener('toggle', event => { if (event.newState === 'closed') close(); }, { signal: events.signal });
     window.addEventListener('resize', close, { signal: events.signal });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && popovers.at(-1)?.content === content) { event.preventDefault(); close(); } }, { signal: events.signal });
