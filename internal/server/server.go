@@ -385,7 +385,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/processes" && (r.Method == "GET" || r.Method == "POST" || r.Method == "DELETE"):
 		s.processOperation(w, r, session)
 	case r.URL.Path == "/api/update" && (r.Method == "GET" || r.Method == "POST"),
-		r.URL.Path == "/api/update/apply" && r.Method == "POST":
+		r.URL.Path == "/api/update/apply" && r.Method == "POST",
+		r.URL.Path == "/api/update/schedule" && r.Method == "PUT":
 		s.updateOperation(w, r, session)
 	case r.URL.Path == "/api/metrics" && r.Method == "GET":
 		jsonResponse(w, 200, s.monitor.Sample())

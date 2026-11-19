@@ -18,12 +18,18 @@ import (
 //go:embed update.sh
 var setupScript string
 
+func inTuxeeContainer() (bool, error) {
+	_, err := os.Stat("/opt/tuxee/entrypoint.sh")
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // Setup runs the release's container migration before accepting connections.
 // The marker belongs to the container's writable layer, not a persisted volume.
 func Setup(ctx context.Context, version string, output io.Writer) error {
-	if _, err := os.Stat("/opt/tuxee/entrypoint.sh"); errors.Is(err, os.ErrNotExist) {
-		return nil
-	} else if err != nil {
+	if container, err := inTuxeeContainer(); !container || err != nil {
 		return err
 	}
 	return setup(ctx, version, filepath.Dir(InstallPath), setupScript, output)

@@ -92,7 +92,7 @@ func updateServer(t *testing.T, user identity.User, fixture updateFixture) (*Ser
 	}
 	user.Home = dir
 	s := New("test-instance", nil, nil, nil, "", fstest.MapFS{})
-	s.Updates = update.NewChecker("1.0.0")
+	s.Updates = update.NewChecker("1.0.0", t.TempDir())
 	s.updatePath = target
 	s.Restart = func() {}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -127,6 +127,10 @@ func TestUpdateChecksRequireSessionAndCSRF(t *testing.T) {
 		{"POST", "/api/update/apply", true, false, "http://tuxee.test", 403},
 		{"POST", "/api/update/apply", true, true, "http://evil.test", 403},
 		{"GET", "/api/update/apply", true, true, "", 404},
+		{"PUT", "/api/update/schedule", false, false, "", 401},
+		{"PUT", "/api/update/schedule", true, false, "", 403},
+		{"PUT", "/api/update/schedule", true, true, "http://evil.test", 403},
+		{"PUT", "/api/update/schedule", true, true, "", 400},
 		{"PUT", "/api/update", true, true, "", 404},
 	} {
 		if w := updateRequest(s, tc.method, tc.path, tc.auth, tc.csrf, tc.origin); w.Code != tc.code {
@@ -154,6 +158,22 @@ func TestUpdateChecksRequireSessionAndCSRF(t *testing.T) {
 		t.Fatal(w.Code, w.Body)
 	}
 	s.updateApplying.Store(false)
+}
+
+func TestDevelopmentBuildOmitsSchedule(t *testing.T) {
+	s, _ := updateServer(t, identity.User{}, updateFixture{})
+	s.Updates = update.NewChecker("0.0.0", t.TempDir())
+	status := updateRequest(s, "GET", "/api/update", true, false, "")
+	var result struct {
+		CanApply bool
+		Schedule *update.Schedule
+	}
+	if err := json.Unmarshal(status.Body.Bytes(), &result); err != nil || !result.CanApply || result.Schedule != nil {
+		t.Fatal(result, err)
+	}
+	if w := updateRequest(s, "PUT", "/api/update/schedule", true, true, ""); w.Code != 403 {
+		t.Fatal(w.Code, w.Body)
+	}
 }
 
 func TestUpdateApplyUsesUserPermissionsAndVerifiedInstaller(t *testing.T) {
@@ -324,5 +344,31 @@ func TestUpdateRequiresRestartBeforeInstalling(t *testing.T) {
 	var status struct{ CanApply bool }
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || status.CanApply {
 		t.Fatal(w.Body, err)
+	}
+}
+
+func TestScheduledInstallFailureKeepsWarningAndSessions(t *testing.T) {
+	s, _ := updateServer(t, identity.User{}, updateFixture{})
+	s.Restart = func() { t.Fatal("failed or unchanged installation requested restart") }
+	release := update.Release{Tag: "v1.1.0"}
+	s.Updates.Record(release)
+	previous := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = previous })
+	downloads := 0
+	http.DefaultTransport = updateTransport(func(r *http.Request) (*http.Response, error) {
+		downloads++
+		return nil, fmt.Errorf("fixture download unavailable")
+	})
+	s.updateApplying.Store(true)
+	s.ApplyScheduledUpdate(t.Context(), release)
+	s.updateApplying.Store(false)
+	s.ApplyScheduledUpdate(t.Context(), update.Release{Tag: "v1.0.0"})
+	if downloads != 0 {
+		t.Fatal("busy or up-to-date installation attempted a download")
+	}
+	s.ApplyScheduledUpdate(t.Context(), release)
+	status := s.Updates.Status()
+	if downloads != 1 || !status.Available || status.Error != "" || s.closed.Load() || s.updateApplying.Load() {
+		t.Fatal("scheduled failure changed browser status or runtime", downloads, status)
 	}
 }

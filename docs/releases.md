@@ -139,12 +139,11 @@ at build time; startup does not download or execute a remote script.
 
 ## Update notices
 
-The server checks GitHub on startup and daily at **00:01 in its local timezone**
-(normally UTC in the image). A manual About → Check now uses the same
+The server checks GitHub on startup. When automatic updates are off, the daily check runs at **00:01 in the server’s local timezone** (normally UTC in the image). When enabled, the daily check runs at the selected hour and timezone, installing a newer stable release and immediately restarting Tuxee even with active sessions. The default is **04:00, System local**, on in official containers (including pinned images) and off in manual installations. Recreating a container uses the selected image’s binary and retains the policy when its state volume is reused. `0.0.0` builds only check. A skipped daylight-saving hour or a missed run while stopped waits until the next scheduled day. A repeated hour runs once. A manual About → Check now uses the same
 checker, with overlapping requests coalesced and at most one attempt per clock
 minute across all users. The limit resets when the minute changes, so a check at
 23:16:59 permits another at 23:17:00. Failed checks retain the last known release
-and show an error. The displayed time records the last completed attempt.
+and its warning icon. Manual checks and installations report errors to the caller. Automatic installation failures are logged on the server and retried at the next scheduled check. The displayed time records the last completed check.
 The server keeps working when GitHub is unavailable.
 
 Signed-in visible browsers read cached status once a minute and on focus/visibility

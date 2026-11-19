@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { chromium, request } from 'playwright';
 
 const user = process.env.TUXEE_TEST_USER || 'tuxee-poc-a';
 const fields = spawnSync('getent', ['passwd', user], { encoding: 'utf8' }).stdout.trim().split(':');
@@ -48,7 +48,7 @@ await page.route(base + '/api/update/apply', async route => {
         await route.fulfill({ status: 202, json: { ok: true } });
     }
 });
-let status = { ...real, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:59Z', error: '', canApply: true, restartNeeded: false };
+let status = { ...real, current: '1.0.0', schedule: { enabled: true, hour: 4, timezone: 'Local' }, latest: 'v1.0.0', available: false, checkedAt: '2026-10-20T19:12:59Z', error: '', canApply: true, restartNeeded: false };
 await page.route(base + '/api/update', async route => {
     if (route.request().method() === 'POST') checks++; else polls++;
     await route.fulfill({ json: status });
@@ -221,6 +221,10 @@ try {
         const response = await route.fetch(), data = await response.json();
         await route.fulfill({ json: { ...data, i18n: { ...data.i18n, ...localized } } });
     });
+    await page.route(base + '/api/connection', async route => {
+        const state = await (await route.fetch()).json();
+        await route.fulfill({ json: { ...state, language: localized.language } });
+    });
     await page.setViewportSize({ width: 320, height: 740 });
     for (const name of (await readdir('internal/i18n/locales')).filter(name => name.endsWith('.json')).sort()) {
         const code = name.slice(0, -5), { texts } = JSON.parse(await readFile(`internal/i18n/locales/${name}`, 'utf8'));
@@ -235,7 +239,7 @@ try {
         assert.equal(await row.locator('.update-subtitle').textContent(), texts['updates.manualCommand'].replace('{command}', real.command));
         assert.equal(await refresh.getAttribute('aria-label'), texts['updates.checkNow']);
         const bounds = async () => {
-            const overflow = await row.evaluate(node => [...node.querySelectorAll('button, .update-actions, .update-summary, .update-subtitle')].filter(item => !item.hidden && item.getBoundingClientRect().width > 0).filter(item => {
+            const overflow = await row.evaluate(node => [...node.querySelectorAll('button, .update-actions, .update-summary, .update-subtitle, .update-schedule, .update-schedule select')].filter(item => !item.hidden && item.getBoundingClientRect().width > 0).filter(item => {
                 const box = item.getBoundingClientRect();
                 return item.scrollWidth > item.clientWidth + 1 || box.x < 0 || box.right > innerWidth;
             }).map(item => item.textContent));
@@ -257,15 +261,18 @@ try {
     assert.deepEqual(errors, []);
     console.log('PASS all 43 catalogs: authorized/denied/pending updates at 320px, including RTL');
 } catch (error) {
-    await page.screenshot({ path: 'test-results/updates-failure.png' });
+    await page.screenshot({ path: 'test-results/updates-failure.png' }).catch(() => {});
     throw error;
 } finally {
-    await page.goto('about:blank');
-    // Log in again if the logout case revoked the original cookie.
-    await context.request.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
-    const latest = await (await context.request.get(base + '/api/me')).json();
-    await context.request.put(base + '/api/settings', { data: me.settings, headers: { 'X-Tuxee-CSRF': latest.csrf, 'X-Tuxee-Client': 'web' } });
-    await browser.close();
-    service.kill('SIGTERM'); await stopped;
-    await rm(state, { recursive: true, force: true });
+    await page.goto('about:blank').catch(() => {});
+    const cleanup = await request.newContext();
+    try {
+        await cleanup.post(base + '/api/login', { data: { username: user, password }, headers: { 'X-Tuxee-Client': 'web' } });
+        const latest = await (await cleanup.get(base + '/api/me')).json();
+        assert.equal((await cleanup.put(base + '/api/settings', { data: me.settings, headers: { 'X-Tuxee-CSRF': latest.csrf, 'X-Tuxee-Client': 'web' } })).status(), 200);
+    } finally {
+        await cleanup.dispose(); await browser.close();
+        service.kill('SIGTERM'); await stopped;
+        await rm(state, { recursive: true, force: true });
+    }
 }

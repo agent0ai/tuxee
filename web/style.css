@@ -816,6 +816,18 @@ h3 {
 }
 .about-details .about-update.update-available { background: #e9a93318; box-shadow: inset 3px 0 #d59a31; }
 .update-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.update-schedule { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+.update-schedule label { gap: 6px; }
+.update-schedule select { width: auto; min-width: 0; max-width: 14em; min-height: 26px; padding: 2px 5px; font: inherit; }
+.update-schedule select:first-of-type { flex: none; }
+.update-schedule select:last-child { field-sizing: content; flex-shrink: 2; }
+@media (max-width: 380px) {
+  .modal.about-modal { padding-inline: 12px; }
+  .about-update td { padding-inline: 6px; }
+  .update-schedule, .update-schedule label { gap: 4px; }
+  .update-schedule select { padding-inline: 2px; }
+  .update-schedule select:last-child { flex: none; max-width: 42%; }
+}
 .update-status { display: inline-flex; align-items: center; gap: 6px; }
 .update-available .update-status { font-weight: 600; }
 .update-checked { white-space: nowrap; }

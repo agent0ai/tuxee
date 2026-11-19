@@ -2,8 +2,10 @@ package update
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
+
 	"tuxee/internal/i18n"
 )
 
@@ -17,15 +19,24 @@ type Status struct {
 }
 
 type Checker struct {
-	mu      sync.Mutex
-	status  Status
-	attempt time.Time
-	pending chan struct{}
-	fetch   func(context.Context) (Release, error)
+	mu           sync.Mutex
+	status       Status
+	attempt      time.Time
+	pending      chan struct{}
+	fetch        func(context.Context) (Release, error)
+	schedule     Schedule
+	schedulePath string
+	changed      chan struct{}
 }
 
-func NewChecker(version string) *Checker {
-	return &Checker{status: Status{Current: version}, fetch: NewClient().Latest}
+func NewChecker(version, state string) *Checker {
+	c := &Checker{status: Status{Current: version}, fetch: NewClient().Latest, changed: make(chan struct{}, 1)}
+	if version != "0.0.0" && ValidTag("v"+version) {
+		if err := c.loadSchedule(state); err != nil {
+			log.Printf("automatic updates disabled: %v", err)
+		}
+	}
+	return c
 }
 
 func (c *Checker) Status() Status { c.mu.Lock(); defer c.mu.Unlock(); return c.status }
@@ -82,24 +93,27 @@ func (c *Checker) Check(ctx context.Context) Status {
 	return result
 }
 
-func nextCheck(now time.Time) time.Time {
-	next := time.Date(now.Year(), now.Month(), now.Day(), 0, 1, 0, 0, now.Location())
-	if !next.After(now) {
-		next = next.AddDate(0, 0, 1)
-	}
-	return next
-}
-
-func (c *Checker) Run(ctx context.Context) {
+func (c *Checker) Run(ctx context.Context, install func(context.Context, Release)) {
 	c.Check(ctx)
-	for {
-		timer := time.NewTimer(time.Until(nextCheck(time.Now())))
+	for ctx.Err() == nil {
+		schedule := c.Schedule()
+		due := schedule.nextCheck(time.Now())
+		timer := time.NewTimer(time.Until(due))
 		select {
 		case <-ctx.Done():
 			timer.Stop()
 			return
+		case <-c.changed:
+			timer.Stop()
 		case <-timer.C:
-			c.Check(ctx)
+			// A suspended machine or a changed system clock can wake outside the selected hour.
+			if elapsed := time.Since(due); elapsed < 0 || elapsed >= time.Hour {
+				continue
+			}
+			status := c.Check(ctx)
+			if schedule.Enabled && status.Available && status.Error == "" && ctx.Err() == nil && c.Schedule() == schedule {
+				install(ctx, Release{Tag: status.Latest})
+			}
 		}
 	}
 }

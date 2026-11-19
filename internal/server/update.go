@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"time"
 
 	"tuxee/internal/i18n"
 	"tuxee/internal/update"
@@ -52,8 +55,27 @@ func (s *Server) updateOperation(w http.ResponseWriter, r *http.Request, session
 		s.restartRuntime(w)
 		return
 	}
+	canApply := installation.CanApply && installation.CanRestart && s.Restart != nil
+	var schedule *update.Schedule
+	if current := s.Updates.Schedule(); canApply && current.Timezone != "" {
+		schedule = &current
+	}
+	if r.Method == "PUT" {
+		if schedule == nil {
+			failure(w, 403, i18n.New("updates.contactAdministrator"))
+			return
+		}
+		if err := decode(w, r, schedule, 1024); err != nil {
+			failure(w, 400, err)
+			return
+		}
+		if err := s.Updates.SaveSchedule(*schedule); err != nil {
+			failure(w, 500, err)
+			return
+		}
+	}
 	status := s.Updates.Status()
-	if !apply && r.Method == "POST" {
+	if r.Method == "POST" {
 		status = s.Updates.Check(r.Context())
 	}
 	if installation.Installed != "" {
@@ -61,11 +83,12 @@ func (s *Server) updateOperation(w http.ResponseWriter, r *http.Request, session
 	}
 	jsonResponse(w, 200, struct {
 		update.Status
-		CanApply      bool   `json:"canApply"`
-		RestartNeeded bool   `json:"restartNeeded"`
-		Installing    bool   `json:"installing"`
-		Command       string `json:"command"`
-	}{status, installation.CanApply && installation.CanRestart && s.Restart != nil, update.Newer("v"+installation.Installed, status.Current), s.updateApplying.Load(), update.Command(s.updatePath) + " update"})
+		Schedule      *update.Schedule `json:"schedule,omitempty"`
+		CanApply      bool             `json:"canApply"`
+		RestartNeeded bool             `json:"restartNeeded"`
+		Installing    bool             `json:"installing"`
+		Command       string           `json:"command"`
+	}{status, schedule, canApply, update.Newer("v"+installation.Installed, status.Current), s.updateApplying.Load(), update.Command(s.updatePath) + " update"})
 }
 
 func (s *Server) restartRuntime(w http.ResponseWriter) {
@@ -75,4 +98,22 @@ func (s *Server) restartRuntime(w http.ResponseWriter) {
 	}
 	jsonResponse(w, http.StatusAccepted, map[string]bool{"ok": true})
 	s.Restart()
+}
+
+// ApplyScheduledUpdate shares the browser install guard and the CLI's installation lock.
+func (s *Server) ApplyScheduledUpdate(ctx context.Context, release update.Release) {
+	if s.Restart == nil || s.updatePath == "" || s.closed.Load() || !s.updateApplying.CompareAndSwap(false, true) {
+		return
+	}
+	defer s.updateApplying.Store(false)
+	installCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	changed, err := update.NewClient().ApplyAutomatic(installCtx, release, s.updatePath)
+	if err != nil {
+		log.Printf("automatic Tuxee update: %v", err)
+		return
+	}
+	if changed && ctx.Err() == nil && s.closed.CompareAndSwap(false, true) {
+		s.Restart()
+	}
 }

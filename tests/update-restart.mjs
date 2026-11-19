@@ -11,6 +11,7 @@ const run = (command, args, input) => {
     assert.equal(result.status, 0, `${command}: ${result.stderr}`);
     return result.stdout.trim();
 };
+const scheduled = process.argv.includes('--scheduled');
 assert.equal(process.getuid(), 0, 'isolated PAM accounts require root');
 const dir = await mkdtemp('/tmp/tuxee-update-restart-'), users = [], terminals = [];
 await chmod(dir, 0o755);
@@ -33,7 +34,7 @@ try {
         run('chpasswd', [], `${name}:${user.password}\n`);
     }
     await writeFile(`${users[0].home}/draft.txt`, 'original\n');
-    const env = { ...process.env, HOME: users[0].home }; delete env.TUXEE_HTTP_PORT; delete env.TUXEE_HTTPS_PORT;
+    const env = { ...process.env, HOME: users[0].home, ZONEINFO: `${dir}/zones` }; delete env.TUXEE_HTTP_PORT; delete env.TUXEE_HTTPS_PORT;
     service = spawn(executable, ['serve', '--http', '--bind', '127.0.0.1:0', '--state', `${dir}/state`], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     stopped = new Promise(resolve => service.once('exit', resolve));
     let starts = 0, log = '';
@@ -65,7 +66,14 @@ try {
             { id: 'terminal', kind: 'terminal', terminal: terminals[i].id, x: 2, y: 0, w: 2, h: 2 },
         ] }] })).status(), 200);
     }
-    assert.equal((await (await api(1, '/update')).json()).canApply, false);
+    const ordinary = await (await api(1, '/update')).json();
+    assert.equal(ordinary.canApply, false);
+    assert.equal(ordinary.schedule, undefined);
+    const defaults = (await (await api(0, '/update')).json()).schedule;
+    assert.equal(defaults.hour, 4); assert.equal(defaults.timezone, 'Local');
+    assert.equal((await api(1, '/update/schedule', 'PUT', defaults)).status(), 403);
+    assert.equal((await api(0, '/update/schedule', 'PUT', { ...defaults, hour: 24 })).status(), 400);
+    assert.equal((await api(0, '/update/schedule', 'PUT', { ...defaults, enabled: false })).status(), 200);
     assert.equal((await api(1, '/update/apply', 'POST')).status(), 403);
     const pages = await Promise.all(contexts.map(context => appPage(context))), [page] = pages, errors = [];
     pages.forEach(p => p.on('pageerror', error => errors.push(error.message)));
@@ -76,8 +84,33 @@ try {
     await page.locator('.brand-button').click();
     const install = page.locator('.update-install'); await install.waitFor();
     let reloads = 0; page.on('framenavigated', frame => { if (frame === page.mainFrame()) reloads++; });
-    const accepted = page.waitForResponse(base + '/api/update/apply');
-    await install.click(); assert.equal((await accepted).status(), 202);
+    const dialog = page.locator('.about-modal');
+    const toggle = dialog.getByRole('switch', { name: 'Automatic updates' });
+    const hour = dialog.getByRole('combobox', { name: 'Update hour' });
+    const zone = dialog.getByRole('combobox', { name: 'Time zone' });
+    const change = async action => {
+        const saved = page.waitForResponse(r => r.url() === base + '/api/update/schedule' && r.request().method() === 'PUT');
+        await action(); assert.equal((await saved).status(), 200);
+    };
+    assert.equal(await toggle.isChecked(), false);
+    assert.equal(await hour.isVisible(), false); assert.equal(await zone.isVisible(), false);
+    await change(() => toggle.check());
+    assert.equal(await hour.inputValue(), '4'); assert.equal(await zone.inputValue(), 'Local');
+    await change(() => hour.selectOption('23'));
+    await change(() => hour.selectOption('4'));
+    await pages[1].locator('.brand-button').click();
+    assert.equal(await pages[1].locator('.about-modal .update-schedule').isVisible(), false);
+    if (scheduled) {
+        // Give the isolated server a zone whose 04:00 occurs in a few seconds.
+        const offset = 4 * 3600 - ((Math.floor(Date.now() / 1000) + 6) % 86400);
+        const seconds = Math.abs(offset);
+        const hms = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(n => String(n).padStart(2, '0')).join(':');
+        run('zic', ['-d', env.ZONEINFO, '-'], `Zone Europe/Prague ${offset < 0 ? '-' : ''}${hms} - TST\n`);
+        await change(() => zone.selectOption('Europe/Prague'));
+    } else {
+        const accepted = page.waitForResponse(base + '/api/update/apply');
+        await install.click(); assert.equal((await accepted).status(), 202);
+    }
     for (const p of pages) await p.locator('[name=username]').waitFor({ timeout: 20000 });
     assert.equal(starts, 2, 'Update must restart immediately without another click');
     assert.equal(service.exitCode, null); assert.equal(addresses[1], base); assert.ok(reloads >= 1, 'new frontend fetched');
@@ -95,9 +128,14 @@ try {
     await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
     await editor.waitFor(); assert.match(await editor.textContent(), /unsaved/, 'update restores editor drafts');
     await page.locator('.brand-button').click(); await page.getByText('Up to date', { exact: true }).waitFor();
+    assert.equal(await toggle.isChecked(), true);
+    assert.equal(await zone.inputValue(), scheduled ? 'Europe/Prague' : 'Local');
+    if (scheduled) await change(() => zone.selectOption('Local'));
+    await zone.blur();
+    await dialog.screenshot({ path: 'test-results/about-auto-update.png' });
     await page.screenshot({ path: 'test-results/update-restart-installed.png' });
     assert.deepEqual(errors, []);
-    console.log('PASS real verified 1.0.0 → 1.1.0 install, immediate same-PID/port re-exec, fresh frontend/login, all-user terminal survival, permissions and editor-draft restoration');
+    console.log(scheduled ? 'Scheduled:' : 'Manual:', 'PASS real verified 1.0.0 → 1.1.0 install, immediate same-PID/port re-exec, fresh frontend/login, all-user terminal survival, permissions and editor-draft restoration');
 } finally {
     if (cleanup && service?.exitCode === null) await cleanup().catch(error => console.error('cleanup:', error.message));
     await browser?.close(); unrelated?.kill('SIGKILL');

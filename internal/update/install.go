@@ -153,6 +153,26 @@ func replace(ctx context.Context, target, version string, write func(*os.File) e
 	return nil
 }
 
+// The unattended installer runs as the service account and executes version probes.
+// Only trust a target that other users cannot modify or replace through an ancestor.
+func (c *Client) ApplyAutomatic(ctx context.Context, release Release, target string) (bool, error) {
+	for path := target; ; path = filepath.Dir(path) {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return false, err
+		}
+		stickyDirectory := info.IsDir() && info.Mode()&os.ModeSticky != 0
+		if info.Mode()&os.ModeSymlink != 0 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Geteuid()) ||
+			(info.Mode().Perm()&0022 != 0 && !stickyDirectory) {
+			return false, fmt.Errorf("unsafe automatic update path %s", path)
+		}
+		if path == filepath.Dir(path) {
+			break
+		}
+	}
+	return c.Apply(ctx, release, target)
+}
+
 func (c *Client) Apply(ctx context.Context, release Release, target string) (bool, error) {
 	if !ValidTag(release.Tag) || release.Draft || release.Prerelease {
 		return false, errors.New("invalid stable release")

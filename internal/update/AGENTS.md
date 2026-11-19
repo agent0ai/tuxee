@@ -32,7 +32,9 @@ Shared update status carries structured i18n `text` alongside diagnostic `error`
   in `/usr/local/bin`. Named managed services retain their own installation.
   Bootstrap replaces recognized Tuxee binaries at either default path, including
   pre-updater builds, without invoking the old executable's installation commands.
-- Check at startup and at 00:01 in the server's local timezone. Coalesce checks
+- Check on startup. With automatic updates disabled, check at 00:01 server-local. Otherwise check and install at the configured hour (00–23) in the configured IANA timezone or `Local`. Skip nonexistent DST hours and run once for repeated hours. Recalculate on save; startup and manual checks never trigger installation. Install only after a successful scheduled check; an already-installed release or install error never requests a scheduled restart.
+- Keep the instance policy in a private, atomically replaced `auto-update.json` in the state directory. Absent policy defaults to 04:00 local, on when the image entrypoint exists and off elsewhere. Ignore the policy on development builds; an invalid saved policy disables unattended installation. The unattended installer runs as the service and requires an installation path protected from other users’ writes or replacement.
+- Coalesce checks
   and allow one attempt per clock minute across all sessions, including failures;
   the limit resets at the next minute boundary. Preserve the last successful
   release on failure and timestamp completed attempts. GitHub failures must not

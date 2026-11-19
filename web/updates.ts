@@ -1,11 +1,13 @@
 import { locale, t, errorText } from './i18n';
-import { api, button, el, icon } from './ui';
+import { api, button, el, icon, notify } from './ui';
 
-type Status = { current: string; latest?: string; available: boolean; checkedAt: string; error?: string; command: string; canApply: boolean; restartNeeded: boolean; installing: boolean };
+type Schedule = { enabled: boolean; hour: number; timezone: string };
+type Status = { schedule?: Schedule; current: string; latest?: string; available: boolean; checkedAt: string; error?: string; command: string; canApply: boolean; restartNeeded: boolean; installing: boolean };
 
 export class Updates {
     private status?: Status;
     private applying = false;
+    private savingSchedule = false;
     private applyError = "";
     private timer?: ReturnType<typeof setTimeout>;
     private request?: AbortController;
@@ -22,7 +24,7 @@ export class Updates {
     }
     private async poll() {
         clearTimeout(this.timer); this.request?.abort();
-        if (document.hidden || this.events.signal.aborted || this.applying) return;
+        if (document.hidden || this.events.signal.aborted || this.applying || this.savingSchedule) return;
         const request = this.request = new AbortController();
         try {
             const status = await api<Status>('/update', 'GET', undefined, request.signal);
@@ -66,7 +68,10 @@ export class Updates {
             checking = true; checkError = ''; paint();
             try {
                 const status = await api<Status>('/update', 'POST', undefined, signal);
-                if (!signal.aborted) this.publish(status);
+                if (!signal.aborted) {
+                    if (status.error) checkError = t("updates.failureDetail", { detail: errorText(status) });
+                    this.publish(status);
+                }
             } catch (error) {
                 if (!signal.aborted) checkError = errorText(error as Error);
             } finally { checking = false; paint(); }
@@ -74,7 +79,31 @@ export class Updates {
         check.append(checkLabel);
         message.setAttribute('role', 'status'); detail.setAttribute('role', 'status');
         actions.append(install, check); summary.append(message, checked, actions);
-        cell.append(summary, detail, subtitle); content.append(cell);
+        const scheduleLine = el('div', 'update-schedule');
+        const label = el('label', 'settings-switch'), enabled = el('input');
+        enabled.type = 'checkbox'; enabled.setAttribute('role', 'switch');
+        label.append(enabled, el('span', '', t('updates.automatic')));
+        const hour = el('select'), zone = el('select');
+        hour.setAttribute('aria-label', t('updates.hour')); zone.setAttribute('aria-label', t('updates.timezone'));
+        for (let h = 0; h < 24; h++) hour.add(new Option(String(h).padStart(2, '0') + ':00', String(h)));
+        const saveSchedule = async () => {
+            const schedule = { enabled: enabled.checked, hour: Number(hour.value), timezone: zone.value };
+            this.savingSchedule = true;
+            this.request?.abort();
+            paint();
+            try {
+                this.publish(await api<Status>('/update/schedule', 'PUT', schedule, this.events.signal));
+            } catch (error) {
+                if (!signal.aborted) notify(error, scheduleLine);
+            } finally {
+                this.savingSchedule = false;
+                this.listeners.forEach(listener => listener());
+                void this.poll();
+            }
+        };
+        enabled.onchange = hour.onchange = zone.onchange = saveSchedule;
+        scheduleLine.append(label, hour, zone);
+        cell.append(summary, detail, subtitle, scheduleLine); content.append(cell);
         const dateFormat = new Intl.DateTimeFormat(locale() === 'en' ? 'de-DE' : locale(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         const paint = () => {
             const status = this.status, busy = this.applying || !!status?.installing;
@@ -84,17 +113,33 @@ export class Updates {
             if (status?.available) {
                 const badge = el('span', 'menu-warning'); badge.append(icon('TriangleAlert'));
                 message.append(badge, document.createTextNode(t("updates.versionAvailable", { version: status.latest })));
-            } else message.textContent = status?.restartNeeded ? t('updates.restartRequired') : status?.error ? t("updates.checkFailed") : status?.latest ? t("updates.upToDate") : t("updates.notChecked");
+            } else message.textContent = status?.restartNeeded ? t('updates.restartRequired') : checkError ? t("updates.checkFailed") : status?.latest ? t("updates.upToDate") : t("updates.notChecked");
             checked.hidden = !status || status.checkedAt.startsWith('0001-');
             checked.textContent = checked.hidden ? '' : t("updates.checked", { date: dateFormat.format(new Date(status!.checkedAt)).replace(',', '') });
             install.hidden = !status?.available || !status.canApply;
-            install.disabled = check.disabled = busy || checking;
+            install.disabled = check.disabled = busy || checking || this.savingSchedule;
+            const schedule = status?.schedule;
+            scheduleLine.hidden = !schedule || !status.canApply;
+            if (schedule && !scheduleLine.hidden) {
+                if (!zone.length) {
+                    zone.add(new Option(t('updates.systemLocal'), 'Local'));
+                    for (const name of ['UTC', ...Intl.supportedValuesOf('timeZone')]) zone.add(new Option(name, name));
+                }
+                if (!this.savingSchedule) {
+                    enabled.checked = schedule.enabled;
+                    hour.value = String(schedule.hour);
+                    zone.value = schedule.timezone;
+                    if (!zone.value) zone.add(new Option(schedule.timezone, schedule.timezone, false, true));
+                }
+                hour.hidden = zone.hidden = !enabled.checked;
+                enabled.disabled = hour.disabled = zone.disabled = busy || checking || this.savingSchedule;
+            }
             installLabel.textContent = busy ? t('updates.installing') : t('updates.install');
             checkLabel.hidden = !!status?.available;
             checkLabel.textContent = checking ? t('updates.checking') : t('updates.checkNow');
             check.title = checking ? t('updates.checking') : t('updates.checkNow');
             check.setAttribute('aria-label', check.title);
-            detail.textContent = this.applyError || checkError || (status?.error ? t("updates.failureDetail", { detail: errorText(status) }) : '');
+            detail.textContent = this.applyError || checkError;
             detail.hidden = !detail.textContent;
             subtitle.hidden = !status?.available;
             subtitle.replaceChildren();

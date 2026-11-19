@@ -601,8 +601,13 @@ func serve(value *config) error {
 	}
 	defer closeStatus()
 	app.Version = version
-	app.Updates = update.NewChecker(version)
-	go app.Updates.Run(ctx)
+	app.Updates = update.NewChecker(version, value.State)
+	updateCtx, stopUpdates := context.WithCancel(ctx)
+	updatesDone := make(chan struct{})
+	go func() {
+		defer close(updatesDone)
+		app.Updates.Run(updateCtx, app.ApplyScheduledUpdate)
+	}()
 	go app.Prune(ctx)
 	errorsCh := make(chan error, len(listeners))
 	var servers []*http.Server
@@ -635,6 +640,8 @@ func serve(value *config) error {
 	case err = <-errorsCh:
 		stop()
 	}
+	stopUpdates()
+	<-updatesDone
 	unregister()
 	closeStatus()
 	app.Close()

@@ -251,7 +251,7 @@ func TestBootstrapReinstallsRealExecutable(t *testing.T) {
 
 func TestCheckResetsAtClockMinute(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c := NewChecker("1.0.0")
+		c := NewChecker("1.0.0", t.TempDir())
 		calls := 0
 		c.fetch = func(context.Context) (Release, error) {
 			calls++
@@ -290,7 +290,7 @@ func TestCheckResetsAtClockMinute(t *testing.T) {
 }
 
 func TestCheckCoalescingFailureAndDailySchedule(t *testing.T) {
-	c := NewChecker("1.0.0")
+	c := NewChecker("1.0.0", t.TempDir())
 	var calls atomic.Int32
 	started, release := make(chan struct{}), make(chan struct{})
 	c.fetch = func(context.Context) (Release, error) {
@@ -325,7 +325,7 @@ func TestCheckCoalescingFailureAndDailySchedule(t *testing.T) {
 		}
 		for _, value := range []string{"2026-03-08T00:02:00", "2026-03-08T23:59:59", "2026-11-01T00:02:00", "2026-11-01T00:00:00"} {
 			now, _ := time.ParseInLocation("2006-01-02T15:04:05", value, loc)
-			next := nextCheck(now)
+			next := (Schedule{}).nextCheck(now)
 			if !next.After(now) || next.Hour() != 0 || next.Minute() != 1 {
 				t.Fatalf("%s -> %s", now, next)
 			}
@@ -337,7 +337,7 @@ func TestCheckCoalescingFailureAndDailySchedule(t *testing.T) {
 }
 
 func TestInstallerReleaseRefreshesCheckStatus(t *testing.T) {
-	checker := NewChecker("1.0.0")
+	checker := NewChecker("1.0.0", t.TempDir())
 	checker.status.Error = "previous network error"
 	checker.status.Text = &i18n.Message{Key: "updates.checkFailed"}
 	checker.Record(Release{Tag: "v1.1.0"})
@@ -348,5 +348,136 @@ func TestInstallerReleaseRefreshesCheckStatus(t *testing.T) {
 	checker.Record(Release{Tag: "v999.0.0", Prerelease: true})
 	if checker.Status().Latest != "v1.1.0" {
 		t.Fatal("accepted non-stable release")
+	}
+}
+
+func TestSchedulePersistenceAndDefaults(t *testing.T) {
+	state := t.TempDir()
+	checker := NewChecker("1.0.0", state)
+	_, err := os.Stat("/opt/tuxee/entrypoint.sh")
+	s := checker.Schedule()
+	if s.Enabled != (err == nil) || s.Hour != 4 || s.Timezone != "Local" {
+		t.Fatal("default schedule", s)
+	}
+	for _, enabled := range []bool{true, false} {
+		s = Schedule{Enabled: enabled, Hour: 0, Timezone: "Asia/Kathmandu"}
+		if err := checker.SaveSchedule(s); err != nil {
+			t.Fatal(err)
+		}
+		got := NewChecker("1.0.0", state).Schedule()
+		if got.Enabled != enabled || got.Hour != 0 || got.Timezone != s.Timezone {
+			t.Fatal("saved schedule", got)
+		}
+	}
+	dev := NewChecker("0.0.0", state)
+	if dev.Schedule().Timezone != "" || dev.SaveSchedule(s) == nil {
+		t.Fatal("development build accepted automatic updates")
+	}
+	for _, bad := range []Schedule{{Hour: -1, Timezone: "Local"}, {Hour: 24, Timezone: "UTC"}, {Timezone: "Bogus/Place"}, {}} {
+		if checker.SaveSchedule(bad) == nil || checker.Schedule().Timezone != s.Timezone {
+			t.Fatal("accepted invalid schedule", bad)
+		}
+	}
+	if err := os.WriteFile(checker.schedulePath, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if NewChecker("1.0.0", state).Schedule().Enabled {
+		t.Fatal("invalid saved policy enabled automatic updates")
+	}
+}
+
+func TestScheduleClockChanges(t *testing.T) {
+	for _, tc := range []struct {
+		zone, now, next string
+		hour            int
+	}{
+		{"America/New_York", "2026-03-08T00:00:00-05:00", "2026-03-09T02:00:00-04:00", 2},
+		{"America/New_York", "2026-11-01T01:01:00-05:00", "2026-11-02T01:00:00-05:00", 1},
+		{"Europe/Prague", "2026-10-25T02:01:00+01:00", "2026-10-26T02:00:00+01:00", 2},
+		{"Asia/Kathmandu", "2026-12-31T18:16:00Z", "2027-01-01T23:00:00+05:45", 23},
+	} {
+		s := Schedule{Enabled: true, Hour: tc.hour, Timezone: tc.zone}
+		if err := s.validate(); err != nil {
+			t.Fatal(err)
+		}
+		now, _ := time.Parse(time.RFC3339, tc.now)
+		next := s.nextCheck(now)
+		if next.Format(time.RFC3339) != tc.next {
+			t.Fatalf("%s: got %s, want %s", tc.zone, next, tc.next)
+		}
+		if again := s.nextCheck(next); again.Day() == next.Day() {
+			t.Fatal("duplicate daily run", next, again)
+		}
+	}
+}
+
+func TestOnlyScheduledSuccessfulChecksInstall(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := NewChecker("1.0.0", t.TempDir())
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var calls, installs atomic.Int32
+		c.fetch = func(context.Context) (Release, error) {
+			if calls.Add(1) == 2 {
+				return Release{}, errors.New("offline")
+			}
+			return Release{Tag: "v1.1.0"}, nil
+		}
+		s := Schedule{Enabled: true, Hour: 4, Timezone: "UTC"}
+		save := func() {
+			t.Helper()
+			if err := c.SaveSchedule(s); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+		}
+		save()
+		go c.Run(ctx, func(_ context.Context, release Release) {
+			if release.Tag != "v1.1.0" {
+				t.Error(release)
+			}
+			installs.Add(1)
+		})
+		synctest.Wait()
+		if calls.Load() != 1 || installs.Load() != 0 {
+			t.Fatal("startup installed", calls.Load(), installs.Load())
+		}
+		time.Sleep(4 * time.Hour)
+		synctest.Wait()
+		if calls.Load() != 2 || installs.Load() != 0 || !c.Status().Available {
+			t.Fatal("failed check used stale release")
+		}
+		time.Sleep(time.Minute)
+		c.Check(ctx)
+		if calls.Load() != 3 || installs.Load() != 0 {
+			t.Fatal("manual check installed")
+		}
+		s.Hour = 5
+		save()
+		time.Sleep(59 * time.Minute)
+		synctest.Wait()
+		if calls.Load() != 4 || installs.Load() != 1 {
+			t.Fatal("new schedule did not install", calls.Load(), installs.Load())
+		}
+		s.Enabled = false
+		save()
+		time.Sleep(24 * time.Hour)
+		synctest.Wait()
+		if calls.Load() != 5 || installs.Load() != 1 {
+			t.Fatal("disabled schedule", calls.Load(), installs.Load())
+		}
+	})
+}
+
+func TestUnattendedInstallRejectsWritableExecutable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tuxee")
+	if err := os.WriteFile(path, []byte(fixtureBinary("1.0.0")), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0775); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := NewClient().ApplyAutomatic(t.Context(), Release{Tag: "v1.0.0"}, path); changed || err == nil || !strings.Contains(err.Error(), "unsafe automatic update path") {
+		t.Fatal(changed, err)
 	}
 }

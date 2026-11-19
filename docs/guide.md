@@ -351,8 +351,8 @@ with a notification icon and show **Update** with an icon-only check to its righ
 Update uses the same verified installer as `tuxee update` under your Linux account.
 Users without installation or runtime-restart permissions see administrator guidance. Permitted users
 also see the manual command inline. The Update button installs and immediately restarts Tuxee, returning browsers to login while terminals keep running. The manual terminal command leaves restart explicit.
-Matching alerts appear on About and the hamburger button. The server checks at startup and daily at
-00:01 in its local timezone; visible browsers refresh the cached result each minute.
+Matching alerts appear on About and the hamburger button. Users with update and restart permissions can switch **Automatic updates** on or off in About. While on, the hour and timezone select when Tuxee checks, installs a newer stable release and restarts, even while people are signed in. The default is **04:00, System local**, enabled in official Tuxee containers (including pinned images) and disabled for manual installations. The setting applies to the whole instance and persists in its state directory. Development builds (`0.0.0`) omit the control.
+Startup and **Check now** only check. With automatic updates off, the server checks daily at 00:01 in its local timezone. Visible browsers refresh the cached result each minute.
 Installing an update and restarting Tuxee preserve guardian-backed terminal processes; browser login sessions end on restart.
 
 ## Docker
