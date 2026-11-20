@@ -955,9 +955,9 @@ h3 {
   position: fixed;
   z-index: 1000;
   right: 18px;
-  top: 18px;
+  top: 90px;
   width: min(390px, calc(100vw - 36px));
-  max-height: calc(100% - 36px);
+  max-height: calc(100% - 108px);
   overflow-y: auto;
   pointer-events: none;
 }

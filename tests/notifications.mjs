@@ -98,19 +98,34 @@ try {
             await page.screenshot({ path: `test-results/notifications-${name}-${toolbar}.png` });
         }
 
-        await page.evaluate(() => {
+        await page.evaluate(compact => {
             const detached = document.querySelector('#panel'); detached.remove();
+            const app = document.querySelector('#app');
+            app.className = compact ? 'compact' : ''; app.style.top = '0';
+            const top = el('header', 'topbar'), bar = el('div', compact ? 'component-controls' : 'component-controls window-bar');
+            top.append(button('Navbar', undefined, () => { window.topClicked = true; }));
+            bar.append(button('Window tab', undefined, () => { window.tabClicked = true; }, 'component-tab'));
+            app.replaceChildren(top, bar);
             notify('Global first', detached); notify('Global second'); void startTransfer();
-        });
+        }, compact);
         const global = page.locator('body > .notification-stack');
         const globalBox = await global.boundingBox();
-        assert.equal(globalBox.y, 18);
+        const barBox = await page.locator('.component-controls').boundingBox();
+        assert.ok(globalBox.y >= barBox.y + barBox.height + 8, 'global stack clears both top bars');
+        await page.getByRole('button', { name: 'Navbar', exact: true }).click();
+        await page.getByRole('button', { name: 'Window tab', exact: true }).click();
+        assert.equal(await page.evaluate(() => topClicked && tabClicked), true);
         assert.ok(Math.abs(globalBox.x + globalBox.width - viewport.width + 18) <= 1, 'global stack is right aligned');
         const transferBox = await global.locator('.transfer').boundingBox(), first = await global.locator('.toast').first().boundingBox();
         assert.ok(first.y >= transferBox.y + transferBox.height + 8, 'global progress and notices share a stack');
         await global.getByRole('button', { name: 'Cancel transfer', exact: true }).click();
         await global.locator('.toast button').first().click();
         assert.equal(await global.locator('.toast').count(), 1);
+        await page.evaluate(() => { for (let i = 0; i < 15; i++) notify('Queued global notification ' + i); });
+        assert.ok(await global.evaluate(node => node.scrollHeight > node.clientHeight), 'long global stacks remain scrollable');
+        const bounded = await global.boundingBox();
+        assert.ok(bounded.y + bounded.height <= viewport.height - 18, 'global stack keeps its bottom margin');
+        await page.screenshot({ path: `test-results/notifications-${name}-global.png` });
         assert.deepEqual(errors, []);
         await page.close();
         console.log(`PASS ${name}: top placement, file/inspector toolbar clearance, mixed stacks, scoped routing, bottom input, scrolling, dismiss and cancel`);
