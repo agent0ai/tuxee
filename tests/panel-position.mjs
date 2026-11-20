@@ -49,7 +49,7 @@ try {
         const compact = page.viewportSize().width < 760 || page.viewportSize().height < 480;
         assert.deepEqual(await page.locator('[name=panelPosition] option').evaluateAll(options => options.map(option => option.value)), compact ? ['top', 'bottom'] : ['top', 'bottom', 'left', 'right']);
         await page.locator('[name=panelPosition]').selectOption(position);
-        if (save) await page.locator('.settings-form button[type=submit]').click();
+        if (save) await page.locator('dialog:has(.settings-form) .modal-footer button[type=submit]').click();
         else await page.locator('.modal-head > button').click();
         await page.locator('.settings-form').waitFor({ state: 'detached' });
         if (save) await page.waitForFunction(position => document.querySelector('#app').dataset.panelPosition === position, position);

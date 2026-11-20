@@ -411,12 +411,12 @@ export class FileInspector {
         return new Promise<'overwrite' | 'copy' | undefined>(resolve => {
             const content = el('div', 'form');
             content.append(el('p', 'muted confirmation-message', t('editor.conflictMessage', { path: `\u2068${this.file.path}\u2069` })));
-            const actions = el('div', 'actions'), { dialog } = modal(t('editor.fileChanged'), content);
+            const actions = el('div', 'actions'), { dialog, setFooter } = modal(t('editor.fileChanged'), content);
             dialog.classList.add('editor-conflict');
             const choose = (mode?: 'overwrite' | 'copy') => { resolve(mode); dialog.close(); };
             const copy = button(t('editor.saveCopy'), undefined, () => choose('copy'), 'primary');
             actions.append(button(t('editor.overwrite'), undefined, () => choose('overwrite')), copy, button(t('common.cancel'), undefined, () => choose()));
-            content.append(actions); copy.focus();
+            setFooter(actions); copy.focus();
             const abort = () => dialog.close();
             this.events.signal.addEventListener('abort', abort, { once: true });
             dialog.addEventListener('close', () => { this.events.signal.removeEventListener('abort', abort); resolve(undefined); }, { once: true });

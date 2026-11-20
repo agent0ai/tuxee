@@ -666,8 +666,8 @@ export class FileView implements View {
             checkbox.onchange = update; update();
             content.append(message);
             if (!inTrash) content.append(label);
-            const { dialog } = modal(t("files.deleteSelectedItems"), content);
-            actions.append(button(t("common.cancel"), undefined, () => dialog.close()), submit); content.append(actions); submit.focus();
+            const { dialog, setFooter } = modal(t("files.deleteSelectedItems"), content);
+            actions.append(button(t("common.cancel"), undefined, () => dialog.close()), submit); setFooter(actions); submit.focus();
             dialog.addEventListener('close', () => resolve(undefined), { once: true });
         });
         if (choice === undefined) return;
@@ -799,8 +799,9 @@ export class FileView implements View {
         const update = () => { filename.value = extract ? base : `${base}.${format.value}`; passwordField.hidden = !extract && !capabilities.formats.find(value => value.name === format.value)?.password; if (passwordField.hidden) password.value = ''; };
         format.onchange = update; update();
         const actions = el('div', 'actions'), submit = button(extract ? t("files.extract") : t("files.compress")); submit.type = 'submit'; submit.className = 'primary';
-        actions.append(button(t("common.cancel"), undefined, () => close()), submit); content.append(actions);
-        const { close } = modal(extract ? t("files.extractArchive") : t("files.createArchive"), content);
+        actions.append(button(t("common.cancel"), undefined, () => close()), submit);
+        const { close, setFooter } = modal(extract ? t("files.extractArchive") : t("files.createArchive"), content);
+        setFooter(actions);
         content.onsubmit = async event => {
             event.preventDefault(); if (!content.reportValidity()) return;
             try {
@@ -845,15 +846,17 @@ export class FileView implements View {
             try { await this.fileOperation(t("common.permissions"), { operation: 'chmod', paths, mode: input.value }); close(); }
             finally { await this.refresh(); }
         }, 'primary'));
-        content.append(details, permissions);
+        content.append(details);
+        const footer = el('div', 'form'); footer.append(permissions);
         if (entries.length === 1 && entries[0].directory) {
             const actions = el('div', 'actions');
             const workspaceDefault = button(t("files.workspaceDefault"), 'House', () => this.workspaceDefault(entries[0].path));
             workspaceDefault.append(el('span', '', t("files.workspaceDefault")));
             actions.append(workspaceDefault);
-            content.append(actions);
+            footer.append(actions);
         }
-        const { close, dialog } = modal(t("common.properties"), content);
+        const { close, dialog, setFooter } = modal(t("common.properties"), content);
+        setFooter(footer);
         dialog.addEventListener('close', () => lifetime.abort(), { once: true });
         this.events.signal.addEventListener('abort', () => { lifetime.abort(); close(); }, { once: true, signal: lifetime.signal });
     }

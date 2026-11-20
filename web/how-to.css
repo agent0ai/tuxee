@@ -1,4 +1,4 @@
-.howto-modal { width: min(960px, calc(100vw - 24px)); height: min(750px, calc(var(--viewport-height, 100dvh) - 32px)); padding: 22px 28px; }
+.howto-modal { width: min(960px, calc(100vw - 24px)); height: min(750px, calc(var(--viewport-height, 100dvh) - 32px)); }
 .howto-modal .modal-head { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(48px, 1fr); gap: 0; margin-bottom: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .howto-modal .modal-head > button:last-child { grid-column: 3; justify-self: end; min-height: 38px; }
 .howto-modal > .modal-body { display: flex; flex: 1; overflow: hidden; }
@@ -75,7 +75,6 @@
 .howto-command pre, pre.howto-command { margin: 6px 0 0; padding: 14px 16px; border-radius: 8px; background: var(--raised); color: var(--text); font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .howto-gui > section + section { padding-top: 28px; border-top: 1px solid var(--line); }
 @media (max-width: 600px) {
-  .howto-modal { padding: 16px; }
   .howto-modal .modal-head { grid-template-columns: minmax(0, 1fr); }
   .howto-modal .modal-head > button:last-child { position: absolute; grid-column: auto; inset-inline-end: 0; top: 0; }
   .howto-nav { grid-column: 1; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; }
@@ -98,7 +97,6 @@
 
 .howto-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 @media (min-width: 601px) and (max-height: 540px) {
-  .howto-modal { padding: 12px 20px; }
   .howto-modal .modal-head { padding-bottom: 4px; }
   .howto-page { padding: 16px 8px; }
   .howto-intro { grid-template-columns: .7fr 1.3fr; gap: 20px; }

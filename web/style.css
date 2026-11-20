@@ -234,7 +234,6 @@ h3 {
 }
 .confirmation-message { white-space: pre-line; }
 .editor-conflict .confirmation-message { overflow-wrap: anywhere; }
-.editor-conflict .actions { flex-wrap: wrap; }
 .form > .primary {
   align-self: flex-end;
 }
@@ -744,7 +743,7 @@ h3 {
   border-radius: 14px;
   width: min(520px, calc(100vw - 24px));
   max-height: calc(var(--viewport-height,100dvh) - 32px);
-  padding: 24px;
+  padding: 8px 12px 12px;
   box-shadow: 0 24px 80px #0006;
 }
 .modal::backdrop {
@@ -754,6 +753,10 @@ h3 {
 .modal[open]:has(> .modal-body) { display: flex; flex-direction: column; overflow: hidden; }
 /* Keep the 2px focus outline and its 2px offset inside the scroll area. */
 .modal-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px; margin: -4px; }
+.modal-footer { flex-shrink: 0; margin: 8px -12px -12px; padding: 8px 12px; border-top: 1px solid var(--line); }
+.modal-footer:empty { display: none; }
+.modal-footer .actions { flex-wrap: wrap; }
+.modal-footer > .form { gap: 8px; }
 .connection-overlay {
   width: min(380px, calc(100vw - 32px));
   padding: 32px 24px;
@@ -806,7 +809,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 8px;
   gap: 12px;
 }
 .modal-head h2 {
@@ -861,7 +864,6 @@ h3 {
 .update-schedule select:first-of-type { flex: none; }
 .update-schedule select:last-child { field-sizing: content; flex-shrink: 2; }
 @media (max-width: 380px) {
-  .modal.about-modal { padding-inline: 12px; }
   .about-update td { padding-inline: 6px; }
   .update-schedule, .update-schedule label { gap: 4px; }
   .update-schedule select { padding-inline: 2px; }
@@ -1139,9 +1141,6 @@ h3 {
   min-height: 29px;
 }
 @media (max-width: 760px) {
-  .modal {
-    padding: 20px;
-  }
   .modal .field input {
     font-size: 16px;
   }
@@ -1391,7 +1390,6 @@ input[role=switch]:disabled { opacity: .5; cursor: wait; }
 .monitor-error { color: var(--danger); font-size: 12px; }
 .monitor-error:empty { display: none; }
 @media (max-width: 480px) {
-  .monitor-modal { padding: 16px; }
   .monitor-grid { gap: 8px; }
   .monitor-card { padding: 12px; }
   .monitor-card .monitor-chip { font-size: 28px; }
@@ -1538,7 +1536,6 @@ pre, code, .process-label small {
 .shortcuts-table .shortcuts-group { padding-top: 18px; border-bottom: 1px solid var(--line); }
 .shortcuts-table td button { white-space: normal; width: 100%; min-height: 36px; padding: 6px; font-size: 12px; overflow-wrap: anywhere; }
 .shortcut-recording { display: block; border: 1px solid var(--accent); border-radius: 6px; padding: 20px 12px; text-align: center; overflow-wrap: anywhere; }
-.shortcut-recorder .actions { flex-wrap: wrap; }
 .shortcut-pending { max-width: calc(100vw - 24px); overflow-wrap: anywhere; text-align: center; position: fixed; z-index: 1000; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); pointer-events: none; }
 @media (max-width: 480px) {
     .shortcuts-table th, .shortcuts-table td { padding: 4px 2px; font-size: 12px; }

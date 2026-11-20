@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 const catalog = JSON.parse(await readFile('internal/i18n/locales/en.json', 'utf8'));
 const bundle = await build({ stdin: { contents: `
     import { modal, ask, confirmAction, button, el } from './web/ui';
+    import { openShortcuts } from './web/shortcuts';
     import { setTranslations } from './web/i18n';
     setTranslations({ language: 'en', direction: 'ltr', texts: ${JSON.stringify(catalog.texts)}, languages: [], cookie: '' });
     window.modalClosed = [];
@@ -19,11 +20,26 @@ const bundle = await build({ stdin: { contents: `
     };
     window.ask = () => ask('Rename', 'Name', 'Original').then(value => window.result = value);
     window.confirm = () => confirmAction('Delete?', 'Keep on cancellation').then(value => window.result = value);
+    window.editShortcuts = () => openShortcuts(() => window.savedShortcuts, async value => {
+        if (window.failSave) throw Error('Save unavailable');
+        window.savedShortcuts = value;
+    });
+    window.openForm = () => {
+        const form = el('form', 'form'), input = el('input'), actions = el('div', 'actions');
+        input.required = true; input.name = 'name'; form.append(input);
+        for (let i = 0; i < 100; i++) form.append(el('p', '', 'Scrollable form ' + i));
+        const popup = modal('Form', form);
+        const save = button('Save'), reset = button('Reset'); save.type = 'submit'; reset.type = 'reset';
+        actions.append(reset, button('Cancel', undefined, popup.close), save); popup.setFooter(actions);
+        form.onsubmit = event => { event.preventDefault(); window.result = new FormData(form).get('name'); };
+        window.clearFooter = () => popup.setFooter();
+    };
     document.body.append(button('Open', undefined, () => openModal('parent')));
+    const notifications = el('div'); notifications.id = 'notifications'; document.body.append(notifications);
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'iife' });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--no-sandbox'] });
 try {
-    for (const viewport of [{ width: 1000, height: 700 }, { width: 390, height: 844 }]) {
+    for (const viewport of [{ width: 1000, height: 700 }, { width: 390, height: 844 }, { width: 320, height: 360 }]) {
         const page = await browser.newPage({ viewport, hasTouch: true }), errors = [];
         page.setDefaultTimeout(5000);
         page.on('pageerror', error => errors.push(error.message));
@@ -87,9 +103,53 @@ try {
         await clickOutside(); await page.waitForFunction(() => window.result === null); await count(0);
         await page.evaluate(() => { window.result = 'pending'; void confirm(); });
         await clickOutside(); await page.waitForFunction(() => window.result === false); await count(0);
+        await page.evaluate(() => { window.result = 'pending'; openForm(); });
+        const formDialog = page.getByRole('dialog', { name: 'Form', exact: true });
+        const footer = formDialog.locator('.modal-footer'), save = footer.getByRole('button', { name: 'Save', exact: true });
+        const fixed = await footer.boundingBox(), header = await formDialog.locator('.modal-head').boundingBox();
+        assert.ok(fixed.y + fixed.height <= viewport.height, 'actions are visible before scrolling');
+        await save.click();
+        assert.equal(await page.evaluate(() => window.result), 'pending', 'footer submission preserves required validation');
+        await formDialog.locator('input').fill('Saved');
+        await formDialog.locator('.modal-body').evaluate(node => { node.scrollTop = node.scrollHeight; });
+        assert.deepEqual(await footer.boundingBox(), fixed, 'footer stays fixed when content scrolls');
+        assert.deepEqual(await formDialog.locator('.modal-head').boundingBox(), header);
+        await save.click(); await page.waitForFunction(() => window.result === 'Saved');
+        await footer.getByRole('button', { name: 'Reset', exact: true }).click();
+        assert.equal(await formDialog.locator('input').inputValue(), '');
+        await formDialog.locator('input').fill('Enter'); await page.keyboard.press('Enter');
+        await page.waitForFunction(() => window.result === 'Enter');
+        await page.evaluate(() => clearFooter());
+        assert.equal(await footer.isVisible(), false, 'switching back to a read-only view removes the footer');
+        await page.keyboard.press('Escape'); await formDialog.waitFor({ state: 'detached' });
+        await page.evaluate(() => editShortcuts());
+        const binding = page.locator('[data-shortcut="app.about"] [data-slot="1"]');
+        const recorder = page.locator('.shortcut-record-modal');
+        await binding.click(); await page.keyboard.press('Control+Shift+u');
+        const recorderFooter = recorder.locator('.modal-footer');
+        const recorderBounds = await recorderFooter.boundingBox();
+        assert.ok(recorderBounds.y + recorderBounds.height <= viewport.height, 'shortcut actions remain visible');
+        await recorder.locator('.modal-body').evaluate(node => { node.scrollTop = node.scrollHeight; });
+        assert.deepEqual(await recorderFooter.boundingBox(), recorderBounds);
+        await recorderFooter.getByRole('button', { name: 'Save', exact: true }).click();
+        await recorder.waitFor({ state: 'detached' });
+        const stored = await page.evaluate(() => window.savedShortcuts);
+        assert.deepEqual(stored['app.about'][1], ['Control+Shift+KeyU']);
+        await binding.click();
+        await recorderFooter.getByRole('button', { name: 'Clear', exact: true }).click();
+        await page.evaluate(() => { window.failSave = true; });
+        await recorderFooter.getByRole('button', { name: 'Save', exact: true }).click();
+        await page.getByRole('status').filter({ hasText: 'Save unavailable' }).waitFor();
+        assert.deepEqual(await page.evaluate(() => window.savedShortcuts), stored, 'failed saves preserve the binding');
+        await recorderFooter.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await recorder.waitFor({ state: 'detached' });
+        await binding.click(); await page.keyboard.press('Control+Shift+i'); await page.keyboard.press('Escape');
+        await recorder.waitFor({ state: 'detached' });
+        assert.deepEqual(await page.evaluate(() => window.savedShortcuts), stored, 'Escape discards the recording');
+        await page.keyboard.press('Escape'); await count(0);
         assert.deepEqual(await page.evaluate(() => window.modalClosed), ['parent', 'top', 'middle', 'small', 'parent', 'guarded', 'scroll']);
         assert.deepEqual(errors, []);
         await page.close();
     }
-    console.log('PASS modal backdrop clicks/taps, topmost-only dismissal, drag/scrollbar/cancellation guards, focus and cancelled forms');
+    console.log('PASS modal backdrop/scrollbar/cancellation guards, fixed footers, native submit/reset/validation/Enter and focus on desktop/mobile/short screens');
 } finally { await browser.close(); }

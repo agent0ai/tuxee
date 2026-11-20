@@ -102,9 +102,15 @@ try {
             const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
             await settings.waitFor();
             const head = await settings.locator('.modal-head').boundingBox();
+            const footer = settings.locator('.modal-footer'), fixed = await footer.boundingBox();
+            assert.ok(fixed.y + fixed.height <= viewport.height, 'Save is visible before scrolling');
+            for (const position of [1, 0]) {
+                await settings.locator('.modal-body').evaluate((node, position) => { node.scrollTop = position * node.scrollHeight; }, position);
+                assert.deepEqual(await footer.boundingBox(), fixed, 'scrolling must keep Save in place');
+            }
             await focusRing(settings, 'Save', `${label}-save`);
             assert.deepEqual(await settings.locator('.modal-head').boundingBox(), head, 'scrolling must keep the header in place');
-            if (viewport.height === 360) assert.ok(await settings.locator('.modal-body').evaluate(node => node.scrollHeight > node.clientHeight && node.scrollTop > 0), 'short screens exercise scrolling to Save');
+            if (viewport.height === 360) assert.ok(await settings.locator('.modal-body').evaluate(node => node.scrollHeight > node.clientHeight), 'short screens exercise independently scrolling content');
             await focusRing(settings, 'Close dialog', `${label}-close`);
             await page.keyboard.press('Escape'); await settings.waitFor({ state: 'detached' });
         }

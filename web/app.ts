@@ -1038,8 +1038,9 @@ function editWorkspaceDirectory(ws: Workspace) {
     const submit = button(t("common.save"), undefined, undefined, 'primary'); submit.type = 'submit';
     const actions = el('div', 'actions');
     actions.append(button(t("common.cancel"), undefined, () => dialog.close()), submit);
-    form.append(field, description, actions);
+    form.append(field, description);
     const dialog = modal(t("app.defaultDirectory"), form);
+    dialog.setFooter(actions);
     form.onsubmit = async event => {
         event.preventDefault();
         if (submit.disabled) return;
@@ -1278,7 +1279,7 @@ function editCommandShortcut(index?: number) {
     nameLabel.append(name); commandLabel.append(command); form.append(nameLabel, commandLabel);
     const dialog = modal(t(shortcut ? 'commandShortcuts.edit' : 'commandShortcuts.add'), form);
     const actions = el('div', 'actions'), submit = button(t('common.save'), undefined, undefined, 'primary'); submit.type = 'submit';
-    actions.append(button(t('common.cancel'), undefined, dialog.close), submit); form.append(actions);
+    actions.append(button(t('common.cancel'), undefined, dialog.close), submit); dialog.setFooter(actions);
     form.onsubmit = async event => {
         event.preventDefault();
         if (submit.disabled) return;
@@ -1685,8 +1686,9 @@ async function openSettings() {
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, positionLabel, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
+    content.append(label, marker, positionLabel, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details);
     const dialog = modal(t("app.settings"), content);
+    dialog.setFooter(actions);
     window.addEventListener('resize', updatePositionOptions);
     dialog.dialog.addEventListener('close', () => { setColorMarker(settings.serverColor); window.removeEventListener('resize', updatePositionOptions); }, { once: true });
     content.onsubmit = async event => {

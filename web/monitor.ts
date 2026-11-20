@@ -158,7 +158,7 @@ export class Monitoring {
         const resourcePanel = el('section'), processPanel = el('section');
         this.details = el('div', 'monitor-content'); resourcePanel.append(controls, this.details);
         processPanel.hidden = true; content.append(resourcePanel, processPanel);
-        const { dialog } = modal(t("app.resourceMonitor"), content);
+        const { dialog, setFooter } = modal(t("app.resourceMonitor"), content);
         this.dialog = dialog; dialog.classList.add('monitor-modal');
         const tabs = el('div', 'monitor-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t("app.resourceMonitor"));
         const resources = button(t("monitor.resources"), undefined, () => selectTab(false));
@@ -188,8 +188,8 @@ export class Monitoring {
             cog.replaceChildren(icon(this.configuring ? 'ArrowLeft' : 'Settings'));
             cog.setAttribute('aria-label', this.configuring ? t("monitor.backToResourceMonitor") : t("monitor.configureResourceMonitor"));
             cog.title = cog.getAttribute('aria-label')!;
-            if (this.configuring) this.configure(() => { this.configuring = false; controls.hidden = false; tabs.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', t("monitor.configureResourceMonitor")); cog.title = t("monitor.configureResourceMonitor"); this.paint(); cog.focus(); });
-            else this.paintDetails();
+            if (this.configuring) this.configure(() => { setFooter(); this.configuring = false; controls.hidden = false; tabs.hidden = false; cog.replaceChildren(icon('Settings')); cog.setAttribute('aria-label', t("monitor.configureResourceMonitor")); cog.title = t("monitor.configureResourceMonitor"); this.paint(); cog.focus(); }, setFooter);
+            else { setFooter(); this.paintDetails(); }
         });
         toggle.onchange = async () => {
             toggle.disabled = cog.disabled = true; error.textContent = '';
@@ -205,7 +205,7 @@ export class Monitoring {
         dialog.addEventListener('close', () => { this.processes?.dispose(); this.processes = undefined; this.showingProcesses = false; this.details = undefined; this.dialog = undefined; if (!this.displayed) this.poll(); }, { once: true });
         this.paintDetails(); this.poll();
     }
-    private configure(done: () => void) {
+    private configure(done: () => void, setFooter: ReturnType<typeof modal>['setFooter']) {
         const draft = structuredClone(this.preferences), form = el('form', 'monitor-config'), content = this.details!;
         const section = (title: string) => { const group = el('fieldset'); group.append(el('legend', '', title)); form.append(group); return group; };
         const choice = (group: HTMLElement, label: string, checked: boolean, change: (checked: boolean) => void, detail = '') => {
@@ -232,7 +232,8 @@ export class Monitoring {
         interval.value = String(draft.interval); field.append(interval); form.append(field);
         const error = el('p', 'monitor-error'), actions = el('div', 'actions'), submit = button(t("monitor.saveResourceMonitor"), undefined, undefined, 'primary');
         error.setAttribute('role', 'alert'); submit.type = 'submit';
-        actions.append(button(t("common.cancel"), undefined, done), submit); form.append(error, actions);
+        actions.append(button(t("common.cancel"), undefined, done), submit); form.append(error);
+        setFooter(actions, form);
         form.onsubmit = async event => {
             event.preventDefault(); error.textContent = ''; submit.disabled = true;
             try {

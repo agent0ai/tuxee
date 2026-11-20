@@ -147,9 +147,10 @@ export class Processes {
         }
         const error = el('p', 'monitor-error'); error.setAttribute('role', 'alert');
         const actions = el('div', 'actions'), confirm = button(t("processes.killProcesses"), 'X', undefined, 'danger'); confirm.append(el('span', '', t("processes.kill"))); confirm.type = 'submit';
-        content.append(summary, options, error, actions);
-        const { dialog, close } = modal(t("processes.killProcesses"), content); this.killDialog = dialog;
+        content.append(summary, options, error);
+        const { dialog, close, setFooter } = modal(t("processes.killProcesses"), content); this.killDialog = dialog;
         const cancel = button(t("common.cancel"), undefined, close); actions.append(cancel, confirm);
+        setFooter(actions);
         const request = new AbortController(); dialog.addEventListener('close', () => { request.abort(); this.killDialog = undefined; }, { once: true });
         content.onsubmit = async event => {
             event.preventDefault(); if (confirm.disabled) return;

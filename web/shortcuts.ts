@@ -142,8 +142,9 @@ export function openShortcuts(getSaved: () => ShortcutBindings | undefined, save
         }, 'primary');
         const clear = button(t('shortcuts.clear'), undefined, () => { sequence = []; recorded = true; update(); output.focus(); });
         const reset = button(t('common.reset'), undefined, () => { sequence = bindings()[action][slot]; recorded = true; update(); output.focus(); });
-        controls.append(clear, reset, button(t('common.cancel'), undefined, () => { if (!saving) popup.close(); }), confirm); form.append(controls);
+        controls.append(clear, reset, button(t('common.cancel'), undefined, () => { if (!saving) popup.close(); }), confirm);
         const popup = modal(t('shortcuts.record'), form); popup.dialog.classList.add('shortcut-record-modal');
+        popup.setFooter(controls);
         const update = () => {
             const conflict = shortcutConflict(bindings(getSaved()), sequence, action, slot);
             output.textContent = shortcutLabel(sequence) || t(recorded ? 'shortcuts.unassigned' : 'shortcuts.pressKeys');

@@ -116,9 +116,11 @@ export function notify(value: unknown, owner?: HTMLElement) {
     notificationHost('notifications', owner).append(message);
     setTimeout(() => message.remove(), 8000);
 }
+let modalFormID = 0;
 export function modal(title: string, content: HTMLElement): {
     dialog: HTMLDialogElement;
     close: () => void;
+    setFooter: (actions?: HTMLElement, form?: HTMLElement) => void;
 } {
     const dialog = el('dialog', 'modal');
     dialog.setAttribute('aria-label', title);
@@ -126,7 +128,18 @@ export function modal(title: string, content: HTMLElement): {
     head.append(el('h2', '', title), button(t("ui.closeDialog"), 'X', () => dialog.close()));
     const body = el('div', 'modal-body');
     body.append(content);
-    dialog.append(head, body);
+    const footer = el('footer', 'modal-footer');
+    const setFooter = (actions?: HTMLElement, form = content) => {
+        if (actions) {
+            scopeNotifications(actions, content);
+            if (form instanceof HTMLFormElement) {
+                form.id ||= `modal-form-${++modalFormID}`;
+                for (const control of actions.querySelectorAll('button[type=submit], button[type=reset]')) control.setAttribute('form', form.id);
+            }
+        }
+        footer.replaceChildren(...(actions ? [actions] : []));
+    };
+    dialog.append(head, body, footer);
     document.body.append(dialog);
     const outside = (event: MouseEvent) => {
         const rect = dialog.getBoundingClientRect();
@@ -152,7 +165,7 @@ export function modal(title: string, content: HTMLElement): {
     });
     dialog.onclose = () => { cancelPress(); dialog.remove(); };
     dialog.showModal();
-    return { dialog, close: () => dialog.close() };
+    return { dialog, close: () => dialog.close(), setFooter };
 }
 const popovers: { content: HTMLElement; close: () => void }[] = [];
 export function bindContextMenu(target: HTMLElement, open: (position?: { x: number; y: number }) => void, longPress = false) {
@@ -279,8 +292,9 @@ export function ask(title: string, label: string, initial = '', reset?: string):
         ok.classList.add('primary');
         if (reset !== undefined) actions.append(button(t("common.reset"), undefined, () => { resolve(reset); dialog.close(); }));
         actions.append(cancel, ok);
-        form.append(field, actions);
-        const { dialog } = modal(title, form);
+        form.append(field);
+        const { dialog, setFooter } = modal(title, form);
+        setFooter(actions);
         form.onsubmit = e => { e.preventDefault(); resolve(input.value); dialog.close(); };
         dialog.addEventListener('close', () => resolve(null), { once: true });
         input.focus();
@@ -292,9 +306,9 @@ export function confirmAction(title: string, message: string, action = t("common
         const content = el('div', 'form');
         content.append(el('p', 'muted confirmation-message', message));
         const actions = el('div', 'actions');
-        const { dialog } = modal(title, content);
+        const { dialog, setFooter } = modal(title, content);
         actions.append(button(t("common.cancel"), undefined, () => dialog.close()), button(action, undefined, () => { resolve(true); dialog.close(); }, 'primary'));
-        content.append(actions);
+        setFooter(actions);
         actions.querySelector<HTMLButtonElement>('.primary')!.focus();
         dialog.addEventListener('close', () => resolve(false), { once: true });
     });
