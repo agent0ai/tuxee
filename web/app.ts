@@ -717,7 +717,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         document.querySelector<HTMLElement>('.overflow-tabs:popover-open')?.hidePopover();
         if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && (workspaceTarget.panels.length < MAX_PANELS)) {
             if (restoring) node.remove();
-            movePanel(existing, workspaceTarget).catch(error => notify(error, node));
+            movePanel(existing, workspaceTarget, released).catch(error => notify(error, node));
             return;
         }
         if (!cancelled && existing && barTarget !== undefined) {
@@ -800,34 +800,34 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         workspaceTarget = undefined; barTarget = undefined;
         clearTabs();
         if (existing) {
+            const top = root.querySelector<HTMLElement>('.topbar')!.getBoundingClientRect(), bottom = windowBar.getBoundingClientRect();
+            const inHeader = move.clientX >= top.left && move.clientX < top.right && move.clientY >= top.top && move.clientY < bottom.bottom;
             const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
-                if (more.getAttribute('aria-expanded') !== 'true') more.click();
-                leaveBar(); where = undefined; hidePreview(); return;
+                if (more.getAttribute('aria-expanded') !== 'true') { tabPreview?.float(move); more.click(); tabPreview?.raise(); }
             }
             const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
             if (tab) {
                 workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
                 tab.dataset.componentDrop = workspaceTarget !== ws && (workspaceTarget!.panels.length < MAX_PANELS) ? 'allowed' : 'blocked';
-                leaveBar(); where = undefined; hidePreview(); return;
             }
-        }
-        if (existing) {
+            const overflow = document.querySelector('.overflow-tabs:popover-open .workspace-tab-item')?.parentElement?.getBoundingClientRect();
+            const inWorkspaceMenu = !!overflow && move.clientX >= overflow.left && move.clientX < overflow.right && move.clientY >= overflow.top && move.clientY < overflow.bottom;
             const host = windowBar.querySelector<HTMLElement>('.component-tabs')!;
-            if (!tabPreview) {
-                const bounds = windowBar.getBoundingClientRect();
-                if (move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
-                    const source = sourceTab || componentTab(existing).group;
-                    tabPreview = overflowTabDrop(host, source, move, node.getBoundingClientRect());
-                    node.classList.add('panel-tab-preview');
-                    morph?.cancel(); morph = node.animate([{ opacity: .8 }, { opacity: 0 }], { duration: duration(180) });
-                }
+            if (!tabPreview && (inHeader || inWorkspaceMenu)) {
+                const source = sourceTab || componentTab(existing).group;
+                tabPreview = overflowTabDrop(host, source, move, node.getBoundingClientRect());
+                node.classList.add('panel-tab-preview');
+                morph?.cancel(); morph = node.animate([{ opacity: .8 }, { opacity: 0 }], { duration: duration(180) });
             }
             if (tabPreview) {
-                const next = tabPreview.move(move);
+                const next = tab || inWorkspaceMenu ? undefined : tabPreview.move(move);
                 if (next !== undefined) {
                     barTarget = next?.querySelector<HTMLElement>('[data-component-name]')?.dataset.componentName || null;
                     where = undefined; hidePreview(); return;
+                }
+                if (inHeader || inWorkspaceMenu) {
+                    tabPreview.float(move); where = undefined; hidePreview(); return;
                 }
                 leaveBar();
             }
@@ -915,7 +915,7 @@ function stopPanel(panel: Panel, value?: Mounted) {
     const view = value?.items.get(panel.id)?.view;
     (view instanceof TerminalView ? view.close() : terminateTerminal(panel)).catch(notify).finally(() => refreshTerminals());
 }
-async function movePanel(panel: Panel, target: Workspace) {
+async function movePanel(panel: Panel, target: Workspace, preview?: DOMRect) {
     const source = [...warmWorkspaces.values()].find(value => value.items.has(panel.id)), item = source?.items.get(panel.id);
     if (!source || !item || source.ws === target || item.node.dataset.closing || item.node.dataset.moving) return;
     if (target.panels.length >= MAX_PANELS) throw new Error(t("app.workspaceFull"));
@@ -932,7 +932,8 @@ async function movePanel(panel: Panel, target: Workspace) {
             Object.assign(node.style, { left: '0', top: '0', width: '100%', height: '100%', transform: 'none' });
             node.classList.remove('panel-dragging');
             flight.append(node); document.body.append(flight);
-            await flight.animate([{ transform: 'none', opacity: .9 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 0 }],
+            const start = preview ? `translate(${preview.x - from.x}px, ${preview.y - from.y}px) scale(${preview.width / from.width}, ${preview.height / from.height})` : 'none';
+            await flight.animate([{ transform: start, opacity: .9 }, { transform: `translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 0 }],
                 { duration: duration(220), easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' }).finished.catch(() => {});
         }
         while (!warmWorkspaces.has(target.id) && warmWorkspaces.size >= MAX_WARM_WORKSPACES) {

@@ -95,6 +95,64 @@ try {
         if (cancel) await page.keyboard.press('Escape');
         await page.mouse.up(); await settled();
     }
+    for (const overflow of [false, true]) {
+        const hidden = overflow ? Array.from({ length: 12 }, (_, i) => panel(`header${i}`, 0, 0, 1, 1, { minimized: true })) : [];
+        const away = overflow ? Array.from({ length: 12 }, (_, i) => workspace(`Header destination ${i}`, [])) : [workspace('away', [])];
+        await fixture([workspace('origin', [shell(), ...hidden]), ...away]);
+        const before = await current(), connectionCount = sockets.length;
+        for (const cancel of [true, false]) {
+            const head = await item('shell').locator('.terminal-tab').boundingBox(), resizeCount = terminalResizes;
+            await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
+            await page.mouse.move(head.x + 25, head.y + 30, { steps: 3 });
+            const bar = await page.locator('.window-bar').boundingBox(), top = await page.locator('.topbar').boundingBox();
+            const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
+            await page.mouse.move(bar.x + 20, bar.y + bar.height / 2, { steps: 8 });
+            const preview = await page.locator('.tab-drag-preview').elementHandle();
+            for (const y of [bar.y + 1, (top.y + top.height + bar.y) / 2, top.y + top.height - 1, top.y + top.height / 2]) {
+                await page.mouse.move(top.x + top.width - 10, y, { steps: 4 });
+                assert.ok(await preview.evaluate(n => n.isConnected && n.matches(':popover-open')), 'one tab preview spans both header rows and their seam');
+                assert.equal(await page.locator('.panel-dragging.panel-tab-preview').count(), 1, 'header movement never restores the full window preview');
+            }
+            await page.waitForTimeout(220);
+            const compact = await preview.boundingBox();
+            assert.ok(compact.height <= bar.height && compact.width < 250, 'navbar retains the minimized-tab dimensions');
+            assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 0, 'navbar hover does not reserve a minimize drop slot');
+            await page.mouse.move(bar.x + 20, bar.y + bar.height / 2, { steps: 8 });
+            assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 1, 'returning to the minimize bar restores its placement gap');
+            await page.mouse.move(grid.x + grid.width / 2, grid.y + grid.height / 2, { steps: 8 });
+            assert.equal(await page.locator('.tab-drag-preview, .panel-tab-preview').count(), 0, 'returning to the desktop restores the window form');
+            await page.mouse.move(top.x + top.width - 10, top.y + top.height / 2);
+            assert.equal(await page.locator('.panel-dragging.panel-tab-preview').count(), 1, 'a direct navbar entry also uses tab form');
+            if (overflow) {
+                const more = await page.locator('.window-bar .overflow-toggle').boundingBox();
+                await page.mouse.move(more.x + more.width / 2, more.y + more.height / 2, { steps: 6 });
+                const row = await title('header11').boundingBox();
+                await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2, { steps: 6 });
+                const workspaceMore = await page.locator('.workspace-tabs .overflow-toggle').boundingBox();
+                await page.mouse.move(workspaceMore.x + workspaceMore.width / 2, workspaceMore.y + workspaceMore.height / 2, { steps: 8 });
+                assert.ok(await page.locator('.tab-drag-preview').isVisible(), 'opening desktop overflow keeps the preview visible');
+            }
+            const target = page.locator(`.workspace-tab-item[data-workspace="${away.at(-1).id}"]`), destination = await target.boundingBox();
+            await page.mouse.move(destination.x + destination.width / 2, destination.y + destination.height / 2, { steps: 8 });
+            assert.equal(await target.getAttribute('data-component-drop'), 'allowed');
+            assert.ok(await page.locator('.tab-drag-preview .component-tab').isVisible(), 'desktop drop targets retain full tab chrome');
+            assert.equal(terminalResizes, resizeCount, 'header previews never resize the live terminal');
+            if (cancel) await page.keyboard.press('Escape');
+            await page.mouse.up();
+            if (!cancel) assert.ok((await page.locator('.component-flight').boundingBox()).width < 250, 'desktop landing starts at the compact preview size');
+            await settled();
+            assert.equal(await page.locator('.tab-drag-preview, .tab-placeholder, .panel-tab-preview').count(), 0);
+            if (cancel) assert.deepEqual(await current(), before, 'header cancellation preserves the source layout');
+            else {
+                assert.equal((await current()).panels.some(p => p.id === 'shell'), false);
+                assert.equal((await snapshot()).workspaces.at(-1).panels[0].terminal, terminal.id, 'drop moves the same terminal to its desktop');
+            }
+            assert.equal(sockets.length, connectionCount);
+            assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, terminal.pid);
+        }
+    }
+    console.log('PASS uninterrupted tab previews across both header rows, overflow menus, desktop return, cancellation and cross-desktop drops');
+
     for (const maximized of [false, true]) for (const overflow of [false, true]) {
         const hidden = Array.from({ length: 12 }, (_, i) => panel(`handoff${i}`, 0, 0, 1, 1, { minimized: true }));
         await fixture([workspace('origin', [panel('visible', 0, 0, 4, 2), ...(overflow ? [...hidden, shell(true)] : [shell(true), ...hidden])])]);
@@ -511,6 +569,7 @@ try {
     const overflowSource = await title('hidden21').boundingBox(), workspaceMore = await page.locator('.workspace-tabs .overflow-toggle').boundingBox();
     await page.mouse.move(overflowSource.x + overflowSource.width / 2, overflowSource.y + overflowSource.height / 2); await page.mouse.down();
     await page.mouse.move(workspaceMore.x + workspaceMore.width / 2, workspaceMore.y + workspaceMore.height / 2, { steps: 12 });
+    assert.ok(await page.locator('.tab-drag-preview .component-tab').isVisible(), 'a minimized source stays in tab form over desktop overflow');
     const overflowDestination = await page.locator('[data-workspace="Long desktop number 10"] .workspace-tab').boundingBox();
     await page.mouse.move(overflowDestination.x + overflowDestination.width / 2, overflowDestination.y + overflowDestination.height / 2, { steps: 12 });
     await page.mouse.up(); await settled();

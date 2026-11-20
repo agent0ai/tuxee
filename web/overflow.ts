@@ -196,7 +196,7 @@ function animateTab(tab: HTMLElement, from: DOMRect) {
 
 // The real tab reserves its destination space; only its inert chrome is copied into the top layer.
 function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, point: { clientX: number; clientY: number }, from = item.getBoundingClientRect()) {
-    const parent = item.parentElement, next = item.nextSibling, host = visible.parentElement!;
+    const parent = item.parentElement, next = item.nextSibling, hidden = item.hidden, host = visible.parentElement!;
     const originals = new Set([...visible.children, ...menu.children] as HTMLElement[]);
     const properties: [HTMLElement, string][] = [[host, 'flex'], [visible, 'flex'], [menu, 'width'], [menu, 'min-height']];
     const styles = properties.map(([node, property]) => ({ node, property, value: node.style.getPropertyValue(property) }));
@@ -221,17 +221,19 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
     const follow = (p: { clientX: number; clientY: number }) => {
         preview.style.left = `${p.clientX}px`; preview.style.top = `${p.clientY}px`;
     };
-    function place(target: HTMLElement, before: HTMLElement | undefined, p: { clientX: number; clientY: number }) {
+    function place(target: HTMLElement, before: HTMLElement | undefined, p: { clientX: number; clientY: number }, floating = false) {
         const previous = zone ? preview.getBoundingClientRect() : from;
         if (target === menu && !menu.style.width) {
             const bounds = menu.getBoundingClientRect();
             menu.style.width = `${bounds.width}px`; menu.style.minHeight = `${bounds.height}px`;
         }
         const anchor = before || (preview.parentElement === target ? preview : null);
-        const moved = item.parentElement !== target || item.nextElementSibling !== anchor;
+        const moved = item.parentElement !== target || item.nextElementSibling !== anchor || item.hidden !== floating;
         const rects = moved ? positions() : new Map<HTMLElement, DOMRect>();
+        item.hidden = false;
         if (moved) target.insertBefore(item, anchor);
         const rect = item.getBoundingClientRect();
+        item.hidden = floating;
         if (zone !== target) {
             morph?.cancel();
             preview.remove(); target.append(preview); preview.showPopover();
@@ -242,11 +244,12 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
         }
         follow(p); slide(rects);
     }
-    if (parent === visible || parent === menu) place(parent, next instanceof HTMLElement ? next : undefined, point);
-    return { place, follow, raise() { if (preview.isConnected) { preview.hidePopover(); preview.showPopover(); } }, rect: () => preview.getBoundingClientRect(), dispose() {
+    if ((parent === visible || parent === menu) && parent.checkVisibility()) place(parent, next instanceof HTMLElement ? next : undefined, point);
+    return { place, follow, float(p: { clientX: number; clientY: number }) { place(visible, undefined, p, true); }, raise() { if (preview.isConnected) { preview.hidePopover(); preview.showPopover(); } }, rect: () => preview.getBoundingClientRect(), dispose() {
         const before = positions();
         morph?.cancel(); preview.remove();
         if (parent) parent.insertBefore(item, next?.parentNode === parent ? next : null); else item.remove();
+        item.hidden = hidden;
         item.classList.remove('tab-placeholder', 'tab-dragging');
         originals.forEach(tab => tab.classList.remove('tab-shifting'));
         styles.forEach(({ node, property, value }) => value ? node.style.setProperty(property, value) : node.style.removeProperty(property));
