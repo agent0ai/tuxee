@@ -73,6 +73,8 @@ type Settings struct {
 	DefaultDirectory           string                `json:"defaultDirectory,omitempty"`
 	ServerName                 string                `json:"serverName,omitempty"`
 	ServerColor                string                `json:"serverColor,omitempty"`
+	PanelPosition              string                `json:"panelPosition,omitempty"`
+	MobilePanelPosition        string                `json:"mobilePanelPosition,omitempty"`
 	TerminalBackground         string                `json:"terminalBackground,omitempty"`
 	TerminalBackgroundLight    string                `json:"terminalBackgroundLight,omitempty"`
 	TerminalFontSize           *int                  `json:"terminalFontSize,omitempty"`
@@ -115,6 +117,14 @@ func validateSettings(value *Settings) error {
 }
 
 func validateSettingsGrids(value *Settings, legacy bool) error {
+	switch value.PanelPosition {
+	case "", "top", "bottom", "left", "right":
+	default:
+		return i18n.New("settings.invalidPanelPosition")
+	}
+	if value.MobilePanelPosition != "" && value.MobilePanelPosition != "top" && value.MobilePanelPosition != "bottom" {
+		return i18n.New("settings.invalidPanelPosition")
+	}
 	if len(value.CommandShortcuts) > 64 {
 		return i18n.New("commandShortcuts.invalid")
 	}

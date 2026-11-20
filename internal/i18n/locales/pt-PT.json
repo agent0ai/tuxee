@@ -914,6 +914,12 @@
     "howto.updatesBody": "Procure atualizações na janela {about}, que pode abrir pelo menu do utilizador ou clicando no logótipo do Tuxee na barra superior.",
     "howto.updatesScreenshot": "Janela Sobre com uma atualização disponível e o comando de atualização",
     "howto.keyboardShortcutsTitle": "Atalhos de teclado",
-    "howto.keyboardShortcutsBody": "Pode personalizar os atalhos de teclado com o botão {button} no menu do utilizador."
+    "howto.keyboardShortcutsBody": "Pode personalizar os atalhos de teclado com o botão {button} no menu do utilizador.",
+    "settings.panelPosition": "Posição do painel",
+    "settings.panelTop": "Em cima",
+    "settings.panelBottom": "Em baixo",
+    "settings.panelLeft": "Esquerda",
+    "settings.panelRight": "Direita",
+    "settings.invalidPanelPosition": "Posição do painel inválida"
   }
 }

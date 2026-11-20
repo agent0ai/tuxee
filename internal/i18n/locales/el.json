@@ -914,6 +914,12 @@
     "howto.updatesBody": "Ελέγξτε για ενημερώσεις στο παράθυρο «{about}», που ανοίγει από το μενού χρήστη ή με κλικ στο λογότυπο Tuxee στην επάνω γραμμή.",
     "howto.updatesScreenshot": "Παράθυρο πληροφοριών με διαθέσιμη ενημέρωση και την εντολή ενημέρωσης",
     "howto.keyboardShortcutsTitle": "Συντομεύσεις πληκτρολογίου",
-    "howto.keyboardShortcutsBody": "Μπορείτε να προσαρμόσετε τις συντομεύσεις πληκτρολογίου με το κουμπί {button} στο μενού χρήστη."
+    "howto.keyboardShortcutsBody": "Μπορείτε να προσαρμόσετε τις συντομεύσεις πληκτρολογίου με το κουμπί {button} στο μενού χρήστη.",
+    "settings.panelPosition": "Θέση πίνακα",
+    "settings.panelTop": "Πάνω",
+    "settings.panelBottom": "Κάτω",
+    "settings.panelLeft": "Αριστερά",
+    "settings.panelRight": "Δεξιά",
+    "settings.invalidPanelPosition": "Μη έγκυρη θέση πίνακα"
   }
 }

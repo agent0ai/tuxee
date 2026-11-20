@@ -914,6 +914,12 @@
     "howto.updatesBody": "“{about}” विंडो में अपडेट जाँचें। इसे उपयोगकर्ता मेनू से या ऊपरी बार में Tuxee लोगो पर क्लिक करके खोल सकते हैं।",
     "howto.updatesScreenshot": "उपलब्ध अपडेट और अपडेट कमांड दिखाती परिचय विंडो",
     "howto.keyboardShortcutsTitle": "कीबोर्ड शॉर्टकट",
-    "howto.keyboardShortcutsBody": "उपयोगकर्ता मेनू में {button} बटन से आप कीबोर्ड शॉर्टकट अपनी पसंद के अनुसार बदल सकते हैं।"
+    "howto.keyboardShortcutsBody": "उपयोगकर्ता मेनू में {button} बटन से आप कीबोर्ड शॉर्टकट अपनी पसंद के अनुसार बदल सकते हैं।",
+    "settings.panelPosition": "पैनल की स्थिति",
+    "settings.panelTop": "ऊपर",
+    "settings.panelBottom": "नीचे",
+    "settings.panelLeft": "बाएँ",
+    "settings.panelRight": "दाएँ",
+    "settings.invalidPanelPosition": "पैनल की स्थिति अमान्य है"
   }
 }

@@ -914,6 +914,12 @@
     "howto.updatesBody": "Provjerite ažuriranja u prozoru „{about}”, koji možete otvoriti iz korisničkog izbornika ili klikom na logotip Tuxee u gornjoj traci.",
     "howto.updatesScreenshot": "Prozor s informacijama o aplikaciji, dostupnim ažuriranjem i naredbom za ažuriranje",
     "howto.keyboardShortcutsTitle": "Tipkovnički prečaci",
-    "howto.keyboardShortcutsBody": "Tipkovničke prečace možete prilagoditi gumbom {button} u korisničkom izborniku."
+    "howto.keyboardShortcutsBody": "Tipkovničke prečace možete prilagoditi gumbom {button} u korisničkom izborniku.",
+    "settings.panelPosition": "Položaj ploče",
+    "settings.panelTop": "Gore",
+    "settings.panelBottom": "Dolje",
+    "settings.panelLeft": "Lijevo",
+    "settings.panelRight": "Desno",
+    "settings.invalidPanelPosition": "Nevaljan položaj ploče"
   }
 }

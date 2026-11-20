@@ -914,6 +914,12 @@
     "howto.updatesBody": "Проверявайте за актуализации в прозореца „{about}“, който можете да отворите от потребителското меню или с щракване върху логото на Tuxee в горната лента.",
     "howto.updatesScreenshot": "Прозорец с информация за приложението, налична актуализация и командата за обновяване",
     "howto.keyboardShortcutsTitle": "Клавишни комбинации",
-    "howto.keyboardShortcutsBody": "Можете да персонализирате клавишните комбинации с бутона {button} в потребителското меню."
+    "howto.keyboardShortcutsBody": "Можете да персонализирате клавишните комбинации с бутона {button} в потребителското меню.",
+    "settings.panelPosition": "Позиция на панела",
+    "settings.panelTop": "Горе",
+    "settings.panelBottom": "Долу",
+    "settings.panelLeft": "Вляво",
+    "settings.panelRight": "Вдясно",
+    "settings.invalidPanelPosition": "Невалидна позиция на панела"
   }
 }

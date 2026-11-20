@@ -914,6 +914,12 @@
     "howto.updatesBody": "Suche im Fenster „{about}“ nach Updates. Du öffnest es über das Benutzermenü oder mit einem Klick auf das Tuxee-Logo in der oberen Leiste.",
     "howto.updatesScreenshot": "Infofenster mit einem verfügbaren Update und dem Update-Befehl",
     "howto.keyboardShortcutsTitle": "Tastenkürzel",
-    "howto.keyboardShortcutsBody": "Du kannst Tastenkürzel über die Schaltfläche {button} im Benutzermenü anpassen."
+    "howto.keyboardShortcutsBody": "Du kannst Tastenkürzel über die Schaltfläche {button} im Benutzermenü anpassen.",
+    "settings.panelPosition": "Panelposition",
+    "settings.panelTop": "Oben",
+    "settings.panelBottom": "Unten",
+    "settings.panelLeft": "Links",
+    "settings.panelRight": "Rechts",
+    "settings.invalidPanelPosition": "Ungültige Panelposition"
   }
 }

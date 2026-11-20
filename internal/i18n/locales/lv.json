@@ -914,6 +914,12 @@
     "howto.updatesBody": "Pārbaudiet atjauninājumus logā „{about}”, ko var atvērt lietotāja izvēlnē vai noklikšķinot uz Tuxee logotipa augšējā joslā.",
     "howto.updatesScreenshot": "Informācijas logs ar pieejamu atjauninājumu un atjaunināšanas komandu",
     "howto.keyboardShortcutsTitle": "Tastatūras īsinājumtaustiņi",
-    "howto.keyboardShortcutsBody": "Tastatūras īsinājumtaustiņus varat pielāgot ar pogu {button} lietotāja izvēlnē."
+    "howto.keyboardShortcutsBody": "Tastatūras īsinājumtaustiņus varat pielāgot ar pogu {button} lietotāja izvēlnē.",
+    "settings.panelPosition": "Paneļa novietojums",
+    "settings.panelTop": "Augšā",
+    "settings.panelBottom": "Apakšā",
+    "settings.panelLeft": "Pa kreisi",
+    "settings.panelRight": "Pa labi",
+    "settings.invalidPanelPosition": "Nederīgs paneļa novietojums"
   }
 }

@@ -914,6 +914,12 @@
     "howto.updatesBody": "Recherchez les mises à jour dans la fenêtre {about}, accessible depuis le menu utilisateur ou en cliquant sur le logo Tuxee dans la barre supérieure.",
     "howto.updatesScreenshot": "Fenêtre À propos affichant une mise à jour disponible et la commande de mise à jour",
     "howto.keyboardShortcutsTitle": "Raccourcis clavier",
-    "howto.keyboardShortcutsBody": "Vous pouvez personnaliser les raccourcis clavier avec le bouton {button} du menu utilisateur."
+    "howto.keyboardShortcutsBody": "Vous pouvez personnaliser les raccourcis clavier avec le bouton {button} du menu utilisateur.",
+    "settings.panelPosition": "Position du panneau",
+    "settings.panelTop": "En haut",
+    "settings.panelBottom": "En bas",
+    "settings.panelLeft": "À gauche",
+    "settings.panelRight": "À droite",
+    "settings.invalidPanelPosition": "Position du panneau invalide"
   }
 }

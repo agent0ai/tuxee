@@ -93,8 +93,8 @@ func TestAuthenticatedAssetCaching(t *testing.T) {
 		t.Fatal(err)
 	}
 	logos, err := fs.Glob(assets, "assets/tuxee-logo-*.webp")
-	if err != nil || len(logos) != 4 {
-		t.Fatalf("expected light/dark emblem and vertical logos, got %v: %v", logos, err)
+	if err != nil || len(logos) != 6 {
+		t.Fatalf("expected light/dark emblem, vertical and horizontal logos, got %v: %v", logos, err)
 	}
 	for _, name := range logos {
 		if !regexp.MustCompile(`^assets/tuxee-logo-[a-z-]+-[A-Z0-9]{8}\.webp$`).MatchString(name) {

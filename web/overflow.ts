@@ -40,6 +40,9 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     let bound: HTMLElement[] = [];
     function fit() {
         if (host.classList.contains('tab-drag-host') && bound.length === items.length && items.every(item => bound.includes(item))) return;
+        // Vertical lists need no width fitting; keep their scroll and pending gesture on label updates.
+        if (host.classList.contains('vertical-tabs') && more.hidden && bound.length === items.length && visible.childElementCount === items.length &&
+            items.every((item, index) => bound.includes(item) && visible.children[index] === item)) return;
         dragging?.cancel();
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
             dragging?.dispose();
@@ -48,6 +51,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         }
         close();
         visible.replaceChildren(...items); more.hidden = false;
+        if (host.classList.contains('vertical-tabs')) { more.hidden = true; return; }
         const style = getComputedStyle(host), available = host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         const widths = items.map(item => item.getBoundingClientRect().width);
         const count = fittingHeaderItemCount(widths, available, more.offsetWidth, 4);
@@ -85,14 +89,15 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
     for (const item of items) {
         item.classList.add('reorderable-tab');
         const handle = item.firstElementChild as HTMLElement;
-        handle.setAttribute('aria-keyshortcuts', 'Alt+ArrowLeft Alt+ArrowRight');
+        const verticalBar = visible.parentElement!.classList.contains('vertical-tabs');
+        handle.setAttribute('aria-keyshortcuts', verticalBar ? 'Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight' : 'Alt+ArrowLeft Alt+ArrowRight');
         handle.setAttribute('aria-description', t("overflow.dragToReorderOrPressAltLeftOrAltRight"));
         handle.addEventListener('dragstart', event => event.preventDefault(), { signal });
         handle.addEventListener('keydown', event => {
-            if (!event.altKey || !["ArrowLeft", 'ArrowRight'].includes(event.key)) return;
+            if (!event.altKey || !(verticalBar ? ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'] : ['ArrowLeft', 'ArrowRight']).includes(event.key)) return;
             event.preventDefault(); cancel();
-            const rtl = !!item.closest('.visible-tabs') && getComputedStyle(item).direction === 'rtl';
-            const index = items.indexOf(item) + (event.key === 'ArrowLeft' ? -1 : 1) * (rtl ? -1 : 1);
+            const rtl = !verticalBar && !!item.closest('.visible-tabs') && getComputedStyle(item).direction === 'rtl';
+            const index = items.indexOf(item) + (event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1) * (rtl ? -1 : 1);
             if (index < 0 || index >= items.length) return;
             move(item, index);
             (item.closest('.visible-tabs') ? handle : more).focus();
@@ -103,7 +108,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
             const parent = item.parentElement!, siblings = [...parent.children] as HTMLElement[];
             if (items.length < 2) return;
             siblings.forEach(tab => tab.getAnimations().forEach(animation => animation.cancel()));
-            const vertical = parent === menu, rtl = !vertical && getComputedStyle(parent).direction === 'rtl';
+            const vertical = parent === menu || verticalBar, rtl = !vertical && getComputedStyle(parent).direction === 'rtl';
             if (rtl) siblings.reverse();
             const axis = vertical ? 'y' : 'x', size = vertical ? 'height' : 'width';
             const rects = new Map(siblings.map(tab => [tab, tab.getBoundingClientRect()]));
@@ -130,7 +135,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
                 };
                 const bounds = bar?.getBoundingClientRect();
                 // Keep diagonal paths from an overflow entry to the bar inside the reorder gesture.
-                const progress = bounds && vertical ? (event.clientY - e.clientY) / (event.clientY - bounds.bottom) : -1;
+                const progress = bounds && parent === menu ? (event.clientY - e.clientY) / (event.clientY - bounds.bottom) : -1;
                 const towardBar = bounds && progress >= 0 && progress <= 1 &&
                     e.clientX >= event.clientX + (bounds.left - event.clientX) * progress - 4 &&
                     e.clientX <= event.clientX + (bounds.right - event.clientX) * progress + 4;
@@ -164,7 +169,7 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
                             .filter(tab => items.includes(tab as HTMLElement) && tab !== item)
                             .map(tab => [tab as HTMLElement, tab.getBoundingClientRect()])));
                         const reversed = target === visible && getComputedStyle(visible).direction === 'rtl';
-                        next = [...targets.get(target)!].find(([, r]) => target === menu ? e.clientY < r.y + r.height / 2
+                        next = [...targets.get(target)!].find(([, r]) => target === menu || verticalBar ? e.clientY < r.y + r.height / 2
                             : reversed ? e.clientX > r.x + r.width / 2 : e.clientX < r.x + r.width / 2)?.[0];
                     }
                     const remaining = items.filter(tab => tab !== item);
@@ -209,9 +214,10 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
     const gripX = from.width ? Math.max(0, Math.min(1, (point.clientX - from.x) / from.width)) : .5;
     const gripY = from.height ? Math.max(0, Math.min(1, (point.clientY - from.y) / from.height)) : .5;
     preview.style.transform = `translate(${-gripX * 100}%, ${-gripY * 100}%)`;
-    const width = visible.getBoundingClientRect().width || host.clientWidth;
-    host.style.flex = `0 0 ${host.getBoundingClientRect().width}px`;
-    visible.style.flex = `0 0 ${width}px`;
+    const dimension = host.classList.contains('vertical-tabs') ? 'height' : 'width';
+    const fallback = dimension === 'width' ? host.clientWidth : host.clientHeight;
+    host.style.flex = `0 0 ${host.getBoundingClientRect()[dimension]}px`;
+    visible.style.flex = `0 0 ${visible.getBoundingClientRect()[dimension] || fallback}px`;
     host.classList.add('tab-drag-host');
     originals.forEach(tab => tab.classList.add('tab-shifting'));
     item.classList.add('tab-placeholder', 'tab-dragging');
@@ -273,7 +279,7 @@ export function overflowTabDrop(host: HTMLElement, item: HTMLElement, point: Poi
             .filter(tab => tab !== item && !tab.classList.contains('tab-drag-preview'))
             .map(tab => [tab as HTMLElement, tab.getBoundingClientRect()])));
         const rtl = target === visible && getComputedStyle(visible).direction === 'rtl';
-        const before = [...rects.get(target)!].find(([, r]) => target === menu ? p.clientY < r.y + r.height / 2
+        const before = [...rects.get(target)!].find(([, r]) => target === menu || host.classList.contains('vertical-tabs') ? p.clientY < r.y + r.height / 2
             : rtl ? p.clientX > r.x + r.width / 2 : p.clientX < r.x + r.width / 2)?.[0];
         preview.place(target, before, p);
         return before || null;

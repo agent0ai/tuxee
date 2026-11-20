@@ -6,6 +6,8 @@ import emblemLogo from './tuxee-logo-emblem.webp';
 import verticalLogo from './tuxee-logo-vertical.webp';
 import emblemLogoLight from './tuxee-logo-emblem-light.webp';
 import verticalLogoLight from './tuxee-logo-vertical-light.webp';
+import horizontalLogo from './tuxee-logo-horizontal.webp';
+import horizontalLogoLight from './tuxee-logo-horizontal-light.webp';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, setCSRF } from './ui';
 import { visiblePanels, canAddPanel, MAX_PANELS, restorePanel, id, directoryPath, addCompact, gridDrop, dropLayout, sharedDividers, resizeDividers, type Divider, newPanel, newWorkspace, cloneWorkspace, orientWorkspace, split, validGrid, type Kind, type Panel, type Settings, type User, type View, type Workspace, type TerminalInfo, screenSnap, cycleLayout, expandPanel, expandAfterClose, type Rect } from './model';
 import { overflowTabs, overflowTabDrop } from './overflow';
@@ -245,9 +247,14 @@ function renderChrome() {
     root.querySelector('.component-controls')?.remove();
     const ws = current(), compact = isCompact();
     root.classList.toggle('compact', compact);
+    const preferred = settings.panelPosition || 'top';
+    const position = compact ? settings.mobilePanelPosition || (preferred === 'bottom' ? 'bottom' : 'top') : preferred;
+    const vertical = position === 'left' || position === 'right';
+    root.dataset.panelPosition = position;
+    root.classList.toggle('side-panel', vertical);
     const top = el('header', 'topbar');
     const brand = el('img', 'brand');
-    brand.src = settings.theme === 'light' ? emblemLogoLight : emblemLogo;
+    brand.src = vertical ? settings.theme === 'light' ? horizontalLogoLight : horizontalLogo : settings.theme === 'light' ? emblemLogoLight : emblemLogo;
     brand.alt = t("app.tuxee");
     brand.width = 128;
     brand.height = 117;
@@ -257,6 +264,7 @@ function renderChrome() {
     about.replaceChildren(brand);
     top.append(about);
     const tabs = el('nav', 'workspace-tabs');
+    tabs.classList.toggle('vertical-tabs', vertical);
     tabs.setAttribute('aria-label', t("app.workspaces"));
     for (const item of settings.workspaces) {
         const group = el('div', 'workspace-tab-item');
@@ -315,7 +323,7 @@ function renderChrome() {
     if (!compact) right.append(additions);
     if (!compact && monitoring) {
         const monitor = el('div', 'monitor-controls');
-        monitor.append(monitoring.summary()); right.append(monitor);
+        monitor.append(monitoring.summary(vertical)); right.append(monitor);
     }
     right.append(button(t("app.toggleLightOrDarkTheme"), settings.theme === 'dark' ? 'Sun' : 'Moon', () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
@@ -328,6 +336,7 @@ function renderChrome() {
     setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
     right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
+    componentTabs.classList.toggle('vertical-tabs', vertical);
     componentTabs.setAttribute('aria-label', t("app.components"));
     const componentControls = el('div', 'component-controls');
     componentControls.append(componentTabs);
@@ -689,7 +698,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
     const revealBar = !!existing && windowBar.hidden;
     let tabPreview: ReturnType<typeof overflowTabDrop> | undefined;
     let morph: Animation | undefined;
-    let dragScale = 1, dragOffsetY = 0;
+    let scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0;
     let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined, barTarget: string | null | undefined;
     const dropTabs = workspaceTabs;
     const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; });
@@ -709,10 +718,10 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         dragging = false; hidePreview(); value.board.classList.remove('docking'); clearTabs();
         if (revealBar) {
             windowBar.hidden = true;
-            for (const property of ['height', 'transform', 'transform-origin']) value.board.style.removeProperty(property);
+            for (const property of ['width', 'height', 'transform', 'transform-origin']) value.board.style.removeProperty(property);
             node.style.transform = '';
             const unscaled = node.getBoundingClientRect();
-            node.style.transform = `translate(${released.x - unscaled.x}px, ${released.y - unscaled.y}px) scaleY(${dragScale})`;
+            node.style.transform = `translate(${released.x - unscaled.x}px, ${released.y - unscaled.y}px) scale(${scaleX}, ${scaleY})`;
         }
         document.querySelector<HTMLElement>('.overflow-tabs:popover-open')?.hidePopover();
         if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && (workspaceTarget.panels.length < MAX_PANELS)) {
@@ -757,7 +766,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         node.classList.remove('panel-tab-preview'); morph?.cancel();
         const to = node.getBoundingClientRect(), transform = node.style.transform;
         morph = node.animate([
-            { transformOrigin: 'top left', transform: `${transform} translate(${from.x - to.x}px, ${(from.y - to.y) / dragScale}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 },
+            { transformOrigin: 'top left', transform: `${transform} translate(${(from.x - to.x) / scaleX}px, ${(from.y - to.y) / scaleY}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 },
             { transformOrigin: 'top left', transform, opacity: .8 }
         ], { duration: duration(180), easing: 'cubic-bezier(.2,.7,.2,1)' });
     }
@@ -781,13 +790,15 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             sourceTab?.setAttribute('data-tab-drag-source', '');
             if (revealBar) {
-                // Make room for the drop row without resizing live terminal or GUI content.
-                const height = value.board.clientHeight;
-                value.board.style.height = `${height}px`;
+                // Make room for either drop rail without resizing live terminal or GUI content.
+                const width = value.board.clientWidth, height = value.board.clientHeight;
+                Object.assign(value.board.style, { width: `${width}px`, height: `${height}px` });
                 windowBar.hidden = false;
-                dragScale = value.board.parentElement!.clientHeight / height;
-                Object.assign(value.board.style, { transformOrigin: 'top left', transform: `scaleY(${dragScale})` });
-                dragOffsetY = origin.y - node.getBoundingClientRect().y;
+                scaleX = value.board.parentElement!.clientWidth / width;
+                scaleY = value.board.parentElement!.clientHeight / height;
+                Object.assign(value.board.style, { transformOrigin: 'top left', transform: `scale(${scaleX}, ${scaleY})` });
+                const shifted = node.getBoundingClientRect();
+                offsetX = origin.x - shifted.x; offsetY = origin.y - shifted.y;
             }
             renderVacancies(value, existing);
             if (!existing || restoring) {
@@ -796,12 +807,12 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
                 document.body.append(node);
             }
         }
-        node.style.transform = `translate(${dx}px, ${(dy + dragOffsetY) / dragScale}px)`;
+        node.style.transform = `translate(${(dx + offsetX) / scaleX}px, ${(dy + offsetY) / scaleY}px)`;
         workspaceTarget = undefined; barTarget = undefined;
         clearTabs();
         if (existing) {
             const top = root.querySelector<HTMLElement>('.topbar')!.getBoundingClientRect(), bottom = windowBar.getBoundingClientRect();
-            const inHeader = move.clientX >= top.left && move.clientX < top.right && move.clientY >= top.top && move.clientY < bottom.bottom;
+            const inHeader = [top, bottom].some(r => move.clientX >= r.left - 2 && move.clientX < r.right + 2 && move.clientY >= r.top - 2 && move.clientY < r.bottom + 2);
             const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
                 if (more.getAttribute('aria-expanded') !== 'true') { tabPreview?.float(move); more.click(); tabPreview?.raise(); }
@@ -839,7 +850,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         if (!rect) { hidePreview(); return; }
         const layout = dropLayout(ws, panel, rect, true);
         if (layout) where = { layout, rect };
-        showPreview(value.gridEl, { x: rect.x * cellW, y: rect.y * cellH / dragScale, w: rect.w * cellW, h: rect.h * cellH / dragScale }, 'empty', !layout);
+        showPreview(value.gridEl, { x: rect.x * cellW / scaleX, y: rect.y * cellH / scaleY, w: rect.w * cellW / scaleX, h: rect.h * cellH / scaleY }, 'empty', !layout);
     }, { signal: events.signal });
 }
 function rearrangeWorkspace() {
@@ -1610,6 +1621,22 @@ async function openSettings() {
     color.oninput = () => { markerColor = color.value; reset.disabled = false; setColorMarker(markerColor); };
     const colors = el('div', 'settings-color'); colors.append(color, reset);
     const marker = el('div', 'field'); marker.append(colorLabel, colors);
+    let positionDraft = settings.panelPosition || 'top', mobilePositionDraft = settings.mobilePanelPosition;
+    const panelPosition = el('select'); panelPosition.name = 'panelPosition';
+    const updatePositionOptions = () => {
+        const compact = isCompact(); panelPosition.replaceChildren();
+        const choices = [['top', t('settings.panelTop')], ['bottom', t('settings.panelBottom')], ['left', t('settings.panelLeft')], ['right', t('settings.panelRight')]];
+        for (const [value, text] of compact ? choices.slice(0, 2) : choices) {
+            const option = el('option', '', text); option.value = value; panelPosition.append(option);
+        }
+        panelPosition.value = compact ? mobilePositionDraft || (positionDraft === 'bottom' ? 'bottom' : 'top') : positionDraft;
+    };
+    panelPosition.onchange = () => {
+        if (isCompact()) mobilePositionDraft = panelPosition.value as Settings['mobilePanelPosition'];
+        else positionDraft = panelPosition.value as NonNullable<Settings['panelPosition']>;
+    };
+    updatePositionOptions();
+    const positionLabel = el('label', 'field'); positionLabel.append(el('span', 'settings-label', t('settings.panelPosition')), panelPosition);
     const terminalColors = { terminalBackground: settings.terminalBackground || '', terminalBackgroundLight: settings.terminalBackgroundLight || '' };
     const backgroundField = el('fieldset', 'field terminal-colors');
     backgroundField.append(el('legend', 'settings-label', t("app.terminalBackground")));
@@ -1658,15 +1685,18 @@ async function openSettings() {
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
+    content.append(label, marker, positionLabel, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details, actions);
     const dialog = modal(t("app.settings"), content);
-    dialog.dialog.addEventListener('close', () => setColorMarker(settings.serverColor), { once: true });
+    window.addEventListener('resize', updatePositionOptions);
+    dialog.dialog.addEventListener('close', () => { setColorMarker(settings.serverColor); window.removeEventListener('resize', updatePositionOptions); }, { once: true });
     content.onsubmit = async event => {
         event.preventDefault();
         if (submit.disabled) return;
         submit.disabled = true;
         const previous = settings.serverName;
         const previousColor = settings.serverColor;
+        const previousPosition = settings.panelPosition;
+        const previousMobilePosition = settings.mobilePanelPosition;
         const previousUploads = settings.uploadConcurrency;
         const previousRetention = settings.closedTerminalHistoryHours;
         const previousBackground = settings.terminalBackground;
@@ -1677,6 +1707,8 @@ async function openSettings() {
         const previousShell = settings.shellCommand, previousPrompt = settings.useTuxeePrompt;
         settings.serverName = serverName.value.trim();
         settings.serverColor = markerColor;
+        settings.panelPosition = positionDraft;
+        settings.mobilePanelPosition = mobilePositionDraft;
         settings.uploadConcurrency = Number(uploads.value);
         settings.closedTerminalHistoryHours = Number(retention.value);
         settings.terminalFontSize = Number(fontSize.value);
@@ -1691,8 +1723,9 @@ async function openSettings() {
                 if (view instanceof TerminalView) view.setFont(settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family);
             }
             setUploadConcurrency(settings.uploadConcurrency); updateTitle(); dialog.close();
+            if (settings.panelPosition !== previousPosition || settings.mobilePanelPosition !== previousMobilePosition) renderChrome();
         }
-        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.uploadConcurrency = previousUploads; settings.closedTerminalHistoryHours = previousRetention; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.terminalFontFamily = previousFontFamily; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
+        catch (error) { settings.serverName = previous; settings.serverColor = previousColor; settings.panelPosition = previousPosition; settings.mobilePanelPosition = previousMobilePosition; settings.uploadConcurrency = previousUploads; settings.closedTerminalHistoryHours = previousRetention; settings.terminalBackground = previousBackground; settings.terminalBackgroundLight = previousLightBackground; settings.terminalFontSize = previousFontSize; settings.terminalFontFamily = previousFontFamily; settings.defaultDirectory = previousDirectory; settings.shellCommand = previousShell; settings.useTuxeePrompt = previousPrompt; notify(error, content); }
         finally { submit.disabled = false; }
     };
 }

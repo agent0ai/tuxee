@@ -914,6 +914,12 @@
     "howto.updatesBody": "Sprawdź aktualizacje w oknie „{about}”, które otworzysz z menu użytkownika lub klikając logo Tuxee na górnym pasku.",
     "howto.updatesScreenshot": "Okno informacji z dostępną aktualizacją i poleceniem aktualizacji",
     "howto.keyboardShortcutsTitle": "Skróty klawiszowe",
-    "howto.keyboardShortcutsBody": "Skróty klawiszowe możesz dostosować przyciskiem {button} w menu użytkownika."
+    "howto.keyboardShortcutsBody": "Skróty klawiszowe możesz dostosować przyciskiem {button} w menu użytkownika.",
+    "settings.panelPosition": "Położenie panelu",
+    "settings.panelTop": "Góra",
+    "settings.panelBottom": "Dół",
+    "settings.panelLeft": "Lewa strona",
+    "settings.panelRight": "Prawa strona",
+    "settings.invalidPanelPosition": "Nieprawidłowe położenie panelu"
   }
 }

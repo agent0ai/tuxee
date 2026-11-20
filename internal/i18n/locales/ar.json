@@ -914,6 +914,12 @@
     "howto.updatesBody": "تحقق من التحديثات في نافذة «{about}»، التي يمكنك فتحها من قائمة المستخدم أو بالنقر على شعار Tuxee في الشريط العلوي.",
     "howto.updatesScreenshot": "نافذة حول تعرض تحديثًا متاحًا وأمر التحديث",
     "howto.keyboardShortcutsTitle": "اختصارات لوحة المفاتيح",
-    "howto.keyboardShortcutsBody": "يمكنك تخصيص اختصارات لوحة المفاتيح باستخدام زر {button} في قائمة المستخدم."
+    "howto.keyboardShortcutsBody": "يمكنك تخصيص اختصارات لوحة المفاتيح باستخدام زر {button} في قائمة المستخدم.",
+    "settings.panelPosition": "موضع اللوحة",
+    "settings.panelTop": "أعلى",
+    "settings.panelBottom": "أسفل",
+    "settings.panelLeft": "يسار",
+    "settings.panelRight": "يمين",
+    "settings.invalidPanelPosition": "موضع اللوحة غير صالح"
   }
 }

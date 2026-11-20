@@ -914,6 +914,12 @@
     "howto.updatesBody": "Cerca aggiornamenti nella finestra {about}, accessibile dal menu utente o facendo clic sul logo Tuxee nella barra superiore.",
     "howto.updatesScreenshot": "Finestra delle informazioni con un aggiornamento disponibile e il comando per aggiornare",
     "howto.keyboardShortcutsTitle": "Scorciatoie da tastiera",
-    "howto.keyboardShortcutsBody": "Puoi personalizzare le scorciatoie da tastiera con il pulsante {button} nel menu utente."
+    "howto.keyboardShortcutsBody": "Puoi personalizzare le scorciatoie da tastiera con il pulsante {button} nel menu utente.",
+    "settings.panelPosition": "Posizione del pannello",
+    "settings.panelTop": "In alto",
+    "settings.panelBottom": "In basso",
+    "settings.panelLeft": "A sinistra",
+    "settings.panelRight": "A destra",
+    "settings.invalidPanelPosition": "Posizione del pannello non valida"
   }
 }

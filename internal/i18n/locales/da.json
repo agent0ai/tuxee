@@ -914,6 +914,12 @@
     "howto.updatesBody": "Søg efter opdateringer i vinduet {about}, som du kan åbne fra brugermenuen eller ved at klikke på Tuxee-logoet i topbjælken.",
     "howto.updatesScreenshot": "Om-vindue med en tilgængelig opdatering og opdateringskommandoen",
     "howto.keyboardShortcutsTitle": "Tastaturgenveje",
-    "howto.keyboardShortcutsBody": "Du kan tilpasse tastaturgenveje med knappen {button} i brugermenuen."
+    "howto.keyboardShortcutsBody": "Du kan tilpasse tastaturgenveje med knappen {button} i brugermenuen.",
+    "settings.panelPosition": "Panelets placering",
+    "settings.panelTop": "Øverst",
+    "settings.panelBottom": "Nederst",
+    "settings.panelLeft": "Venstre",
+    "settings.panelRight": "Højre",
+    "settings.invalidPanelPosition": "Ugyldig panelplacering"
   }
 }

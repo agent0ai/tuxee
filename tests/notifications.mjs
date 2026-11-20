@@ -105,7 +105,7 @@ try {
             const top = el('header', 'topbar'), bar = el('div', compact ? 'component-controls' : 'component-controls window-bar');
             top.append(button('Navbar', undefined, () => { window.topClicked = true; }));
             bar.append(button('Window tab', undefined, () => { window.tabClicked = true; }, 'component-tab'));
-            app.replaceChildren(top, bar);
+            app.replaceChildren(top, bar, el('main', 'workspace-viewport'));
             notify('Global first', detached); notify('Global second'); void startTransfer();
         }, compact);
         const global = page.locator('body > .notification-stack');
@@ -126,6 +126,19 @@ try {
         const bounded = await global.boundingBox();
         assert.ok(bounded.y + bounded.height <= viewport.height - 18, 'global stack keeps its bottom margin');
         await page.screenshot({ path: `test-results/notifications-${name}-global.png` });
+        for (const position of compact ? ['bottom'] : ['bottom', 'left', 'right']) {
+            await page.locator('#app').evaluate((node, position) => { node.dataset.panelPosition = position; node.classList.toggle('side-panel', position === 'left' || position === 'right'); }, position);
+            for (const hidden of [false, true]) {
+                await page.locator('.component-controls').evaluate((node, hidden) => node.hidden = hidden, hidden);
+                const stack = await global.boundingBox();
+                for (const selector of hidden ? ['.topbar'] : ['.topbar', '.component-controls']) {
+                    const rail = await page.locator(selector).boundingBox();
+                    assert.ok(stack.x + stack.width <= rail.x || stack.x >= rail.x + rail.width || stack.y + stack.height <= rail.y || stack.y >= rail.y + rail.height, `${position}: notifications never cover either rail`);
+                }
+                await page.getByRole('button', { name: 'Navbar', exact: true }).click();
+            }
+            await page.locator('.component-controls').evaluate(node => node.hidden = false);
+        }
         assert.deepEqual(errors, []);
         await page.close();
         console.log(`PASS ${name}: top placement, file/inspector toolbar clearance, mixed stacks, scoped routing, bottom input, scrolling, dismiss and cancel`);

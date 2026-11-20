@@ -914,6 +914,12 @@
     "howto.updatesBody": "在「{about}」視窗中檢查更新。您可以從使用者選單或點選頂端列的 Tuxee 標誌開啟此視窗。",
     "howto.updatesScreenshot": "顯示可用更新與更新指令的關於視窗",
     "howto.keyboardShortcutsTitle": "鍵盤快速鍵",
-    "howto.keyboardShortcutsBody": "您可以透過使用者選單中的{button}按鈕自訂鍵盤快速鍵。"
+    "howto.keyboardShortcutsBody": "您可以透過使用者選單中的{button}按鈕自訂鍵盤快速鍵。",
+    "settings.panelPosition": "面板位置",
+    "settings.panelTop": "頂部",
+    "settings.panelBottom": "底部",
+    "settings.panelLeft": "左側",
+    "settings.panelRight": "右側",
+    "settings.invalidPanelPosition": "面板位置無效"
   }
 }

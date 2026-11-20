@@ -914,6 +914,12 @@
     "howto.updatesBody": "Tikrinkite atnaujinimus lange „{about}“, kurį galite atverti iš naudotojo meniu arba spustelėję „Tuxee“ logotipą viršutinėje juostoje.",
     "howto.updatesScreenshot": "Informacijos langas su galimu atnaujinimu ir atnaujinimo komanda",
     "howto.keyboardShortcutsTitle": "Spartieji klavišai",
-    "howto.keyboardShortcutsBody": "Spartiuosius klavišus galite pritaikyti naudotojo meniu mygtuku {button}."
+    "howto.keyboardShortcutsBody": "Spartiuosius klavišus galite pritaikyti naudotojo meniu mygtuku {button}.",
+    "settings.panelPosition": "Skydelio vieta",
+    "settings.panelTop": "Viršuje",
+    "settings.panelBottom": "Apačioje",
+    "settings.panelLeft": "Kairėje",
+    "settings.panelRight": "Dešinėje",
+    "settings.invalidPanelPosition": "Neteisinga skydelio vieta"
   }
 }

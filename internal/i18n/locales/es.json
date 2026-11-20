@@ -914,6 +914,12 @@
     "howto.updatesBody": "Busca actualizaciones en la ventana {about}, que puedes abrir desde el menú de usuario o haciendo clic en el logotipo de Tuxee en la barra superior.",
     "howto.updatesScreenshot": "Ventana de información con una actualización disponible y el comando para actualizar",
     "howto.keyboardShortcutsTitle": "Atajos de teclado",
-    "howto.keyboardShortcutsBody": "Puedes personalizar los atajos de teclado con el botón {button} del menú de usuario."
+    "howto.keyboardShortcutsBody": "Puedes personalizar los atajos de teclado con el botón {button} del menú de usuario.",
+    "settings.panelPosition": "Posición del panel",
+    "settings.panelTop": "Arriba",
+    "settings.panelBottom": "Abajo",
+    "settings.panelLeft": "Izquierda",
+    "settings.panelRight": "Derecha",
+    "settings.invalidPanelPosition": "Posición del panel no válida"
   }
 }

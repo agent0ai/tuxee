@@ -914,6 +914,12 @@
     "howto.updatesBody": "사용자 메뉴 또는 상단 표시줄의 Tuxee 로고를 클릭해 {about} 창을 열고 업데이트를 확인하세요.",
     "howto.updatesScreenshot": "사용 가능한 업데이트와 업데이트 명령을 표시하는 정보 창",
     "howto.keyboardShortcutsTitle": "키보드 단축키",
-    "howto.keyboardShortcutsBody": "사용자 메뉴의 {button} 버튼으로 키보드 단축키를 원하는 대로 설정할 수 있습니다."
+    "howto.keyboardShortcutsBody": "사용자 메뉴의 {button} 버튼으로 키보드 단축키를 원하는 대로 설정할 수 있습니다.",
+    "settings.panelPosition": "패널 위치",
+    "settings.panelTop": "위",
+    "settings.panelBottom": "아래",
+    "settings.panelLeft": "왼쪽",
+    "settings.panelRight": "오른쪽",
+    "settings.invalidPanelPosition": "잘못된 패널 위치"
   }
 }

@@ -914,6 +914,12 @@
     "howto.updatesBody": "Kiểm tra bản cập nhật trong cửa sổ {about}, mở từ menu người dùng hoặc bằng cách nhấp vào logo Tuxee trên thanh trên cùng.",
     "howto.updatesScreenshot": "Cửa sổ giới thiệu hiển thị bản cập nhật có sẵn và lệnh cập nhật",
     "howto.keyboardShortcutsTitle": "Phím tắt",
-    "howto.keyboardShortcutsBody": "Bạn có thể tùy chỉnh phím tắt bằng nút {button} trong menu người dùng."
+    "howto.keyboardShortcutsBody": "Bạn có thể tùy chỉnh phím tắt bằng nút {button} trong menu người dùng.",
+    "settings.panelPosition": "Vị trí bảng",
+    "settings.panelTop": "Trên",
+    "settings.panelBottom": "Dưới",
+    "settings.panelLeft": "Trái",
+    "settings.panelRight": "Phải",
+    "settings.invalidPanelPosition": "Vị trí bảng không hợp lệ"
   }
 }

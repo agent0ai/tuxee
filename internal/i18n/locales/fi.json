@@ -914,6 +914,12 @@
     "howto.updatesBody": "Tarkista päivitykset {about}-ikkunasta, jonka voit avata käyttäjävalikosta tai napsauttamalla Tuxeen logoa yläpalkissa.",
     "howto.updatesScreenshot": "Tietoja-ikkuna, jossa näkyvät saatavilla oleva päivitys ja päivityskomento",
     "howto.keyboardShortcutsTitle": "Pikanäppäimet",
-    "howto.keyboardShortcutsBody": "Voit mukauttaa pikanäppäimiä käyttäjävalikon {button}-painikkeella."
+    "howto.keyboardShortcutsBody": "Voit mukauttaa pikanäppäimiä käyttäjävalikon {button}-painikkeella.",
+    "settings.panelPosition": "Paneelin sijainti",
+    "settings.panelTop": "Ylhäällä",
+    "settings.panelBottom": "Alhaalla",
+    "settings.panelLeft": "Vasemmalla",
+    "settings.panelRight": "Oikealla",
+    "settings.invalidPanelPosition": "Virheellinen paneelin sijainti"
   }
 }

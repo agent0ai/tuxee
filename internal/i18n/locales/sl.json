@@ -914,6 +914,12 @@
     "howto.updatesBody": "Preverite posodobitve v oknu »{about}«, ki ga odprete v uporabniškem meniju ali s klikom na logotip Tuxee v zgornji vrstici.",
     "howto.updatesScreenshot": "Okno z informacijami, razpoložljivo posodobitvijo in ukazom za posodobitev",
     "howto.keyboardShortcutsTitle": "Bližnjice na tipkovnici",
-    "howto.keyboardShortcutsBody": "Bližnjice na tipkovnici lahko prilagodite z gumbom {button} v uporabniškem meniju."
+    "howto.keyboardShortcutsBody": "Bližnjice na tipkovnici lahko prilagodite z gumbom {button} v uporabniškem meniju.",
+    "settings.panelPosition": "Položaj plošče",
+    "settings.panelTop": "Zgoraj",
+    "settings.panelBottom": "Spodaj",
+    "settings.panelLeft": "Levo",
+    "settings.panelRight": "Desno",
+    "settings.invalidPanelPosition": "Neveljaven položaj plošče"
   }
 }

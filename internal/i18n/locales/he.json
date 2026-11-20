@@ -914,6 +914,12 @@
     "howto.updatesBody": "בדקו אם יש עדכונים בחלון „{about}”, שניתן לפתוח מתפריט המשתמש או בלחיצה על סמל Tuxee בסרגל העליון.",
     "howto.updatesScreenshot": "חלון אודות המציג עדכון זמין ואת פקודת העדכון",
     "howto.keyboardShortcutsTitle": "קיצורי מקלדת",
-    "howto.keyboardShortcutsBody": "אפשר להתאים אישית את קיצורי המקלדת באמצעות הכפתור {button} בתפריט המשתמש."
+    "howto.keyboardShortcutsBody": "אפשר להתאים אישית את קיצורי המקלדת באמצעות הכפתור {button} בתפריט המשתמש.",
+    "settings.panelPosition": "מיקום הלוח",
+    "settings.panelTop": "למעלה",
+    "settings.panelBottom": "למטה",
+    "settings.panelLeft": "שמאל",
+    "settings.panelRight": "ימין",
+    "settings.invalidPanelPosition": "מיקום הלוח אינו תקין"
   }
 }

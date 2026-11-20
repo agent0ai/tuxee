@@ -914,6 +914,12 @@
     "howto.updatesBody": "در پنجرهٔ «{about}» وجود به‌روزرسانی را بررسی کنید. این پنجره را از منوی کاربر یا با کلیک روی نشان Tuxee در نوار بالا باز کنید.",
     "howto.updatesScreenshot": "پنجرهٔ درباره با نمایش به‌روزرسانی موجود و فرمان به‌روزرسانی",
     "howto.keyboardShortcutsTitle": "میان‌برهای صفحه‌کلید",
-    "howto.keyboardShortcutsBody": "می‌توانید میان‌برهای صفحه‌کلید را با دکمهٔ {button} در منوی کاربر شخصی‌سازی کنید."
+    "howto.keyboardShortcutsBody": "می‌توانید میان‌برهای صفحه‌کلید را با دکمهٔ {button} در منوی کاربر شخصی‌سازی کنید.",
+    "settings.panelPosition": "موقعیت پنل",
+    "settings.panelTop": "بالا",
+    "settings.panelBottom": "پایین",
+    "settings.panelLeft": "چپ",
+    "settings.panelRight": "راست",
+    "settings.invalidPanelPosition": "موقعیت پنل نامعتبر است"
   }
 }

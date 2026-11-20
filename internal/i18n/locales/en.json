@@ -914,6 +914,12 @@
     "howto.updatesBody": "Check for updates in the {about} window, which you can open from the user menu or by clicking the Tuxee logo in the top bar.",
     "howto.updatesScreenshot": "About window showing an available update and the update command",
     "howto.keyboardShortcutsTitle": "Keyboard shortcuts",
-    "howto.keyboardShortcutsBody": "You can customize keyboard shortcuts with the {button} button in the user menu."
+    "howto.keyboardShortcutsBody": "You can customize keyboard shortcuts with the {button} button in the user menu.",
+    "settings.panelPosition": "Panel position",
+    "settings.panelTop": "Top",
+    "settings.panelBottom": "Bottom",
+    "settings.panelLeft": "Left",
+    "settings.panelRight": "Right",
+    "settings.invalidPanelPosition": "Invalid panel position"
   }
 }

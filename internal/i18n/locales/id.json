@@ -914,6 +914,12 @@
     "howto.updatesBody": "Periksa pembaruan di jendela {about}, yang dapat dibuka dari menu pengguna atau dengan mengeklik logo Tuxee di bilah atas.",
     "howto.updatesScreenshot": "Jendela Tentang yang menampilkan pembaruan tersedia dan perintah pembaruan",
     "howto.keyboardShortcutsTitle": "Pintasan papan ketik",
-    "howto.keyboardShortcutsBody": "Anda dapat menyesuaikan pintasan papan ketik dengan tombol {button} di menu pengguna."
+    "howto.keyboardShortcutsBody": "Anda dapat menyesuaikan pintasan papan ketik dengan tombol {button} di menu pengguna.",
+    "settings.panelPosition": "Posisi panel",
+    "settings.panelTop": "Atas",
+    "settings.panelBottom": "Bawah",
+    "settings.panelLeft": "Kiri",
+    "settings.panelRight": "Kanan",
+    "settings.invalidPanelPosition": "Posisi panel tidak valid"
   }
 }

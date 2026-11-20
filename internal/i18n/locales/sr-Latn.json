@@ -914,6 +914,12 @@
     "howto.updatesBody": "Proverite ažuriranja u prozoru „{about}”, koji možete otvoriti iz korisničkog menija ili klikom na logotip Tuxee u gornjoj traci.",
     "howto.updatesScreenshot": "Prozor sa informacijama o aplikaciji, dostupnim ažuriranjem i komandom za ažuriranje",
     "howto.keyboardShortcutsTitle": "Prečice na tastaturi",
-    "howto.keyboardShortcutsBody": "Prečice na tastaturi možete prilagoditi dugmetom {button} u korisničkom meniju."
+    "howto.keyboardShortcutsBody": "Prečice na tastaturi možete prilagoditi dugmetom {button} u korisničkom meniju.",
+    "settings.panelPosition": "Položaj panela",
+    "settings.panelTop": "Gore",
+    "settings.panelBottom": "Dole",
+    "settings.panelLeft": "Levo",
+    "settings.panelRight": "Desno",
+    "settings.invalidPanelPosition": "Nevažeći položaj panela"
   }
 }

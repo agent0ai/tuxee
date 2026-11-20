@@ -914,6 +914,12 @@
     "howto.updatesBody": "Comprova si hi ha actualitzacions a la finestra «{about}», que pots obrir des del menú d’usuari o fent clic al logotip de Tuxee a la barra superior.",
     "howto.updatesScreenshot": "Finestra d’informació amb una actualització disponible i l’ordre per actualitzar",
     "howto.keyboardShortcutsTitle": "Dreceres de teclat",
-    "howto.keyboardShortcutsBody": "Pots personalitzar les dreceres de teclat amb el botó {button} del menú d’usuari."
+    "howto.keyboardShortcutsBody": "Pots personalitzar les dreceres de teclat amb el botó {button} del menú d’usuari.",
+    "settings.panelPosition": "Posició del tauler",
+    "settings.panelTop": "A dalt",
+    "settings.panelBottom": "A baix",
+    "settings.panelLeft": "A l’esquerra",
+    "settings.panelRight": "A la dreta",
+    "settings.invalidPanelPosition": "La posició del tauler no és vàlida"
   }
 }

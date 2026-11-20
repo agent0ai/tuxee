@@ -914,6 +914,12 @@
     "howto.updatesBody": "ตรวจสอบการอัปเดตในหน้าต่าง {about} ซึ่งเปิดได้จากเมนูผู้ใช้หรือคลิกโลโก้ Tuxee บนแถบด้านบน",
     "howto.updatesScreenshot": "หน้าต่างเกี่ยวกับที่แสดงการอัปเดตที่พร้อมใช้งานและคำสั่งอัปเดต",
     "howto.keyboardShortcutsTitle": "แป้นพิมพ์ลัด",
-    "howto.keyboardShortcutsBody": "คุณปรับแต่งแป้นพิมพ์ลัดได้ด้วยปุ่ม {button} ในเมนูผู้ใช้"
+    "howto.keyboardShortcutsBody": "คุณปรับแต่งแป้นพิมพ์ลัดได้ด้วยปุ่ม {button} ในเมนูผู้ใช้",
+    "settings.panelPosition": "ตำแหน่งแผง",
+    "settings.panelTop": "ด้านบน",
+    "settings.panelBottom": "ด้านล่าง",
+    "settings.panelLeft": "ด้านซ้าย",
+    "settings.panelRight": "ด้านขวา",
+    "settings.invalidPanelPosition": "ตำแหน่งแผงไม่ถูกต้อง"
   }
 }

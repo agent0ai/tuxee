@@ -914,6 +914,12 @@
     "howto.updatesBody": "Sök efter uppdateringar i fönstret {about}, som du öppnar via användarmenyn eller genom att klicka på Tuxee-logotypen i översta fältet.",
     "howto.updatesScreenshot": "Om-fönster med en tillgänglig uppdatering och uppdateringskommandot",
     "howto.keyboardShortcutsTitle": "Kortkommandon",
-    "howto.keyboardShortcutsBody": "Du kan anpassa kortkommandon med knappen {button} i användarmenyn."
+    "howto.keyboardShortcutsBody": "Du kan anpassa kortkommandon med knappen {button} i användarmenyn.",
+    "settings.panelPosition": "Panelplacering",
+    "settings.panelTop": "Överst",
+    "settings.panelBottom": "Nederst",
+    "settings.panelLeft": "Vänster",
+    "settings.panelRight": "Höger",
+    "settings.invalidPanelPosition": "Ogiltig panelplacering"
   }
 }

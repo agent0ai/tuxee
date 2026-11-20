@@ -35,6 +35,8 @@ export type Settings = {
     defaultDirectory?: string;
     serverName?: string;
     serverColor?: string;
+    panelPosition?: 'top' | 'bottom' | 'left' | 'right';
+    mobilePanelPosition?: 'top' | 'bottom';
     terminalBackground?: string;
     terminalBackgroundLight?: string;
     terminalFontSize?: number;

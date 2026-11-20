@@ -914,6 +914,12 @@
     "howto.updatesBody": "Leitaðu að uppfærslum í glugganum „{about}“, sem þú opnar í notandavalmyndinni eða með því að smella á Tuxee-merkið á efri stikunni.",
     "howto.updatesScreenshot": "Upplýsingagluggi með tiltækri uppfærslu og uppfærsluskipuninni",
     "howto.keyboardShortcutsTitle": "Flýtilyklar",
-    "howto.keyboardShortcutsBody": "Þú getur sérsniðið flýtilykla með hnappinum {button} í notandavalmyndinni."
+    "howto.keyboardShortcutsBody": "Þú getur sérsniðið flýtilykla með hnappinum {button} í notandavalmyndinni.",
+    "settings.panelPosition": "Staðsetning spjalds",
+    "settings.panelTop": "Efst",
+    "settings.panelBottom": "Neðst",
+    "settings.panelLeft": "Vinstri",
+    "settings.panelRight": "Hægri",
+    "settings.invalidPanelPosition": "Ógild staðsetning spjalds"
   }
 }

@@ -48,6 +48,43 @@ func TestCommandShortcutSettings(t *testing.T) {
 	}
 }
 
+func TestPanelPositionSettings(t *testing.T) {
+	for _, position := range []string{"", "top", "bottom", "left", "right", "center", "LEFT", " left", "top;display:none"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, PanelPosition: position}
+		valid := position == "" || position == "top" || position == "bottom" || position == "left" || position == "right"
+		if err := validateSettings(&value); (err == nil) != valid {
+			t.Fatalf("position %q: %v", position, err)
+		}
+		if err := migrateSettings(&value); (err == nil) != valid {
+			t.Fatalf("loaded position %q: %v", position, err)
+		}
+		if valid {
+			data, err := json.Marshal(value)
+			var restored Settings
+			if err != nil || json.Unmarshal(data, &restored) != nil || restored.PanelPosition != position {
+				t.Fatalf("position %q did not round-trip", position)
+			}
+		}
+	}
+	for _, position := range []string{"", "top", "bottom", "left", "right", "center"} {
+		value := Settings{Theme: "dark", Workspaces: []Workspace{}, PanelPosition: "right", MobilePanelPosition: position}
+		valid := position == "" || position == "top" || position == "bottom"
+		if err := validateSettings(&value); (err == nil) != valid {
+			t.Fatalf("mobile position %q: %v", position, err)
+		}
+		if err := migrateSettings(&value); (err == nil) != valid {
+			t.Fatalf("loaded mobile position %q: %v", position, err)
+		}
+		if valid {
+			data, err := json.Marshal(value)
+			var restored Settings
+			if err != nil || json.Unmarshal(data, &restored) != nil || restored.MobilePanelPosition != position || restored.PanelPosition != "right" {
+				t.Fatalf("mobile position %q changed desktop preference", position)
+			}
+		}
+	}
+}
+
 func TestHowToSeenSettings(t *testing.T) {
 	for _, raw := range []string{`{}`, `{"howToSeen":null}`, `{"howToSeen":false}`, `{"howToSeen":true}`, `{"howToSeen":"true"}`, `{"howToSeen":1}`} {
 		settings := Settings{Theme: "dark", Workspaces: []Workspace{}}

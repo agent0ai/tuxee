@@ -914,6 +914,12 @@
     "howto.updatesBody": "Caută actualizări în fereastra {about}, pe care o poți deschide din meniul utilizatorului sau apăsând pe sigla Tuxee din bara de sus.",
     "howto.updatesScreenshot": "Fereastra Despre cu o actualizare disponibilă și comanda de actualizare",
     "howto.keyboardShortcutsTitle": "Comenzi rapide",
-    "howto.keyboardShortcutsBody": "Poți personaliza comenzile rapide de la tastatură folosind butonul {button} din meniul utilizatorului."
+    "howto.keyboardShortcutsBody": "Poți personaliza comenzile rapide de la tastatură folosind butonul {button} din meniul utilizatorului.",
+    "settings.panelPosition": "Poziția panoului",
+    "settings.panelTop": "Sus",
+    "settings.panelBottom": "Jos",
+    "settings.panelLeft": "Stânga",
+    "settings.panelRight": "Dreapta",
+    "settings.invalidPanelPosition": "Poziție nevalidă a panoului"
   }
 }

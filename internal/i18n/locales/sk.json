@@ -914,6 +914,12 @@
     "howto.updatesBody": "Aktualizácie skontrolujete v okne „{about}“, ktoré otvoríte z ponuky používateľa alebo kliknutím na logo Tuxee v hornej lište.",
     "howto.updatesScreenshot": "Okno s informáciami o aplikácii, dostupnou aktualizáciou a príkazom na aktualizáciu",
     "howto.keyboardShortcutsTitle": "Klávesové skratky",
-    "howto.keyboardShortcutsBody": "Klávesové skratky si môžete prispôsobiť tlačidlom {button} v ponuke používateľa."
+    "howto.keyboardShortcutsBody": "Klávesové skratky si môžete prispôsobiť tlačidlom {button} v ponuke používateľa.",
+    "settings.panelPosition": "Umiestnenie panela",
+    "settings.panelTop": "Hore",
+    "settings.panelBottom": "Dole",
+    "settings.panelLeft": "Vľavo",
+    "settings.panelRight": "Vpravo",
+    "settings.invalidPanelPosition": "Neplatné umiestnenie panela"
   }
 }

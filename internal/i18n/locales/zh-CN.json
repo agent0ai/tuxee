@@ -914,6 +914,12 @@
     "howto.updatesBody": "在“{about}”窗口中检查更新。你可以从用户菜单或点击顶部栏的 Tuxee 标志打开该窗口。",
     "howto.updatesScreenshot": "显示可用更新和更新命令的关于窗口",
     "howto.keyboardShortcutsTitle": "键盘快捷键",
-    "howto.keyboardShortcutsBody": "你可以通过用户菜单中的{button}按钮自定义键盘快捷键。"
+    "howto.keyboardShortcutsBody": "你可以通过用户菜单中的{button}按钮自定义键盘快捷键。",
+    "settings.panelPosition": "面板位置",
+    "settings.panelTop": "顶部",
+    "settings.panelBottom": "底部",
+    "settings.panelLeft": "左侧",
+    "settings.panelRight": "右侧",
+    "settings.invalidPanelPosition": "面板位置无效"
   }
 }

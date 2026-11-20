@@ -914,6 +914,12 @@
     "howto.updatesBody": "Controleer op updates in het venster {about}, dat je opent via het gebruikersmenu of door op het Tuxee-logo in de bovenbalk te klikken.",
     "howto.updatesScreenshot": "Over-venster met een beschikbare update en de opdracht om bij te werken",
     "howto.keyboardShortcutsTitle": "Sneltoetsen",
-    "howto.keyboardShortcutsBody": "Je kunt sneltoetsen aanpassen met de knop {button} in het gebruikersmenu."
+    "howto.keyboardShortcutsBody": "Je kunt sneltoetsen aanpassen met de knop {button} in het gebruikersmenu.",
+    "settings.panelPosition": "Paneelpositie",
+    "settings.panelTop": "Boven",
+    "settings.panelBottom": "Onder",
+    "settings.panelLeft": "Links",
+    "settings.panelRight": "Rechts",
+    "settings.invalidPanelPosition": "Ongeldige paneelpositie"
   }
 }

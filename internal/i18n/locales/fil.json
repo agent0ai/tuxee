@@ -914,6 +914,12 @@
     "howto.updatesBody": "Tingnan kung may mga update sa window ng {about}, na mabubuksan mula sa menu ng user o sa pag-click sa logo ng Tuxee sa itaas na bar.",
     "howto.updatesScreenshot": "Window ng impormasyon na may available na update at utos para mag-update",
     "howto.keyboardShortcutsTitle": "Mga keyboard shortcut",
-    "howto.keyboardShortcutsBody": "Maaari mong i-customize ang mga keyboard shortcut gamit ang button na {button} sa menu ng user."
+    "howto.keyboardShortcutsBody": "Maaari mong i-customize ang mga keyboard shortcut gamit ang button na {button} sa menu ng user.",
+    "settings.panelPosition": "Puwesto ng panel",
+    "settings.panelTop": "Itaas",
+    "settings.panelBottom": "Ibaba",
+    "settings.panelLeft": "Kaliwa",
+    "settings.panelRight": "Kanan",
+    "settings.invalidPanelPosition": "Hindi wastong puwesto ng panel"
   }
 }

@@ -914,6 +914,12 @@
     "howto.updatesBody": "Проверяйте обновления в окне «{about}», которое можно открыть из меню пользователя или нажатием на логотип Tuxee на верхней панели.",
     "howto.updatesScreenshot": "Окно сведений с доступным обновлением и командой обновления",
     "howto.keyboardShortcutsTitle": "Сочетания клавиш",
-    "howto.keyboardShortcutsBody": "Вы можете настроить сочетания клавиш с помощью кнопки {button} в меню пользователя."
+    "howto.keyboardShortcutsBody": "Вы можете настроить сочетания клавиш с помощью кнопки {button} в меню пользователя.",
+    "settings.panelPosition": "Расположение панели",
+    "settings.panelTop": "Сверху",
+    "settings.panelBottom": "Снизу",
+    "settings.panelLeft": "Слева",
+    "settings.panelRight": "Справа",
+    "settings.invalidPanelPosition": "Недопустимое расположение панели"
   }
 }

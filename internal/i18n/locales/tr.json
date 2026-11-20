@@ -914,6 +914,12 @@
     "howto.updatesBody": "Kullanıcı menüsünden veya üst çubuktaki Tuxee logosuna tıklayarak açabileceğiniz {about} penceresinde güncellemeleri kontrol edin.",
     "howto.updatesScreenshot": "Kullanılabilir güncellemeyi ve güncelleme komutunu gösteren Hakkında penceresi",
     "howto.keyboardShortcutsTitle": "Klavye kısayolları",
-    "howto.keyboardShortcutsBody": "Klavye kısayollarını kullanıcı menüsündeki {button} düğmesiyle özelleştirebilirsiniz."
+    "howto.keyboardShortcutsBody": "Klavye kısayollarını kullanıcı menüsündeki {button} düğmesiyle özelleştirebilirsiniz.",
+    "settings.panelPosition": "Panel konumu",
+    "settings.panelTop": "Üst",
+    "settings.panelBottom": "Alt",
+    "settings.panelLeft": "Sol",
+    "settings.panelRight": "Sağ",
+    "settings.invalidPanelPosition": "Geçersiz panel konumu"
   }
 }

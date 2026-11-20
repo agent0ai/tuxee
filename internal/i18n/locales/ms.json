@@ -914,6 +914,12 @@
     "howto.updatesBody": "Semak kemas kini dalam tetingkap {about}, yang boleh dibuka melalui menu pengguna atau dengan mengklik logo Tuxee di bar atas.",
     "howto.updatesScreenshot": "Tetingkap Perihal yang menunjukkan kemas kini tersedia dan arahan kemas kini",
     "howto.keyboardShortcutsTitle": "Pintasan papan kekunci",
-    "howto.keyboardShortcutsBody": "Anda boleh menyesuaikan pintasan papan kekunci dengan butang {button} dalam menu pengguna."
+    "howto.keyboardShortcutsBody": "Anda boleh menyesuaikan pintasan papan kekunci dengan butang {button} dalam menu pengguna.",
+    "settings.panelPosition": "Kedudukan panel",
+    "settings.panelTop": "Atas",
+    "settings.panelBottom": "Bawah",
+    "settings.panelLeft": "Kiri",
+    "settings.panelRight": "Kanan",
+    "settings.invalidPanelPosition": "Kedudukan panel tidak sah"
   }
 }

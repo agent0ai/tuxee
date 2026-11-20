@@ -914,6 +914,12 @@
     "howto.updatesBody": "Kontrolli uuendusi aknas „{about}”, mille saad avada kasutajamenüüst või klõpsates Tuxee logol ülaribal.",
     "howto.updatesScreenshot": "Teabeaken saadaoleva uuenduse ja uuenduskäsuga",
     "howto.keyboardShortcutsTitle": "Kiirklahvid",
-    "howto.keyboardShortcutsBody": "Saad kiirklahve kohandada kasutajamenüü nupuga {button}."
+    "howto.keyboardShortcutsBody": "Saad kiirklahve kohandada kasutajamenüü nupuga {button}.",
+    "settings.panelPosition": "Paneeli asukoht",
+    "settings.panelTop": "Ülal",
+    "settings.panelBottom": "All",
+    "settings.panelLeft": "Vasakul",
+    "settings.panelRight": "Paremal",
+    "settings.invalidPanelPosition": "Vigane paneeli asukoht"
   }
 }

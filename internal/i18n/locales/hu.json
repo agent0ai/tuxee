@@ -914,6 +914,12 @@
     "howto.updatesBody": "A „{about}” ablakban kereshetsz frissítéseket. A felhasználói menüből vagy a felső sáv Tuxee-logójára kattintva nyithatod meg.",
     "howto.updatesScreenshot": "Névjegyablak egy elérhető frissítéssel és a frissítési paranccsal",
     "howto.keyboardShortcutsTitle": "Billentyűparancsok",
-    "howto.keyboardShortcutsBody": "A billentyűparancsokat a felhasználói menü {button} gombjával szabhatod testre."
+    "howto.keyboardShortcutsBody": "A billentyűparancsokat a felhasználói menü {button} gombjával szabhatod testre.",
+    "settings.panelPosition": "Panel helye",
+    "settings.panelTop": "Felül",
+    "settings.panelBottom": "Alul",
+    "settings.panelLeft": "Balra",
+    "settings.panelRight": "Jobbra",
+    "settings.invalidPanelPosition": "Érvénytelen panelhely"
   }
 }

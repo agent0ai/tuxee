@@ -914,6 +914,12 @@
     "howto.updatesBody": "ユーザーメニューまたは上部バーのTuxeeロゴから「{about}」を開き、更新を確認できます。",
     "howto.updatesScreenshot": "利用可能な更新と更新コマンドを表示する情報ウィンドウ",
     "howto.keyboardShortcutsTitle": "キーボードショートカット",
-    "howto.keyboardShortcutsBody": "ユーザーメニューの{button}ボタンでキーボードショートカットをカスタマイズできます。"
+    "howto.keyboardShortcutsBody": "ユーザーメニューの{button}ボタンでキーボードショートカットをカスタマイズできます。",
+    "settings.panelPosition": "パネルの位置",
+    "settings.panelTop": "上",
+    "settings.panelBottom": "下",
+    "settings.panelLeft": "左",
+    "settings.panelRight": "右",
+    "settings.invalidPanelPosition": "パネルの位置が無効です"
   }
 }

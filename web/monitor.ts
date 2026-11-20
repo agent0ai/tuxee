@@ -23,6 +23,7 @@ export class Monitoring {
     private request?: AbortController;
     private events = new AbortController();
     private header?: HTMLButtonElement;
+    private verticalHeader = false;
     private dialog?: HTMLDialogElement;
     private details?: HTMLElement;
     private configuring = false;
@@ -49,7 +50,8 @@ export class Monitoring {
         this.paint();
         this.timer = setTimeout(() => this.poll(), this.preferences.interval * 1000);
     }
-    summary(): HTMLButtonElement {
+    summary(vertical = false): HTMLButtonElement {
+        this.verticalHeader = vertical;
         const control = button(t("app.resourceMonitor"), undefined, () => this.open(), 'monitor-summary');
         control.setAttribute('aria-haspopup', 'dialog');
         this.header = control;
@@ -118,7 +120,7 @@ export class Monitoring {
         control.title = this.error || metrics.map(item => `${item.label}: ${item.kind === 'cpu' ? item.value : item.detail}${item.cache ? ` · ${item.cache.text}` : ''}`).join(' · ') || t("app.resourceMonitor");
         control.setAttribute('aria-description', control.title);
         const strip = el('span', 'monitor-strip');
-        const visible = innerWidth <= 1100 ? 3 : 4;
+        const visible = this.verticalHeader || innerWidth > 1100 ? 4 : 3;
         for (const item of metrics.slice(0, visible)) strip.append(this.widget(item));
         if (!metrics.length) strip.append(icon('Activity'));
         if (metrics.length > visible) strip.append(el('span', 'monitor-more', `+${metrics.length - visible}`));
