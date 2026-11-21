@@ -229,15 +229,24 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
     content.showPopover();
     const rect = anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : undefined;
     const centered = centerOn?.getBoundingClientRect();
+    const maxHeight = content.style.maxHeight;
     let left = rect
         ? centered ? rect.left + rect.width / 2 - (centered.left + centered.width / 2 - content.getBoundingClientRect().left) : rect.right - content.offsetWidth
         : (anchor as { x: number }).x;
     let top = rect ? rect.bottom + 4 : (anchor as { y: number }).y;
     const panel = control?.closest<HTMLElement>('.topbar, .component-controls');
     if (parent && control) {
-        const bounds = parent.getBoundingClientRect();
+        const bounds = parent.getBoundingClientRect(), opener = control.getBoundingClientRect();
         left = bounds.right + content.offsetWidth + 4 <= innerWidth ? bounds.right + 4 : bounds.left - content.offsetWidth - 4;
-        top = control.getBoundingClientRect().top;
+        top = opener.top;
+        if (left < 4) {
+            // Narrow screens cannot fit both menus beside each other; keep the opener tappable.
+            const below = innerHeight - opener.bottom - 8, above = opener.top - 8;
+            const down = content.offsetHeight <= below || below >= above;
+            content.style.maxHeight = `${Math.min(content.offsetHeight, down ? below : above)}px`;
+            left = opener.right - content.offsetWidth;
+            top = down ? opener.bottom + 4 : opener.top - content.offsetHeight - 4;
+        }
     } else if (panel) {
         const edge = panel.closest<HTMLElement>('#app')?.dataset.panelPosition, bounds = panel.getBoundingClientRect();
         if (edge === 'left' || edge === 'right') {
@@ -254,7 +263,7 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
         popovers.pop();
         if (content.contains(document.activeElement)) (control || returnFocus)?.focus({ preventScroll: true });
         if (content.matches(':popover-open')) content.hidePopover();
-        content.remove(); events.abort(); control?.setAttribute('aria-expanded', 'false');
+        content.remove(); content.style.maxHeight = maxHeight; events.abort(); control?.setAttribute('aria-expanded', 'false');
     };
     document.addEventListener('pointerdown', event => {
         if (!content.contains(event.target as Node) && !control?.contains(event.target as Node)) close();

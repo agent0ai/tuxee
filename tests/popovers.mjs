@@ -13,7 +13,7 @@ const bundle = await build({ stdin: { contents: `
         first.onclick = () => open(first, label + '-child', true);
         next.onclick = () => open(next, label + '-sibling');
         const rect = anchor.getBoundingClientRect();
-        return popover(pointed ? {x: rect.right + 5, y: rect.top} : anchor, menu, anchor);
+        return popover(pointed ? {x: rect.right + 5, y: rect.top, opener: window.pointedOpeners ? anchor : undefined} : anchor, menu, anchor);
     }
     root.onclick = () => window.rootMenu = open(root, 'root');
     unrelated.onclick = () => open(unrelated, 'unrelated');
@@ -75,6 +75,23 @@ try {
     await button('Overflow').click(); await button('root first').click();
     await page.evaluate(() => { document.querySelector('#root').remove(); rootMenu.close(); });
     await button('Unrelated').click(); await count(1);
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.pointedOpeners = true);
+    await page.addStyleTag({ content: '.popover-menu { box-sizing:border-box; width:190px; max-height:calc(100vh - 8px); overflow-y:auto } .popover-menu > button { width:100%; height:36px } #root > .popover-menu > button { height:120px } [aria-label=Overflow] { position:fixed; left:4px }' });
+    for (const width of [320, 390]) for (const top of [8, 250]) {
+        await page.setViewportSize({ width, height: 320 });
+        await button('Overflow').evaluate((node, top) => node.style.top = `${top}px`, top);
+        await button('Overflow').tap();
+        for (const name of ['root first', 'root next']) {
+            const opener = button(name);
+            await opener.tap(); await count(2);
+            const control = await opener.boundingBox(), child = await page.locator('#root > .popover-menu').boundingBox();
+            assert.ok(child.x + child.width <= control.x || child.x >= control.x + control.width || child.y + child.height <= control.y || child.y >= control.y + control.height, 'narrow nested menus keep their opener uncovered');
+            assert.ok(child.y >= 4 && child.y + child.height <= 316, 'nested menu stays inside the short viewport');
+            await opener.tap(); await count(1);
+        }
+        await page.keyboard.press('Escape'); await count(0);
+    }
     assert.deepEqual(errors, []);
     console.log('PASS nested popovers: parents, siblings, keyboard/focus, outside click, resize and disposal');
 } finally { await browser.close(); }
