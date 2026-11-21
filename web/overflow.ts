@@ -13,7 +13,7 @@ export function fittingHeaderItemCount(
   if (allItemsWidth <= availableWidth) return itemWidths.length;
   const visibleWidth = Math.max(
     0,
-    availableWidth - overflowToggleWidth - gap,
+    availableWidth - overflowToggleWidth - (overflowToggleWidth ? gap : 0),
   );
   let used = 0;
   let visible = 0;
@@ -29,13 +29,15 @@ export function fittingHeaderItemCount(
 
 const strips = new WeakMap<HTMLElement, { visible: HTMLElement; menu: HTMLElement; more: HTMLElement; items: HTMLElement[]; fit: (allocated?: boolean) => void }>();
 
-export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: string, reorder?: (items: HTMLElement[]) => void) {
+export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: string, reorder?: (items: HTMLElement[]) => void, trailing?: HTMLElement) {
     const visible = el('div', 'visible-tabs'), menu = el('div', 'overflow-tabs');
     const vertical = host.classList.contains('vertical-tabs');
     let close = () => {}, frame = 0;
     const more = button(label, 'Ellipsis', () => { ({ close } = popover(more, menu)); });
     more.className = 'overflow-toggle'; more.setAttribute('aria-haspopup', 'menu');
-    host.append(visible, more);
+    const actions = trailing && el('div', 'workspace-tab-actions');
+    if (actions) { actions.append(more, trailing!); host.append(visible, actions); }
+    else host.append(visible, more);
     strips.set(host, { visible, menu, more, items, fit });
     let dragging: ReturnType<typeof reorderTabs> | undefined;
     let bound: HTMLElement[] = [];
@@ -49,6 +51,8 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         if ((host.classList.contains('tab-drag-host') || host.querySelector('.tab-drag-host')) && bound.length === items.length && items.every(item => bound.includes(item))) return;
         const nested = host.querySelector<HTMLElement>('.vertical-tabs');
         const child = nested && strips.get(nested);
+        const active = items.find(item => item.classList.contains('active'));
+        let candidates = items;
         const focused = host.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined;
         dragging?.cancel();
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
@@ -58,7 +62,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         }
         close();
         // A speculative ellipsis would shrink the nested list before measuring its space.
-        visible.replaceChildren(...items); more.hidden = vertical;
+        visible.replaceChildren(...candidates); more.hidden = vertical;
         // Let CSS size both lists from their rows; fixed requested heights leave gaps and round down at browser zoom.
         if (vertical && child) {
             child.visible.replaceChildren(...child.items); child.more.hidden = true;
@@ -67,29 +71,40 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
             const transform = getComputedStyle(item).transform;
             return item.getBoundingClientRect().top - (transform === 'none' ? 0 : new DOMMatrix(transform).m42);
         };
-        const gap = vertical && items.length > 1 ? layoutTop(items[1]) - layoutTop(items[0]) - items[0].getBoundingClientRect().height : 4;
-        let widths = items.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
-        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) + .001
+        const gap = vertical && candidates.length > 1 ? layoutTop(candidates[1]) - layoutTop(candidates[0]) - candidates[0].getBoundingClientRect().height : 4;
+        let widths = candidates.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
+        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + gap : 0) + .001
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        if (vertical && widths.reduce((sum, size) => sum + size, 0) + gap * Math.max(0, items.length - 1) > available) {
-            more.hidden = false;
-            widths = items.map(item => item.getBoundingClientRect().height);
+        if (vertical && child?.items.length && active) {
+            const last = child.items.at(-1)!;
+            let needed = widths.reduce((sum, size) => sum + size, 0) + gap * (items.length - 1)
+                + Math.max(0, layoutTop(last) + last.getBoundingClientRect().height - child.visible.getBoundingClientRect().bottom);
+            let end = items.length;
+            // Only overflow later desktops when they would take space needed by the windows.
+            while (end > items.indexOf(active) + 2 && needed > available) needed -= widths[--end] + gap;
+            candidates = items.slice(0, end);
+            visible.replaceChildren(...candidates);
+            widths = candidates.map(item => item.getBoundingClientRect().height);
         }
-        const toggleSize = vertical ? more.getBoundingClientRect().height : more.offsetWidth;
+        if (vertical && widths.reduce((sum, size) => sum + size, 0) + gap * Math.max(0, candidates.length - 1) > available) {
+            more.hidden = false;
+            widths = candidates.map(item => item.getBoundingClientRect().height);
+        }
+        const toggleSize = actions ? 0 : vertical ? more.getBoundingClientRect().height : more.offsetWidth;
         const count = fittingHeaderItemCount(widths, available, toggleSize, gap);
-        const kept = new Set(items.slice(0, count));
-        const active = items.find(item => item.classList.contains('active'));
+        const kept = new Set(candidates.slice(0, count));
         const priority = active ? [active] : [];
         const following = active && vertical && host.classList.contains('workspace-tabs') ? items[items.indexOf(active) + 1] : undefined;
         if (following) priority.push(following);
         for (const item of priority) if (!kept.has(item)) {
             let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + gap, 0);
-            while (kept.size && used + widths[items.indexOf(item)] + toggleSize + gap > available) {
+            const reserve = actions ? 0 : toggleSize + gap;
+            while (kept.size && used + widths[items.indexOf(item)] + reserve > available) {
                 const last = [...kept].reverse().find(item => !priority.includes(item));
                 if (!last) break;
                 kept.delete(last); used -= widths[items.indexOf(last)] + gap;
             }
-            if (used + widths[items.indexOf(item)] + toggleSize + gap <= available) kept.add(item);
+            if (used + widths[items.indexOf(item)] + reserve <= available) kept.add(item);
         }
         visible.replaceChildren(...items.filter(item => kept.has(item)));
         menu.replaceChildren(...items.filter(item => !kept.has(item)));
@@ -144,8 +159,8 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
             if (rtl) siblings.reverse();
             const axis = vertical ? 'y' : 'x', size = vertical ? 'height' : 'width';
             const rects = new Map(siblings.map(tab => [tab, tab.getBoundingClientRect()]));
-            const original = rects.get(item)!, first = rects.get(siblings[0])!, last = rects.get(siblings.at(-1)!)!;
-            const gesture = new AbortController(), signal = gesture.signal, capture = more.parentElement!;
+            let original = rects.get(item)!, first = rects.get(siblings[0])!, last = rects.get(siblings.at(-1)!)!;
+            const gesture = new AbortController(), signal = gesture.signal, capture = visible.parentElement!;
             let preview: ReturnType<typeof tabDrag> | undefined, destination: number | undefined;
             const targets = new Map<HTMLElement, Map<HTMLElement, DOMRect>>();
             const bar = more.closest<HTMLElement>('.window-bar');
@@ -176,6 +191,10 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
                     if (Math.hypot(e.clientX - event.clientX, e.clientY - event.clientY) < 5) return;
                     suppressClick = true; capture.setPointerCapture(event.pointerId);
                     preview = tabDrag(item, visible, menu, event);
+                    if (item.querySelector(':scope > .window-bar')) {
+                        siblings.forEach(tab => rects.set(tab, tab.getBoundingClientRect()));
+                        original = rects.get(item)!; first = rects.get(siblings[0])!; last = rects.get(siblings.at(-1)!)!;
+                    }
                 }
                 e.preventDefault();
                 if (inside(more) && !menu.matches(':popover-open')) { more.click(); preview.raise(); }
@@ -232,12 +251,20 @@ function animateTab(tab: HTMLElement, from: DOMRect) {
 }
 
 // The real tab reserves its destination space; only its inert chrome is copied into the top layer.
-function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, point: { clientX: number; clientY: number }, from = item.getBoundingClientRect()) {
+function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, point: { clientX: number; clientY: number }, from?: DOMRect) {
     const parent = item.parentElement, next = item.nextSibling, hidden = item.hidden, host = visible.parentElement!;
     const originals = new Set([...visible.children, ...menu.children] as HTMLElement[]);
     const properties: [HTMLElement, string][] = [[host, 'flex'], [visible, 'flex'], [menu, 'width'], [menu, 'min-height']];
     const styles = properties.map(([node, property]) => ({ node, property, value: node.style.getPropertyValue(property) }));
+    const dimension = host.classList.contains('vertical-tabs') ? 'height' : 'width';
+    const fallback = dimension === 'width' ? host.clientWidth : host.clientHeight;
+    host.style.flex = `0 0 ${host.getBoundingClientRect()[dimension]}px`;
+    visible.style.flex = `0 0 ${visible.getBoundingClientRect()[dimension] || fallback}px`;
+    const windows = item.querySelector<HTMLElement>(':scope > .window-bar'), windowsHidden = windows?.hidden;
+    if (windows) windows.hidden = true;
+    from ||= item.getBoundingClientRect();
     const preview = el('div', 'tab-drag-preview'), copy = item.cloneNode(true) as HTMLElement;
+    copy.querySelector(':scope > .window-bar')?.remove();
     for (const node of [copy, ...copy.querySelectorAll('*')]) for (const attr of [...node.attributes]) {
         if (attr.name === 'id' || attr.name.startsWith('data-') || ['aria-controls', 'aria-labelledby', 'aria-describedby'].includes(attr.name)) node.removeAttribute(attr.name);
     }
@@ -246,10 +273,6 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
     const gripX = from.width ? Math.max(0, Math.min(1, (point.clientX - from.x) / from.width)) : .5;
     const gripY = from.height ? Math.max(0, Math.min(1, (point.clientY - from.y) / from.height)) : .5;
     preview.style.transform = `translate(${-gripX * 100}%, ${-gripY * 100}%)`;
-    const dimension = host.classList.contains('vertical-tabs') ? 'height' : 'width';
-    const fallback = dimension === 'width' ? host.clientWidth : host.clientHeight;
-    host.style.flex = `0 0 ${host.getBoundingClientRect()[dimension]}px`;
-    visible.style.flex = `0 0 ${visible.getBoundingClientRect()[dimension] || fallback}px`;
     host.classList.add('tab-drag-host');
     originals.forEach(tab => tab.classList.add('tab-shifting'));
     item.classList.add('tab-placeholder', 'tab-dragging');
@@ -288,6 +311,7 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
         morph?.cancel(); preview.remove();
         if (parent) parent.insertBefore(item, next?.parentNode === parent ? next : null); else item.remove();
         item.hidden = hidden;
+        if (windows) windows.hidden = windowsHidden!;
         item.classList.remove('tab-placeholder', 'tab-dragging');
         originals.forEach(tab => tab.classList.remove('tab-shifting'));
         styles.forEach(({ node, property, value }) => value ? node.style.setProperty(property, value) : node.style.removeProperty(property));

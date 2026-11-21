@@ -15,6 +15,7 @@ assert.equal(fields[4], 'Tuxee prototype test', 'refusing an unrelated account')
 const home = fields[5], browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
 const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 960 } });
 let api, original, terminal, page;
+const addedTerminals = [];
 try {
     page = await appPage(context); page.setDefaultTimeout(10000); const errors = [], sockets = [];
     let resizes = 0;
@@ -85,7 +86,7 @@ try {
             else assert.equal(desktop.x + desktop.width, top.x);
             const tabs = await page.locator('.workspace-tab-item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
             assert.ok(tabs.every((r, i) => r.width === tabs[0].width && (!i || r.y >= tabs[i - 1].bottom)));
-            const plus = await page.locator('.workspace-controls > button').boundingBox();
+            const plus = await page.locator('.workspace-add').boundingBox();
             assert.ok(plus.y >= tabs.at(-1).bottom && plus.y - tabs.at(-1).bottom < 10);
             const actions = await page.locator('.panel-additions > button').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
             assert.ok(actions.every(r => r.y === actions[0].y));
@@ -145,9 +146,13 @@ try {
         if (vertical) {
             for (const cancel of [true, false]) {
                 await startDrag(desktopTab('overview')); await move(center(await desktopTab('files').boundingBox()));
-                await page.locator('.tab-drag-preview .window-bar').waitFor();
+                await checkGap();
+                assert.equal(await page.locator('.tab-drag-preview .window-bar').count(), 0, 'desktop preview excludes its windows');
+                assert.ok((await page.locator('.tab-drag-preview').boundingBox()).height <= 35, 'desktop drag reserves only a button-sized row');
+                if (cancel) await page.screenshot({ path: `test-results/panel-position/${position}-desktop-drag.png` });
                 await endDrag(cancel);
-                assert.equal((await snapshot()).current, 'overview', 'active desktop carries its nested windows when reordered');
+                assert.equal((await snapshot()).current, 'overview', 'active desktop stays selected when reordered');
+                assert.equal(await page.locator('[data-workspace=overview] > .window-bar:not([hidden]) .component-tab-item').count(), 3, 'windows return after cancel or reorder');
                 if (cancel) assert.deepEqual((await snapshot()).workspaces.map(w => w.id), beforeDesktops);
             }
             await desktopTab('overview').focus();
@@ -356,7 +361,7 @@ try {
             await page.waitForTimeout(350);
             const active = page.locator('.workspace-tabs > .visible-tabs > [data-workspace=overview]');
             await active.waitFor();
-            const list = page.locator('.workspace-tabs'), moreDesktops = page.locator('.workspace-tabs > .overflow-toggle');
+            const list = page.locator('.workspace-tabs'), moreDesktops = page.locator('.workspace-tab-actions > .overflow-toggle');
             assert.ok(await moreDesktops.isVisible(), 'long desktop lists use ellipsis overflow');
             assert.ok(await page.locator('.window-bar .overflow-toggle').isVisible(), 'long window lists use their own ellipsis');
             assert.ok(await page.locator('.component-tabs > .visible-tabs > .component-tab-item').count() >= 1, 'window overflow retains a visible window row');
@@ -365,6 +370,7 @@ try {
             if (activeIndex < workspaces.length - 1) {
                 const next = await active.evaluate(n => n.nextElementSibling?.dataset.workspace);
                 assert.equal(next, workspaces[activeIndex + 1].id, 'a following desktop always separates the two overflow buttons');
+                assert.equal(await active.evaluate(n => n.nextElementSibling.nextElementSibling), null, 'overflowing windows leave only one following desktop');
             }
             const appearance = await active.evaluate(n => ({ background: getComputedStyle(n).backgroundColor,
                 border: getComputedStyle(n).borderColor, highlightHeight: parseFloat(getComputedStyle(n, '::before').height),
@@ -386,6 +392,27 @@ try {
             await page.locator('.tab-drag-preview').waitFor();
             await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(350);
             assert.deepEqual((await snapshot()).workspaces.map(w => w.id), workspaces.map(w => w.id), 'desktop overflow drag cancels without reordering');
+            if (activeIndex === 0) for (const cancel of [true, false]) {
+                if (await page.locator('.overflow-tabs:popover-open').count()) await moreDesktops.click();
+                const from = await active.locator(':scope > .workspace-tab').boundingBox(), toggle = await moreDesktops.boundingBox();
+                await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+                await page.mouse.move(toggle.x + toggle.width / 2, toggle.y + toggle.height / 2, { steps: 16 });
+                const destination = page.locator('.overflow-tabs:popover-open > .workspace-tab-item').first();
+                await destination.waitFor(); const to = await destination.boundingBox();
+                await page.mouse.move(to.x + to.width / 2, to.y + to.height, { steps: 16 }); await page.waitForTimeout(220);
+                const preview = page.locator('.overflow-tabs > .tab-drag-preview'); await preview.waitFor();
+                assert.equal(await preview.locator('button').count(), 2);
+                assert.equal(await preview.locator('.window-bar').count(), 0, 'overflow preview also excludes nested windows');
+                const previewHeight = (await preview.boundingBox()).height, gapHeight = (await page.locator('.tab-placeholder').boundingBox()).height;
+                assert.ok(Math.abs(previewHeight - to.height) < 1 && Math.abs(previewHeight - gapHeight) < 1, 'preview and gap match a destination menu row');
+                if (cancel) await page.screenshot({ path: `test-results/panel-position/${position}-desktop-overflow-drag.png` });
+                if (cancel) await page.keyboard.press('Escape');
+                await page.mouse.up(); await page.waitForTimeout(350);
+                assert.equal((await snapshot()).current, 'overview');
+                assert.ok(await page.locator('.workspace-tabs > .visible-tabs > .active > .window-bar').isVisible(), 'nested windows return after overflow drag');
+                if (cancel) assert.deepEqual((await snapshot()).workspaces.map(w => w.id), workspaces.map(w => w.id));
+                else assert.notDeepEqual((await snapshot()).workspaces.map(w => w.id), workspaces.map(w => w.id), 'overflow drop commits desktop reorder');
+            }
             await page.goto('about:blank');
         }
         await page.goto('about:blank');
@@ -453,6 +480,12 @@ try {
         await page.mouse.up(); await page.waitForTimeout(350);
         assert.equal(await page.locator('.component-tabs > .visible-tabs [data-component-name=hidden26]').count(), 0, 'visible window can move back into overflow');
         await page.screenshot({ path: `test-results/panel-position/${position}-nested-overflow.png` });
+        const existingTerminals = new Set((await (await api('/terminals')).json()).map(t => t.id));
+        await page.locator('.workspace-add').click();
+        await page.locator('.terminal-view[data-state=connected]:visible').first().waitFor();
+        await page.waitForTimeout(400);
+        assert.equal((await snapshot()).workspaces.length, 5, 'Plus creates a desktop from the shared vertical footer');
+        addedTerminals.push(...(await (await api('/terminals')).json()).filter(t => !existingTerminals.has(t.id)).map(t => t.id));
         await page.waitForTimeout(300); await page.goto('about:blank');
         await page.setViewportSize({ width: 900, height: 650 });
     }
@@ -465,5 +498,6 @@ try {
     await page?.close();
     if (api && original) await api('/settings', 'PUT', original);
     if (api && terminal) await api(`/terminals/${terminal.id}`, 'DELETE');
+    if (api) for (const id of addedTerminals) await api('/terminals/' + id, 'DELETE');
     await browser.close();
 }

@@ -341,14 +341,15 @@ h3 {
 #app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop]::before { background: var(--accent-bg); }
 #app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop=blocked]::before { background: color-mix(in srgb, var(--danger) 15%, var(--surface)); }
 #app.side-panel .workspace-tabs .workspace-tab-item.active:has(> .window-bar:not([hidden])) { min-height: 66px; }
-#app.side-panel .workspace-tabs .workspace-tab-item.active:has(.component-tab-item + .component-tab-item, .component-tabs > .overflow-toggle:not([hidden])) { min-height: 95px; }
+#app.side-panel .workspace-tabs .workspace-tab-item.active:has(> .window-bar:not([hidden])):has(.component-tab-item + .component-tab-item, .component-tabs > .overflow-toggle:not([hidden])) { min-height: 95px; }
 #app.side-panel .component-tabs > .visible-tabs { overflow: hidden; }
 #app.side-panel .component-tabs > .visible-tabs:empty { display: none; }
 #app.side-panel .component-tab { font-size: 11px; padding-inline-start: 4px; }
 #app.side-panel .component-tab > svg { width: 13px; height: 13px; }
 .vertical-tabs .workspace-tab-item, .vertical-tabs .component-tab-item { width: 100%; }
 .vertical-tabs .workspace-tab, .vertical-tabs .component-tab { flex: 1; min-width: 0; max-width: none; text-align: start; justify-content: flex-start; }
-#app.side-panel .workspace-controls > button { width: 100%; }
+#app.side-panel .workspace-tab-actions { display: flex; flex-shrink: 0; gap: 4px; width: 100%; }
+#app.side-panel .workspace-tab-actions > button { flex: 1; min-width: 0; }
 #app.side-panel .topbar-right { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); flex-shrink: 0; gap: 2px; width: 100%; margin: auto 0 0; }
 #app.side-panel .panel-additions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
 #app.side-panel .panel-additions > button { padding: 4px; }
