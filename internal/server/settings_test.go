@@ -474,9 +474,18 @@ func TestFullLegacyWorkspaceMigration(t *testing.T) {
 	if err := migrateSettings(&value); err != nil || len(value.Workspaces) != 24 {
 		t.Fatalf("full legacy account could not migrate: %v", err)
 	}
+	for i := len(value.Workspaces); i < 32; i++ {
+		value.Workspaces = append(value.Workspaces, Workspace{ID: fmt.Sprintf("extra-%d", i), Name: "Extra", Columns: 4, Rows: 2, Panels: []Panel{}})
+	}
+	if err := migrateSettings(&value); err != nil || len(value.Workspaces) != 32 {
+		t.Fatalf("32 workspaces could not load: %v", err)
+	}
+	if err := validateSettings(&value); err != nil {
+		t.Fatalf("32 workspaces could not save: %v", err)
+	}
 	value.Workspaces = append(value.Workspaces, Workspace{ID: "extra", Name: "Extra", Columns: 4, Rows: 2, Panels: []Panel{}})
 	if validateSettings(&value) == nil {
-		t.Fatal("accepted more than the migration workspace limit")
+		t.Fatal("accepted more than 32 workspaces")
 	}
 }
 

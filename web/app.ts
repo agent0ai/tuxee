@@ -1014,7 +1014,7 @@ async function switchWorkspace(value: string, checked = false) {
     settings.current = value; changed(); render(to > from ? 1 : -1);
 }
 async function createWorkspace(source?: Workspace) {
-    if (settings.workspaces.length >= 12) { notify(t("app.workspaceLimitReached")); return; }
+    if (settings.workspaces.length >= 32) { notify(t("app.workspaceLimitReached")); return; }
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
     const ws = source ? cloneWorkspace(source, defaultDirectory(source), settings.workspaces) : newWorkspace(t("app.workspaceNumber", { count: settings.workspaces.length + 1 }), defaultDirectory());
     settings.workspaces.push(ws); await switchWorkspace(ws.id, true);

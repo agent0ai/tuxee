@@ -25,7 +25,7 @@ const (
 	maxTerminalFontSize        = 128
 	maxTerminalFontFamilyUnits = 512
 	maxServerNameUnits         = 64
-	maxWorkspaces              = 24
+	maxWorkspaces              = 32
 	maxPanels                  = 32
 )
 
@@ -200,7 +200,6 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	if value.Theme != "dark" && value.Theme != "light" {
 		return i18n.New("backend.server.themeMustBeDarkOrLight")
 	}
-	// Reserve room for splitting the twelve legacy sixteen-panel workspaces without losing sessions.
 	if len(value.Workspaces) > maxWorkspaces {
 		return i18n.New("backend.server.workspaceCountLimit", i18n.Vars{"max": maxWorkspaces})
 	}

@@ -176,7 +176,9 @@ try {
     const liveTerminal = await panel('panel-6').locator('.terminal-view').elementHandle();
     const connectionCount = sockets.length;
     const terminalPID = (await (await api(`/terminals/${terminalID}`)).json()).pid;
-    await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
+    const oldHeader = await page.locator('.topbar').elementHandle();
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await page.waitForFunction(header => !header.isConnected, oldHeader);
     await workspace('other-0').getByRole('button', { name: 'Desktop menu', exact: true }).click();
     assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Clone', 'Default directory', 'Close']);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
@@ -262,7 +264,7 @@ try {
     const beforeKeyboard = await workspaceOrder(), keyboardIndex = beforeKeyboard.indexOf('other-0');
     const afterKeyboard = [...beforeKeyboard];
     afterKeyboard.splice(keyboardIndex, 1); afterKeyboard.splice(keyboardIndex - 1, 0, 'other-0');
-    await keyboardTab.focus(); save = saved(afterKeyboard); await page.keyboard.press('Alt+ArrowLeft'); await save;
+    save = saved(afterKeyboard); await keyboardTab.press('Alt+ArrowLeft'); await save;
     assert.deepEqual(await workspaceOrder(), afterKeyboard);
     assert.ok(await keyboardTab.evaluate(node => node === document.activeElement));
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -399,6 +401,35 @@ try {
     assert.equal(await page.locator('.workspace-close, .workspace-rename').count(), 0);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     check('mobile Close kills the real terminal, desktop controls restore, no browser errors/external assets');
+
+    for (const [method, position] of [['new', 'top'], ['clone', 'left']]) {
+        await page.waitForTimeout(350); await page.goto('about:blank');
+        const limitFixture = { theme: 'dark', howToSeen: true, panelPosition: position, current: 'limit30',
+            workspaces: Array.from({ length: 31 }, (_, i) => ({ id: `limit${i}`, name: `Desktop ${i + 1}`, columns: 4, rows: 2, panels: [] })) };
+        assert.equal((await api('/settings', 'PUT', limitFixture)).status(), 200);
+        await page.goto(base); await page.locator('.workspace-add').waitFor();
+        const create = async () => {
+            if (method === 'new') await page.locator('.workspace-add').click();
+            else {
+                await page.locator('.workspace-tabs > .visible-tabs > .active > .workspace-menu').click();
+                await menu.getByRole('menuitem', { name: 'Clone', exact: true }).click();
+            }
+        };
+        const creation = saved(); await create(); assert.equal((await creation).status(), 200);
+        assert.equal((await snapshot()).workspaces.length, 32, method + ' allows the 32nd desktop');
+        await page.waitForTimeout(350); await page.reload(); await page.locator('.workspace-add').waitFor();
+        assert.equal((await snapshot()).workspaces.length, 32, '32 desktops persist after reload');
+        await create(); await page.getByText('Desktop limit reached', { exact: true }).waitFor();
+        const full = await snapshot(); assert.equal(full.workspaces.length, 32, method + ' rejects the 33rd desktop');
+        const rejected = await api('/settings', 'PUT', { ...full, workspaces: [...full.workspaces, { id: 'excess', name: 'Excess', columns: 4, rows: 2, panels: [] }] });
+        assert.equal(rejected.status(), 400, 'API rejects the 33rd desktop');
+        assert.equal((await rejected.json()).text.vars.max, 32, 'API reports the enforced limit');
+        await page.locator('.workspace-tabs > .overflow-toggle, .workspace-tab-actions > .overflow-toggle').click();
+        assert.equal(await page.locator('.workspace-tabs > .visible-tabs > .workspace-tab-item, .overflow-tabs:popover-open > .workspace-tab-item').count(), 32, 'all desktops remain accessible through the bar and overflow');
+        await page.screenshot({ path: `test-results/tabs-32-${position}.png` });
+    }
+    assert.deepEqual(errors, []); assert.deepEqual(external, []);
+    check('32 desktops: creation, cloning, reload persistence and 33rd-desktop rejection in the UI/API');
 } catch (error) {
     await page.screenshot({ path: 'test-results/tabs-failure.png' });
     throw error;

@@ -79,7 +79,7 @@ try {
     const filePath = () => file.getByRole('textbox', { name: 'File or directory path', exact: true });
     const navigate = async path => {
         await filePath().fill(path); await filePath().press('Enter');
-        await waitFor(async () => await filePath().inputValue() === path && await file.locator('.file-list.loading').count() === 0, 'file navigation');
+        await waitFor(async () => await filePath().getAttribute('title') === path && await file.locator('.file-list.loading').count() === 0, 'file navigation');
     };
     const original = await info(terminalPanel.terminal);
     assert.equal(original.name, 'Terminal 1');
@@ -258,18 +258,14 @@ try {
     assert.equal((await saved()).workspaces.find(ws => ws.id === longClone.id).name, longName);
     await clone(mobileClone.id, 'Desktop 5');
     let nextNumber = 6;
-    while ((await saved()).workspaces.length < 12) await clone((await saved()).current, `Desktop ${nextNumber++}`);
-    const full = await saved();
-    await page.locator(`.workspace-tab-item[data-workspace="${full.current}"] .workspace-menu`).click();
-    await menuitem('Clone').click();
-    await page.getByText('Desktop limit reached', { exact: true }).waitFor();
-    assert.equal((await saved()).workspaces.length, 12);
+    while ((await saved()).workspaces.length < 13) await clone((await saved()).current, `Desktop ${nextNumber++}`);
+    assert.equal((await saved()).workspaces.length, 13);
     await button('More desktops').click();
     await page.locator(`.workspace-tab-item[data-workspace="${secondID}"] .workspace-tab`).click();
     await file.locator('.cm-content').waitFor();
     assert.equal(await file.locator('.cm-content').textContent(), 'source-only unsaved draft');
     await button('Back to files', file).click(); await button('Discard').click();
-    console.log('PASS active/inactive/mobile desktop cloning, fresh terminals, parent folders, draft isolation, reload and desktop limit');
+    console.log('PASS active/inactive/mobile desktop cloning beyond twelve desktops, fresh terminals, parent folders, draft isolation and reload');
     for (const theme of ['dark', 'light']) {
         if ((await saved()).theme !== theme) await button('Toggle light or dark theme').click();
         for (const width of [1440, 390, 320]) {
