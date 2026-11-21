@@ -337,7 +337,6 @@ function renderChrome() {
     right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
     componentTabs.classList.toggle('vertical-tabs', vertical);
-    componentTabs.classList.toggle('vertical-overflow', vertical);
     componentTabs.setAttribute('aria-label', t("app.components"));
     const componentControls = el('div', 'component-controls');
     componentControls.append(componentTabs);

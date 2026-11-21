@@ -31,9 +31,8 @@ const strips = new WeakMap<HTMLElement, { visible: HTMLElement; menu: HTMLElemen
 
 export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: string, reorder?: (items: HTMLElement[]) => void) {
     const visible = el('div', 'visible-tabs'), menu = el('div', 'overflow-tabs');
-    const vertical = host.classList.contains('vertical-overflow');
-    const scrolling = host.classList.contains('vertical-tabs') && !vertical;
-    let close = () => {}, frame = 0, fittedHeight = -1;
+    const vertical = host.classList.contains('vertical-tabs');
+    let close = () => {}, frame = 0, fittedHeight = -1, nestedHeight = '';
     const more = button(label, 'Ellipsis', () => { ({ close } = popover(more, menu)); });
     more.className = 'overflow-toggle'; more.setAttribute('aria-haspopup', 'menu');
     host.append(visible, more);
@@ -42,10 +41,9 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     let bound: HTMLElement[] = [];
     function fit() {
         if (host.classList.contains('tab-drag-host') && bound.length === items.length && items.every(item => bound.includes(item))) return;
-        if (vertical && host.clientHeight === fittedHeight && bound.length === items.length && items.every((item, index) => bound[index] === item)) return;
-        // Vertical lists need no width fitting; keep their scroll and pending gesture on label updates.
-        if (scrolling && host.clientHeight === fittedHeight && more.hidden && bound.length === items.length && visible.childElementCount === items.length &&
-            items.every((item, index) => bound.includes(item) && visible.children[index] === item)) return;
+        const nested = host.querySelector<HTMLElement>('.vertical-tabs');
+        if (vertical && host.clientHeight === fittedHeight && (nested?.style.height || '') === nestedHeight &&
+            bound.length === items.length && items.every((item, index) => bound[index] === item)) return;
         dragging?.cancel();
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
             dragging?.dispose();
@@ -54,35 +52,36 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         }
         close();
         visible.replaceChildren(...items); more.hidden = false;
-        if (scrolling) {
-            more.hidden = true;
-            // Give overflowing rows a real extent so reorder animations cannot clamp the scroll position.
-            visible.style.minHeight = '';
-            visible.style.minHeight = `${items.reduce((sum, item) => sum + item.getBoundingClientRect().height, 0) + 4 * Math.max(0, items.length - 1)}px`;
-            fittedHeight = host.clientHeight;
-            return;
+        if (vertical) {
+            // Measure full rows before flex shrinks nested windows into the available height.
+            const flex = visible.style.flex;
+            visible.style.flex = '0 0 auto';
+            host.style.height = `${items.reduce((sum, item) => sum + item.getBoundingClientRect().height, 0) + 4 * Math.max(0, items.length - 1)}px`;
+            visible.style.flex = flex;
         }
         const widths = items.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
-        // Preserve the list's preferred height when hidden rows move into overflow.
-        if (vertical) host.style.height = `${widths.reduce((sum, height) => sum + height, 0) + 4 * Math.max(0, items.length - 1)}px`;
         const style = getComputedStyle(host), available = vertical ? host.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         const toggleSize = vertical ? more.offsetHeight : more.offsetWidth;
         const count = fittingHeaderItemCount(widths, available, toggleSize, 4);
         const kept = new Set(items.slice(0, count));
         const active = items.find(item => item.classList.contains('active'));
-        if (count && active && !kept.has(active)) {
-            // Keep the current tab visible, accounting for its own width.
+        const priority = active ? [active] : [];
+        const following = active && vertical && host.classList.contains('workspace-tabs') ? items[items.indexOf(active) + 1] : undefined;
+        if (following) priority.push(following);
+        for (const item of priority) if (count && !kept.has(item)) {
             let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + 4, 0);
-            while (kept.size && used + widths[items.indexOf(active)] + toggleSize + 4 > available) {
-                const last = [...kept].at(-1)!; kept.delete(last); used -= widths[items.indexOf(last)] + 4;
+            while (kept.size && used + widths[items.indexOf(item)] + toggleSize + 4 > available) {
+                const last = [...kept].reverse().find(item => !priority.includes(item));
+                if (!last) break;
+                kept.delete(last); used -= widths[items.indexOf(last)] + 4;
             }
-            if (used + widths[items.indexOf(active)] + toggleSize + 4 <= available) kept.add(active);
+            if (used + widths[items.indexOf(item)] + toggleSize + 4 <= available) kept.add(item);
         }
         visible.replaceChildren(...items.filter(item => kept.has(item)));
         menu.replaceChildren(...items.filter(item => !kept.has(item)));
         more.hidden = kept.size === items.length;
-        if (vertical) { fittedHeight = host.clientHeight; bound = [...items]; }
+        if (vertical) { fittedHeight = host.clientHeight; nestedHeight = nested?.style.height || ''; bound = [...items]; }
     }
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
     const observer = new ResizeObserver(schedule);

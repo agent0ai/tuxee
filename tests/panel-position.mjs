@@ -244,7 +244,7 @@ try {
             const appearances = [];
             for (const selector of ['[data-workspace=overview] .workspace-tab', '[data-workspace=development] .workspace-tab', '[data-component-name=minimized]', '[data-workspace=overview] .workspace-menu', '[data-component-menu=minimized]']) {
                 await page.locator(selector).hover(); await page.waitForTimeout(120);
-                appearances.push(await page.locator(selector).evaluate(n => [getComputedStyle(n).backgroundColor, getComputedStyle(n.parentElement).backgroundColor]));
+                appearances.push(await page.locator(selector).evaluate(n => [getComputedStyle(n).backgroundColor, getComputedStyle(n.parentElement, n.closest('#app.side-panel') && n.parentElement.matches('.workspace-tab-item.active') ? '::before' : null).backgroundColor]));
             }
             if (position === 'top') hoverStyles[theme] = appearances;
             else assert.deepEqual(appearances, hoverStyles[theme], 'hover appearance matches horizontal mode in both themes');
@@ -326,39 +326,51 @@ try {
     }
     await page.unroute(base + '/api/metrics');
     console.log('PASS content-sized metrics, single-line NET in either column and both themes');
-    // Long side lists remain scrollable, with their last controls clickable and draggable.
+    // Desktop overflow preserves the active row and its immediate successor around nested windows.
     const crowded = structuredClone(fixture);
     crowded.workspaces.push(...Array.from({ length: 8 }, (_, i) => ({ id: `extra${i}`, name: `Extra ${i}`, columns: 4, rows: 2, panels: [] })));
     crowded.workspaces[0].panels.push(...Array.from({ length: 27 }, (_, i) => ({ id: `hidden${i}`, kind: 'files', path: home, minimized: true, x: 0, y: 0, w: 1, h: 1 })));
     await page.waitForTimeout(300); await page.goto('about:blank');
     for (const position of ['left', 'right']) {
-        assert.equal((await api('/settings', 'PUT', { ...crowded, panelPosition: position })).status(), 200);
-        await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
-        await page.waitForTimeout(300);
-        for (const [strip, last, opener] of [['.workspace-tabs', '[data-workspace=extra7] .workspace-tab', '[data-workspace=extra7] .workspace-menu']]) {
-            assert.equal(await page.locator(strip).evaluate(n => n.scrollHeight > n.clientHeight), true, 'long side list scrolls');
-            await page.locator(last).scrollIntoViewIfNeeded();
-            const scroll = await page.locator(strip).evaluate(n => n.scrollTop);
+        for (const activeIndex of [0, 8, crowded.workspaces.length - 1]) {
+            const workspaces = structuredClone(crowded.workspaces), activeWorkspace = workspaces.shift();
+            workspaces.splice(activeIndex, 0, activeWorkspace);
+            assert.equal((await api('/settings', 'PUT', { ...crowded, workspaces, panelPosition: position })).status(), 200);
+            await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
+            await page.waitForTimeout(350);
+            const active = page.locator('.workspace-tabs > .visible-tabs > [data-workspace=overview]');
+            await active.waitFor();
+            const list = page.locator('.workspace-tabs'), moreDesktops = page.locator('.workspace-tabs > .overflow-toggle');
+            assert.ok(await moreDesktops.isVisible(), 'long desktop lists use ellipsis overflow');
+            assert.ok(await page.locator('.window-bar .overflow-toggle').isVisible(), 'long window lists use their own ellipsis');
+            assert.ok(await page.locator('.component-tabs > .visible-tabs > .component-tab-item').count() >= 1, 'window overflow retains a visible window row');
+            const bounds = await list.boundingBox(), label = await active.locator(':scope > .workspace-tab').boundingBox();
+            assert.ok(label.y >= bounds.y && label.y + label.height <= bounds.y + bounds.height);
+            if (activeIndex < workspaces.length - 1) {
+                const next = await active.evaluate(n => n.nextElementSibling?.dataset.workspace);
+                assert.equal(next, workspaces[activeIndex + 1].id, 'a following desktop always separates the two overflow buttons');
+            }
+            const appearance = await active.evaluate(n => ({ background: getComputedStyle(n).backgroundColor,
+                border: getComputedStyle(n).borderColor, highlightHeight: parseFloat(getComputedStyle(n, '::before').height),
+                windows: getComputedStyle(n.querySelector('.window-bar')).backgroundColor }));
+            assert.equal(appearance.background, 'rgba(0, 0, 0, 0)');
+            assert.equal(appearance.border, 'rgba(0, 0, 0, 0)');
+            assert.equal(appearance.windows, 'rgba(0, 0, 0, 0)');
+            assert.ok(appearance.highlightHeight <= label.height + 2, 'highlight stops at the desktop button');
+            if (activeIndex === 8) await page.screenshot({ path: `test-results/panel-position/${position}-separated-overflows.png` });
+            await moreDesktops.click();
+            const hiddenDesktop = page.locator('.overflow-tabs:popover-open > .workspace-tab-item').first();
+            await hiddenDesktop.locator('.workspace-menu').click(); await page.locator('.menu-actions:popover-open').waitFor();
+            await hiddenDesktop.locator('.workspace-menu').click(); assert.equal(await page.locator('.menu-actions:popover-open').count(), 0);
+            const handle = await hiddenDesktop.locator('.workspace-tab').boundingBox();
+            await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down();
             await page.evaluate(() => window.dispatchEvent(new Event('tuxee-tabs-changed')));
             await page.waitForTimeout(100);
-            assert.equal(await page.locator(strip).evaluate(n => n.scrollTop), scroll, 'label refresh keeps the vertical scroll position');
-            await page.locator(opener).click(); await page.locator('.menu-actions:popover-open').waitFor();
-            await page.locator(opener).click(); assert.equal(await page.locator('.menu-actions:popover-open').count(), 0);
-            const a = await page.locator(last).boundingBox();
-            await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await page.mouse.down();
-            await page.evaluate(() => window.dispatchEvent(new Event('tuxee-tabs-changed')));
-            await page.waitForTimeout(100);
-            await page.mouse.move(a.x + a.width / 2, a.y - a.height, { steps: 12 });
+            await page.mouse.move(label.x + label.width / 2, label.y + 2, { steps: 16 });
             await page.locator('.tab-drag-preview').waitFor();
-            await page.keyboard.press('Escape'); await page.mouse.up();
-            await page.waitForTimeout(250);
-            const beforeCommit = await page.locator(strip).evaluate(n => n.scrollTop);
-            const start = await page.locator(last).boundingBox();
-            await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2); await page.mouse.down();
-            await page.mouse.move(start.x + start.width / 2, start.y - start.height, { steps: 12 });
-            await page.mouse.up(); await page.waitForTimeout(350);
-            assert.equal(await page.locator(strip).evaluate(n => n.scrollTop), beforeCommit, 'reordering a scrolled list keeps its scroll position');
-            assert.equal(await page.locator(last).evaluate(n => n.parentElement.nextElementSibling !== null), true, 'last tab moved up');
+            await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(350);
+            assert.deepEqual((await snapshot()).workspaces.map(w => w.id), workspaces.map(w => w.id), 'desktop overflow drag cancels without reordering');
+            await page.goto('about:blank');
         }
         await page.goto('about:blank');
         await page.setViewportSize({ width: 1280, height: 800 });
@@ -407,7 +419,7 @@ try {
         await page.setViewportSize({ width: 900, height: 650 });
     }
     assert.deepEqual(errors, []);
-    console.log('PASS long vertical desktops and nested window overflow: anchored menus, dragging and cancellation');
+    console.log('PASS separate desktop/window highlights and overflow: active successor, resizing, anchored menus, dragging and cancellation');
 } catch (error) {
     if (page && await page.locator('.topbar').count()) await page.screenshot({ path: 'test-results/panel-position/failure.png' }).catch(() => {});
     throw error;

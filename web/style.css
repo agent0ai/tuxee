@@ -323,18 +323,22 @@ h3 {
 #app.side-panel > .topbar { grid-area: panel; height: auto; min-height: 0; flex-direction: column; align-items: stretch; gap: 4px; padding: 0 3px 3px; border: 0; }
 #app[data-panel-position=left] > .topbar { border-right: var(--server-marker-border, 1px solid var(--line)); }
 #app[data-panel-position=right] > .topbar { border-left: var(--server-marker-border, 1px solid var(--line)); }
-#app.side-panel .window-bar { grid-column: 1 / -1; align-self: stretch; flex-direction: column; align-items: stretch; min-height: 27px; padding: 2px 0; padding-inline-start: 4px; margin: 0 0 3px; margin-inline: 8px 3px; border: 0; border-inline-start: 1px solid var(--line); border-radius: 0 0 4px 0; }
+#app.side-panel .window-bar { grid-column: 1 / -1; align-self: stretch; flex-direction: column; align-items: stretch; min-height: 27px; padding: 2px 0; padding-inline-start: 4px; margin: 0 0 3px; margin-inline: 8px 3px; border: 0; border-inline-start: 1px solid var(--line); border-radius: 0; background: transparent; }
 #app.side-panel > .workspace-viewport { grid-area: desktop; min-width: 0; }
 /* Crop only the artwork's margins, with a little room for its outer pixels. */
 #app.side-panel .brand-button { position: relative; width: 100%; padding: 0; min-height: 0; aspect-ratio: 2.92; overflow: hidden; }
 #app.side-panel .brand { position: absolute; width: 119%; max-width: none; height: auto; left: -9.5%; top: -18%; }
 #app.side-panel .workspace-controls { flex: 0 1 auto; flex-direction: column; align-items: stretch; min-height: 0; }
-#app.side-panel .vertical-tabs { flex: 0 1 auto; flex-direction: column; align-items: stretch; min-height: 0; width: 100%; overflow-y: auto; overflow-anchor: none; }
+#app.side-panel .vertical-tabs { flex: 0 1 auto; flex-direction: column; align-items: stretch; min-height: 0; width: 100%; overflow: hidden; }
 #app.side-panel .component-tabs { flex: 0 1 auto; min-height: 25px; overflow: hidden; }
-#app.side-panel .vertical-tabs > .visible-tabs { flex-direction: column; align-items: stretch; min-height: 0; width: 100%; overflow: visible; }
+#app.side-panel .vertical-tabs > .visible-tabs { flex-direction: column; align-items: stretch; min-height: 0; width: 100%; }
 #app.side-panel .workspace-tabs .workspace-tab-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
-#app.side-panel .workspace-tabs .workspace-tab-item.active { flex-shrink: 1; min-height: 33px; grid-template-rows: auto minmax(0, auto); }
+#app.side-panel .workspace-tabs .workspace-tab-item.active { flex-shrink: 1; min-height: 33px; grid-template-rows: auto minmax(0, auto); isolation: isolate; background: transparent; border-color: transparent; }
+#app.side-panel .workspace-tabs .workspace-tab-item.active::before { content: ''; position: absolute; inset: -1px -1px auto; height: 33px; border: 1px solid var(--line); border-radius: 7px; background: var(--raised); z-index: -1; pointer-events: none; }
+#app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop]::before { background: var(--accent-bg); }
+#app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop=blocked]::before { background: color-mix(in srgb, var(--danger) 15%, var(--surface)); }
 #app.side-panel .workspace-tabs .workspace-tab-item.active:has(> .window-bar:not([hidden])) { min-height: 66px; }
+#app.side-panel .workspace-tabs .workspace-tab-item.active:has(.component-tab-item + .component-tab-item, .component-tabs > .overflow-toggle:not([hidden])) { min-height: 95px; }
 #app.side-panel .component-tabs > .visible-tabs { overflow: hidden; }
 #app.side-panel .component-tabs > .visible-tabs:empty { display: none; }
 #app.side-panel .component-tab { font-size: 11px; }
