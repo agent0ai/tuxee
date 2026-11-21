@@ -27,23 +27,28 @@ export function fittingHeaderItemCount(
 }
 
 
-const strips = new WeakMap<HTMLElement, { visible: HTMLElement; menu: HTMLElement; more: HTMLElement }>();
+const strips = new WeakMap<HTMLElement, { visible: HTMLElement; menu: HTMLElement; more: HTMLElement; items: HTMLElement[]; fit: (allocated?: boolean) => void }>();
 
 export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: string, reorder?: (items: HTMLElement[]) => void) {
     const visible = el('div', 'visible-tabs'), menu = el('div', 'overflow-tabs');
     const vertical = host.classList.contains('vertical-tabs');
-    let close = () => {}, frame = 0, fittedHeight = -1, nestedHeight = '';
+    let close = () => {}, frame = 0;
     const more = button(label, 'Ellipsis', () => { ({ close } = popover(more, menu)); });
     more.className = 'overflow-toggle'; more.setAttribute('aria-haspopup', 'menu');
     host.append(visible, more);
-    strips.set(host, { visible, menu, more });
+    strips.set(host, { visible, menu, more, items, fit });
     let dragging: ReturnType<typeof reorderTabs> | undefined;
     let bound: HTMLElement[] = [];
-    function fit() {
-        if (host.classList.contains('tab-drag-host') && bound.length === items.length && items.every(item => bound.includes(item))) return;
+    function fit(allocated = false) {
+        const parent = vertical && host.parentElement?.closest<HTMLElement>('.vertical-tabs');
+        if (parent && !allocated) {
+            const strip = strips.get(parent);
+            if (!strip?.menu.matches(':popover-open')) strip?.fit();
+            return;
+        }
+        if ((host.classList.contains('tab-drag-host') || host.querySelector('.tab-drag-host')) && bound.length === items.length && items.every(item => bound.includes(item))) return;
         const nested = host.querySelector<HTMLElement>('.vertical-tabs');
-        if (vertical && host.getBoundingClientRect().height === fittedHeight && (nested?.style.height || '') === nestedHeight &&
-            bound.length === items.length && items.every((item, index) => bound[index] === item)) return;
+        const child = nested && strips.get(nested);
         const focused = host.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined;
         dragging?.cancel();
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
@@ -54,45 +59,48 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         close();
         // A speculative ellipsis would shrink the nested list before measuring its space.
         visible.replaceChildren(...items); more.hidden = vertical;
-        if (vertical) {
-            // Measure full rows before flex shrinks nested windows into the available height.
-            const flex = visible.style.flex;
-            visible.style.flex = '0 0 auto';
-            host.style.height = `${items.reduce((sum, item) => sum + item.getBoundingClientRect().height, 0) + 4 * Math.max(0, items.length - 1)}px`;
-            visible.style.flex = flex;
+        // Let CSS size both lists from their rows; fixed requested heights leave gaps and round down at browser zoom.
+        if (vertical && child) {
+            child.visible.replaceChildren(...child.items); child.more.hidden = true;
         }
+        const layoutTop = (item: HTMLElement) => {
+            const transform = getComputedStyle(item).transform;
+            return item.getBoundingClientRect().top - (transform === 'none' ? 0 : new DOMMatrix(transform).m42);
+        };
+        const gap = vertical && items.length > 1 ? layoutTop(items[1]) - layoutTop(items[0]) - items[0].getBoundingClientRect().height : 4;
         let widths = items.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
-        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) + .001
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        if (vertical && widths.reduce((sum, size) => sum + size, 0) + 4 * Math.max(0, items.length - 1) > available) {
+        if (vertical && widths.reduce((sum, size) => sum + size, 0) + gap * Math.max(0, items.length - 1) > available) {
             more.hidden = false;
             widths = items.map(item => item.getBoundingClientRect().height);
         }
-        const toggleSize = vertical ? more.offsetHeight : more.offsetWidth;
-        const count = fittingHeaderItemCount(widths, available, toggleSize, 4);
+        const toggleSize = vertical ? more.getBoundingClientRect().height : more.offsetWidth;
+        const count = fittingHeaderItemCount(widths, available, toggleSize, gap);
         const kept = new Set(items.slice(0, count));
         const active = items.find(item => item.classList.contains('active'));
         const priority = active ? [active] : [];
         const following = active && vertical && host.classList.contains('workspace-tabs') ? items[items.indexOf(active) + 1] : undefined;
         if (following) priority.push(following);
         for (const item of priority) if (!kept.has(item)) {
-            let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + 4, 0);
-            while (kept.size && used + widths[items.indexOf(item)] + toggleSize + 4 > available) {
+            let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + gap, 0);
+            while (kept.size && used + widths[items.indexOf(item)] + toggleSize + gap > available) {
                 const last = [...kept].reverse().find(item => !priority.includes(item));
                 if (!last) break;
-                kept.delete(last); used -= widths[items.indexOf(last)] + 4;
+                kept.delete(last); used -= widths[items.indexOf(last)] + gap;
             }
-            if (used + widths[items.indexOf(item)] + toggleSize + 4 <= available) kept.add(item);
+            if (used + widths[items.indexOf(item)] + toggleSize + gap <= available) kept.add(item);
         }
         visible.replaceChildren(...items.filter(item => kept.has(item)));
         menu.replaceChildren(...items.filter(item => !kept.has(item)));
         more.hidden = kept.size === items.length;
-        if (vertical) { fittedHeight = host.getBoundingClientRect().height; nestedHeight = nested?.style.height || ''; }
+        if (vertical) child?.fit(true);
         bound = [...items];
-        if (focused && document.activeElement !== focused) (focused.checkVisibility() ? focused : more).focus({ preventScroll: true });
+        if (focused && document.activeElement !== focused) (focused.checkVisibility() ? focused : child?.items.some(item => item.contains(focused)) ? child.more : more).focus({ preventScroll: true });
     }
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
-        if (!menu.matches(':popover-open') || bound.length !== items.length || items.some(item => !bound.includes(item))) fit();
+        const nested = host.querySelector<HTMLElement>('.vertical-tabs');
+        if ((!menu.matches(':popover-open') && !(nested && strips.get(nested)?.menu.matches(':popover-open'))) || bound.length !== items.length || items.some(item => !bound.includes(item))) fit();
     }); };
     const observer = new ResizeObserver(schedule);
     menu.addEventListener('toggle', schedule);
