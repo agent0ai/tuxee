@@ -55,9 +55,9 @@ try {
         await page.waitForTimeout(300); // Existing trailing settings debounce.
         assert.deepEqual(errors, []);
     }
-    async function fixture(workspaces) {
+    async function fixture(workspaces, panelPosition = 'top') {
         await settled(); await page.goto('about:blank');
-        const response = await api('/settings', 'PUT', { theme: 'dark', howToSeen: true, current: workspaces[0].id, workspaces });
+        const response = await api('/settings', 'PUT', { theme: 'dark', howToSeen: true, current: workspaces[0].id, workspaces, panelPosition });
         assert.equal(response.status(), 200, await response.text());
         await page.goto(base); await item(workspaces[0].panels[0].id).waitFor({ state: 'attached' });
         await page.waitForFunction(() => [...document.querySelectorAll('[data-panel]')].every(n => n.querySelector('.terminal-view') ? n.querySelector('.terminal-view').dataset.state === 'connected' : n.querySelector('.file-entry')));
@@ -95,6 +95,48 @@ try {
         if (cancel) await page.keyboard.press('Escape');
         await page.mouse.up(); await settled();
     }
+    for (const position of ['top', 'bottom', 'left', 'right']) for (const count of [1, 2]) {
+        const vertical = position === 'left' || position === 'right';
+        await fixture([workspace('origin', [panel('visible', 0, 0, 4, 2), shell(true), ...(count === 2 ? [panel('second', 0, 0, 1, 1, { minimized: true })] : [])]), workspace('away', [])], position);
+        const before = await current(), connectionCount = sockets.length;
+        for (const destination of ['bar', 'cancel', 'desktop', 'navbar']) {
+            const source = await title('shell').boundingBox(), group = title('shell').locator('..');
+            const x = source.x + source.width / 2, y = source.y + source.height / 2;
+            await page.mouse.move(x, y); await page.mouse.down();
+            await page.mouse.move(x + (vertical ? 0 : 8), y + (vertical ? 8 : 0), { steps: 2 });
+            const preview = page.locator('.tab-drag-preview');
+            assert.equal(await preview.count(), 1, `${position}/${count}: drag lifts inside the bar`);
+            assert.equal(await group.evaluate(n => getComputedStyle(n).visibility), 'hidden');
+            assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 1);
+            assert.equal(await page.locator('.panel-dragging').count(), 0, 'bar dragging does not start restoration');
+            const first = await preview.boundingBox();
+            await page.mouse.move(x + (vertical ? 0 : 12), y + (vertical ? 12 : 0), { steps: 3 });
+            const moved = await preview.boundingBox(), axis = vertical ? 'y' : 'x';
+            assert.ok(Math.abs(moved[axis] - first[axis] - 4) < 1, 'preview follows every movement within the bar');
+            if (count === 1 && destination === 'bar') {
+                await mkdir('test-results', { recursive: true });
+                await page.screenshot({ path: `test-results/single-window-drag-${position}.png` });
+            }
+            if (destination === 'desktop' || destination === 'navbar') {
+                const target = await page.locator(destination === 'desktop' ? '.board:not([inert]) .grid-stack' : '[data-workspace=away] .workspace-tab').boundingBox();
+                await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+                await page.locator('.panel-dragging').waitFor({ state: 'attached' });
+                assert.equal(await group.evaluate(n => getComputedStyle(n).visibility), 'hidden', 'handoff keeps the source lifted');
+                if (destination === 'navbar') assert.ok(await preview.isVisible(), 'navbar handoff keeps tab appearance');
+            }
+            if (destination !== 'bar') await page.keyboard.press('Escape');
+            await page.mouse.up(); await settled();
+            assert.equal(await page.locator('.tab-drag-preview, .tab-placeholder, .panel-dragging').count(), 0);
+            assert.deepEqual(await current(), before, `${position}/${count}/${destination}: release/cancellation preserves the minimized window`);
+            assert.ok(await title('shell').isVisible());
+            assert.equal(sockets.length, connectionCount);
+        }
+        await restore('shell');
+        assert.ok(await item('shell').isVisible(), 'ordinary clicks still restore the window');
+        assert.equal((await (await api('/terminals/' + terminal.id)).json()).pid, terminal.pid);
+    }
+    console.log('PASS one/two minimized windows: immediate drag, pointer tracking, release/cancel, desktop/navbar handoff and click restore in all four panel positions');
+
     for (const overflow of [false, true]) {
         const hidden = overflow ? Array.from({ length: 12 }, (_, i) => panel(`header${i}`, 0, 0, 1, 1, { minimized: true })) : [];
         const away = overflow ? Array.from({ length: 12 }, (_, i) => workspace(`Header destination ${i}`, [])) : [workspace('away', [])];

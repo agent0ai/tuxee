@@ -106,7 +106,6 @@ function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLEleme
             if (!event.isPrimary || event.button !== 0) return;
             cancel();
             const parent = item.parentElement!, siblings = [...parent.children] as HTMLElement[];
-            if (items.length < 2) return;
             siblings.forEach(tab => tab.getAnimations().forEach(animation => animation.cancel()));
             const vertical = parent === menu || verticalBar, rtl = !vertical && getComputedStyle(parent).direction === 'rtl';
             if (rtl) siblings.reverse();
