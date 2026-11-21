@@ -74,6 +74,13 @@ try {
             assert.equal(await page.locator('[data-workspace=overview] > .window-bar').count(), 1, 'window list belongs to the active desktop');
             const active = await page.locator('[data-workspace=overview] > .workspace-tab').boundingBox();
             assert.ok(rail.y >= active.y + active.height && rail.x > top.x && rail.x + rail.width < top.x + top.width, 'window list is indented below its desktop');
+            const group = await page.locator('.workspace-tab-item[data-workspace=overview]').boundingBox();
+            assert.ok(rail.y >= group.y + 35, 'window indentation starts clear of the desktop highlight');
+            assert.ok(rail.x - group.x <= 5, 'window indentation stays compact');
+            const icon = await page.locator('[data-component-name=minimized] > svg').boundingBox();
+            assert.ok(icon.x - rail.x <= 6, 'window icons sit close to the indentation border');
+            const chevrons = await page.locator('.workspace-tabs > .visible-tabs .workspace-menu > svg, .component-tabs > .visible-tabs .component-menu > svg').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().x));
+            assert.ok(Math.max(...chevrons) - Math.min(...chevrons) < 1, 'desktop and window chevrons align');
             if (position === 'left') assert.equal(top.x + top.width, desktop.x);
             else assert.equal(desktop.x + desktop.width, top.x);
             const tabs = await page.locator('.workspace-tab-item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
@@ -241,6 +248,12 @@ try {
         await page.locator('.terminal-view').click();
         for (const theme of ['dark', 'light']) {
             if (theme === 'light') { await page.locator('.theme-toggle').click(); await settled(); }
+            if (vertical) {
+                const logo = await page.locator('.brand').boundingBox(), button = await page.locator('.brand-button').boundingBox();
+                // Both horizontal assets' foreground lies inside these source-pixel bounds.
+                assert.ok(logo.x + logo.width * 20 / 320 > button.x + 3 && logo.x + logo.width * 300 / 320 < button.x + button.width - 3, 'full logo has horizontal clearance');
+                assert.ok(logo.y + logo.height * 16 / 128 >= button.y + 1 && logo.y + logo.height * 112 / 128 <= button.y + button.height - 1, 'full logo fits vertically');
+            }
             const appearances = [];
             for (const selector of ['[data-workspace=overview] .workspace-tab', '[data-workspace=development] .workspace-tab', '[data-component-name=minimized]', '[data-workspace=overview] .workspace-menu', '[data-component-menu=minimized]']) {
                 await page.locator(selector).hover(); await page.waitForTimeout(120);
@@ -267,6 +280,7 @@ try {
     await choose('left', false); assert.equal((await snapshot()).panelPosition, 'right', 'Cancel preserves the saved position');
     await page.reload(); await page.locator('#app[data-panel-position=right]').waitFor();
     await page.setViewportSize({ width: 390, height: 844 }); await page.locator('#app.compact[data-panel-position=top]').waitFor();
+    assert.deepEqual(await page.locator('.component-controls > .panel-additions > button').evaluateAll(nodes => nodes.map(n => n.dataset.kind || n.className)), ['files', 'terminal', 'command-shortcuts-toggle'], 'mobile actions stay together in Files, Terminal, Favorites order');
     assert.equal((await snapshot()).panelPosition, 'right', 'compact fallback preserves side preference');
     await choose('bottom');
     assert.equal((await snapshot()).mobilePanelPosition, 'bottom'); assert.equal((await snapshot()).panelPosition, 'right');
@@ -319,6 +333,8 @@ try {
             });
             assert.equal(geometry.readings[0].y, geometry.readings[1].y, 'both NET rates remain on one line');
             assert.ok(geometry.readings[1].right <= geometry.right + 1, 'large NET values fit the side panel');
+            assert.equal(await page.locator('.monitor-chip').first().evaluate(n => getComputedStyle(n).fontSize), '18px');
+            assert.equal(await page.locator('.monitor-network-value .monitor-value').first().evaluate(n => getComputedStyle(n).fontSize), '15px');
             assert.ok(cpu ? geometry.network.x > geometry.left : geometry.network.x === geometry.left, 'NET follows the configured metric order');
             if (rate) assert.ok(geometry.columns[cpu ? 1 : 0] > geometry.columns[cpu ? 0 : 1], 'the column containing NET grows with its content');
         }
@@ -379,12 +395,34 @@ try {
         await page.waitForTimeout(300);
         await page.locator('[data-workspace=overview] > .workspace-tab').scrollIntoViewIfNeeded();
         const visibleWindows = page.locator('.component-tabs > .visible-tabs > .component-tab-item');
+        async function checkWindowFit() {
+            const { available, row, count, toggle } = await page.locator('.component-tabs').evaluate(n => ({
+                available: n.getBoundingClientRect().height,
+                row: n.querySelector('.component-tab-item').getBoundingClientRect().height,
+                count: n.firstElementChild.children.length,
+                toggle: n.lastElementChild.getBoundingClientRect().height,
+            }));
+            assert.equal(count, Math.floor((available - toggle) / (row + 4)), 'window overflow uses every available row');
+        }
+        await checkWindowFit();
         const originalCount = await visibleWindows.count();
         await page.setViewportSize({ width: 1280, height: 600 }); await page.waitForTimeout(300);
+        await checkWindowFit();
         assert.ok(await visibleWindows.count() < originalCount, 'shorter side panels move excess windows into overflow');
         await page.setViewportSize({ width: 1280, height: 1000 }); await page.waitForTimeout(300);
+        await checkWindowFit();
         assert.ok(await visibleWindows.count() > originalCount, 'taller side panels recover window rows from overflow');
+        await page.setViewportSize({ width: 1280, height: 600 }); await page.waitForTimeout(300);
+        const focusedWindow = visibleWindows.first().locator('.component-tab');
+        await focusedWindow.focus();
+        for (let padding = 3; padding < 33; padding++) {
+            await page.locator('.topbar').evaluate((n, padding) => n.style.paddingBottom = `${padding}px`, padding); await page.waitForTimeout(100);
+            await checkWindowFit();
+            assert.ok(await focusedWindow.evaluate(n => document.activeElement === n), 'refitting preserves window keyboard focus');
+        }
+        await page.locator('.topbar').evaluate(n => n.style.paddingBottom = '');
         await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(300);
+        await checkWindowFit();
         assert.equal(await visibleWindows.count(), originalCount);
         const more = page.locator('.window-bar .overflow-toggle');
         await more.scrollIntoViewIfNeeded(); await more.click();

@@ -90,9 +90,12 @@
     background: var(--scrollbar-active) padding-box;
   }
 }
+html { overflow: clip; overscroll-behavior: none; }
 body {
+  position: fixed;
+  inset: 0;
   margin: 0;
-  overflow: hidden;
+  overflow: clip;
 }
 button,
 input,
@@ -323,11 +326,11 @@ h3 {
 #app.side-panel > .topbar { grid-area: panel; height: auto; min-height: 0; flex-direction: column; align-items: stretch; gap: 4px; padding: 0 3px 3px; border: 0; }
 #app[data-panel-position=left] > .topbar { border-right: var(--server-marker-border, 1px solid var(--line)); }
 #app[data-panel-position=right] > .topbar { border-left: var(--server-marker-border, 1px solid var(--line)); }
-#app.side-panel .window-bar { grid-column: 1 / -1; align-self: stretch; flex-direction: column; align-items: stretch; min-height: 27px; padding: 2px 0; padding-inline-start: 4px; margin: 0 0 3px; margin-inline: 8px 3px; border: 0; border-inline-start: 1px solid var(--line); border-radius: 0; background: transparent; }
+#app.side-panel .window-bar { grid-column: 1 / -1; align-self: stretch; flex-direction: column; align-items: stretch; min-height: 27px; padding: 2px 0; margin: 3px 0 0; margin-inline-start: 3px; border: 0; border-inline-start: 1px solid var(--line); border-radius: 0; background: transparent; }
 #app.side-panel > .workspace-viewport { grid-area: desktop; min-width: 0; }
-/* Crop only the artwork's margins, with a little room for its outer pixels. */
-#app.side-panel .brand-button { position: relative; width: 100%; padding: 0; min-height: 0; aspect-ratio: 2.92; overflow: hidden; }
-#app.side-panel .brand { position: absolute; width: 119%; max-width: none; height: auto; left: -9.5%; top: -18%; }
+/* Crop the artwork's vertical margins while keeping the full logo inside the button. */
+#app.side-panel .brand-button { position: relative; width: 100%; padding: 0; min-height: 0; aspect-ratio: 3.2; overflow: hidden; }
+#app.side-panel .brand { position: absolute; width: 100%; height: auto; left: 0; top: 50%; transform: translateY(-50%); }
 #app.side-panel .workspace-controls { flex: 0 1 auto; flex-direction: column; align-items: stretch; min-height: 0; }
 #app.side-panel .vertical-tabs { flex: 0 1 auto; flex-direction: column; align-items: stretch; min-height: 0; width: 100%; overflow: hidden; }
 #app.side-panel .component-tabs { flex: 0 1 auto; min-height: 25px; overflow: hidden; }
@@ -341,7 +344,7 @@ h3 {
 #app.side-panel .workspace-tabs .workspace-tab-item.active:has(.component-tab-item + .component-tab-item, .component-tabs > .overflow-toggle:not([hidden])) { min-height: 95px; }
 #app.side-panel .component-tabs > .visible-tabs { overflow: hidden; }
 #app.side-panel .component-tabs > .visible-tabs:empty { display: none; }
-#app.side-panel .component-tab { font-size: 11px; }
+#app.side-panel .component-tab { font-size: 11px; padding-inline-start: 4px; }
 #app.side-panel .component-tab > svg { width: 13px; height: 13px; }
 .vertical-tabs .workspace-tab-item, .vertical-tabs .component-tab-item { width: 100%; }
 .vertical-tabs .workspace-tab, .vertical-tabs .component-tab { flex: 1; min-width: 0; max-width: none; text-align: start; justify-content: flex-start; }
@@ -354,9 +357,9 @@ h3 {
 #app.side-panel .monitor-controls { grid-column: 1 / -1; padding-block: 4px; }
 #app.side-panel .monitor-summary { width: 100%; }
 #app.side-panel .monitor-strip { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 6px 4px; width: 100%; }
-#app.side-panel .monitor-chip { font-size: 15px; align-self: start; }
+#app.side-panel .monitor-chip { font-size: 18px; align-self: start; }
 #app.side-panel .monitor-value { width: auto; }
-#app.side-panel .monitor-network-value .monitor-value { font-size: .8em; }
+#app.side-panel .monitor-network-value { font-size: 15px; }
 #app.side-panel ~ .notification-stack { top: 18px; max-height: calc(100% - 36px); }
 #app[data-panel-position=right] ~ .notification-stack { right: 172px; width: min(390px, calc(100vw - 190px)); }
 #app[data-panel-position=bottom] ~ .notification-stack { top: 18px; }

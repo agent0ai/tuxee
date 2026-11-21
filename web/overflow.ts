@@ -42,8 +42,9 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     function fit() {
         if (host.classList.contains('tab-drag-host') && bound.length === items.length && items.every(item => bound.includes(item))) return;
         const nested = host.querySelector<HTMLElement>('.vertical-tabs');
-        if (vertical && host.clientHeight === fittedHeight && (nested?.style.height || '') === nestedHeight &&
+        if (vertical && host.getBoundingClientRect().height === fittedHeight && (nested?.style.height || '') === nestedHeight &&
             bound.length === items.length && items.every((item, index) => bound[index] === item)) return;
+        const focused = host.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined;
         dragging?.cancel();
         if (reorder && (bound.length !== items.length || items.some(item => !bound.includes(item)))) {
             dragging?.dispose();
@@ -51,7 +52,8 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
             dragging = reorderTabs(items, more, visible, menu, () => { fit(); reorder(items); });
         }
         close();
-        visible.replaceChildren(...items); more.hidden = false;
+        // A speculative ellipsis would shrink the nested list before measuring its space.
+        visible.replaceChildren(...items); more.hidden = vertical;
         if (vertical) {
             // Measure full rows before flex shrinks nested windows into the available height.
             const flex = visible.style.flex;
@@ -59,9 +61,13 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
             host.style.height = `${items.reduce((sum, item) => sum + item.getBoundingClientRect().height, 0) + 4 * Math.max(0, items.length - 1)}px`;
             visible.style.flex = flex;
         }
-        const widths = items.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
-        const style = getComputedStyle(host), available = vertical ? host.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+        let widths = items.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
+        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        if (vertical && widths.reduce((sum, size) => sum + size, 0) + 4 * Math.max(0, items.length - 1) > available) {
+            more.hidden = false;
+            widths = items.map(item => item.getBoundingClientRect().height);
+        }
         const toggleSize = vertical ? more.offsetHeight : more.offsetWidth;
         const count = fittingHeaderItemCount(widths, available, toggleSize, 4);
         const kept = new Set(items.slice(0, count));
@@ -69,7 +75,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         const priority = active ? [active] : [];
         const following = active && vertical && host.classList.contains('workspace-tabs') ? items[items.indexOf(active) + 1] : undefined;
         if (following) priority.push(following);
-        for (const item of priority) if (count && !kept.has(item)) {
+        for (const item of priority) if (!kept.has(item)) {
             let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + 4, 0);
             while (kept.size && used + widths[items.indexOf(item)] + toggleSize + 4 > available) {
                 const last = [...kept].reverse().find(item => !priority.includes(item));
@@ -81,13 +87,18 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         visible.replaceChildren(...items.filter(item => kept.has(item)));
         menu.replaceChildren(...items.filter(item => !kept.has(item)));
         more.hidden = kept.size === items.length;
-        if (vertical) { fittedHeight = host.clientHeight; nestedHeight = nested?.style.height || ''; bound = [...items]; }
+        if (vertical) { fittedHeight = host.getBoundingClientRect().height; nestedHeight = nested?.style.height || ''; }
+        bound = [...items];
+        if (focused && document.activeElement !== focused) (focused.checkVisibility() ? focused : more).focus({ preventScroll: true });
     }
-    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        if (!menu.matches(':popover-open') || bound.length !== items.length || items.some(item => !bound.includes(item))) fit();
+    }); };
     const observer = new ResizeObserver(schedule);
+    menu.addEventListener('toggle', schedule);
     window.addEventListener('tuxee-tabs-changed', schedule);
     observer.observe(host); observer.observe(host.parentElement!); fit();
-    return () => { dragging?.dispose(); strips.delete(host); observer.disconnect(); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
+    return () => { dragging?.dispose(); strips.delete(host); observer.disconnect(); menu.removeEventListener('toggle', schedule); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
 }
 
 function reorderTabs(items: HTMLElement[], more: HTMLElement, visible: HTMLElement, menu: HTMLElement, changed: () => void) {

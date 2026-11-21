@@ -298,7 +298,7 @@ function renderChrome() {
     let closeCommands = () => {};
     const commands = button(t('commandShortcuts.title'), 'Star', () => { closeCommands = commandShortcutsMenu(commands); }, 'command-shortcuts-toggle');
     commands.setAttribute('aria-haspopup', 'menu');
-    (compact ? right : additions).append(commands);
+    additions.append(commands);
     chromeDisposers.push(() => closeCommands());
     if (!compact) {
         let collapseTimer: ReturnType<typeof setTimeout> | undefined;

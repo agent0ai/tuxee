@@ -37,6 +37,20 @@ try {
         await page.addStyleTag({ content: styles });
         await page.addScriptTag({ content: bundle.outputFiles[0].text });
         const order = () => page.evaluate(() => window.order);
+        await page.evaluate(() => {
+            document.querySelector('#first .workspace-tab').style.width = '200px';
+            document.querySelector('#third .workspace-tab').style.width = '30px';
+            document.querySelector('#third').classList.add('active');
+            document.querySelector('#host').style.width = '120px';
+        });
+        await page.waitForFunction(() => document.querySelector('.visible-tabs').children.length === 1 && document.querySelector('.visible-tabs > #third'));
+        await page.locator('#host').evaluate(n => n.style.width = '500px');
+        await page.waitForFunction(() => document.querySelector('.visible-tabs').children.length === 3);
+        await page.evaluate(() => {
+            document.querySelector('#first .workspace-tab').style.width = '40px';
+            document.querySelector('#third .workspace-tab').style.width = '60px';
+            document.querySelector('#third').classList.remove('active');
+        });
         await page.locator('#first .workspace-tab').focus();
         await page.keyboard.press(dir === 'rtl' ? 'Alt+ArrowLeft' : 'Alt+ArrowRight');
         assert.deepEqual(await order(), ['second', 'first', 'third'], `${dir}: physical arrow follows visual order`);
@@ -66,9 +80,14 @@ try {
         await drag('first', 'third', true); assert.deepEqual(await order(), ['first', 'second', 'third']);
         await drag('first', 'third'); assert.deepEqual(await order(), ['second', 'third', 'first'], `${dir}: unequal-width pointer reorder`);
         await drag('first', 'second'); assert.deepEqual(await order(), ['first', 'second', 'third'], `${dir}: reverse pointer reorder`);
+        await page.locator('#first .workspace-tab').focus();
         await page.locator('#host').evaluate(node => node.style.width = '280px');
         await page.waitForFunction(() => document.querySelector('.visible-tabs').children.length === 2);
+        assert.ok(await page.locator('#first .workspace-tab').evaluate(n => document.activeElement === n), 'refitting keeps keyboard focus on a visible tab');
         await page.getByRole('button', { name: 'More', exact: true }).click();
+        await page.evaluate(() => window.dispatchEvent(new Event('tuxee-tabs-changed')));
+        await page.waitForTimeout(100);
+        assert.equal(await page.locator('.overflow-tabs:popover-open').count(), 1, 'label updates keep the open overflow usable');
         await drag('third', 'first', true);
         assert.deepEqual(await order(), ['first', 'second', 'third'], `${dir}: cancelled overflow-to-bar drag`);
         await page.getByRole('button', { name: 'More', exact: true }).click();

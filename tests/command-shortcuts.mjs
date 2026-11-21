@@ -75,11 +75,17 @@ try {
         await dialog.locator('[name=name]').fill(name); await dialog.locator('[name=command]').fill(command);
         await dialog.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
     }
+    async function openComponentMenu(id) {
+        await page.locator('#app.compact').waitFor();
+        const opener = page.locator(`[data-component-menu="${id}"]`);
+        if (!await opener.isVisible()) await page.locator('.component-tabs > .overflow-toggle').tap();
+        await opener.tap();
+    }
     async function closeTerminal() {
         const id = await terminal.locator('[data-terminal]').getAttribute('data-terminal');
         const response = page.waitForResponse(r => r.url().endsWith('/api/terminals/' + id) && r.request().method() === 'DELETE');
         if (await page.locator('#app').evaluate(node => node.classList.contains('compact'))) {
-            await page.locator('[data-component-menu]').last().tap(); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
+            await openComponentMenu(await terminal.getAttribute('data-panel')); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
         } else await terminal.getByRole('button', { name: 'Close panel', exact: true }).click();
         await response; await terminal.waitFor({ state: 'detached' });
     }
@@ -89,7 +95,7 @@ try {
         if (source === 'blank') {
             const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
             await page.mouse.click(grid.x + grid.width * .875, grid.y + grid.height * .75, { button: 'right' });
-        } else if (source === 'compact') await page.locator('[data-component-menu=commands-files]').tap();
+        } else if (source === 'compact') await openComponentMenu('commands-files');
         else await page.locator('[data-panel=commands-files] .panel-header').click({ button: 'right', position: { x: 20, y: 10 } });
         const labels = await contextMenu.getByRole('menuitem').allTextContents();
         assert.deepEqual(labels.slice(labels.indexOf('Add terminal'), labels.indexOf('Add terminal') + 3), ['Add terminal', 'Add file browser', 'Shortcuts']);
@@ -325,7 +331,7 @@ try {
     assert.ok(await page.locator('.command-shortcuts-rows').evaluate(node => node.scrollHeight > node.clientHeight));
     await rows.last().locator('.component-menu').tap(); await page.getByRole('menuitem', { name: 'Run', exact: true }).tap();
     await page.getByRole('status').filter({ hasText: 'Desktop full' }).waitFor(); assert.equal(await terminal.count(), 0);
-    await page.locator('[data-component-menu=full-0]').tap();
+    await openComponentMenu('full-0');
     await contextMenu.getByRole('menuitem', { name: 'Shortcuts', exact: true }).tap();
     assert.equal(await submenu.getByRole('menuitem').count(), 50);
     assert.ok(await submenu.locator('button').evaluateAll(nodes => nodes.every(node => node.disabled)), 'full desktop disables every shortcut launch');
