@@ -71,10 +71,11 @@ try {
         if (position === 'left' || position === 'right') {
             assert.equal(top.width, 154);
             const rail = await page.locator('.window-bar').boundingBox();
-            assert.equal(rail.height, desktop.height);
-            assert.equal(rail.y, desktop.y);
-            if (position === 'left') assert.equal(top.x + top.width, rail.x);
-            else assert.equal(rail.x + rail.width, top.x);
+            assert.equal(await page.locator('[data-workspace=overview] > .window-bar').count(), 1, 'window list belongs to the active desktop');
+            const active = await page.locator('[data-workspace=overview] > .workspace-tab').boundingBox();
+            assert.ok(rail.y >= active.y + active.height && rail.x > top.x && rail.x + rail.width < top.x + top.width, 'window list is indented below its desktop');
+            if (position === 'left') assert.equal(top.x + top.width, desktop.x);
+            else assert.equal(desktop.x + desktop.width, top.x);
             const tabs = await page.locator('.workspace-tab-item').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
             assert.ok(tabs.every((r, i) => r.width === tabs[0].width && (!i || r.y >= tabs[i - 1].bottom)));
             const plus = await page.locator('.workspace-controls > button').boundingBox();
@@ -82,7 +83,8 @@ try {
             const actions = await page.locator('.panel-additions > button').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
             assert.ok(actions.every(r => r.y === actions[0].y));
             const network = await page.locator('.monitor-network-value > span').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().y));
-            assert.ok(network.length === 2 && network[0] < network[1], 'network readings keep stable rows as values change');
+            assert.ok(network.length === 2 && network[0] === network[1], 'network readings stay on one line');
+            assert.equal(await page.locator('.panel-additions > button > svg').first().evaluate(n => n.getBoundingClientRect().width), 18);
             const theme = await page.locator('.theme-toggle').boundingBox(), volume = await page.locator('.volume-toggle').boundingBox(), account = await page.locator('.user-menu-button').boundingBox();
             assert.equal(theme.y, volume.y); assert.equal(account.y, theme.y);
         }
@@ -133,6 +135,19 @@ try {
         await page.keyboard.press(vertical ? 'Alt+ArrowUp' : 'Alt+ArrowLeft');
         await page.keyboard.press(vertical ? 'Alt+ArrowUp' : 'Alt+ArrowLeft'); await settled();
         assert.deepEqual((await snapshot()).workspaces.map(w => w.id), beforeDesktops);
+        if (vertical) {
+            for (const cancel of [true, false]) {
+                await startDrag(desktopTab('overview')); await move(center(await desktopTab('files').boundingBox()));
+                await page.locator('.tab-drag-preview .window-bar').waitFor();
+                await endDrag(cancel);
+                assert.equal((await snapshot()).current, 'overview', 'active desktop carries its nested windows when reordered');
+                if (cancel) assert.deepEqual((await snapshot()).workspaces.map(w => w.id), beforeDesktops);
+            }
+            await desktopTab('overview').focus();
+            for (let i = 0; i < 3; i++) await page.keyboard.press('Alt+ArrowUp');
+            await settled();
+            assert.deepEqual((await snapshot()).workspaces.map(w => w.id), beforeDesktops);
+        }
         const hiddenOrder = async () => (await snapshot()).workspaces[0].panels.filter(p => p.minimized).map(p => p.id);
         await title('minimized').focus();
         await page.keyboard.press(vertical ? 'Alt+ArrowUp' : 'Alt+ArrowLeft');
@@ -190,7 +205,7 @@ try {
         await move({ x: initial.x + 10, y: initial.y + 10 });
         const emptyBar = await page.locator('.window-bar').boundingBox(), gridDuring = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
         assert.ok(emptyBar);
-        if (vertical) assert.ok(gridDuring.width < gridBefore.width && gridDuring.height === gridBefore.height);
+        if (vertical) assert.deepEqual(gridDuring, gridBefore, 'revealing nested windows does not consume desktop space');
         else assert.ok(gridDuring.height < gridBefore.height && gridDuring.width === gridBefore.width);
         await move(center(emptyBar)); await checkGap();
         await page.waitForTimeout(250); assert.equal(resizes, resizeBefore, 'revealing an empty rail never resizes the live terminal');
@@ -280,6 +295,37 @@ try {
     assert.equal((await api('/settings', 'PUT', { ...await snapshot(), mobilePanelPosition: 'left' })).status(), 400);
     assert.deepEqual(errors, []);
     console.log('PASS cancellation, reload, independent mobile placement/inheritance, responsive settings, invalid values and browser errors');
+    let rate = 999e6;
+    await page.route(base + '/api/metrics', async route => {
+        const response = await route.fetch(), data = await response.json();
+        data.networks.find(n => n.name === '/all').receiveRate = rate;
+        data.networks.find(n => n.name === '/all').sendRate = rate;
+        data.cpu.percent = 100;
+        await route.fulfill({ response, json: data });
+    });
+    for (const cpu of [true, false]) for (const theme of ['dark', 'light']) {
+        await page.waitForTimeout(350); await page.goto('about:blank');
+        assert.equal((await api('/settings', 'PUT', { ...fixture, panelPosition: 'right', theme,
+            monitoring: { cpu, memory: true, swap: false, disks: ['/'], networks: ['/all'], interval: 2 } })).status(), 200);
+        await page.goto(base); await page.locator('.monitor-summary[data-state=ready]').waitFor();
+        for (rate of [999e6, 0]) {
+            await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+            await page.waitForFunction(value => document.querySelector('.monitor-download').textContent === value, rate ? '999M' : '0B');
+            const geometry = await page.locator('.monitor-strip').evaluate(n => {
+                const r = n.getBoundingClientRect(), network = n.querySelector('[data-kind=network]').getBoundingClientRect();
+                return { right: r.right, left: r.left, network: network.toJSON(),
+                    readings: [...n.querySelectorAll('.monitor-network-value > span')].map(n => n.getBoundingClientRect().toJSON()),
+                    columns: getComputedStyle(n).gridTemplateColumns.split(' ').map(parseFloat) };
+            });
+            assert.equal(geometry.readings[0].y, geometry.readings[1].y, 'both NET rates remain on one line');
+            assert.ok(geometry.readings[1].right <= geometry.right + 1, 'large NET values fit the side panel');
+            assert.ok(cpu ? geometry.network.x > geometry.left : geometry.network.x === geometry.left, 'NET follows the configured metric order');
+            if (rate) assert.ok(geometry.columns[cpu ? 1 : 0] > geometry.columns[cpu ? 0 : 1], 'the column containing NET grows with its content');
+        }
+        await page.screenshot({ path: `test-results/panel-position/right-metrics-${cpu ? 'cpu' : 'no-cpu'}-${theme}.png` });
+    }
+    await page.unroute(base + '/api/metrics');
+    console.log('PASS content-sized metrics, single-line NET in either column and both themes');
     // Long side lists remain scrollable, with their last controls clickable and draggable.
     const crowded = structuredClone(fixture);
     crowded.workspaces.push(...Array.from({ length: 8 }, (_, i) => ({ id: `extra${i}`, name: `Extra ${i}`, columns: 4, rows: 2, panels: [] })));
@@ -289,7 +335,7 @@ try {
         assert.equal((await api('/settings', 'PUT', { ...crowded, panelPosition: position })).status(), 200);
         await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
         await page.waitForTimeout(300);
-        for (const [strip, last, opener] of [['.workspace-tabs', '[data-workspace=extra7] .workspace-tab', '[data-workspace=extra7] .workspace-menu'], ['.component-tabs', '[data-component-name=hidden26]', '[data-component-menu=hidden26]']]) {
+        for (const [strip, last, opener] of [['.workspace-tabs', '[data-workspace=extra7] .workspace-tab', '[data-workspace=extra7] .workspace-menu']]) {
             assert.equal(await page.locator(strip).evaluate(n => n.scrollHeight > n.clientHeight), true, 'long side list scrolls');
             await page.locator(last).scrollIntoViewIfNeeded();
             const scroll = await page.locator(strip).evaluate(n => n.scrollTop);
@@ -314,10 +360,54 @@ try {
             assert.equal(await page.locator(strip).evaluate(n => n.scrollTop), beforeCommit, 'reordering a scrolled list keeps its scroll position');
             assert.equal(await page.locator(last).evaluate(n => n.parentElement.nextElementSibling !== null), true, 'last tab moved up');
         }
+        await page.goto('about:blank');
+        await page.setViewportSize({ width: 1280, height: 800 });
+        assert.equal((await api('/settings', 'PUT', { ...crowded, workspaces: crowded.workspaces.slice(0, 4), panelPosition: position })).status(), 200);
+        await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
+        await page.waitForTimeout(300);
+        await page.locator('[data-workspace=overview] > .workspace-tab').scrollIntoViewIfNeeded();
+        const visibleWindows = page.locator('.component-tabs > .visible-tabs > .component-tab-item');
+        const originalCount = await visibleWindows.count();
+        await page.setViewportSize({ width: 1280, height: 600 }); await page.waitForTimeout(300);
+        assert.ok(await visibleWindows.count() < originalCount, 'shorter side panels move excess windows into overflow');
+        await page.setViewportSize({ width: 1280, height: 1000 }); await page.waitForTimeout(300);
+        assert.ok(await visibleWindows.count() > originalCount, 'taller side panels recover window rows from overflow');
+        await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(300);
+        assert.equal(await visibleWindows.count(), originalCount);
+        const more = page.locator('.window-bar .overflow-toggle');
+        await more.scrollIntoViewIfNeeded(); await more.click();
+        const hidden = page.locator('[data-component-name=hidden26]');
+        await hidden.scrollIntoViewIfNeeded();
+        await page.locator('[data-component-menu=hidden26]').click(); await page.locator('.menu-actions:popover-open').waitFor();
+        const childMenu = await page.locator('.menu-actions:popover-open').boundingBox(), opener = await page.locator('[data-component-menu=hidden26]').boundingBox();
+        assert.ok(childMenu.x >= opener.x + opener.width || childMenu.x + childMenu.width <= opener.x, 'nested actions keep their opener clear');
+        await page.locator('[data-component-menu=hidden26]').click(); assert.equal(await page.locator('.menu-actions:popover-open').count(), 0);
+        for (const cancel of [true, false]) {
+            const from = await hidden.boundingBox(), target = await page.locator('.component-tabs > .visible-tabs > .component-tab-item').first().boundingBox();
+            await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+            await page.mouse.move(from.x + from.width / 2, from.y + 6, { steps: 3 });
+            await page.mouse.move(target.x + target.width / 2, target.y + 2, { steps: 12 });
+            await page.locator('.tab-drag-preview').waitFor();
+            if (cancel) await page.keyboard.press('Escape');
+            await page.mouse.up(); await page.waitForTimeout(350);
+            if (cancel) { await more.click(); await hidden.scrollIntoViewIfNeeded(); }
+        }
+        assert.equal(await page.locator('.component-tabs > .visible-tabs [data-component-name=hidden26]').count(), 1, 'overflow window can move into the nested list');
+        const from = await hidden.boundingBox(), toggle = await more.boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+        await page.mouse.move(toggle.x + toggle.width / 2, toggle.y + toggle.height / 2, { steps: 16 });
+        await page.locator('.overflow-tabs:popover-open').waitFor();
+        const target = await page.locator('.overflow-tabs:popover-open > .component-tab-item').first().boundingBox();
+        await page.mouse.move(target.x + target.width / 2, target.y + target.height, { steps: 16 });
+        await page.locator('.tab-drag-preview').waitFor();
+        await page.mouse.up(); await page.waitForTimeout(350);
+        assert.equal(await page.locator('.component-tabs > .visible-tabs [data-component-name=hidden26]').count(), 0, 'visible window can move back into overflow');
+        await page.screenshot({ path: `test-results/panel-position/${position}-nested-overflow.png` });
         await page.waitForTimeout(300); await page.goto('about:blank');
+        await page.setViewportSize({ width: 900, height: 650 });
     }
     assert.deepEqual(errors, []);
-    console.log('PASS long vertical desktop/window lists: scroll, anchored menu clicks and drag cancellation');
+    console.log('PASS long vertical desktops and nested window overflow: anchored menus, dragging and cancellation');
 } catch (error) {
     if (page && await page.locator('.topbar').count()) await page.screenshot({ path: 'test-results/panel-position/failure.png' }).catch(() => {});
     throw error;

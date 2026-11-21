@@ -337,6 +337,7 @@ function renderChrome() {
     right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
     componentTabs.classList.toggle('vertical-tabs', vertical);
+    componentTabs.classList.toggle('vertical-overflow', vertical);
     componentTabs.setAttribute('aria-label', t("app.components"));
     const componentControls = el('div', 'component-controls');
     componentControls.append(componentTabs);
@@ -357,7 +358,10 @@ function renderChrome() {
         menu.dataset.componentMenu = panel.id;
         components.push(group);
     }
-    root.prepend(top, componentControls);
+    if (vertical) {
+        tabItems.find(item => item.dataset.workspace === ws.id)!.append(componentControls);
+        root.prepend(top);
+    } else root.prepend(top, componentControls);
     updateLayoutButton();
     chromeDisposers.push(overflowTabs(tabs, tabItems, t("app.moreWorkspaces"), compact ? undefined : items => {
         settings.workspaces = items.map(item => settings.workspaces.find(ws => ws.id === item.dataset.workspace)!);
@@ -813,11 +817,11 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         if (existing) {
             const top = root.querySelector<HTMLElement>('.topbar')!.getBoundingClientRect(), bottom = windowBar.getBoundingClientRect();
             const inHeader = [top, bottom].some(r => move.clientX >= r.left - 2 && move.clientX < r.right + 2 && move.clientY >= r.top - 2 && move.clientY < r.bottom + 2);
-            const more = document.querySelector<HTMLButtonElement>('.workspace-tabs .overflow-toggle'), bounds = more?.getBoundingClientRect();
+            const more = document.querySelector<HTMLButtonElement>('.workspace-tabs > .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
                 if (more.getAttribute('aria-expanded') !== 'true') { tabPreview?.float(move); more.click(); tabPreview?.raise(); }
             }
-            const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= r.top && move.clientY < r.bottom; });
+            const tab = dropTabs.find(tab => { const r = tab.getBoundingClientRect(), label = tab.firstElementChild!.getBoundingClientRect(); return tab.checkVisibility() && move.clientX >= r.left && move.clientX < r.right && move.clientY >= label.top && move.clientY < label.bottom; });
             if (tab) {
                 workspaceTarget = settings.workspaces.find(ws => ws.id === tab.dataset.workspace);
                 tab.dataset.componentDrop = workspaceTarget !== ws && (workspaceTarget!.panels.length < MAX_PANELS) ? 'allowed' : 'blocked';
@@ -935,7 +939,7 @@ async function movePanel(panel: Panel, target: Workspace, preview?: DOMRect) {
     let flight: HTMLElement | undefined;
     try {
         const tab = [...document.querySelectorAll<HTMLElement>('.workspace-tab-item')].find(tab => tab.dataset.workspace === target.id && tab.checkVisibility())
-            || document.querySelector<HTMLElement>('.workspace-tabs .overflow-toggle');
+            || document.querySelector<HTMLElement>('.workspace-tabs > .overflow-toggle');
         if (!panel.minimized && tab && from.width && from.height && duration(220)) {
             const to = tab.getBoundingClientRect();
             flight = el('div', 'grid-stack component-flight');

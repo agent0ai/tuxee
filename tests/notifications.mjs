@@ -127,7 +127,11 @@ try {
         assert.ok(bounded.y + bounded.height <= viewport.height - 18, 'global stack keeps its bottom margin');
         await page.screenshot({ path: `test-results/notifications-${name}-global.png` });
         for (const position of compact ? ['bottom'] : ['bottom', 'left', 'right']) {
-            await page.locator('#app').evaluate((node, position) => { node.dataset.panelPosition = position; node.classList.toggle('side-panel', position === 'left' || position === 'right'); }, position);
+            await page.locator('#app').evaluate((node, position) => {
+                node.dataset.panelPosition = position; const vertical = position === 'left' || position === 'right'; node.classList.toggle('side-panel', vertical);
+                const bar = node.querySelector('.component-controls');
+                if (vertical) node.querySelector('.topbar').append(bar); else node.insertBefore(bar, node.querySelector('.workspace-viewport'));
+            }, position);
             for (const hidden of [false, true]) {
                 await page.locator('.component-controls').evaluate((node, hidden) => node.hidden = hidden, hidden);
                 const stack = await global.boundingBox();

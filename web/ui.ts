@@ -234,7 +234,11 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
         : (anchor as { x: number }).x;
     let top = rect ? rect.bottom + 4 : (anchor as { y: number }).y;
     const panel = control?.closest<HTMLElement>('.topbar, .component-controls');
-    if (panel) {
+    if (parent && control) {
+        const bounds = parent.getBoundingClientRect();
+        left = bounds.right + content.offsetWidth + 4 <= innerWidth ? bounds.right + 4 : bounds.left - content.offsetWidth - 4;
+        top = control.getBoundingClientRect().top;
+    } else if (panel) {
         const edge = panel.closest<HTMLElement>('#app')?.dataset.panelPosition, bounds = panel.getBoundingClientRect();
         if (edge === 'left' || edge === 'right') {
             const opener = control!.getBoundingClientRect();
