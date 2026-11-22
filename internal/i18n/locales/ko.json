@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Tuxee를 다시 시작할 수 없습니다.",
     "app.cloneWorkspace": "복제",
     "app.closeNamedWorkspace": "{name}를 닫으시겠습니까?",
-    "app.closePanel": "패널 닫기",
+    "app.closePanel": "창 닫기",
     "app.closeWorkspace": "작업공간 닫기",
     "app.colorMarker": "컬러마커",
     "app.componentMenu": "구성요소 메뉴",

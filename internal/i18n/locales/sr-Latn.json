@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Nije moguće ponovo pokrenuti Tuxee",
     "app.cloneWorkspace": "Kloniraj",
     "app.closeNamedWorkspace": "Zatvoriti {name}?",
-    "app.closePanel": "Zatvori panel",
+    "app.closePanel": "Zatvori prozor",
     "app.closeWorkspace": "Zatvori prostor",
     "app.colorMarker": "Oznaka u boji",
     "app.componentMenu": "Meni komponente",

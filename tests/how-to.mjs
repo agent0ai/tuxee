@@ -105,7 +105,7 @@ try {
         assert.ok(await processes.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-customization')), 'Process Manager is the second Tips section');
         await processImage.scrollIntoViewIfNeeded(); await processImage.evaluate(node => node.decode());
         assert.deepEqual(await processImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1834, 1624]);
-        assert.equal(await processes.locator('[data-shortcut="app.monitor"] kbd').textContent(), 'Alt+Shift+M');
+        assert.equal(await processes.locator('[data-shortcut="app.monitor"] kbd').textContent(), 'Alt+Shift+R');
         const updates = guide.locator('.howto-tip-updates'), updateImage = updates.locator('img');
         assert.equal(await updates.count(), 1);
         assert.ok(await updates.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-processes')), 'Updates is the third Tips section');
@@ -194,7 +194,7 @@ try {
             assert.ok(!(await dialog.innerText()).includes('Submit the input when you are ready.'));
             assert.deepEqual(await dialog.locator('.howto-screenshot').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[1364, 822], [1368, 836], [674, 626], [682, 822], [680, 820], [1360, 824]]);
             assert.match(await dialog.locator('.howto-terminal-files').innerText(), /~\/uploads/);
-            assert.equal(await dialog.locator('[data-shortcut="app.retained"] kbd').innerText(), 'Alt+Shift+R');
+            assert.equal(await dialog.locator('[data-shortcut="app.retained"] kbd').innerText(), 'Alt+Shift+T');
             assert.equal(await dialog.locator('[data-shortcut="app.settings"] kbd').innerText(), 'Alt+Shift+S');
             assert.ok(await dialog.locator('.howto-page').evaluate(node => node.scrollHeight > node.clientHeight * 3));
             for (const name of ['archive', 'retained', 'drawer', 'text', 'files', 'settings']) {
@@ -235,7 +235,7 @@ try {
             assert.match(await dialog.locator('.howto-copy').innerText(), /Chromium.*GIMP.*audio.*headless/s);
             assert.deepEqual(await dialog.locator('pre code').allTextContents(), ['apt install chromium', 'chromium', 'chromium --no-sandbox', 'gimp &\nchromium --no-sandbox &']);
             assert.ok(await dialog.locator('pre').evaluateAll(nodes => nodes.every(node => node.dir === 'ltr')));
-            assert.equal(await dialog.locator('[data-shortcut="audio.mute"] kbd').innerText(), 'Alt+Shift+V');
+            assert.equal(await dialog.locator('[data-shortcut="audio.mute"] kbd').innerText(), 'Alt+Shift+M');
             assert.ok(await dialog.locator('.howto-page').evaluate(node => node.scrollHeight > node.clientHeight * 2));
             for (const name of ['launch', 'tabs', 'local', 'persistent', 'audio']) {
                 await dialog.locator(`.howto-gui-${name}`).scrollIntoViewIfNeeded(); await bounds(page);

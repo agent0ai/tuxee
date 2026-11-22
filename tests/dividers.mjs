@@ -408,7 +408,7 @@ try {
     const survivingTerminal = await item('a').locator('.terminal-view').elementHandle(), survivingFiles = await item('b').locator('.file-view').elementHandle();
     const previousFiles = await item('b').boundingBox(), previousTerminal = await item('a').boundingBox();
     const savedClose = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PUT' && r.request().postDataJSON().workspaces[0].panels.length === 2);
-    await item('c').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await item('c').getByRole('button', { name: 'Close window', exact: true }).click();
     await item('c').waitFor({ state: 'detached' });
     assert.deepEqual(await rect('b'), [0, 0, 2, 2]); assert.deepEqual(await rect('a'), [2, 0, 2, 2]);
     const frames = await page.evaluate(() => window.geometryFrames.b);
@@ -423,11 +423,11 @@ try {
     assert.deepEqual(await rect('b'), [0, 0, 2, 2]);
     console.log('PASS closing a stacked file browser expands its neighbor smoothly, preserves views and persists a Custom layout');
     await fixture([panel('a', 2, 0, 2, 2), panel('b', 0, 0, 2, 1), panel('c', 0, 1, 2, 1)]);
-    await page.evaluate(() => ['b', 'c'].forEach(id => document.querySelector(`[data-panel=${id}] [aria-label="Close panel"]`).click()));
+    await page.evaluate(() => ['b', 'c'].forEach(id => document.querySelector(`[data-panel=${id}] [aria-label="Close window"]`).click()));
     await item('b').waitFor({ state: 'detached' }); await item('c').waitFor({ state: 'detached' });
     assert.deepEqual(await rect('a'), [0, 0, 4, 2], 'concurrent closures do not expand or cancel another closing window');
     await fixture([panel('a', 1, 0, 1, 1), panel('b', 0, 0, 1, 1), panel('c', 3, 1, 1, 1)]);
-    await item('b').getByRole('button', { name: 'Close panel', exact: true }).click(); await item('b').waitFor({ state: 'detached' });
+    await item('b').getByRole('button', { name: 'Close window', exact: true }).click(); await item('b').waitFor({ state: 'detached' });
     assert.deepEqual(await rect('a'), [0, 0, 2, 1]); assert.deepEqual(await rect('c'), [3, 1, 1, 1]);
     await fixture([panel('a', 1, 0, 1, 1), panel('b', 0, 0, 1, 1)]);
     await page.setViewportSize({ width: 390, height: 844 });

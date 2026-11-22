@@ -583,7 +583,7 @@ try {
     await poll(() => second.locator('.terminal-archive').isVisible(), 'shell exit did not show its archive');
     assert.equal(await second.locator('.terminal-display').isVisible(),false,'shell exit left a dead display visible');
     await poll(async () => !await alive(Number(shellLines[1])), 'shell exit left GUI app running');
-    await second.locator('..').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await second.locator('..').getByRole('button', { name: 'Close window', exact: true }).click();
     await poll(() => api(`/terminals/${panels[1].terminal}`).then(response => response.json()).then(info => Boolean(info.closedAt)), 'closing panel left GUI session running');
     await poll(async () => !await alive(Number(shellLines[1])), 'closing panel left its shell running');
     assert.ok(await alive(input.pid));

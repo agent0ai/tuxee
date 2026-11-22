@@ -48,8 +48,8 @@ async function checkClose(width, height, columns, rows, shapes, closing, expecte
     }
     const saved = page.waitForResponse(r => r.url() === base + '/api/settings' && r.request().method() === 'PUT'
         && r.request().postDataJSON().workspaces[0].panels.length === survivors.length);
-    if (closing.length === 1) await item(closing[0]).getByRole('button', { name: 'Close panel', exact: true }).click();
-    else await page.evaluate(ids => ids.forEach(id => document.querySelector(`[data-panel="${id}"] [aria-label="Close panel"]`).click()), closing);
+    if (closing.length === 1) await item(closing[0]).getByRole('button', { name: 'Close window', exact: true }).click();
+    else await page.evaluate(ids => ids.forEach(id => document.querySelector(`[data-panel="${id}"] [aria-label="Close window"]`).click()), closing);
     for (const id of closing) await item(id).waitFor({ state: 'detached' });
     assert.equal((await saved).status(), 200);
     for (const [i, p] of survivors.entries()) {

@@ -11,6 +11,9 @@ const shortcuts = await import(`data:text/javascript;base64,${Buffer.from(bundle
 const defaults = shortcuts.bindings();
 assert.equal(Object.keys(defaults).length, 30);
 for (const [id, slots] of Object.entries(defaults)) for (const [index, sequence] of slots.entries()) assert.equal(shortcuts.shortcutConflict(defaults, sequence, id, index), undefined);
+const legacy = shortcuts.bindings({ 'app.monitor': [['Alt+Shift+KeyM'], []], 'app.about': [[], ['Alt+Shift+KeyT', 'KeyA']] });
+assert.deepEqual(legacy['audio.mute'], [[], []], 'saved monitor chord takes priority over the new mute default');
+assert.deepEqual(legacy['app.retained'], [[], []], 'new defaults preserve saved sequence prefixes');
 for (const [first, second] of Object.values(defaults)) {
     assert.equal(first.length, 1); assert.ok(first[0].startsWith('Alt+Shift+')); assert.deepEqual(second, []);
 }
@@ -133,11 +136,11 @@ try {
         await page.waitForFunction(() => document.querySelector('.layout-label')?.getBoundingClientRect().width === 0);
     }
     assert.deepEqual(await page.evaluate(() => window.shortcutInputs), [], 'layout shortcuts must send no PTY bytes');
-    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted · Microphone: 0%');
-    await hotkey('v'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100% · Microphone: 0%');
+    await hotkey('m'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: muted · Microphone: 0%');
+    await hotkey('m'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100% · Microphone: 0%');
     await hotkey('PageDown'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 95% · Microphone: 0%');
     await hotkey('PageUp'); assert.equal(await page.locator('.volume-toggle').getAttribute('aria-label'), 'Audio: 100% · Microphone: 0%');
-    for (const [key, title] of [['m','Resource monitor'],['h','About Tuxee'],['s','Settings'],['r','Retained terminals'],['x','Restart Tuxee?']]) {
+    for (const [key, title] of [['r','Resource monitor'],['h','About Tuxee'],['s','Settings'],['t','Retained terminals'],['x','Restart Tuxee?']]) {
         await hotkey(key); const dialog = page.getByRole('dialog', { name: title, exact: true }); await dialog.waitFor();
         await hotkey('Enter'); assert.equal(await page.locator('.terminal-view').count(), 1, 'modal must block application shortcuts');
         await hotkey('w'); assert.equal(await page.locator('.file-view').count(), 2, 'modal must block panel closure');
@@ -150,6 +153,7 @@ try {
     const open = async () => { await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Keyboard]').click(); };
     const editor = page.locator('.shortcuts-modal'), recorder = page.locator('.shortcut-record-modal');
     await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 30);
+    assert.equal(await editor.locator('[data-shortcut="panel.close"] th').innerText(), 'Close window');
     await editor.locator('[data-shortcut="app.about"] th').dblclick(); await recorder.waitFor();
     await hotkey('h');
     assert.equal(await recorder.locator('output').textContent(), 'Alt+Shift+H');

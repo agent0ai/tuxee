@@ -239,9 +239,9 @@ try {
 
     // Explicit closure while a TUI runs must capture it and start retention.
     const closed=await create('bash');await openProgram(programs[3]);
-    await panel().getByRole('button',{name:'Close panel',exact:true}).click();
+    await panel().getByRole('button',{name:'Close window',exact:true}).click();
     await wait(async()=>!!(await api('/terminals/'+closed.id)).closedAt,'explicit Close retention');
-    assert.match(await archive(closed.id),programs[3].screen);pass('Close panel while Nano runs captures text and starts retention');
+    assert.match(await archive(closed.id),programs[3].screen);pass('Close window while Nano runs captures text and starts retention');
 
     // Server replacement preserves processes; container loss restores their last archive.
     for(const mode of ['cli','kill-server','container-stop','container-kill']) {

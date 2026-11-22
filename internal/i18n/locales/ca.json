@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "No es pot reiniciar el Tuxee",
     "app.cloneWorkspace": "Clona",
     "app.closeNamedWorkspace": "Voleu tancar {name}?",
-    "app.closePanel": "Tanca el plafó",
+    "app.closePanel": "Tanca la finestra",
     "app.closeWorkspace": "Tanca l'espai",
     "app.colorMarker": "Marca de color",
     "app.componentMenu": "Menú del component",

@@ -659,7 +659,7 @@ try {
     console.log('PASS deterministic full click restore, overflow actions and drag through desktop overflow');
 
     await fixture([workspace('origin', [shell(), panel('closing', 0, 0, 2, 1), panel('minimizing', 0, 1, 2, 1)])]);
-    await item('closing').getByRole('button', { name: 'Close panel', exact: true }).evaluate(n => n.click());
+    await item('closing').getByRole('button', { name: 'Close window', exact: true }).evaluate(n => n.click());
     await page.waitForFunction(() => document.querySelector('[data-panel=closing]')?.dataset.closing);
     await item('minimizing').locator('.window-minimize').evaluate(n => n.click()); await settled();
     assert.equal(await item('closing').count(), 0, 'minimize geometry animation cannot cancel an accepted close');
@@ -672,7 +672,7 @@ try {
     assert.equal((await current()).maximized, created.id);
     const afterCreation = geometry(await current());
     assert.deepEqual(afterCreation.find(p => p.id === 'shell'), preCreation.find(p => p.id === 'shell'));
-    await item(created.id).getByRole('button', { name: 'Close panel', exact: true }).click();
+    await item(created.id).getByRole('button', { name: 'Close window', exact: true }).click();
     await select('away');
     assert.equal((await snapshot()).workspaces[0].maximized, 'shell', 'closing selection reconciles saved state while its desktop is inactive');
     await select('origin');

@@ -118,7 +118,7 @@ try {
  await file.getByRole('button', { name: 'Parent directory', exact: true }).click(); await file.locator('.file-entry').first().waitFor();
  await path.focus(); assert.ok(await path.evaluate(node => node === document.activeElement)); await path.press('Escape');
  assert.ok(await header.locator(':scope > svg').isVisible());
- assert.deepEqual(await header.locator('button').evaluateAll(nodes => nodes.map(node => node.title)), ['Minimize window', 'Maximize window', 'Close panel']);
+ assert.deepEqual(await header.locator('button').evaluateAll(nodes => nodes.map(node => node.title)), ['Minimize window', 'Maximize window', 'Close window']);
  const original = await file.locator('.file-actions').elementHandle();
  await mkdir('test-results', { recursive: true });
  for (const width of [1440, 900, 780, 390, 320, 1440]) {

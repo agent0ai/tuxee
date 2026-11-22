@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Не вдається перезапустити Tuxee",
     "app.cloneWorkspace": "Клонувати",
     "app.closeNamedWorkspace": "Закрити {name}?",
-    "app.closePanel": "Закрити панель",
+    "app.closePanel": "Закрити вікно",
     "app.closeWorkspace": "Закрити стіл",
     "app.colorMarker": "Кольоровий маркер",
     "app.componentMenu": "Меню компонентів",

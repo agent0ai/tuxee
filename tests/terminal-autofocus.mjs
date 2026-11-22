@@ -91,7 +91,7 @@ try {
             });
             deleted = page.waitForResponse(response => response.url().endsWith('/api/terminals/' + id) && response.request().method() === 'DELETE');
             if (destination === 'keyboard-closed') await page.keyboard.press('Alt+Shift+w');
-            else await terminal.getByRole('button', { name: 'Close panel', exact: true }).click();
+            else await terminal.getByRole('button', { name: 'Close window', exact: true }).click();
             await page.waitForFunction(() => document.querySelector('[data-closing]'));
         }
         if (destination === 'compact-hidden') await page.locator('[data-component-name=focus-files]').click();

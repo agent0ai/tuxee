@@ -94,7 +94,7 @@ async function checkFavicon(color, target = page) {
 async function api(path, method = 'GET', data) { const me = await context.request.get(`${base}/api/me`); const csrf = me.ok() ? (await me.json()).csrf : ''; return context.request.fetch(`${base}/api${path}`, { method, data, headers: { 'X-Tuxee-CSRF': csrf, 'X-Tuxee-Client': 'web' } }); }
 async function command(text) { await page.locator('.terminal-host .xterm-helper-textarea').last().focus(); await page.keyboard.type(text); await page.keyboard.press('Enter'); }
 async function twoPanelFixture() {
-    await page.locator('.panel:has(.file-view)').last().getByRole('button', { name: 'Close panel', exact: true }).click();
+    await page.locator('.panel:has(.file-view)').last().getByRole('button', { name: 'Close window', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 2);
     assert.equal(await page.locator('.grid-stack-item:has(.file-view)').getAttribute('gs-h'), '2');
     await page.waitForTimeout(220);
@@ -459,7 +459,7 @@ try {
     }
     check('one animated highlight follows all split edges and center swap regardless of the header grab point');
     const terminatedPanel = page.waitForResponse(response => response.url().endsWith(`/api/terminals/${motionTerminalID}`) && response.request().method() === 'DELETE');
-    await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close window', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     assert.equal((await terminatedPanel).status(), 200);
     const closedTerminal = await api(`/terminals/${motionTerminalID}`);
@@ -510,7 +510,7 @@ try {
     });
     await page.getByRole('button', { name: 'Add terminal', exact: true }).click();
     const terminatedPending = page.waitForResponse(response => new URL(response.url()).pathname.startsWith('/api/terminals/') && response.request().method() === 'DELETE');
-    await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await page.locator('.panel:has(> .terminal-view)').getByRole('button', { name: 'Close window', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('.panel').length === 1);
     await page.unroute('**/api/terminals');
     assert.equal((await terminatedPending).status(), 200);

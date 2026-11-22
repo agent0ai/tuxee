@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Tuxee を再起動できません",
     "app.cloneWorkspace": "複製",
     "app.closeNamedWorkspace": "{name}を閉じますか?",
-    "app.closePanel": "パネルを閉じる",
+    "app.closePanel": "ウィンドウを閉じる",
     "app.closeWorkspace": "デスクを閉じる",
     "app.colorMarker": "カラーマーカー",
     "app.componentMenu": "コンポーネントメニュー",

@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Hindi ma-restart ang Tuxee",
     "app.cloneWorkspace": "Gumawa ng kopya",
     "app.closeNamedWorkspace": "Isara ang {name}?",
-    "app.closePanel": "Isara ang panel",
+    "app.closePanel": "Isara ang window",
     "app.closeWorkspace": "Isara ang espasyo",
     "app.colorMarker": "Pananda ng kulay",
     "app.componentMenu": "Menu ng component",

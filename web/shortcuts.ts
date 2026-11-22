@@ -15,19 +15,23 @@ export const shortcutActions = [
     { id: 'panel.files', label: () => t('app.addFileBrowser'), group: 'shortcuts.windows', key: 'KeyF' },
     { id: 'panel.close', label: () => t('app.closePanel'), group: 'shortcuts.windows', key: 'KeyW' },
     { id: 'panel.layout', label: () => t('app.autoLayout'), group: 'shortcuts.windows', key: 'KeyA' },
-    { id: 'audio.mute', label: () => t('shortcuts.toggleMute'), group: 'audio.audio', key: 'KeyV' },
+    { id: 'audio.mute', label: () => t('shortcuts.toggleMute'), group: 'audio.audio', key: 'KeyM' },
     { id: 'audio.up', label: () => t('shortcuts.volumeUp'), group: 'audio.audio', key: 'PageUp' },
     { id: 'audio.down', label: () => t('shortcuts.volumeDown'), group: 'audio.audio', key: 'PageDown' },
-    { id: 'app.monitor', label: () => t('app.resourceMonitor'), group: 'app.tuxee', key: 'KeyM' },
+    { id: 'app.monitor', label: () => t('app.resourceMonitor'), group: 'app.tuxee', key: 'KeyR' },
     { id: 'app.about', label: () => t('app.about'), group: 'app.tuxee', key: 'KeyH' },
     { id: 'app.settings', label: () => t('app.settings'), group: 'app.tuxee', key: 'KeyS' },
-    { id: 'app.retained', label: () => t('app.retainedTerminals'), group: 'app.tuxee', key: 'KeyR' },
+    { id: 'app.retained', label: () => t('app.retainedTerminals'), group: 'app.tuxee', key: 'KeyT' },
     { id: 'app.shortcuts', label: () => t('shortcuts.title'), group: 'app.tuxee', key: 'KeyK' },
     { id: 'app.restart', label: () => t('app.restartTuxee'), group: 'app.tuxee', key: 'KeyX' },
     { id: 'app.logout', label: () => t('app.logOut'), group: 'app.tuxee', key: 'KeyQ' },
 ];
 export function bindings(saved: ShortcutBindings = {}): ShortcutBindings {
-    return Object.fromEntries(shortcutActions.map(action => [action.id, saved[action.id] || [[`Alt+Shift+${action.key}`], []]]));
+    const reserved = new Set(Object.values(saved).flatMap(slots => slots.map(sequence => sequence[0])));
+    return Object.fromEntries(shortcutActions.map(action => {
+        const stroke = `Alt+Shift+${action.key}`;
+        return [action.id, saved[action.id] || [reserved.has(stroke) ? [] : [stroke], []]];
+    }));
 }
 const keyCode = /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-2])|Arrow(Left|Right|Up|Down)|Space|Tab|Enter|Backspace|Delete|Home|End|PageUp|PageDown|Insert|Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash)$/;
 export function shortcutStroke(event: KeyboardEvent): string | undefined {

@@ -86,7 +86,7 @@ try {
         const response = page.waitForResponse(r => r.url().endsWith('/api/terminals/' + id) && r.request().method() === 'DELETE');
         if (await page.locator('#app').evaluate(node => node.classList.contains('compact'))) {
             await openComponentMenu(await terminal.getAttribute('data-panel')); await page.getByRole('menuitem', { name: 'Close', exact: true }).click();
-        } else await terminal.getByRole('button', { name: 'Close panel', exact: true }).click();
+        } else await terminal.getByRole('button', { name: 'Close window', exact: true }).click();
         await response; await terminal.waitFor({ state: 'detached' });
     }
     await mkdir('test-results/command-shortcuts', { recursive: true });
@@ -211,7 +211,7 @@ try {
         let deleted;
         if (destination === 'closed') {
             deleted = page.waitForResponse(r => r.url().endsWith('/api/terminals/' + id) && r.request().method() === 'DELETE');
-            await terminal.getByRole('button', { name: 'Close panel', exact: true }).click();
+            await terminal.getByRole('button', { name: 'Close window', exact: true }).click();
             await page.waitForFunction(() => document.querySelector('[data-closing]'));
         }
         const focus = await page.evaluateHandle(() => document.activeElement); release();

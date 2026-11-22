@@ -191,7 +191,7 @@ try {
     const closing = await info(), beforeClose = creations;
     const pendingDelete = await hold(`/terminals/${closing.id}`, 'DELETE');
     await confirmReset(); await pendingDelete.entered;
-    await page.locator('[data-panel="reset"]').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await page.locator('[data-panel="reset"]').getByRole('button', { name: 'Close window', exact: true }).click();
     await terminal.waitFor({ state: 'detached' }); await pendingDelete.release();
     await waitFor(async () => (await api(`/terminals/${closing.id}`)).status() === 404, 'close did not end resetting terminal');
     await page.unroute(base + `/api/terminals/${closing.id}`);
@@ -199,7 +199,7 @@ try {
     const pendingCreate = await hold('/terminals', 'POST');
     const neighborView = page.locator('[data-panel="neighbor"] .terminal-view');
     await confirmReset(neighborView.getByRole('button', { name: 'Reset terminal', exact: true })); await pendingCreate.entered;
-    await page.locator('[data-panel="neighbor"]').getByRole('button', { name: 'Close panel', exact: true }).click();
+    await page.locator('[data-panel="neighbor"]').getByRole('button', { name: 'Close window', exact: true }).click();
     await neighborView.waitFor({ state: 'detached' }); await pendingCreate.release();
     await waitFor(() => creations === beforeClose + 1, 'held creation did not finish');
     await waitFor(async () => (await api(`/terminals/${created.at(-1)}`)).status() === 404, 'close leaked pending replacement');

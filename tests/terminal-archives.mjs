@@ -76,7 +76,7 @@ try {
             await wait(async()=>{await output(terminal.id);return JSON.parse(await readFile(folder(terminal.id)+'/meta.json')).used;},'accepted key did not mark terminal used');
         }
         const closed = usagePage.waitForResponse(response=>response.url()===base+`/api/terminals/${terminal.id}` && response.request().method()==='DELETE');
-        await usagePage.getByRole('button',{name:'Close panel',exact:true}).click();
+        await usagePage.getByRole('button',{name:'Close window',exact:true}).click();
         assert.equal((await closed).status(),200);
         await usagePage.goto('about:blank');
         assert.equal((await json('/terminals')).some(info=>info.id===terminal.id),used);
@@ -242,7 +242,7 @@ try {
         await route.continue();
     });
     await closingPage.getByRole('button',{name:'Restart',exact:true}).click(); await requested;
-    await closingPage.locator('[data-panel=primary]').getByRole('button',{name:'Close panel',exact:true}).click();
+    await closingPage.locator('[data-panel=primary]').getByRole('button',{name:'Close window',exact:true}).click();
     await closingPage.locator('.terminal-archive').waitFor({state:'detached'}); release();
     await wait(async()=>Boolean((await json(`/terminals/${closing.id}`)).closedAt),'close during archive restart');
     await closingPage.unrouteAll({behavior:'wait'}); await closingPage.close();

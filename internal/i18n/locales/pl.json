@@ -17,7 +17,7 @@
     "app.cannotRestartTuxee": "Nie można ponownie uruchomić Tuxee",
     "app.cloneWorkspace": "Klonuj",
     "app.closeNamedWorkspace": "Zamknąć {name}?",
-    "app.closePanel": "Zamknij panel",
+    "app.closePanel": "Zamknij okno",
     "app.closeWorkspace": "Zamknij pulpit",
     "app.colorMarker": "Marker koloru",
     "app.componentMenu": "Menu komponentów",
