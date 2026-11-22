@@ -123,6 +123,16 @@ func TestRetainedGUIRecovery(t *testing.T) {
 		return 0
 	}
 	id, pid, xid := s.Info().ID, s.Info().PID, window(s)
+	view, err := s.Attach(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := <-view.Events
+	view.Release(first)
+	view.Close()
+	if first.Type != "snapshot" || first.Display == nil || len(first.Display.Windows) == 0 || first.Display.Windows[0].ID != xid {
+		t.Fatal("first viewer did not receive the window opened while detached")
+	}
 	manifest, err := s.keeper.Load(1, 16384)
 	if err != nil {
 		t.Fatal(err)

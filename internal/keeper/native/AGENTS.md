@@ -18,6 +18,8 @@ Keep exited job leaders unreaped until replacement/cleanup to pin process groups
 
 # Work Guidance
 
+Poll a relay endpoint only while it can read or has buffered bytes to write; a hung-up descriptor still wakes poll with zero requested events. Handle hangup even without writable readiness. Propagate read EOF after its buffered bytes drain. If a destination stops accepting writes, stop reading its source; continue forwarding buffered and unread bytes in the reverse direction until it also ends.
+
 Use libc/Linux APIs and hardened static PIE builds. Keep stdout/stderr startup diagnostics separate from the control protocol. Retain every deployed protocol version needed by live sessions, with compatibility checks before changing it.
 
 # Verification

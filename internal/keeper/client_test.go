@@ -300,8 +300,12 @@ func TestBackpressureAndFinalOutput(t *testing.T) {
 }
 
 func TestRelaySurvivesController(t *testing.T) {
-	c, _, u, id := fixture(t, "sleep 60")
-	defer c.Close()
+	t.Run("firstEOF", func(t *testing.T) { testDetachedRelay(t, false) })
+	t.Run("secondEOF", func(t *testing.T) { testDetachedRelay(t, true) })
+}
+
+func connectRelayAndDetach(t *testing.T, c *Client, reverse bool) (*net.UnixConn, *net.UnixConn) {
+	t.Helper()
 	pair := func() (*net.UnixConn, *net.UnixConn) {
 		fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, 0)
 		if err != nil {
@@ -322,6 +326,12 @@ func TestRelaySurvivesController(t *testing.T) {
 	}
 	a, from := pair()
 	b, to := pair()
+	if err := b.SetWriteBuffer(4096); err != nil {
+		t.Fatal(err)
+	}
+	if reverse {
+		a, b = b, a
+	}
 	if err := c.Relay(a, b); err != nil {
 		t.Fatal(err)
 	}
@@ -330,35 +340,111 @@ func TestRelaySurvivesController(t *testing.T) {
 	c.Close()
 	from.SetDeadline(time.Now().Add(5 * time.Second))
 	to.SetDeadline(time.Now().Add(5 * time.Second))
-	for i := 0; i < 100; i++ {
-		data := bytes.Repeat([]byte{byte(i)}, 8192)
-		done := make(chan error, 1)
-		go func() { _, e := from.Write(data); done <- e }()
-		got := make([]byte, len(data))
-		if _, err := io.ReadFull(to, got); err != nil {
-			t.Fatal(err)
+	return from, to
+}
+
+func testDetachedRelay(t *testing.T, reverse bool) {
+	c, _, u, id := fixture(t, "sleep 60")
+	defer c.Close()
+	from, to := connectRelayAndDetach(t, c, reverse)
+	data := bytes.Repeat([]byte("detached relay"), 65536)
+	done := make(chan error, 1)
+	go func() {
+		_, err := from.Write(data)
+		if err == nil {
+			err = from.CloseWrite()
 		}
-		if err := <-done; err != nil || !bytes.Equal(got, data) {
-			t.Fatal("relay corrupted stream", err)
-		}
+		done <- err
+	}()
+	got, err := io.ReadAll(io.LimitReader(to, int64(len(data))+1))
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("buffered data or EOF lost: read %d bytes: %v", len(got), err)
 	}
-	from.CloseWrite()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
 	buf := make([]byte, 1)
-	if _, err := to.Read(buf); err != io.EOF {
-		t.Fatal("half close", err)
-	}
 	if _, err := to.Write([]byte("x")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := io.ReadFull(from, buf); err != nil || buf[0] != 'x' {
 		t.Fatal("reverse stream after half close", err)
 	}
+	control := idleRelayCPU(t, c.peerPID)
+	from.Close()
+	disconnected := idleRelayCPU(t, c.peerPID)
+	t.Logf("CPU per 250ms: idle %v, disconnected %v", control, disconnected)
+	if control > 25*time.Millisecond || disconnected > 25*time.Millisecond {
+		t.Fatal("relay did not idle")
+	}
+	to.Close()
 	again, err := Connect(u, id, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer again.Close()
 	defer again.Stop()
+}
+
+func idleRelayCPU(t *testing.T, pid int) time.Duration {
+	t.Helper()
+	runtime := func() time.Duration {
+		stat, err := os.ReadFile(fmt.Sprintf("/proc/%d/schedstat", pid))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ns int64
+		if _, err := fmt.Sscan(string(stat), &ns); err != nil {
+			t.Fatal(err)
+		}
+		return time.Duration(ns)
+	}
+	before := runtime()
+	time.Sleep(250 * time.Millisecond)
+	return runtime() - before
+}
+
+func TestRelayBufferedDisconnect(t *testing.T) {
+	for _, scenario := range []string{"lateReply", "receiverShutdown"} {
+		t.Run(scenario, func(t *testing.T) {
+			controller, _, user, id := fixture(t, "sleep 60")
+			defer controller.Close()
+			producer, receiver := connectRelayAndDetach(t, controller, false)
+			data := bytes.Repeat([]byte("detached"), 8192)
+			if _, err := producer.Write(data); err != nil {
+				t.Fatal(err)
+			}
+			first := make([]byte, 1)
+			if _, err := io.ReadFull(receiver, first); err != nil {
+				t.Fatal(err)
+			}
+			if scenario == "lateReply" {
+				producer.Close()
+				if _, err := receiver.Write([]byte("reply")); err != nil {
+					t.Fatal(err)
+				}
+				rest, err := io.ReadAll(io.LimitReader(receiver, int64(len(data))))
+				if err != nil || !bytes.Equal(append(first, rest...), data) {
+					t.Fatalf("late reply interrupted drain: received %d of %d bytes: %v", 1+len(rest), len(data), err)
+				}
+				return
+			}
+			if err := receiver.CloseRead(); err != nil {
+				t.Fatal(err)
+			}
+			if err := receiver.CloseWrite(); err != nil {
+				t.Fatal(err)
+			}
+			if used := idleRelayCPU(t, controller.peerPID); used > 25*time.Millisecond {
+				t.Fatalf("relay used %v CPU in 250ms after receiver shutdown", used)
+			}
+			again, err := Connect(user, id, "test")
+			if err != nil {
+				t.Fatal("keeper did not survive receiver shutdown:", err)
+			}
+			again.Close()
+		})
+	}
 }
 
 func TestAbandonedReplyKeepsCheckpoint(t *testing.T) {

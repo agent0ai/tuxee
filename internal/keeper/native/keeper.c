@@ -157,21 +157,27 @@ static void relay_io(unsigned i, short a, short b) {
     struct relay *r=relays[i]; short events[]={a,b};
     for (unsigned k=0;k<2;k++) {
         struct stream *s=&r->side[k], *other=&r->side[1-k];
-        if (events[k]&(POLLERR|POLLNVAL)) { relay_close(i); return; }
-        if ((events[k]&(POLLIN|POLLHUP)) && !s->eof && s->end<sizeof(s->data)) {
+        if (events[k]&POLLNVAL) { relay_close(i); return; }
+        if ((events[k]&(POLLIN|POLLHUP|POLLERR)) && !s->eof && s->end<sizeof(s->data)) {
             ssize_t n=read(s->fd,s->data+s->end,sizeof(s->data)-s->end);
             if (n>0) s->end+=(unsigned)n;
-            else if (!n) s->eof=1;
-            else if (errno!=EAGAIN && errno!=EINTR) { relay_close(i); return; }
+            else if (!n || (errno!=EAGAIN && errno!=EINTR)) s->eof=1;
         }
-        if ((events[k]&POLLOUT) && other->end>other->start) {
+        if ((events[k]&(POLLOUT|POLLHUP|POLLERR)) && other->end>other->start) {
             ssize_t n=send(s->fd,other->data+other->start,other->end-other->start,MSG_NOSIGNAL);
             if (n>0) other->start+=(unsigned)n;
-            else if (n<0 && errno!=EAGAIN && errno!=EINTR) { relay_close(i); return; }
+            else if (n<0 && errno!=EINTR && (errno!=EAGAIN || (events[k]&POLLHUP))) {
+                shutdown(other->fd,SHUT_RD);
+                other->start=other->end;
+                other->eof=1;
+            }
         }
-        if (other->start==other->end) {
-            other->start=other->end=0;
-            if (other->eof==1) { shutdown(s->fd,SHUT_WR); other->eof=2; }
+    }
+    for (unsigned k=0;k<2;k++) {
+        struct stream *s=&r->side[k];
+        if (s->start==s->end) {
+            s->start=s->end=0;
+            if (s->eof==1) { shutdown(r->side[1-k].fd,SHUT_WR); s->eof=2; }
         }
     }
     if (r->side[0].eof==2 && r->side[1].eof==2) relay_close(i);
@@ -426,8 +432,9 @@ int main(void) {
         if (!fds[3].events) fds[3].fd=-1;
         for (unsigned i=0;i<RELAYS;i++) for (unsigned k=0;k<2;k++) {
             struct relay *r=relays[i];
-            fds[4+2*i+k].fd=r?r->side[k].fd:-1;
-            if (r) fds[4+2*i+k].events=(short)((!r->side[k].eof && r->side[k].end<4096?POLLIN:0)|(r->side[1-k].end>r->side[1-k].start?POLLOUT:0));
+            struct pollfd *p=&fds[4+2*i+k];
+            if (r) p->events=(short)((!r->side[k].eof && r->side[k].end<sizeof(r->side[k].data)?POLLIN:0)|(r->side[1-k].end>r->side[1-k].start?POLLOUT:0));
+            p->fd=p->events?r->side[k].fd:-1;
         }
         for (unsigned i=0;i<WATCHES;i++) fds[4+2*RELAYS+i]=(struct pollfd){watches[i],POLLIN,0};
         for (unsigned i=0;i<SLOTS;i++) fds[4+2*RELAYS+WATCHES+i]=(struct pollfd){listening[i]?slots[i]:-1,POLLIN,0};

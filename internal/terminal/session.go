@@ -884,10 +884,9 @@ func (s *Session) watchDisplay() {
 		case <-s.exited:
 			return
 		case <-s.Display.Changes:
-			state := s.Display.State()
 			s.mu.Lock()
-			if !s.closed {
-				s.broadcastLocked(Event{Type: "display", Display: state})
+			if !s.closed && len(s.views) != 0 {
+				s.broadcastLocked(Event{Type: "display", Display: s.Display.State()})
 			}
 			s.mu.Unlock()
 		}

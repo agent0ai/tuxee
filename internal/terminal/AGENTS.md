@@ -38,7 +38,7 @@ Snapshot capture is admitted before allocation: at most two unacknowledged recov
 
 An attachment may carry a browser-generated viewer ID scoped to its terminal. Reattaching the same viewer retires its old attachment and cancels even a half-open transport before recovery admission. Release the old snapshot permit only after its transport closes. Preserve another viewer's controller ownership; older clients without an ID remain independent.
 
-Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
+Display/window state travels in the initial snapshot and subsequent `display` events on the existing terminal attachment. With no views, maintain the display state but do not copy it for broadcast; the next attachment snapshots current state. Include window metadata in attachment queue byte limits. The browser can hide either renderer without detaching or terminating the PTY.
 
 Create initializes the canonical background and foreground before shell startup. Manager.SetBackground applies changed background/foreground preferences to every owned retained session, including detached/ended sessions, under its output lock and broadcasts an ordered `background` event. Keep the current/default background and foreground in snapshots and application query/reset replies. Unchanged preferences preserve application overrides; ANSI palette entries, parser state, shell identity and other users stay untouched. Engine update errors use existing terminal error events without undoing saved settings.
 
