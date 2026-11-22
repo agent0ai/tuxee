@@ -71,11 +71,21 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
             const transform = getComputedStyle(item).transform;
             return item.getBoundingClientRect().top - (transform === 'none' ? 0 : new DOMMatrix(transform).m42);
         };
-        const gap = vertical && candidates.length > 1 ? layoutTop(candidates[1]) - layoutTop(candidates[0]) - candidates[0].getBoundingClientRect().height : 4;
+        const gap = parseFloat(getComputedStyle(visible)[vertical ? 'rowGap' : 'columnGap']) || 0;
+        const style = getComputedStyle(host), toggleGap = parseFloat(style[vertical ? 'rowGap' : 'columnGap']) || 0;
         let widths = candidates.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
         // The outer strip can grow into its parent's free space; its content-sized height is only the current result.
-        const height = vertical && !allocated ? host.parentElement!.getBoundingClientRect().bottom - host.getBoundingClientRect().top - parseFloat(getComputedStyle(host.parentElement!).paddingBottom) : host.getBoundingClientRect().height;
-        const style = getComputedStyle(host), available = vertical ? height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + gap : 0) + .001
+        let height = host.getBoundingClientRect().height;
+        if (vertical && !allocated) {
+            const container = host.parentElement!, containerStyle = getComputedStyle(container);
+            height = container.getBoundingClientRect().bottom - host.getBoundingClientRect().top - parseFloat(containerStyle.paddingBottom);
+            for (let sibling = host.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+                if (!sibling.getClientRects().length) continue;
+                const peerStyle = getComputedStyle(sibling);
+                height -= sibling.getBoundingClientRect().height + parseFloat(peerStyle.marginTop) + parseFloat(peerStyle.marginBottom) + (parseFloat(containerStyle.rowGap) || 0);
+            }
+        }
+        const available = vertical ? height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + toggleGap : 0) + .001
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         if (vertical && child?.items.length && active) {
             const last = child.items.at(-1)!;
@@ -100,7 +110,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         if (following) priority.push(following);
         for (const item of priority) if (!kept.has(item)) {
             let used = [...kept].reduce((sum, item) => sum + widths[items.indexOf(item)] + gap, 0);
-            const reserve = actions ? 0 : toggleSize + gap;
+            const reserve = actions ? 0 : toggleSize + toggleGap;
             while (kept.size && used + widths[items.indexOf(item)] + reserve > available) {
                 const last = [...kept].reverse().find(item => !priority.includes(item));
                 if (!last) break;
@@ -122,7 +132,9 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     const observer = new ResizeObserver(schedule);
     menu.addEventListener('toggle', schedule);
     window.addEventListener('tuxee-tabs-changed', schedule);
-    observer.observe(host); observer.observe(host.parentElement!); fit();
+    observer.observe(host); observer.observe(host.parentElement!);
+    if (vertical) for (let sibling = host.nextElementSibling; sibling; sibling = sibling.nextElementSibling) observer.observe(sibling);
+    fit();
     return () => { dragging?.dispose(); strips.delete(host); observer.disconnect(); menu.removeEventListener('toggle', schedule); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
 }
 

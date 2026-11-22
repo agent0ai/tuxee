@@ -197,6 +197,9 @@ assert.equal(fittingHeaderItemCount([100,100], 120, 30, 4), 0);
 assert.equal(fittingHeaderItemCount([], 200, 30, 4), 0);
 assert.equal(fittingHeaderItemCount([33,33,33], 70, 0, 4), 2);
 assert.equal(fittingHeaderItemCount([33,33,33], 69.9, 0, 4), 1);
+assert.equal(fittingHeaderItemCount([25,25,25], 50, 25, 0), 1);
+assert.equal(fittingHeaderItemCount([25,25,25,25], 75, 25, 0), 2);
+assert.equal(fittingHeaderItemCount([25,25,25], 75, 25, 0), 3);
 console.log('PASS UUI header fitting and overflow-button reservation');
 
 for (const [width,height] of [[1440,1000],[2560,1080],[900,1200]]) {

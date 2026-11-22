@@ -37,7 +37,7 @@ try {
     async function load(data) {
         loaded = data;
         await page.goto('about:blank'); assert.equal((await api('/settings', 'PUT', data)).status(), 200);
-        await page.goto(base); await page.locator('#app.side-panel .monitor-summary[data-state=ready]').waitFor(); await page.waitForTimeout(250);
+        await page.goto(base); await page.locator(data.monitoring?.hidden ? '#app.side-panel .topbar-right' : '#app.side-panel .monitor-summary[data-state=ready]').waitFor(); await page.waitForTimeout(250);
     }
     async function check(name, count) {
         const geometry = await page.evaluate(() => {
@@ -50,10 +50,14 @@ try {
             const highlight = active && getComputedStyle(active, '::before'), highlightHeight = highlight && parseFloat(highlight.height) + (highlight.boxSizing === 'border-box' ? 0 : parseFloat(highlight.borderTopWidth) + parseFloat(highlight.borderBottomWidth));
             const highlightTop = active && rect(active).top + parseFloat(getComputedStyle(active).borderTopWidth) + parseFloat(highlight.top);
             const desktopMore = document.querySelector('.workspace-tab-actions > .overflow-toggle');
+            const parent = document.querySelector('.workspace-controls'), actions = document.querySelector('.workspace-tab-actions');
             return { desktops: desktops.map(n => n.dataset.workspace), following: desktops.slice(desktops.indexOf(active) + 1).map(n => n.dataset.workspace),
                 desktopOverflow: !desktopMore.hidden, actions: [rect(desktopMore).toJSON(), rect(plus).toJSON()], count: visible.length, overflow: !more.hidden, row: visible.length ? rect(visible[0]).height : 25,
                 gap: next && end ? rect(next).top - rect(end).bottom : 0,
-                slack: rect(controls).top - rect(plus).bottom - parseFloat(getComputedStyle(document.querySelector('.topbar')).gap),
+                slack: rect(parent).bottom - rect(controls).bottom - parseFloat(getComputedStyle(parent).paddingBottom),
+                toolbarGap: rect(controls).top - rect(actions).bottom, actionsGap: rect(actions).top - rect(desktopList).bottom,
+                rowGap: parseFloat(getComputedStyle(host.firstElementChild).rowGap),
+                controlsClipped: rect(controls).bottom > innerHeight + .1,
                 clipped: visible.some(n => rect(n).bottom > rect(host).bottom + .1),
                 origin: [scrollX, scrollY], viewport: [innerWidth, innerHeight], zoom: devicePixelRatio,
                 highlightHeight, desktopClipped: desktops.some(n => rect(n).bottom > rect(desktopList).bottom + .1),
@@ -64,10 +68,12 @@ try {
             assert.equal(geometry.clipped, false, name + ': a visible window must be fully visible');
             assert.equal(geometry.desktopClipped, false, name + ': desktop rows must be fully visible');
             assert.equal(geometry.highlightClipped, false, name + ': the complete rounded active border must fit');
-            assert.ok(geometry.gap <= 8.1, name + ': next desktop must follow the last window/ellipsis without empty rows: ' + JSON.stringify(geometry));
+            assert.ok(geometry.gap <= 4.1, name + ': next desktop must follow the last window/ellipsis without empty rows: ' + JSON.stringify(geometry));
+            assert.ok(Math.abs(geometry.toolbarGap) < .1 && Math.abs(geometry.actionsGap) < .1, name + ': no extra vertical space around ellipsis/Plus or the action row: ' + JSON.stringify(geometry));
+            assert.equal(geometry.controlsClipped, false, name + ': every bottom control fits');
             if (geometry.overflow) {
                 assert.ok(count - geometry.count >= 2, name + ': show the last window instead of an equally tall ellipsis');
-                assert.ok(geometry.slack < geometry.row + 4 + .1, name + ': available sidebar space must fit another window: ' + JSON.stringify(geometry));
+                assert.ok(geometry.slack < geometry.row + geometry.rowGap + .1, name + ': available sidebar space must fit another window: ' + JSON.stringify(geometry));
             } else assert.equal(geometry.count, count, name + ': all windows must be accounted for');
             const activeIndex = loaded.workspaces.findIndex(w => w.id === loaded.current), successor = loaded.workspaces[activeIndex + 1]?.id;
             if (successor) assert.equal(geometry.following[0], successor, name + ': immediate successor stays visible');
@@ -75,7 +81,7 @@ try {
             if (geometry.desktopOverflow) {
                 const [more, plus] = geometry.actions;
                 assert.ok(Math.abs(more.y - plus.y) < .1 && more.right <= plus.x && more.width > 40 && plus.width > 40, name + ': ellipsis and Plus share a usable row');
-                if (geometry.following.length && !geometry.overflow) assert.ok(geometry.slack < 37.1, name + ': an additional desktop must appear when a row is free');
+                if (geometry.following.length && !geometry.overflow) assert.ok(geometry.slack < 35.1, name + ': an additional desktop must appear when a row is free');
             }
             assert.deepEqual(geometry.origin, [0, 0]); assert.ok(geometry.activeVisible && geometry.nextVisible);
         } catch (error) { console.error(name, geometry); await page.screenshot({ path: output + '/failure.png' }); throw error; }
@@ -130,6 +136,28 @@ try {
             const crowded = await check(`${position}-priority-${active}active-${count}w-${height}h-crowded`, count);
             assert.equal(crowded.count, baseline.count, 'adding later desktops must not take visible window rows');
             if (count <= 1 && height === 1080) assert.equal(crowded.desktops.length, 16, 'all desktops remain visible when everything fits');
+        }
+    }
+    // Hidden resources must return their space to windows without leaving gaps around the control rows.
+    for (const position of ['left', 'right']) for (const theme of ['dark', 'light']) for (const active of [0, 5, 11]) for (const count of [1, 4, 12, 31]) {
+        const data = fixture(count, position, 12, active, theme);
+        data.monitoring = { hidden: true, cpu: true, memory: true, swap: false, disks: ['/'], networks: ['/all'], interval: 2 };
+        await resize(650); await load(data);
+        await check(`${position}-hidden-monitor-${theme}-${active}active-${count}w`, count);
+    }
+    for (const position of ['left', 'right']) for (const theme of ['dark', 'light']) {
+        await resize(650); await load(fixture(31, position, 4, 2, theme));
+        const before = await check(`${position}-${theme}-monitor-shown`, 31);
+        for (const hidden of [true, false]) {
+            await page.locator('.user-menu-button').click();
+            await page.locator('.account-menu [data-action=Activity]').click();
+            await page.locator('.monitor-display input').setChecked(!hidden);
+            await page.waitForFunction(() => !document.querySelector('.monitor-display input').disabled);
+            await page.locator('dialog:open .modal-head > button').last().click();
+            await page.waitForTimeout(250);
+            const state = await check(`${position}-${theme}-monitor-${hidden ? 'hidden' : 'restored'}`, 31);
+            if (hidden) assert.ok(state.count > before.count, 'hiding resources immediately returns rows to windows');
+            else assert.equal(state.count, before.count, 'showing resources reserves their rows again');
         }
     }
     // Native browser zoom, not CSS zoom or only a scaled screenshot.

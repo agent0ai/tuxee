@@ -85,7 +85,7 @@ try {
             const active = await page.locator('[data-workspace=overview] > .workspace-tab').boundingBox();
             assert.ok(rail.y >= active.y + active.height && rail.x > top.x && rail.x + rail.width < top.x + top.width, 'window list is indented below its desktop');
             const group = await page.locator('.workspace-tab-item[data-workspace=overview]').boundingBox();
-            assert.ok(rail.y >= group.y + 35, 'window indentation starts clear of the desktop highlight');
+            assert.ok(rail.y >= active.y + active.height + 2, 'window indentation starts clear of the desktop highlight');
             assert.ok(rail.x - group.x <= 5, 'window indentation stays compact');
             const icon = await page.locator('[data-component-name=minimized] > svg').boundingBox();
             assert.ok(icon.x - rail.x <= 6, 'window icons sit close to the indentation border');
@@ -521,14 +521,15 @@ try {
         await page.locator('[data-workspace=overview] > .workspace-tab').scrollIntoViewIfNeeded();
         const visibleWindows = page.locator('.component-tabs > .visible-tabs > .component-tab-item');
         async function checkWindowFit() {
-            const { available, row, count, toggle } = await page.evaluate(() => {
+            const { available, row, count, toggle, gap, toggleGap } = await page.evaluate(() => {
                 const n = document.querySelector('.component-tabs');
                 return { available: n.getBoundingClientRect().height,
                     row: n.querySelector('.component-tab-item').getBoundingClientRect().height,
                     count: n.firstElementChild.children.length,
-                    toggle: n.lastElementChild.getBoundingClientRect().height };
+                    toggle: n.lastElementChild.getBoundingClientRect().height,
+                    gap: parseFloat(getComputedStyle(n.firstElementChild).rowGap), toggleGap: parseFloat(getComputedStyle(n).rowGap) };
             });
-            assert.equal(count, Math.floor((available - toggle) / (row + 4)), `window overflow uses every available row: ${JSON.stringify({ available, row, count, toggle })}`);
+            assert.equal(count, Math.floor((available - toggle - toggleGap + gap) / (row + gap)), `window overflow uses every available row: ${JSON.stringify({ available, row, count, toggle, gap, toggleGap })}`);
         }
         await checkWindowFit();
         const originalCount = await visibleWindows.count();
