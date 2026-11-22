@@ -222,7 +222,8 @@ try {
     check('streamed browser upload');
     await file.locator('.file-entry').filter({ hasText: 'upload.txt' }).locator('.file-name').click();
     await file.getByRole('button', { name: 'Properties', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Permissions', exact: true }).fill('0640');
+    await page.getByRole('tab', { name: 'Permissions', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Group Read', exact: true }).check();
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await page.locator('dialog').waitFor({ state: 'detached' });
     await file.locator('.file-list:not(.loading)').waitFor();
@@ -255,7 +256,12 @@ try {
     await file.getByRole('button', { name: 'Properties', exact: true }).click();
     await page.locator('dialog .properties').filter({ hasText: '2 items' }).waitFor();
     assert.ok((await page.locator('dialog .properties').textContent()).includes('Total size'));
-    await page.getByRole('textbox', { name: 'Permissions', exact: true }).fill('0600');
+    await page.getByRole('tab', { name: 'Permissions', exact: true }).click();
+    for (const role of ['Group', 'Others']) for (const bit of ['Read', 'Write', 'Execute']) {
+        const checkbox = page.getByRole('checkbox', { name: role + ' ' + bit, exact: true });
+        if (await checkbox.evaluate(input => input.indeterminate)) await checkbox.check();
+        await checkbox.uncheck();
+    }
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await page.locator('dialog').waitFor({ state: 'detached' });
     for (const path of selectedPaths) assert.equal((await (await api('/files', 'POST', { operation: 'stat', path })).json()).entry.mode, '0600');

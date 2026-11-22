@@ -70,8 +70,9 @@ try {
     };
     const override = async id => (await saved()).workspaces.find(ws => ws.id === id).defaultDirectory;
     await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
-    await waitFor(async () => (await saved()).workspaces[0]?.panels.every(panel => panel.path === home && (panel.kind !== 'terminal' || panel.terminal)), 'initial home paths');
+    await waitFor(async () => (await saved()).workspaces[0]?.panels.some(panel => panel.terminal), 'initial terminal saved');
     const initial = (await saved()).workspaces[0], wsID = initial.id;
+    assert.deepEqual(initial.panels.map(({ path }) => path), [home, '/', home]);
     const terminalPanel = initial.panels.find(p => p.kind === 'terminal'), filePanel = initial.panels.find(p => p.kind === 'files');
     const terminal = page.locator(`[data-panel="${terminalPanel.id}"] .terminal-view`);
     const file = page.locator(`[data-panel="${filePanel.id}"]`), list = file.locator('.file-list');
@@ -131,11 +132,22 @@ try {
     await waitFor(async () => await override(wsID) === undefined, 'global-equivalent folder removes override');
     await row('workspace folder').click(); await button('Properties', file).click();
     await button('Desktop default', dialog('Properties')).click(); await waitFor(async () => await override(wsID) === workspacePath, 'properties shortcut');
-    const permissions = dialog('Properties').getByLabel('Permissions', { exact: true });
-    const apply = button('Apply', dialog('Properties'));
-    const inputBox = await permissions.boundingBox(), applyBox = await apply.boundingBox();
-    assert.ok(applyBox.x >= inputBox.x + inputBox.width && Math.abs(applyBox.y + applyBox.height - inputBox.y - inputBox.height) < 2, 'Apply sits beside the input');
-    await permissions.fill('0750'); await apply.click(); await dialog('Properties').waitFor({ state: 'hidden' });
+    const properties = dialog('Properties');
+    await properties.getByRole('tab', { name: 'General', exact: true }).focus();
+    await page.keyboard.press('ArrowRight');
+    const owner = properties.getByRole('textbox', { name: 'Owner', exact: true });
+    assert.equal(await owner.inputValue(), user);
+    assert.equal(await properties.getByRole('textbox', { name: 'Group', exact: true }).inputValue(), run('id', ['-gn', user]));
+    const apply = button('Apply', properties);
+    assert.ok(await apply.isDisabled());
+    const check = name => properties.getByRole('checkbox', { name, exact: true });
+    await check('Group Read').check(); await check('Group Execute').check();
+    await check('Others Read').uncheck(); await check('Others Execute').uncheck();
+    await owner.fill('root'); await apply.click();
+    await properties.getByRole('alert').waitFor();
+    assert.equal((await stat(workspacePath)).uid, uid);
+    assert.equal((await stat(workspacePath)).mode & 0o777, 0o755, 'a denied ownership edit must not change permissions');
+    await owner.fill(user); await apply.click(); await properties.waitFor({ state: 'hidden' });
     assert.equal((await stat(workspacePath)).mode & 0o777, 0o750);
     await row('file.txt').waitFor(); await row('file.txt').click();
     await list.click({ button: 'right', position: { x: 20, y: (await list.boundingBox()).height - 8 } });
@@ -153,8 +165,10 @@ try {
     console.log('PASS single-folder shortcuts, background/Properties targeting, Apply permissions and explicit terminal directory');
 
     await button('New desktop').click();
-    await waitFor(async () => (await saved()).workspaces.length === 2 && (await saved()).workspaces[1].panels.every(p => p.path === globalPath && (p.kind !== 'terminal' || p.terminal)), 'new workspace inherits global');
-    const secondID = (await saved()).current;
+    await waitFor(async () => (await saved()).workspaces[1]?.panels.some(panel => panel.terminal), 'new workspace terminal saved');
+    const second = (await saved()).workspaces[1], secondID = second.id;
+    assert.deepEqual(second.panels.map(({ path }) => path), [globalPath, '/', globalPath]);
+    assert.equal(await cwd(second.panels.find(panel => panel.kind === 'terminal').terminal), globalPath);
     await setDirectory(secondID, '~/other');
     await openSettings(); await saveSettings('~');
     await page.reload(); await page.locator('.terminal-view[data-state=connected]').waitFor();
@@ -277,9 +291,13 @@ try {
             await page.screenshot({ path: `test-results/default-directory-${theme}-${width}.png` });
             await button('Cancel', dialog('Default directory')).click();
             await button('Properties', page.locator('.file-view:visible').first()).click();
-            const fieldBox = await dialog('Properties').getByLabel('Permissions', { exact: true }).boundingBox(), buttonBox = await button('Apply', dialog('Properties')).boundingBox();
-            assert.ok(buttonBox.x >= fieldBox.x + fieldBox.width && buttonBox.x + buttonBox.width <= width, 'mobile Apply beside input');
-            await page.screenshot({ path: `test-results/default-directory-properties-${theme}-${width}.png` });
+            const permissionsTab = dialog('Properties').getByRole('tab', { name: 'Permissions', exact: true });
+            await permissionsTab.click();
+            assert.equal(await permissionsTab.getAttribute('aria-selected'), 'true');
+            const grid = await dialog('Properties').getByRole('table').boundingBox(), buttonBox = await button('Apply', dialog('Properties')).boundingBox();
+            assert.ok(grid.x >= 0 && grid.x + grid.width <= width && buttonBox.x + buttonBox.width <= width, 'permission grid and Apply fit the viewport');
+            assert.ok(grid.y + grid.height < buttonBox.y, 'Apply stays in the footer');
+            await page.screenshot({ path: `test-results/default-directory-properties-${theme}-${width}.png`, animations: 'disabled' });
             await button('Close dialog', dialog('Properties')).click();
         }
     }

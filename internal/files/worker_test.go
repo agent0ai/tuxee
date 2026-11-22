@@ -68,6 +68,11 @@ func TestStatAndListAgreeOnSymlinks(t *testing.T) {
 			// between stat and list without changing the other metadata.
 			statEntry := *response.Entry
 			statEntry.Accessed = entry.Accessed
+			// Resolve names on demand for stat, outside directory listing.
+			if entry.Owner != "" || entry.Group != "" {
+				t.Fatal("directory listing unexpectedly resolved ownership names")
+			}
+			statEntry.Owner, statEntry.Group = "", ""
 			if entry != statEntry {
 				t.Fatalf("stat/list disagree: %+v %+v", response.Entry, entry)
 			}

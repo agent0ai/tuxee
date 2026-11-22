@@ -115,7 +115,7 @@ export function newWorkspace(name: string, directory: string, width = innerWidth
     const panels = [newPanel('files', directory), newPanel('terminal', directory)].map((panel, i) => ({ ...panel, x: columns === 2 ? 0 : i * 2, y: columns === 2 ? i * 2 : 0, w: 2, h: 2 }));
     if (columns === 4 && width >= 1200 && height >= 700) {
         panels[0].h = 1;
-        panels.splice(1, 0, { ...newPanel('files', directory), x: 0, y: 1, w: 2, h: 1 });
+        panels.splice(1, 0, { ...newPanel('files', '/'), x: 0, y: 1, w: 2, h: 1 });
         if (width >= 1920 && height >= 1000) {
             panels[2].h = 1;
             panels.push({ ...newPanel('terminal', directory), x: 2, y: 1, w: 2, h: 1 });

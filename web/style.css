@@ -226,15 +226,6 @@ h3 {
   font-size: 12px;
   color: var(--muted);
 }
-.permissions-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-.permissions-row .field {
-  flex: 1;
-  min-width: 0;
-}
 .form {
   display: flex;
   flex-direction: column;
@@ -719,7 +710,7 @@ h3 {
 .terminal-input-resize { position: relative; z-index: 1; flex: 0 0 10px; margin: -5px 0; cursor: ns-resize; touch-action: none; }
 .terminal-input-resize::after { content: ''; position: absolute; inset: 5px 0 auto; height: 1px; }
 .terminal-input-resize:hover::after, .terminal-input-resize.dragging::after { background: var(--accent); }
-.terminal-text.popover-menu { min-width: 0; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; overflow: hidden; }
+.terminal-text.popover-menu { min-width: 0; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; overflow: hidden; box-shadow: none; }
 .terminal-text pre { display: block; width: 100%; height: 100%; border: 0; border-radius: 0; margin: 0; overflow-y: auto; overflow-x: hidden; white-space: pre; user-select: text; background: color-mix(in srgb, var(--bg) 94%, var(--text)); }
 .terminal-host {
   position: relative;
@@ -945,6 +936,22 @@ h3 {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.properties-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); padding: 0 0 8px; }
+.properties-tabs [aria-selected=true] { color: var(--accent); background: var(--accent-bg); }
+.permissions-identities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.permissions-identities .field, .permissions-identities input { min-width: 0; }
+@media (max-width: 420px) {
+  .permissions-identities { grid-template-columns: minmax(0, 1fr); }
+}
+.permissions-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+.permissions-grid th { text-align: center; padding: 6px 4px; font-weight: 500; overflow-wrap: anywhere; }
+.permissions-grid th[scope=row] { text-align: start; }
+.permissions-grid thead { color: var(--muted); }
+.permissions-grid tbody tr { border-top: 1px solid var(--line); }
+.permissions-grid td { padding: 0; }
+.permissions-grid td label { display: grid; place-items: center; min-height: 36px; }
+.permissions-grid input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); }
+.permissions-error { color: var(--danger); }
 .property-size {
   display: flex;
   align-items: center;

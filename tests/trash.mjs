@@ -213,6 +213,7 @@ try {
     for (let i = 0; i < 87; i++) {
         const path = `${uploads}/file-${String(i).padStart(3, '0')}.txt`;
         await writeFile(path, `content ${i}`); await chown(path, uid, gid);
+        await chmod(path, i % 2 ? 0o604 : 0o644);
     }
     await button('Home directory').click(); await row('uploads').dblclick();
     await row('file-000.txt').waitFor(); await list.press('Control+a'); await list.press('Delete');
@@ -252,17 +253,22 @@ try {
     const recordProperties = request => {
         if (!request.url().endsWith('/api/files')) return;
         const data = request.postDataJSON();
-        if (['stat', 'chmod'].includes(data?.operation)) propertyRequests.push(data);
+        if (['stat', 'permissions'].includes(data?.operation)) propertyRequests.push(data);
     };
     page.on('request', recordProperties);
     await button('Properties').click();
     const properties = page.getByRole('dialog', { name: 'Properties', exact: true });
-    await properties.getByRole('textbox', { name: 'Permissions', exact: true }).fill('640');
+    await properties.getByRole('tab', { name: 'Permissions', exact: true }).click();
+    assert.ok(await properties.getByRole('checkbox', { name: 'Group Read', exact: true }).evaluate(input => input.indeterminate));
+    await properties.getByRole('checkbox', { name: 'Others Read', exact: true }).uncheck();
     await properties.getByRole('button', { name: 'Apply', exact: true }).click();
     await properties.waitFor({ state: 'detached' });
     page.off('request', recordProperties);
-    assert.deepEqual(propertyRequests.map(request => [request.operation, request.paths.length]), [['stat', 87], ['chmod', 87]]);
-    for (const name of await readdir(uploads)) assert.equal((await lstat(uploads + '/' + name)).mode & 0o777, 0o640);
+    assert.deepEqual(propertyRequests.map(request => [request.operation, request.paths.length]), [['stat', 87], ['permissions', 87]]);
+    for (let i = 0; i < 87; i++) {
+        const name = `file-${String(i).padStart(3, '0')}.txt`;
+        assert.equal((await lstat(uploads + '/' + name)).mode & 0o777, i % 2 ? 0o600 : 0o640);
+    }
     console.log('PASS 87-file Properties and permission changes each use one request');
     // Narrow overflow entries retain their disabled state with no selection.
     await button('Home directory').click(); await row('locked').waitFor();

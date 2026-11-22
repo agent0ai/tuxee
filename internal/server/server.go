@@ -619,7 +619,7 @@ func (s *Server) fileOperation(w http.ResponseWriter, r *http.Request, session *
 		return
 	}
 	switch input.Operation {
-	case "list", "stat", "mkdir", "delete", "trash", "trash-list", "trash-restore", "trash-delete", "trash-empty", "chmod", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
+	case "list", "stat", "mkdir", "delete", "trash", "trash-list", "trash-restore", "trash-delete", "trash-empty", "chmod", "permissions", "rename", "copy", "move", "read", "write", "archive-formats", "compress", "extract":
 	case "editor-open", "editor-load", "editor-read", "editor-checkpoint", "editor-save", "editor-close":
 		s.settingsMu.Lock()
 		defer s.settingsMu.Unlock()

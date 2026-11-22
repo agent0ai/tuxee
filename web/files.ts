@@ -1,7 +1,7 @@
 import { locale, errorText, t } from './i18n';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, focusPanelChrome } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
-import { join, type Panel, type Hooks, type View } from './model';
+import { id, join, type Panel, type Hooks, type View } from './model';
 import { FileInspector } from './editor';
 import type { EditorSession } from './editor-page';
 import { fittingHeaderItemCount } from './overflow';
@@ -18,11 +18,16 @@ type Entry = {
     mode: string;
     uid: number;
     gid: number;
+    owner?: string;
+    group?: string;
     modified: string;
+    accessed: string;
+    changed: string;
     link?: string;
     originalPath?: string;
     deleted?: string;
 };
+type AccessChange = { owner?: string; group?: string; mask: number; bits: number };
 const trashPath = 'trash:///';
 const archiveExtension = /\.(tar\.(gz|bz2|xz)|tgz|tbz2|txz|zip|7z|rar|tar)$/i;
 const instances = new Set<FileView>();
@@ -62,6 +67,7 @@ export class FileView implements View {
     private fitActions = () => {};
     private get inTrash() { return this.panel.path === trashPath; }
     constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
+        const frame = root.closest('.panel')!;
         instances.add(this);
         window.addEventListener('tuxee-file-cut', event => {
             const path = (event as CustomEvent<string>).detail;
@@ -88,6 +94,7 @@ export class FileView implements View {
         this.pathInput.onclick = event => {
             if (document.activeElement === this.pathInput) return;
             if (!this.nav.closest('.panel-header')) this.pathInput.focus();
+            else if (!frame.matches(':focus-within')) this.focus();
             else if (event.detail === 1) editTimer = window.setTimeout(() => { if (this.pathInput.isConnected) this.pathInput.focus(); }, 300);
         };
         this.pathInput.ondblclick = event => {
@@ -106,7 +113,7 @@ export class FileView implements View {
             event.preventDefault();
             this.openPath(this.pathInput.value).catch(this.notice);
         };
-        root.closest('.panel')!.querySelector('.panel-title')!.remove();
+        frame.querySelector('.panel-title')!.remove();
         const actions = el('div', 'file-actions');
         const actionButtons = this.actionButtons = [button(t("files.parentDirectory"), 'ArrowUp', () => this.parent(), 'file-navigation'), button(t("app.homeDirectory"), 'House', () => this.navigate(hooks.defaultDirectory()), 'file-navigation'), button(t("files.trashBin"), 'Trash2', () => this.navigate(trashPath), 'file-navigation'), button(t("files.restore"), 'Undo2', () => this.restore()), button(t("files.emptyBin"), 'ListX', () => this.selected.size ? this.remove(true) : this.emptyTrash()), button(t("files.refreshFiles"), 'RefreshCw', () => this.refresh()), button(t("files.newFolder"), 'FolderPlus', () => this.mkdir()), button(t("files.newFile"), 'FilePlus', () => this.createFile()), button(t("files.uploadFiles"), 'Upload', () => this.uploadInput.click()), button(t("files.downloadSelected"), 'Download', () => this.downloadSelected()), button(t("common.cut"), 'Scissors', () => this.copySelection(true)), button(t("common.copy"), 'Copy', () => this.copySelection()), button(t("common.paste"), 'ClipboardPaste', () => this.paste()), button(t("files.openTerminalHere"), 'SquareTerminal', () => this.hooks.openTerminal(this.panel.path))];
         const actionIDs = ['parent', 'home', 'trash', 'restore', 'empty', 'refresh', 'mkdir', 'create', 'upload', 'download', 'cut', 'copy', 'paste', 'terminal'];
@@ -712,7 +719,7 @@ export class FileView implements View {
         if (this.disposed || this.inspector || path !== this.panel.path) return;
         if (!this.pasteInput(data)) this.notice(t("files.noTuxeeFilesOnTheClipboard"));
     }
-    private async fileOperation(name: string, request: { operation: string; paths: string[]; destination?: string; mode?: string }, settled?: (path: string, error?: unknown) => void) {
+    private async fileOperation(name: string, request: { operation: string; paths: string[]; destination?: string; access?: AccessChange }, settled?: (path: string, error?: unknown) => void) {
         const results = [];
         await trackOperation(name, request.paths.length || 1, async (signal, progress) => {
             let response;
@@ -817,9 +824,12 @@ export class FileView implements View {
     private async properties() {
         const paths = this.chosen().map(entry => entry.path);
         if (!paths.length) paths.push(this.panel.path);
-        const entries = (await this.fileOperation(t("common.properties"), { operation: 'stat', paths })).map(result => result.entry);
+        const entries: Entry[] = (await this.fileOperation(t("common.properties"), { operation: 'stat', paths })).map(result => result.entry);
         if (this.disposed) return;
-        const common = (get: (entry: any) => unknown) => entries.every(entry => get(entry) === get(entries[0])) ? String(get(entries[0])) : undefined;
+        const common = (get: (entry: Entry) => string) => {
+            const value = get(entries[0]);
+            return entries.every(entry => get(entry) === value) ? value : undefined;
+        };
         const content = el('div', 'form'), details = el('dl', 'properties');
         const lifetime = new AbortController();
         scopeNotifications(content, this.root);
@@ -827,7 +837,6 @@ export class FileView implements View {
             'files.property.name': entries.length === 1 ? entries[0].name : t("files.itemsCount", { count: entries.length }), 'files.property.path': common(entry => entry.path),
             'files.property.type': common(entry => t(entry.symlink ? 'files.symlink' : entry.directory ? 'common.directory' : 'files.file')),
             'files.property.size': compactSize(entries.reduce((sum, entry) => sum + (entry.directory && !entry.symlink ? 0 : entry.size), 0), 1024, true),
-            'files.property.uid': common(entry => entry.uid), 'files.property.gid': common(entry => entry.gid),
             'files.property.modified': common(entry => new Date(entry.modified).toLocaleString(locale())), 'files.property.accessed': common(entry => new Date(entry.accessed).toLocaleString(locale())),
             'files.property.changed': common(entry => new Date(entry.changed).toLocaleString(locale())),
             ...(entries.some(entry => entry.link) ? { 'files.property.target': common(entry => entry.link || '—') } : {})
@@ -836,27 +845,98 @@ export class FileView implements View {
             const recursive = key === 'files.property.size' && entries.some(entry => entry.directory && !entry.symlink);
             details.append(el('dt', '', t(key)), recursive ? folderSize(paths, lifetime.signal) : el('dd', '', value ?? t('files.multiple')));
         }
-        const label = el('label', 'field', t("files.permissionsOctal")), input = el('input'), mode = common(entry => entry.mode);
-        input.value = mode ?? '';
-        input.placeholder = mode ?? t('files.multiple'); input.required = true; input.pattern = '[0-7]{3,4}'; input.setAttribute('aria-label', t("common.permissions"));
-        label.append(input);
-        const permissions = el('div', 'permissions-row');
-        permissions.append(label, button(t("files.apply"), undefined, async () => {
-            if (!input.reportValidity()) return;
-            try { await this.fileOperation(t("common.permissions"), { operation: 'chmod', paths, mode: input.value }); close(); }
-            finally { await this.refresh(); }
-        }, 'primary'));
-        content.append(details);
-        const footer = el('div', 'form'); footer.append(permissions);
+        const general = el('div'), permissions = el('form', 'form');
+        const generalActions = el('div', 'actions'), permissionActions = el('div', 'actions');
+        general.append(details);
         if (entries.length === 1 && entries[0].directory) {
-            const actions = el('div', 'actions');
             const workspaceDefault = button(t("files.workspaceDefault"), 'House', () => this.workspaceDefault(entries[0].path));
             workspaceDefault.append(el('span', '', t("files.workspaceDefault")));
-            actions.append(workspaceDefault);
-            footer.append(actions);
+            generalActions.append(workspaceDefault);
         }
+        const identityFields = el('div', 'permissions-identities');
+        const identityField = (label: string, value: string | undefined) => {
+            const field = el('label', 'field', label), input = el('input');
+            input.value = value ?? '';
+            input.placeholder = value === undefined ? t('files.multiple') : '';
+            input.maxLength = 256; input.autocomplete = 'off'; input.spellcheck = false; input.dir = 'ltr';
+            field.append(input); identityFields.append(field);
+            return input;
+        };
+        const owner = identityField(t('files.property.owner'), common(entry => entry.owner || String(entry.uid)));
+        const group = identityField(t('files.property.group'), common(entry => entry.group || String(entry.gid)));
+        const originalOwner = owner.value, originalGroup = group.value;
+        const grid = el('table', 'permissions-grid'); grid.setAttribute('aria-label', t('common.permissions'));
+        const head = grid.createTHead().insertRow();
+        head.append(el('th'));
+        const columns = [t('files.property.read'), t('files.property.write'), t('files.property.execute')].map(label => {
+            const cell = el('th', '', label); cell.scope = 'col'; cell.id = id(); head.append(cell);
+            return cell;
+        });
+        const body = grid.createTBody(), modes = entries.map(entry => parseInt(entry.mode, 8));
+        const hasLink = entries.some(entry => entry.symlink);
+        const checks: { input: HTMLInputElement; bit: number; initial?: boolean }[] = [];
+        [t('files.property.owner'), t('files.property.group'), t('files.property.others')].forEach((label, row) => {
+            const line = body.insertRow(), heading = el('th', '', label);
+            heading.scope = 'row'; heading.id = id(); line.append(heading);
+            columns.forEach((column, col) => {
+                const bit = 1 << (8 - row * 3 - col), checked = !!(modes[0] & bit);
+                const initial = modes.every(mode => !!(mode & bit) === checked) ? checked : undefined;
+                const input = el('input'); input.type = 'checkbox'; input.checked = checked && initial !== undefined;
+                input.indeterminate = initial === undefined; input.disabled = hasLink;
+                input.setAttribute('aria-labelledby', `${heading.id} ${column.id}`);
+                const toggle = el('label'); toggle.append(input);
+                line.insertCell().append(toggle); checks.push({ input, bit, initial });
+            });
+        });
+        permissions.append(identityFields, grid);
+        if (hasLink) permissions.append(el('p', 'muted', t('files.property.symlinkPermissions')));
+        const errorMessage = el('p', 'permissions-error'); errorMessage.setAttribute('role', 'alert'); errorMessage.hidden = true;
+        permissions.append(errorMessage);
+        const accessChange = (): AccessChange => {
+            const access: AccessChange = { mask: 0, bits: 0 };
+            if (owner.value.trim() !== originalOwner) access.owner = owner.value.trim() || undefined;
+            if (group.value.trim() !== originalGroup) access.group = group.value.trim() || undefined;
+            for (const { input, bit, initial } of checks) {
+                if (input.disabled || input.indeterminate || input.checked === initial) continue;
+                access.mask |= bit;
+                if (input.checked) access.bits |= bit;
+            }
+            return access;
+        };
+        const submit = button(t('files.apply'), undefined, undefined, 'primary'); submit.type = 'submit'; submit.disabled = true;
+        permissions.oninput = () => { const { owner, group, mask } = accessChange(); submit.disabled = !owner && !group && !mask; };
+        const tabs = el('div', 'properties-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', t('common.properties'));
+        const generalTab = button(t('files.property.general'), undefined, () => selectTab(false));
+        const permissionsTab = button(t('common.permissions'), undefined, () => selectTab(true));
+        for (const [tab, panel] of [[generalTab, general], [permissionsTab, permissions]]) {
+            tab.id = id(); panel.id = id(); tab.setAttribute('role', 'tab'); panel.setAttribute('role', 'tabpanel');
+            tab.setAttribute('aria-controls', panel.id); panel.setAttribute('aria-labelledby', tab.id); tabs.append(tab);
+        }
+        content.append(tabs, general, permissions);
+        permissions.hidden = true;
         const { close, dialog, setFooter } = modal(t("common.properties"), content);
-        setFooter(footer);
+        permissionActions.append(button(t('common.cancel'), undefined, close), submit);
+        const selectTab = (edit: boolean) => {
+            general.hidden = edit; permissions.hidden = !edit;
+            generalTab.setAttribute('aria-selected', String(!edit)); permissionsTab.setAttribute('aria-selected', String(edit));
+            generalTab.tabIndex = edit ? -1 : 0; permissionsTab.tabIndex = edit ? 0 : -1;
+            setFooter(edit ? permissionActions : generalActions.childElementCount ? generalActions : undefined, edit ? permissions : general);
+        };
+        tabs.onkeydown = event => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            const edit = permissions.hidden; selectTab(edit); (edit ? permissionsTab : generalTab).focus();
+        };
+        selectTab(false);
+        permissions.onsubmit = async event => {
+            event.preventDefault();
+            if (submit.disabled) return;
+            errorMessage.hidden = true;
+            submit.disabled = true; permissions.inert = true;
+            try { await this.fileOperation(t('common.permissions'), { operation: 'permissions', paths, access: accessChange() }); close(); }
+            catch (error) { errorMessage.textContent = errorText(error); errorMessage.hidden = false; }
+            finally { permissions.inert = false; submit.disabled = false; await this.refresh(); }
+        };
         dialog.addEventListener('close', () => lifetime.abort(), { once: true });
         this.events.signal.addEventListener('abort', () => { lifetime.abort(); close(); }, { once: true, signal: lifetime.signal });
     }

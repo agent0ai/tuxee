@@ -39,10 +39,13 @@ type Request struct {
 	Path        string          `json:"path,omitempty"`
 	Destination string          `json:"destination,omitempty"`
 	Mode        string          `json:"mode,omitempty"`
+	Access      *AccessChange   `json:"access,omitempty"`
 	Settings    json.RawMessage `json:"settings,omitempty"`
 	Size        int64           `json:"size,omitempty"`
 	Unique      bool            `json:"unique,omitempty"`
 	Parents     bool            `json:"parents,omitempty"`
+	names       *ownershipNames
+	ownership   *ownershipChange
 }
 
 type Entry struct {
@@ -56,6 +59,8 @@ type Entry struct {
 	Mode         string    `json:"mode"`
 	UID          uint32    `json:"uid"`
 	GID          uint32    `json:"gid"`
+	Owner        string    `json:"owner,omitempty"`
+	Group        string    `json:"group,omitempty"`
 	Modified     time.Time `json:"modified"`
 	Accessed     time.Time `json:"accessed"`
 	Changed      time.Time `json:"changed"`
@@ -147,7 +152,17 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
-	if len(r.Paths) > 0 && (r.Operation == "trash" || r.Operation == "trash-restore" || r.Operation == "trash-delete" || r.Operation == "delete" || r.Operation == "copy" || r.Operation == "move" || r.Operation == "chmod" || r.Operation == "stat") {
+	if r.Operation == "stat" && r.names == nil {
+		r.names = &ownershipNames{users: map[uint32]string{}, groups: map[uint32]string{}}
+	}
+	if r.Operation == "permissions" && r.ownership == nil {
+		ownership, err := r.Access.resolve()
+		if err != nil {
+			return response, nil, err
+		}
+		r.ownership = &ownership
+	}
+	if len(r.Paths) > 0 && (r.Operation == "trash" || r.Operation == "trash-restore" || r.Operation == "trash-delete" || r.Operation == "delete" || r.Operation == "copy" || r.Operation == "move" || r.Operation == "chmod" || r.Operation == "permissions" || r.Operation == "stat") {
 		if len(r.Paths) > 10000 {
 			return response, nil, i18n.New("backend.files.invalidWorkerRequest")
 		}
@@ -269,6 +284,7 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 			return response, nil, err
 		}
 		value := metadata(r.Path, info)
+		value.Owner, value.Group = r.names.lookup(value.UID, value.GID)
 		response.Entry = &value
 	case "mkdir":
 		if r.Parents {
@@ -291,6 +307,8 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 			return response, nil, i18n.New("backend.files.octalPermissionsRequired")
 		}
 		return response, nil, unix.Chmod(r.Path, uint32(mode))
+	case "permissions":
+		return response, nil, r.Access.apply(r.Path, *r.ownership)
 	case "rename", "move", "copy":
 		if !filepath.IsAbs(r.Destination) || strings.ContainsRune(r.Destination, 0) {
 			return response, nil, i18n.New("backend.files.destinationMustBeAbsolute")

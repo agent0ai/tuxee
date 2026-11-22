@@ -11,7 +11,7 @@ for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280
     assert.equal(ws.columns, columns);
     assert.equal(ws.rows, rows);
     assert.equal(ws.panels.length, count);
-    assert.deepEqual(ws.panels.filter(panel => panel.kind === 'files').map(panel => panel.path), count >= 3 ? ['/home/test', '/home/test'] : ['/home/test']);
+    assert.deepEqual(ws.panels.filter(panel => panel.kind === 'files').map(panel => panel.path), count >= 3 ? ['/home/test', '/'] : ['/home/test']);
     if (count === 3) assert.deepEqual(ws.panels.map(({ kind, x, y, w, h }) => [kind, x, y, w, h]), [
         ['files', 0, 0, 2, 1], ['files', 0, 1, 2, 1], ['terminal', 2, 0, 2, 2],
     ]);
@@ -22,7 +22,7 @@ for (const [width, height, columns, rows, count] of [[1024, 768, 4, 2, 2], [1280
     assert.equal(ws.panels.length, columns * rows);
     assert.equal(addCompact(ws, newPanel('files', '/')), false);
 }
-assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/root', '/root']);
+assert.deepEqual(newWorkspace('root', '/root', 2560, 1080).panels.filter(panel => panel.kind === 'files').map(panel => panel.path), ['/root', '/']);
 for (const [width, height] of [[1440, 1000], [390, 844]]) for (const mode of [0, 1, 2, 3]) {
     const source = newWorkspace('Same name', '/old', width, height);
     source.defaultDirectory = '~/project';

@@ -79,6 +79,11 @@ try {
  console.log('PASS default-hidden files/folders, footer placement/counts, visible selection, text filtering, keyboard toggle, refresh/navigation and reload default');
  const path = page.getByRole('textbox', { name: 'File or directory path' });
  const header = page.locator('.panel-header');
+ await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).focus();
+ await path.click();
+ await page.waitForTimeout(350);
+ assert.ok(await path.evaluate(node => node.closest('.panel').matches(':focus-within') && node !== document.activeElement),
+  'first click focuses the file browser without editing its path');
  assert.equal(await path.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
  const box = await path.boundingBox(), x = box.x + box.width / 2, y = box.y + box.height / 2;
  await page.mouse.move(x, y); await page.mouse.down();
@@ -113,7 +118,7 @@ try {
  await file.getByRole('button', { name: 'Parent directory', exact: true }).click(); await file.locator('.file-entry').first().waitFor();
  await path.focus(); assert.ok(await path.evaluate(node => node === document.activeElement)); await path.press('Escape');
  assert.ok(await header.locator(':scope > svg').isVisible());
- assert.deepEqual(await header.locator('button').evaluateAll(nodes => nodes.map(node => node.title)), ['Close panel']);
+ assert.deepEqual(await header.locator('button').evaluateAll(nodes => nodes.map(node => node.title)), ['Minimize window', 'Maximize window', 'Close panel']);
  const original = await file.locator('.file-actions').elementHandle();
  await mkdir('test-results', { recursive: true });
  for (const width of [1440, 900, 780, 390, 320, 1440]) {
