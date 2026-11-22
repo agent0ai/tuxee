@@ -328,14 +328,18 @@ export function overflowTabDrop(host: HTMLElement, item: HTMLElement, point: Poi
     const { visible, menu, more } = strips.get(host)!;
     const preview = tabDrag(item, visible, menu, point, from);
     const rects = new Map<HTMLElement, Map<HTMLElement, DOMRect>>();
-    return { ...preview, move(p: PointerEvent): HTMLElement | null | undefined {
+    return { ...preview, move(p: PointerEvent, appendOnNavbar = false): HTMLElement | null | undefined {
         const inside = (node: HTMLElement) => {
             const r = node.getBoundingClientRect();
             return node.checkVisibility() && p.clientX >= r.left && p.clientX < r.right && p.clientY >= r.top && p.clientY < r.bottom;
         };
         if (inside(more) && !menu.matches(':popover-open')) { more.click(); preview.raise(); }
         const target = inside(menu) ? menu : inside(host.parentElement!) ? visible : undefined;
-        if (!target) return undefined;
+        if (!target) {
+            if (!appendOnNavbar) return undefined;
+            preview.place(visible, undefined, p);
+            return null;
+        }
         if (!rects.has(target)) rects.set(target, new Map([...target.children]
             .filter(tab => tab !== item && !tab.classList.contains('tab-drag-preview'))
             .map(tab => [tab as HTMLElement, tab.getBoundingClientRect()])));

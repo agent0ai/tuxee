@@ -137,6 +137,44 @@ try {
     }
     console.log('PASS one/two minimized windows: immediate drag, pointer tracking, release/cancel, desktop/navbar handoff and click restore in all four panel positions');
 
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+        await fixture([workspace('origin', [shell(), panel('neighbor', 0, 0, 2, 2)]), workspace('away', [])], edge);
+        await page.evaluate(() => document.documentElement.style.setProperty('--server-marker-border', '4px solid rgb(0, 160, 244)'));
+        const facing = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }[edge];
+        const border = locator => locator.evaluate((n, side) => getComputedStyle(n).getPropertyValue('border-' + side), facing);
+        assert.equal(await border(page.locator('.topbar')), '4px solid rgb(0, 160, 244)');
+        const neighbor = await item('neighbor').boundingBox(), grid = await page.locator('.grid-stack').boundingBox();
+        const head = await item('shell').locator('.panel-header').boundingBox();
+        const bar = await page.locator('.topbar').boundingBox();
+        const x = bar.x + bar.width / 2, y = bar.y + bar.height / 2;
+        await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
+        await page.mouse.move(grid.x + grid.width / 2, grid.y + grid.height / 2);
+        assert.equal(await page.locator('.window-bar').isVisible(), false);
+        await page.mouse.move(x, y);
+        assert.equal(await page.locator('.drop-overlay .tab-placeholder:not([hidden])').count(), 1, edge + ' blank navbar accepts a window');
+        assert.deepEqual(await item('neighbor').boundingBox(), neighbor);
+        assert.deepEqual(await page.locator('.grid-stack').boundingBox(), grid);
+        assert.equal(await border(page.locator('.drop-overlay')), '4px solid rgb(0, 160, 244)');
+        if (edge === 'top' || edge === 'bottom') assert.match(await border(page.locator('.topbar')), /^0px/);
+        await page.waitForTimeout(220);
+        await page.screenshot({ path: 'test-results/window-drop-overlay-' + edge + '.png' });
+        await page.mouse.move(grid.x + grid.width / 2, grid.y + grid.height / 2);
+        assert.equal(await page.locator('.window-bar').isVisible(), false);
+        await page.mouse.move(x, y); await page.mouse.up(); await settled();
+        assert.ok((await current()).panels.find(p => p.id === 'shell').minimized, edge + ' quick release minimizes');
+        const horizontal = edge === 'top' || edge === 'bottom';
+        assert.equal(await border(page.locator(horizontal ? '.window-bar' : '.topbar')), '4px solid rgb(0, 160, 244)');
+        await page.screenshot({ path: 'test-results/window-marker-' + edge + '.png' });
+        if (horizontal) {
+            await page.setViewportSize({ width: 390, height: 844 });
+            await page.locator('#app.compact').waitFor();
+            assert.equal(await border(page.locator('.component-controls')), '4px solid rgb(0, 160, 244)');
+            assert.match(await border(page.locator('.topbar')), /^0px/);
+            await page.screenshot({ path: 'test-results/window-marker-compact-' + edge + '.png' });
+            await page.setViewportSize({ width: 1440, height: 950 });
+        }
+    }
+    console.log('PASS delayed overlays, stationary neighbor geometry and blank navbar flicks on all four edges');
     for (const overflow of [false, true]) {
         const hidden = overflow ? Array.from({ length: 12 }, (_, i) => panel(`header${i}`, 0, 0, 1, 1, { minimized: true })) : [];
         const away = overflow ? Array.from({ length: 12 }, (_, i) => workspace(`Header destination ${i}`, [])) : [workspace('away', [])];
@@ -146,7 +184,9 @@ try {
             const head = await item('shell').locator('.terminal-tab').boundingBox(), resizeCount = terminalResizes;
             await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
             await page.mouse.move(head.x + 25, head.y + 30, { steps: 3 });
-            const bar = await page.locator('.window-bar').boundingBox(), top = await page.locator('.topbar').boundingBox();
+            const top = await page.locator('.topbar').boundingBox();
+            await page.mouse.move(top.x + top.width - 10, top.y + top.height / 2);
+            const bar = await page.locator('.window-bar').boundingBox();
             const grid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
             await page.mouse.move(bar.x + 20, bar.y + bar.height / 2, { steps: 8 });
             const preview = await page.locator('.tab-drag-preview').elementHandle();
@@ -158,7 +198,7 @@ try {
             await page.waitForTimeout(220);
             const compact = await preview.boundingBox();
             assert.ok(compact.height <= bar.height && compact.width < 250, 'navbar retains the minimized-tab dimensions');
-            assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 0, 'navbar hover does not reserve a minimize drop slot');
+            assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 1, 'navbar space reserves a minimize drop slot');
             await page.mouse.move(bar.x + 20, bar.y + bar.height / 2, { steps: 8 });
             assert.equal(await page.locator('.tab-placeholder:not([hidden])').count(), 1, 'returning to the minimize bar restores its placement gap');
             await page.mouse.move(grid.x + grid.width / 2, grid.y + grid.height / 2, { steps: 8 });
@@ -477,19 +517,18 @@ try {
     const resizeCount = terminalResizes;
     head = await item('shell').locator('.panel-header').boundingBox();
     await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
-    await page.mouse.move(head.x + 15, head.y - 12, { steps: 6 });
+    await page.mouse.move(originalGrid.x + originalGrid.width / 2, originalGrid.y + originalGrid.height / 2);
+    assert.equal(await page.locator('.window-bar').isVisible(), false, 'lifting a window leaves the empty strip hidden');
+    await page.mouse.move(originalGrid.x + originalGrid.width / 2, originalGrid.y + 3);
+    assert.equal(await page.locator('.dock-preview.visible:not(.invalid)').count(), 1, 'top-edge snapping is still available from the desktop');
+    const nav = await page.locator('.topbar').boundingBox();
+    await page.mouse.move(nav.x + nav.width / 2, nav.y + nav.height / 2);
     const emptyBar = await page.locator('.window-bar').boundingBox();
-    const emptyGrid = await page.locator('.board:not([inert]) .grid-stack').boundingBox();
-    assert.ok(emptyBar, 'dragging reveals the empty drop row');
-    assert.ok(emptyBar.y + emptyBar.height <= emptyGrid.y, 'empty bar never overlaps the desktop');
-    await page.mouse.move(emptyGrid.x + emptyGrid.width / 2, emptyGrid.y + 2, { steps: 4 });
-    assert.equal(await page.locator('.dock-preview.visible:not(.invalid)').count(), 1, 'empty bar leaves top-edge snapping available');
-    await page.waitForTimeout(150);
-    const preview = await page.locator('.dock-preview.visible').boundingBox();
-    assert.ok(Math.abs(preview.height - emptyGrid.height / 2) < 1, 'scaled preview covers exactly the top grid half');
+    assert.ok(emptyBar && emptyBar.y + emptyBar.height > originalGrid.y, 'empty strip overlays the desktop');
+    assert.deepEqual(await page.locator('.board:not([inert]) .grid-stack').boundingBox(), originalGrid);
     await page.screenshot({ path: 'test-results/window-bar-empty-drag.png' });
-    assert.equal(terminalResizes, resizeCount, 'empty-bar dragging does not resize the terminal');
-    await page.mouse.move(emptyBar.x + 20, emptyBar.y + emptyBar.height / 2, { steps: 4 });
+    assert.equal(terminalResizes, resizeCount);
+    await page.mouse.move(emptyBar.x + 20, emptyBar.y + emptyBar.height / 2);
     await page.keyboard.press('Escape'); await page.mouse.up(); await settled();
     assert.equal((await current()).panels[0].minimized, undefined, 'cancelled empty-bar drop keeps the window');
     assert.equal(await page.locator('.window-bar').isVisible(), false, 'cancelled drag hides the empty bar');
@@ -497,8 +536,7 @@ try {
     assert.equal(terminalResizes, resizeCount, 'cancelled empty-bar dragging never resizes the terminal');
     head = await item('shell').locator('.panel-header').boundingBox();
     await page.mouse.move(head.x + 15, head.y + head.height / 2); await page.mouse.down();
-    await page.mouse.move(head.x + 15, head.y - 12, { steps: 6 });
-    await page.mouse.move(emptyBar.x + 20, emptyBar.y + emptyBar.height / 2, { steps: 4 });
+    await page.mouse.move(nav.x + nav.width / 2, nav.y + 2);
     await page.mouse.up(); await settled();
     assert.equal((await current()).panels[0].minimized, true, 'empty bar accepts the first window');
     await fixture([workspace('origin', [panel('a', 0, 0, 1, 1, { minimized: true }), panel('b', 1, 0, 1, 1, { minimized: true }), panel('c', 2, 0, 1, 1, { minimized: true }), shell()])]);

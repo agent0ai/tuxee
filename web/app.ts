@@ -745,7 +745,27 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
     const revealBar = !!existing && windowBar.hidden;
     let tabPreview: ReturnType<typeof overflowTabDrop> | undefined;
     let morph: Animation | undefined;
-    let scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0;
+    const navbar = root.querySelector<HTMLElement>('.topbar')!;
+    const barParent = windowBar.parentElement!;
+    function showEmptyBar(bounds: DOMRect) {
+        const edge = root.dataset.panelPosition;
+        const side = edge === 'left' || edge === 'right';
+        // Keep the temporary strip out of both the board layout and the nested desktop list.
+        if (side) root.append(windowBar);
+        windowBar.classList.add('drop-overlay');
+        windowBar.style.width = `${bounds.width}px`;
+        windowBar.style.left = `${edge === 'left' ? bounds.left + navbar.clientWidth : edge === 'right' ? bounds.left + navbar.clientLeft - bounds.width : bounds.left}px`;
+        if (edge === 'bottom') windowBar.style.bottom = `${innerHeight - bounds.top}px`;
+        else windowBar.style.top = `${side ? barParent.getBoundingClientRect().top : bounds.bottom}px`;
+        windowBar.hidden = false;
+    }
+    function hideEmptyBar() {
+        if (!revealBar || windowBar.hidden) return;
+        windowBar.hidden = true;
+        windowBar.classList.remove('drop-overlay');
+        for (const property of ['width', 'left', 'top', 'bottom']) windowBar.style.removeProperty(property);
+        if (windowBar.parentElement !== barParent) barParent.append(windowBar);
+    }
     let active = false, where: DropTarget | undefined, workspaceTarget: Workspace | undefined, barTarget: string | null | undefined;
     const dropTabs = workspaceTabs;
     const clearTabs = () => dropTabs.forEach(tab => { delete tab.dataset.componentDrop; });
@@ -763,13 +783,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
         trigger.addEventListener('click', stopClick, { capture: true, once: true });
         setTimeout(() => trigger.removeEventListener('click', stopClick, true), 100);
         dragging = false; hidePreview(); value.board.classList.remove('docking'); clearTabs();
-        if (revealBar) {
-            windowBar.hidden = true;
-            for (const property of ['width', 'height', 'transform', 'transform-origin']) value.board.style.removeProperty(property);
-            node.style.transform = '';
-            const unscaled = node.getBoundingClientRect();
-            node.style.transform = `translate(${released.x - unscaled.x}px, ${released.y - unscaled.y}px) scale(${scaleX}, ${scaleY})`;
-        }
+        hideEmptyBar();
         document.querySelector<HTMLElement>('.overflow-tabs:popover-open')?.hidePopover();
         if (!cancelled && existing && workspaceTarget && workspaceTarget !== ws && (workspaceTarget.panels.length < MAX_PANELS)) {
             if (restoring) node.remove();
@@ -813,7 +827,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
         node.classList.remove('panel-tab-preview'); morph?.cancel();
         const to = node.getBoundingClientRect(), transform = node.style.transform;
         morph = node.animate([
-            { transformOrigin: 'top left', transform: `${transform} translate(${(from.x - to.x) / scaleX}px, ${(from.y - to.y) / scaleY}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 },
+            { transformOrigin: 'top left', transform: `${transform} translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${from.width / to.width}, ${from.height / to.height})`, opacity: 0 },
             { transformOrigin: 'top left', transform, opacity: .8 }
         ], { duration: duration(180), easing: 'cubic-bezier(.2,.7,.2,1)' });
     }
@@ -836,17 +850,6 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
             if (!existing) menu?.hidePopover();
             active = dragging = true; value.board.classList.add('docking'); node.classList.add('panel-dragging');
             sourceTab?.setAttribute('data-tab-drag-source', '');
-            if (revealBar) {
-                // Make room for either drop rail without resizing live terminal or GUI content.
-                const width = value.board.clientWidth, height = value.board.clientHeight;
-                Object.assign(value.board.style, { width: `${width}px`, height: `${height}px` });
-                windowBar.hidden = false;
-                scaleX = value.board.parentElement!.clientWidth / width;
-                scaleY = value.board.parentElement!.clientHeight / height;
-                Object.assign(value.board.style, { transformOrigin: 'top left', transform: `scale(${scaleX}, ${scaleY})` });
-                const shifted = node.getBoundingClientRect();
-                offsetX = origin.x - shifted.x; offsetY = origin.y - shifted.y;
-            }
             renderVacancies(value, existing);
             if (!existing || restoring) {
                 node.append(icon(kind === 'files' ? 'Folder' : 'SquareTerminal'));
@@ -854,12 +857,14 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
                 document.body.append(node);
             }
         }
-        node.style.transform = `translate(${(dx + offsetX) / scaleX}px, ${(dy + offsetY) / scaleY}px)`;
+        node.style.transform = `translate(${dx}px, ${dy}px)`;
         workspaceTarget = undefined; barTarget = undefined;
         clearTabs();
         if (existing) {
-            const top = root.querySelector<HTMLElement>('.topbar')!.getBoundingClientRect(), bottom = windowBar.getBoundingClientRect();
-            const inHeader = [top, bottom].some(r => move.clientX >= r.left - 2 && move.clientX < r.right + 2 && move.clientY >= r.top - 2 && move.clientY < r.bottom + 2);
+            const top = navbar.getBoundingClientRect();
+            const near = (r: DOMRect) => move.clientX >= r.left - 2 && move.clientX < r.right + 2 && move.clientY >= r.top - 2 && move.clientY < r.bottom + 2;
+            const inNavbar = near(top);
+            const inHeader = inNavbar || !windowBar.hidden && near(windowBar.getBoundingClientRect());
             const more = document.querySelector<HTMLButtonElement>('.workspace-tabs > .overflow-toggle, .workspace-tab-actions > .overflow-toggle'), bounds = more?.getBoundingClientRect();
             if (more && !more.hidden && bounds && move.clientX >= bounds.left && move.clientX < bounds.right && move.clientY >= bounds.top && move.clientY < bounds.bottom) {
                 if (more.getAttribute('aria-expanded') !== 'true') { tabPreview?.float(move); more.click(); tabPreview?.raise(); }
@@ -873,13 +878,14 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
             const inWorkspaceMenu = !!overflow && move.clientX >= overflow.left && move.clientX < overflow.right && move.clientY >= overflow.top && move.clientY < overflow.bottom;
             const host = windowBar.querySelector<HTMLElement>('.component-tabs')!;
             if (!tabPreview && (inHeader || inWorkspaceMenu)) {
+                if (revealBar && windowBar.hidden) showEmptyBar(top);
                 const source = sourceTab || componentTab(existing).group;
                 tabPreview = overflowTabDrop(host, source, move, node.getBoundingClientRect());
                 node.classList.add('panel-tab-preview');
                 morph?.cancel(); morph = node.animate([{ opacity: .8 }, { opacity: 0 }], { duration: duration(180) });
             }
             if (tabPreview) {
-                const next = tab || inWorkspaceMenu ? undefined : tabPreview.move(move);
+                const next = tab || inWorkspaceMenu ? undefined : tabPreview.move(move, inNavbar);
                 if (next !== undefined) {
                     barTarget = next?.querySelector<HTMLElement>('[data-component-name]')?.dataset.componentName || null;
                     where = undefined; hidePreview(); return;
@@ -888,6 +894,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
                     tabPreview.float(move); where = undefined; hidePreview(); return;
                 }
                 leaveBar();
+                hideEmptyBar();
             }
         }
         const grid = value.gridEl.getBoundingClientRect();
@@ -899,7 +906,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?:
         if (layout) where = { layout, rect };
         // A successful drop leaves maximized presentation and restores the board's padding.
         const inset = ws.maximized ? parseFloat(getComputedStyle(value.board).getPropertyValue('--board-padding')) : 0;
-        const width = (grid.width / scaleX - 2 * inset) / ws.columns, height = (grid.height / scaleY - 2 * inset) / ws.rows;
+        const width = (grid.width - 2 * inset) / ws.columns, height = (grid.height - 2 * inset) / ws.rows;
         showPreview(value.gridEl, { x: inset + rect.x * width, y: inset + rect.y * height, w: rect.w * width, h: rect.h * height }, 'empty', !layout);
     }, { signal: events.signal });
 }

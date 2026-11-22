@@ -75,8 +75,9 @@ try {
         assert.equal(sockets.length, connections, 'changing position keeps the terminal transport');
         const top = await page.locator('.topbar').boundingBox(), desktop = await page.locator('.workspace-viewport').boundingBox();
         const edge = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }[position];
-        assert.equal(await page.locator('.topbar').evaluate((node, edge) => getComputedStyle(node).getPropertyValue(`border-${edge}-color`), edge), 'rgb(165, 138, 235)');
-        assert.ok(await page.locator('.topbar').evaluate((node, edge) => parseFloat(getComputedStyle(node).getPropertyValue(`border-${edge}-width`)) > 1, edge));
+        const markerBar = page.locator(position === 'top' || position === 'bottom' ? '.window-bar' : '.topbar');
+        assert.equal(await markerBar.evaluate((node, edge) => getComputedStyle(node).getPropertyValue(`border-${edge}-color`), edge), 'rgb(165, 138, 235)');
+        assert.ok(await markerBar.evaluate((node, edge) => parseFloat(getComputedStyle(node).getPropertyValue(`border-${edge}-width`)) > 1, edge));
         if (position === 'top') assert.ok(top.y + top.height <= desktop.y);
         if (position === 'bottom') assert.ok(desktop.y + desktop.height <= top.y);
         if (position === 'left') assert.ok(top.x + top.width <= desktop.x);

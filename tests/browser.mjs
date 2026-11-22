@@ -560,7 +560,7 @@ try {
     assert.equal(await serverName.getAttribute('maxlength'), '64');
     assert.equal(await serverName.getAttribute('placeholder'), hostname);
     const color = page.getByLabel('Color marker', { exact: true });
-    const markerBorder = () => page.locator('.topbar').evaluate(node => {
+    const markerBorder = () => page.locator('#app > .component-controls:not([hidden]), #app:not(:has(> .component-controls:not([hidden]))) > .topbar').evaluate(node => {
         const css = getComputedStyle(node);
         return { width: css.borderBottomWidth, color: css.borderBottomColor, style: css.borderBottomStyle };
     });

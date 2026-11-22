@@ -320,9 +320,10 @@ h3 {
   gap: 8px;
 }
 #app[data-panel-position=bottom] > .topbar { order: 3; border-bottom: 0; border-top: var(--server-marker-border, 1px solid var(--line)); }
-#app[data-panel-position=bottom] > .component-controls { order: 2; border-bottom: 0; border-top: 1px solid var(--line); }
-#app:not(.side-panel):has(> .component-controls:not([hidden])) > .topbar { border-bottom: var(--server-marker-border, 0px solid transparent); }
-#app[data-panel-position=bottom]:has(> .component-controls:not([hidden])) > .topbar { border-bottom: 0; border-top: var(--server-marker-border, 0px solid transparent); }
+#app[data-panel-position=top] > .component-controls { border-bottom: var(--server-marker-border, 1px solid var(--line)); }
+#app[data-panel-position=bottom] > .component-controls { order: 2; border-bottom: 0; border-top: var(--server-marker-border, 1px solid var(--line)); }
+#app[data-panel-position=top]:has(> .component-controls:not([hidden])) > .topbar { border-bottom: 0; }
+#app[data-panel-position=bottom]:has(> .component-controls:not([hidden])) > .topbar { border-top: 0; }
 #app[data-panel-position=bottom] > .workspace-viewport { order: 1; }
 #app.side-panel { display: grid; direction: ltr; grid-template: "panel desktop" minmax(0, 1fr) / 154px minmax(0, 1fr); }
 #app.side-panel[data-panel-position=right] { grid-template: "desktop panel" minmax(0, 1fr) / minmax(0, 1fr) 154px; }
@@ -1579,6 +1580,9 @@ pre, code, .process-label small {
 
 /* Desktop window membership is independent of the saved grid. */
 .window-bar { display: flex; position: relative; flex: 0 0 auto; align-items: center; padding: 0 6px; min-height: 27px; border-bottom: 1px solid var(--line); background: var(--chrome); }
+#app .window-bar.drop-overlay { position: fixed; z-index: 101; margin: 0; background: var(--chrome); }
+#app[data-panel-position=left] > .drop-overlay { border: 0; border-right: var(--server-marker-border, 1px solid var(--line)); }
+#app[data-panel-position=right] > .drop-overlay { border: 0; border-left: var(--server-marker-border, 1px solid var(--line)); }
 .window-bar .component-tab-item { border: 0; background: transparent; }
 .window-maximize.active { background: var(--accent-bg); color: var(--accent); }
 .window-minimize svg { transform: translateY(3px); }
