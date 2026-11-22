@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
 
@@ -38,6 +38,7 @@ const bundle = await build({ stdin: { contents: `
     const notifications = el('div'); notifications.id = 'notifications'; document.body.append(notifications);
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'iife' });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--no-sandbox'] });
+await mkdir('test-results/modals', { recursive: true });
 try {
     for (const viewport of [{ width: 1000, height: 700 }, { width: 390, height: 844 }, { width: 320, height: 360 }]) {
         const page = await browser.newPage({ viewport, hasTouch: true }), errors = [];
@@ -108,12 +109,14 @@ try {
         const footer = formDialog.locator('.modal-footer'), save = footer.getByRole('button', { name: 'Save', exact: true });
         const fixed = await footer.boundingBox(), header = await formDialog.locator('.modal-head').boundingBox();
         assert.ok(fixed.y + fixed.height <= viewport.height, 'actions are visible before scrolling');
+        await page.screenshot({ path: `test-results/modals/form-${viewport.width}-top.png` });
         await save.click();
         assert.equal(await page.evaluate(() => window.result), 'pending', 'footer submission preserves required validation');
         await formDialog.locator('input').fill('Saved');
         await formDialog.locator('.modal-body').evaluate(node => { node.scrollTop = node.scrollHeight; });
         assert.deepEqual(await footer.boundingBox(), fixed, 'footer stays fixed when content scrolls');
         assert.deepEqual(await formDialog.locator('.modal-head').boundingBox(), header);
+        await page.screenshot({ path: `test-results/modals/form-${viewport.width}-scrolled.png` });
         await save.click(); await page.waitForFunction(() => window.result === 'Saved');
         await footer.getByRole('button', { name: 'Reset', exact: true }).click();
         assert.equal(await formDialog.locator('input').inputValue(), '');
@@ -131,6 +134,7 @@ try {
         assert.ok(recorderBounds.y + recorderBounds.height <= viewport.height, 'shortcut actions remain visible');
         await recorder.locator('.modal-body').evaluate(node => { node.scrollTop = node.scrollHeight; });
         assert.deepEqual(await recorderFooter.boundingBox(), recorderBounds);
+        await page.screenshot({ path: `test-results/modals/shortcuts-${viewport.width}.png` });
         await recorderFooter.getByRole('button', { name: 'Save', exact: true }).click();
         await recorder.waitFor({ state: 'detached' });
         const stored = await page.evaluate(() => window.savedShortcuts);
@@ -140,6 +144,7 @@ try {
         await page.evaluate(() => { window.failSave = true; });
         await recorderFooter.getByRole('button', { name: 'Save', exact: true }).click();
         await page.getByRole('status').filter({ hasText: 'Save unavailable' }).waitFor();
+        await page.screenshot({ path: `test-results/modals/shortcuts-${viewport.width}-error.png` });
         assert.deepEqual(await page.evaluate(() => window.savedShortcuts), stored, 'failed saves preserve the binding');
         await recorderFooter.getByRole('button', { name: 'Cancel', exact: true }).click();
         await recorder.waitFor({ state: 'detached' });

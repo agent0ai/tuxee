@@ -259,7 +259,10 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('.file-view')].every(node => node.querySelector('.file-entry') && !node.querySelector('.file-list.loading')));
     await page.evaluate(() => new Promise(requestAnimationFrame));
     assert.deepEqual(await workspaceOrder(), transferred, 'overflow transfer persists after reload');
-    await page.setViewportSize({ width: 1920, height: 1000 }); await page.waitForTimeout(250);
+    const keyboardHeader = await page.locator('.topbar').elementHandle();
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await page.waitForFunction(header => !header.isConnected, keyboardHeader); await keyboardHeader.dispose();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const keyboardTab = workspace('other-0').locator('.workspace-tab');
     const beforeKeyboard = await workspaceOrder(), keyboardIndex = beforeKeyboard.indexOf('other-0');
     const afterKeyboard = [...beforeKeyboard];

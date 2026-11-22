@@ -31,7 +31,7 @@ try {
     const errors = []; page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     const metrics = await context.newCDPSession(page), home = account.stdout.trim().split(':')[5];
     screenshotSession = metrics;
-    const fixture = (count, position, desktopCount = 4, active = 2, theme = 'dark') => ({ theme, howToSeen: true, serverColor: '#a58aeb', panelPosition: position, current: `desktop${active}`,
+    const fixture = (count, position, desktopCount = 4, active = 2, theme = 'dark', marker) => ({ theme, howToSeen: true, serverColor: marker, panelPosition: position, current: `desktop${active}`,
         workspaces: Array.from({ length: desktopCount }, (_, i) => ({ id: `desktop${i}`, name: ['Overview', 'Development', 'Operations', 'Files'][i] || `Desktop ${i + 1}`, columns: 4, rows: 2,
             panels: i !== active ? [] : [{ id: 'browser', kind: 'files', path: home, x: 0, y: 0, w: 4, h: 2 }, ...Array.from({ length: count }, (_, j) => ({ id: `window${j}`, kind: j >= 2 && j <= 4 ? 'terminal' : 'files', terminal: j >= 2 && j <= 4 ? terminals[j - 2].id : undefined, path: [home, '/etc', '/usr', '/home'][j % 4], minimized: true, x: 0, y: 0, w: 1, h: 1 }))] })) });
     async function load(data) {
@@ -39,14 +39,16 @@ try {
         await page.goto('about:blank'); assert.equal((await api('/settings', 'PUT', data)).status(), 200);
         await page.goto(base); await page.locator('#app.side-panel .monitor-summary[data-state=ready]').waitFor(); await page.waitForTimeout(250);
     }
-    async function check(name, count, capture = false) {
+    async function check(name, count) {
         const geometry = await page.evaluate(() => {
             const rect = n => n.getBoundingClientRect();
             const host = document.querySelector('.component-tabs'), visible = [...host.firstElementChild.children], more = host.lastElementChild;
-            const active = document.querySelector('.workspace-tabs > .visible-tabs > .active'), next = active.nextElementSibling;
+            const active = document.querySelector('.workspace-tabs > .visible-tabs > .active'), next = active?.nextElementSibling;
             const end = more.hidden ? visible.at(-1) : more;
             const plus = document.querySelector('.workspace-add'), controls = document.querySelector('.topbar-right');
-            const desktops = [...document.querySelector('.workspace-tabs > .visible-tabs').children];
+            const desktopList = document.querySelector('.workspace-tabs > .visible-tabs'), desktops = [...desktopList.children];
+            const highlight = active && getComputedStyle(active, '::before'), highlightHeight = highlight && parseFloat(highlight.height) + (highlight.boxSizing === 'border-box' ? 0 : parseFloat(highlight.borderTopWidth) + parseFloat(highlight.borderBottomWidth));
+            const highlightTop = active && rect(active).top + parseFloat(getComputedStyle(active).borderTopWidth) + parseFloat(highlight.top);
             const desktopMore = document.querySelector('.workspace-tab-actions > .overflow-toggle');
             return { desktops: desktops.map(n => n.dataset.workspace), following: desktops.slice(desktops.indexOf(active) + 1).map(n => n.dataset.workspace),
                 desktopOverflow: !desktopMore.hidden, actions: [rect(desktopMore).toJSON(), rect(plus).toJSON()], count: visible.length, overflow: !more.hidden, row: visible.length ? rect(visible[0]).height : 25,
@@ -54,10 +56,14 @@ try {
                 slack: rect(controls).top - rect(plus).bottom - parseFloat(getComputedStyle(document.querySelector('.topbar')).gap),
                 clipped: visible.some(n => rect(n).bottom > rect(host).bottom + .1),
                 origin: [scrollX, scrollY], viewport: [innerWidth, innerHeight], zoom: devicePixelRatio,
-                activeVisible: rect(active).height > 0, nextVisible: !next || rect(next).height > 0 };
+                highlightHeight, desktopClipped: desktops.some(n => rect(n).bottom > rect(desktopList).bottom + .1),
+                highlightClipped: active && highlightTop + highlightHeight > rect(desktopList).bottom + .1,
+                activeVisible: !!active && rect(active).height > 0, nextVisible: !next || rect(next).height > 0 };
         });
         try {
             assert.equal(geometry.clipped, false, name + ': a visible window must be fully visible');
+            assert.equal(geometry.desktopClipped, false, name + ': desktop rows must be fully visible');
+            assert.equal(geometry.highlightClipped, false, name + ': the complete rounded active border must fit');
             assert.ok(geometry.gap <= 8.1, name + ': next desktop must follow the last window/ellipsis without empty rows: ' + JSON.stringify(geometry));
             if (geometry.overflow) {
                 assert.ok(count - geometry.count >= 2, name + ': show the last window instead of an equally tall ellipsis');
@@ -72,9 +78,9 @@ try {
                 if (geometry.following.length && !geometry.overflow) assert.ok(geometry.slack < 37.1, name + ': an additional desktop must appear when a row is free');
             }
             assert.deepEqual(geometry.origin, [0, 0]); assert.ok(geometry.activeVisible && geometry.nextVisible);
-        } catch (error) { await page.screenshot({ path: output + '/failure.png' }); throw error; }
+        } catch (error) { console.error(name, geometry); await page.screenshot({ path: output + '/failure.png' }); throw error; }
         results.push({ name, ...geometry });
-        if (capture) {
+        {
             const file = `${name}.png`, clip = await page.locator('.topbar').boundingBox();
             clip.height = Math.min(clip.height, geometry.viewport[1]);
             // Native Chrome zoom changes DOM coordinates; screenshot clips still use the window's unzoomed pixels.
@@ -93,20 +99,26 @@ try {
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))));
     }
     // Counts near overflow boundaries and uneven heights catch wasted rows independently of the list's own height.
-    for (const position of ['left', 'right']) for (const count of [0, 1, 2, 5, 7, 8, 9, 10, 11, 12, 16, 24, 29]) {
+    for (const position of ['left', 'right']) for (const count of Array.from({ length: 32 }, (_, i) => i)) {
         await load(fixture(count, position));
         for (const height of [480, 501, 539, 580, 631, 670, 701, 769, 800, 901, 960, 1080]) {
             await resize(height);
-            await check(`${position}-${count}w-${height}h`, count, [5, 9, 12, 29].includes(count) && [501, 631, 800, 960].includes(height));
+            await check(`${position}-${count}w-${height}h`, count);
         }
         console.log(`PASS ${position}: ${count} windows across 12 viewport heights`);
     }
-    for (const position of ['left', 'right']) for (const [desktops, active] of [[1, 0], [4, 0], [4, 3], [16, 0], [16, 8], [16, 15]]) {
-        await load(fixture(12, position, desktops, active, 'light'));
+    for (const position of ['left', 'right']) for (const [desktops, active] of [[1, 0], [2, 0], [2, 1], [4, 0], [4, 3], [16, 0], [16, 8], [16, 15], [32, 0], [32, 16], [32, 31]]) {
+        await load(fixture(12, position, desktops, active, 'light', '#a58aeb'));
         for (const height of [500, 650, 800, 1000]) {
             await resize(height);
-            await check(`${position}-${desktops}d-${active}active-${height}h`, 12, height === 650);
+            await check(`${position}-${desktops}d-${active}active-${height}h`, 12);
         }
+    }
+    for (const position of ['left', 'right']) for (let desktops = 1; desktops <= 32; desktops++) for (const count of [0, 1, 31]) {
+        await resize(800);
+        await load(fixture(count, position, desktops, desktops - 1, desktops % 2 ? 'dark' : 'light'));
+        const state = await check(`${position}-all-counts-${desktops}d-${count}w`, count);
+        if (desktops <= 2) assert.equal(state.desktops.length, desktops, 'sparse desktop lists never overflow');
     }
     // Later desktops consume only space left after the windows; never cap a roomy list to one successor.
     for (const position of ['left', 'right']) for (const active of [0, 2]) for (const count of [0, 1, 5, 12, 29]) {
@@ -115,7 +127,7 @@ try {
             await load(fixture(count, position, active + 2, active));
             const baseline = await check(`${position}-priority-${active}active-${count}w-${height}h-base`, count);
             await load(fixture(count, position, 16, active));
-            const crowded = await check(`${position}-priority-${active}active-${count}w-${height}h-crowded`, count, height === 800 && [1, 12, 29].includes(count));
+            const crowded = await check(`${position}-priority-${active}active-${count}w-${height}h-crowded`, count);
             assert.equal(crowded.count, baseline.count, 'adding later desktops must not take visible window rows');
             if (count <= 1 && height === 1080) assert.equal(crowded.desktops.length, 16, 'all desktops remain visible when everything fits');
         }
@@ -125,21 +137,23 @@ try {
     const zoomContext = await browser.newContext({ storageState: await context.storageState(), viewport: null });
     page = await zoomContext.newPage(); page.on('pageerror', e => errors.push(e.message));
     screenshotSession = await zoomContext.newCDPSession(page);
+    const { windowId } = await screenshotSession.send('Browser.getWindowForTarget');
+    await screenshotSession.send('Browser.setWindowBounds', { windowId, bounds: { width: 2400, height: 1800 } });
     const keys = key => { const result = spawnSync('xdotool', ['key', '--clearmodifiers', key], { env, encoding: 'utf8' }); assert.equal(result.status, 0, result.stderr); };
-    for (const position of ['left', 'right']) for (const [count, desktops] of [[1, 16], [7, 4], [9, 16], [12, 4], [12, 16], [29, 16]]) {
-        await load(fixture(count, position, desktops, 2, position === 'left' ? 'dark' : 'light')); await page.bringToFront();
-        for (const [zoom, steps] of [[.8, -2], [.9, -1], [1, 0], [1.1, 1], [1.25, 2], [1.5, 3]]) {
+    for (const position of ['left', 'right']) for (const [count, desktops] of [[0, 1], [0, 2], [1, 1], [1, 2], [1, 32], [7, 4], [9, 16], [12, 4], [12, 32], [31, 32]]) {
+        await load(fixture(count, position, desktops, Math.min(2, desktops - 1), position === 'left' ? 'dark' : 'light')); await page.bringToFront();
+        for (const [zoom, steps] of [[.8, -2], [.9, -1], [1, 0], [1.1, 1], [1.25, 2], [1.5, 3], [1.75, 4], [2, 5]]) {
             await page.evaluate(() => { window.fittingHeader = document.querySelector('.topbar'); });
             keys('ctrl+0'); for (let i = 0; i < Math.abs(steps); i++) keys(steps < 0 ? 'ctrl+minus' : 'ctrl+plus');
             await page.waitForFunction(zoom => Math.abs(devicePixelRatio - zoom) < .02 && document.querySelector('.topbar') !== window.fittingHeader, zoom);
             await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))));
             await page.waitForTimeout(200);
             assert.ok(Math.abs(await page.evaluate(() => devicePixelRatio) - zoom) < .02, 'native browser zoom actually changed');
-            await check(`${position}-${count}w-${desktops}d-zoom${Math.round(zoom * 100)}`, count, true);
+            await check(`${position}-${count}w-${desktops}d-zoom${Math.round(zoom * 100)}`, count);
         }
     }
     assert.deepEqual(errors, []);
-    console.log(`PASS ${results.length} fitting cases; ${screenshots.length} screenshots; native browser zoom 80–150%; no page errors.`);
+    console.log(`PASS ${results.length} fitting cases; ${screenshots.length} screenshots; native browser zoom 80–200%; no page errors.`);
 } finally {
     await writeFile(output + '/results.json', JSON.stringify({ results, screenshots }, null, 2));
     await page?.goto('about:blank').catch(() => {});

@@ -337,7 +337,7 @@ h3 {
 #app.side-panel .vertical-tabs > .visible-tabs { flex-direction: column; align-items: stretch; min-height: 0; width: 100%; }
 #app.side-panel .workspace-tabs .workspace-tab-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
 #app.side-panel .workspace-tabs .workspace-tab-item.active { flex-shrink: 1; min-height: 33px; grid-template-rows: auto minmax(0, auto); isolation: isolate; background: transparent; border-color: transparent; }
-#app.side-panel .workspace-tabs .workspace-tab-item.active::before { content: ''; position: absolute; inset: -1px -1px auto; height: 33px; border: 1px solid var(--line); border-radius: 7px; background: var(--raised); z-index: -1; pointer-events: none; }
+#app.side-panel .workspace-tabs .workspace-tab-item.active::before { content: ''; position: absolute; grid-area: 1 / 1 / 2 / -1; inset: -1px; border: 1px solid var(--line); border-radius: 7px; background: var(--raised); z-index: -1; pointer-events: none; }
 #app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop]::before { background: var(--accent-bg); }
 #app.side-panel .workspace-tabs .workspace-tab-item.active[data-component-drop=blocked]::before { background: color-mix(in srgb, var(--danger) 15%, var(--surface)); }
 #app.side-panel .workspace-tabs .workspace-tab-item.active:has(> .window-bar:not([hidden])) { min-height: 66px; }
@@ -357,10 +357,10 @@ h3 {
 #app.side-panel .layout-label { display: none; }
 #app.side-panel .monitor-controls { grid-column: 1 / -1; padding-block: 4px; }
 #app.side-panel .monitor-summary { width: 100%; }
-#app.side-panel .monitor-strip { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 6px 4px; width: 100%; }
+#app.side-panel .monitor-strip { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 6px 2px; width: 100%; }
 #app.side-panel .monitor-chip { font-size: 18px; align-self: start; }
-#app.side-panel .monitor-value { width: auto; }
 #app.side-panel .monitor-network-value { font-size: 15px; }
+#app.side-panel .monitor-network-value .monitor-value { width: 4.2ch; }
 #app.side-panel ~ .notification-stack { top: 18px; max-height: calc(100% - 36px); }
 #app[data-panel-position=right] ~ .notification-stack { right: 172px; width: min(390px, calc(100vw - 190px)); }
 #app[data-panel-position=bottom] ~ .notification-stack { top: 18px; }

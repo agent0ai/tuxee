@@ -104,10 +104,11 @@ try {
             if (position === 'left') assert.ok(Math.abs(box.x - button.x - button.width - 4) < 1);
             if (position === 'right') assert.ok(Math.abs(box.x + box.width - button.x + 4) < 1);
             if (position === 'bottom') assert.ok(box.y + box.height <= top.y);
-            if (opener === '.workspace-menu') await page.screenshot({ path: `test-results/panel-position/${position}-menu.png` });
+            await page.screenshot({ path: `test-results/panel-position/${position}-menu-${opener.replace(/[^a-z-]/g, '')}.png` });
             await page.locator(opener).first().click(); assert.equal(await page.locator(popup + ':popover-open').count(), 0);
         }
         const vertical = position === 'left' || position === 'right';
+        let dragCapture = 0;
         const center = r => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
         const title = id => page.locator(`[data-component-name="${id}"]`);
         const panel = id => page.locator(`[data-panel="${id}"]`);
@@ -130,6 +131,7 @@ try {
             const host = await page.locator('.tab-placeholder:not([hidden])').evaluate(n => n.closest('nav').getBoundingClientRect().toJSON());
             assert.ok(gap.y >= host.y && gap.y + gap.height <= host.bottom + 1, 'placement gap is inside the visible strip');
             assert.equal(await page.locator('.tab-drop-before, .tab-drop-after').count(), 0, 'no separator drop marker');
+            await page.screenshot({ path: `test-results/panel-position/${position}-drag-gap-${++dragCapture}.png` });
         };
         const beforeDesktops = (await snapshot()).workspaces.map(w => w.id);
         for (const cancel of [true, false]) {
@@ -187,6 +189,26 @@ try {
         await title('minimized').focus();
         await page.keyboard.press(vertical ? 'Alt+ArrowUp' : 'Alt+ArrowLeft');
         await page.keyboard.press(vertical ? 'Alt+ArrowUp' : 'Alt+ArrowLeft'); await settled();
+        if (vertical) {
+            await title('third').click(); await settled();
+            const rail = page.locator('.window-bar'), before = await rail.boundingBox();
+            await page.screenshot({ path: `test-results/panel-position/${position}-before-incoming-window.png` });
+            for (const cancel of [true, false]) {
+                await startDrag(panel('browser').locator('.panel-header'));
+                const target = await title('second').boundingBox();
+                await move({ x: target.x + target.width / 2, y: target.y + 2 }); await checkGap();
+                const during = await rail.boundingBox();
+                assert.ok(during.height >= before.height + target.height, 'incoming window grows the sidebar list by a full insertion row: ' + JSON.stringify({ before, during, target }));
+                for (const id of ['minimized', 'second']) {
+                    const row = await title(id).boundingBox();
+                    assert.ok(row.y >= during.y && row.y + row.height <= during.y + during.height, 'existing minimized windows remain fully visible during insertion');
+                }
+                await endDrag(cancel);
+                if (!cancel) { await title('browser').click(); await settled(); }
+                assert.deepEqual(await rail.boundingBox(), before, 'cancellation or restoration removes the extra row');
+            }
+            await panel('third').locator('.window-minimize').click(); await settled();
+        }
         // Insert an existing window between two tabs, then restore by clicking it.
         await startDrag(panel('browser').locator('.panel-header'));
         const insert = await title('second').boundingBox();
@@ -262,6 +284,7 @@ try {
             const appearances = [];
             for (const selector of ['[data-workspace=overview] .workspace-tab', '[data-workspace=development] .workspace-tab', '[data-component-name=minimized]', '[data-workspace=overview] .workspace-menu', '[data-component-menu=minimized]']) {
                 await page.locator(selector).hover(); await page.waitForTimeout(120);
+                await page.locator(selector.startsWith('[data-component') && !vertical ? '.component-controls' : '.topbar').screenshot({ path: `test-results/panel-position/${position}-${theme}-hover-${selector.replace(/[^a-z-]/g, '')}.png` });
                 appearances.push(await page.locator(selector).evaluate(n => [getComputedStyle(n).backgroundColor, getComputedStyle(n.parentElement, n.closest('#app.side-panel') && n.parentElement.matches('.workspace-tab-item.active') ? '::before' : null).backgroundColor]));
             }
             if (position === 'top') hoverStyles[theme] = appearances;
@@ -292,6 +315,8 @@ try {
     await page.reload(); await page.locator('#app.compact[data-panel-position=bottom]').waitFor();
     const mobileDesktop = await page.locator('.topbar').boundingBox(), mobileWindows = await page.locator('.component-controls').boundingBox();
     assert.ok(mobileWindows.y + mobileWindows.height <= mobileDesktop.y, 'mobile window strip mirrors above the desktop bar');
+    await page.locator('.terminal-view[data-state=connected]:visible').waitFor();
+    await page.locator('.terminal-rendering:visible').waitFor({ state: 'hidden' });
     await page.screenshot({ path: 'test-results/panel-position/mobile-bottom.png' });
     await choose('top'); await page.screenshot({ path: 'test-results/panel-position/mobile-top.png' });
     await page.setViewportSize({ width: 1440, height: 960 }); await page.locator('#app.side-panel[data-panel-position=right]').waitFor();
@@ -314,40 +339,67 @@ try {
     assert.equal((await api('/settings', 'PUT', { ...await snapshot(), mobilePanelPosition: 'left' })).status(), 400);
     assert.deepEqual(errors, []);
     console.log('PASS cancellation, reload, independent mobile placement/inheritance, responsive settings, invalid values and browser errors');
-    let rate = 999e6;
+    const samples = [
+        { name: 'zero', cpu: 0, disk: 0, memory: 0, rate: 0, net: '0B' },
+        { name: 'decimal', cpu: 9.9, disk: 9.9e9, memory: 9.9 * 1024 ** 2, rate: 9.9e3, net: '9.9K' },
+        { name: 'two-digits', cpu: 10, disk: 83e9, memory: 61 * 1024 ** 2, rate: 12e3, net: '12K' },
+        { name: 'maximum', cpu: 100, disk: 999e6, memory: 999 * 1024 ** 2, rate: 999e6, net: '999M' },
+        { name: 'promoted', cpu: 1, disk: 1e12, memory: 1024 ** 3, rate: 1e9, net: '1.0G' },
+        { name: 'unavailable', cpu: null, disk: null, memory: null, rate: null, net: '—' },
+    ];
+    let sample = samples[0];
     await page.route(base + '/api/metrics', async route => {
         const response = await route.fetch(), data = await response.json();
-        data.networks.find(n => n.name === '/all').receiveRate = rate;
-        data.networks.find(n => n.name === '/all').sendRate = rate;
-        data.cpu.percent = 100;
+        data.networks.find(n => n.name === '/all').receiveRate = sample.rate;
+        data.networks.find(n => n.name === '/all').sendRate = sample.rate;
+        data.cpu.percent = sample.cpu;
+        data.disks.find(d => d.path === '/').used = sample.disk;
+        data.memory.used = sample.memory;
         await route.fulfill({ response, json: data });
     });
-    for (const cpu of [true, false]) for (const theme of ['dark', 'light']) {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    for (const position of ['top', 'bottom', 'left', 'right']) for (const cpu of [true, false]) for (const theme of ['dark', 'light']) {
         await page.waitForTimeout(350); await page.goto('about:blank');
-        assert.equal((await api('/settings', 'PUT', { ...fixture, panelPosition: 'right', theme,
+        assert.equal((await api('/settings', 'PUT', { ...fixture, panelPosition: position, theme,
             monitoring: { cpu, memory: true, swap: false, disks: ['/'], networks: ['/all'], interval: 2 } })).status(), 200);
         await page.goto(base); await page.locator('.monitor-summary[data-state=ready]').waitFor();
-        for (rate of [999e6, 0]) {
+        const vertical = position === 'left' || position === 'right';
+        let baseline;
+        for (sample of samples) {
+            const previous = await page.locator('.monitor-strip').elementHandle();
             await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-            await page.waitForFunction(value => document.querySelector('.monitor-download').textContent === value, rate ? '999M' : '0B');
+            await page.waitForFunction(node => !node.isConnected, previous); await previous.dispose();
+            await page.waitForFunction(value => document.querySelector('.monitor-download').textContent === value, sample.net);
             const geometry = await page.locator('.monitor-strip').evaluate(n => {
-                const r = n.getBoundingClientRect(), network = n.querySelector('[data-kind=network]').getBoundingClientRect();
-                return { right: r.right, left: r.left, network: network.toJSON(),
-                    readings: [...n.querySelectorAll('.monitor-network-value > span')].map(n => n.getBoundingClientRect().toJSON()),
+                const rect = n => n.getBoundingClientRect().toJSON();
+                return { strip: rect(n), network: rect(n.querySelector('[data-kind=network]')),
+                    readings: [...n.querySelectorAll('.monitor-network-value > span')].map(rect),
+                    slots: [...n.querySelectorAll('.monitor-chip, .monitor-gauge, .monitor-value, .monitor-network-value svg')].map(rect),
+                    overflow: [...n.querySelectorAll('.monitor-value')].some(n => [...n.children].some(child => {
+                        const r = child.getBoundingClientRect(), slot = n.getBoundingClientRect();
+                        return r.left < slot.left - .1 || r.right > slot.right + .1;
+                    })),
                     columns: getComputedStyle(n).gridTemplateColumns.split(' ').map(parseFloat) };
             });
-            assert.equal(geometry.readings[0].y, geometry.readings[1].y, 'both NET rates remain on one line');
-            assert.ok(geometry.readings[1].right <= geometry.right + 1, 'large NET values fit the side panel');
+            const name = `${position}-metrics-${cpu ? 'cpu' : 'no-cpu'}-${theme}-${sample.name}`;
+            assert.equal(geometry.readings[0].y, geometry.readings[1].y, name + ': both NET rates remain on one line');
+            assert.ok(geometry.readings[1].right <= geometry.strip.right + .1, name + ': large NET values fit the panel');
+            assert.equal(geometry.overflow, false, name + ': numbers and units fit their reserved reading slots');
+            if (baseline) assert.deepEqual(geometry.slots, baseline, name + ': metric columns, gauges, arrows and reading slots do not move as values change');
+            else baseline = geometry.slots;
             assert.equal(await page.locator('.monitor-chip').first().evaluate(n => getComputedStyle(n).fontSize), '18px');
-            assert.equal(await page.locator('.monitor-network-value .monitor-value').first().evaluate(n => getComputedStyle(n).fontSize), '15px');
-            assert.ok(cpu ? geometry.network.x > geometry.left : geometry.network.x === geometry.left, 'NET follows the configured metric order');
-            if (rate) assert.ok(geometry.columns[cpu ? 1 : 0] > geometry.columns[cpu ? 0 : 1], 'the column containing NET grows with its content');
+            assert.equal(await page.locator('.monitor-network-value .monitor-value').first().evaluate(n => getComputedStyle(n).fontSize), vertical ? '15px' : '18px');
+            if (vertical) {
+                assert.ok(cpu ? geometry.network.x > geometry.strip.left : geometry.network.x === geometry.strip.left, name + ': NET follows the configured metric order');
+                assert.ok(geometry.columns[cpu ? 1 : 0] > geometry.columns[cpu ? 0 : 1], name + ': the column containing NET reserves more space');
+            }
+            await page.locator('.topbar-right').screenshot({ path: `test-results/panel-position/${name}.png` });
         }
-        await page.screenshot({ path: `test-results/panel-position/right-metrics-${cpu ? 'cpu' : 'no-cpu'}-${theme}.png` });
     }
     await page.unroute(base + '/api/metrics');
-    console.log('PASS content-sized metrics, single-line NET in either column and both themes');
+    console.log('PASS stable metric columns/readings/arrows across six value lengths, NET in either column, all four positions and both themes; 96 screenshots');
     // Desktop overflow preserves the active row and its immediate successor around nested windows.
+    await page.setViewportSize({ width: 900, height: 650 });
     const crowded = structuredClone(fixture);
     crowded.workspaces.push(...Array.from({ length: 8 }, (_, i) => ({ id: `extra${i}`, name: `Extra ${i}`, columns: 4, rows: 2, panels: [] })));
     crowded.workspaces[0].panels.push(...Array.from({ length: 27 }, (_, i) => ({ id: `hidden${i}`, kind: 'files', path: home, minimized: true, x: 0, y: 0, w: 1, h: 1 })));

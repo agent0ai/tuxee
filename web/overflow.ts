@@ -73,7 +73,9 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         };
         const gap = vertical && candidates.length > 1 ? layoutTop(candidates[1]) - layoutTop(candidates[0]) - candidates[0].getBoundingClientRect().height : 4;
         let widths = candidates.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
-        const style = getComputedStyle(host), available = vertical ? host.getBoundingClientRect().height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + gap : 0) + .001
+        // The outer strip can grow into its parent's free space; its content-sized height is only the current result.
+        const height = vertical && !allocated ? host.parentElement!.getBoundingClientRect().bottom - host.getBoundingClientRect().top - parseFloat(getComputedStyle(host.parentElement!).paddingBottom) : host.getBoundingClientRect().height;
+        const style = getComputedStyle(host), available = vertical ? height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + gap : 0) + .001
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         if (vertical && child?.items.length && active) {
             const last = child.items.at(-1)!;
@@ -257,9 +259,11 @@ function tabDrag(item: HTMLElement, visible: HTMLElement, menu: HTMLElement, poi
     const properties: [HTMLElement, string][] = [[host, 'flex'], [visible, 'flex'], [menu, 'width'], [menu, 'min-height']];
     const styles = properties.map(([node, property]) => ({ node, property, value: node.style.getPropertyValue(property) }));
     const dimension = host.classList.contains('vertical-tabs') ? 'height' : 'width';
-    const fallback = dimension === 'width' ? host.clientWidth : host.clientHeight;
-    host.style.flex = `0 0 ${host.getBoundingClientRect()[dimension]}px`;
-    visible.style.flex = `0 0 ${visible.getBoundingClientRect()[dimension] || fallback}px`;
+    // Only incoming rows grow vertical lists; existing tabs keep stable bounds through handoff and reentry.
+    if (dimension === 'width' || originals.has(item)) {
+        host.style.flex = `0 0 ${host.getBoundingClientRect()[dimension]}px`;
+        visible.style.flex = `0 0 ${visible.getBoundingClientRect()[dimension] || (dimension === 'width' ? host.clientWidth : host.clientHeight)}px`;
+    }
     const windows = item.querySelector<HTMLElement>(':scope > .window-bar'), windowsHidden = windows?.hidden;
     if (windows) windows.hidden = true;
     from ||= item.getBoundingClientRect();
