@@ -1244,6 +1244,9 @@ h3 {
 .topbar-right { gap: 2px; }
 .topbar-right > button, .topbar .panel-additions > button { padding-inline: 6px; }
 .visible-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.workspace-tabs:not(.vertical-tabs) > .visible-tabs { gap: 2px; }
+.workspace-tabs:not(.vertical-tabs) .workspace-tab { padding-inline: 6px 0; }
+.workspace-tabs:not(.vertical-tabs) .workspace-menu { margin-inline-end: 0; }
 .visible-tabs > *, .overflow-toggle { flex-shrink: 0; }
 .workspace-tab { max-width: 160px; overflow: hidden; text-overflow: ellipsis; display: block; }
 .component-tab-item { position: relative; display: flex; align-items: center; flex-shrink: 0; border-radius: 5px; }

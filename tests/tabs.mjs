@@ -124,7 +124,7 @@ try {
     await localized.close();
     check('numbered defaults, concurrent/detached creation, explicit names, number reuse and login-language labels');
     await page.waitForTimeout(700);
-    await page.setViewportSize({ width: 1024, height: 1000 }); await page.waitForTimeout(250);
+    await page.setViewportSize({ width: 900, height: 1000 }); await page.waitForTimeout(250);
     const visibleBefore = await page.locator('.workspace-tabs .visible-tabs .workspace-tab-item').count();
     assert.ok(visibleBefore < settings.workspaces.length, 'monitor forces desktop overflow in the fixture');
     await toggleDropdown(page.locator('.workspace-tabs .overflow-toggle'), page.locator('.overflow-tabs:popover-open'));
@@ -232,7 +232,7 @@ try {
         assert.deepEqual(await workspaceOrder(), originalOrder, `${cancel} preserves order`);
         assert.equal((await snapshot()).current, 'work', 'a cancelled drag does not activate a workspace');
     }
-    await page.setViewportSize({ width: 1024, height: 900 }); await page.waitForTimeout(250);
+    await page.setViewportSize({ width: 900, height: 900 }); await page.waitForTimeout(250);
     await page.getByRole('button', { name: 'More desktops', exact: true }).click();
     const hidden = await page.locator('.overflow-tabs .workspace-tab-item').evaluateAll(nodes => nodes.map(node => node.dataset.workspace));
     assert.ok(hidden.length >= 2);

@@ -33,7 +33,7 @@ try {
             [hidden] { display: none !important; }
             .popover-menu { position: fixed; inset: auto; margin: 0; }
             .overflow-tabs:popover-open { display: flex; flex-direction: column; gap: 4px; }
-        </style><div id="host"></div></html>`);
+        </style><div id="host" class="workspace-tabs"></div></html>`);
         await page.addStyleTag({ content: styles });
         await page.addScriptTag({ content: bundle.outputFiles[0].text });
         const order = () => page.evaluate(() => window.order);
