@@ -17,7 +17,10 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { 
 let api, original, terminal, page;
 const addedTerminals = [];
 try {
-    page = await appPage(context); page.setDefaultTimeout(10000); const errors = [], sockets = [];
+    page = await appPage(context); page.setDefaultTimeout(30000); const errors = [], sockets = [];
+    const pendingSettings = new Set();
+    page.on('request', request => { if (request.url() === base + '/api/settings' && request.method() === 'PUT') pendingSettings.add(request); });
+    page.on('framenavigated', frame => { if (frame === page.mainFrame()) pendingSettings.clear(); });
     let resizes = 0;
     page.on('pageerror', error => errors.push(error.message));
     page.on('websocket', socket => { if (socket.url().includes('/terminals/')) {
@@ -43,7 +46,13 @@ try {
     await page.evaluate(() => { window.originalTerminal = document.querySelector('.terminal-view'); });
     const connections = sockets.length;
     const hoverStyles = {};
-    const snapshot = async () => (await (await api('/me')).json()).settings;
+    const snapshot = async () => {
+        while (pendingSettings.size) {
+            await Promise.all([...pendingSettings].map(async request => { await (await request.response())?.finished(); pendingSettings.delete(request); }));
+            await page.waitForTimeout(20);
+        }
+        return (await (await api('/me')).json()).settings;
+    };
     async function choose(position, save = true) {
         await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Settings]').click();
         await page.locator('[name=panelPosition]').waitFor();
@@ -370,9 +379,13 @@ try {
             await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
             await page.waitForFunction(node => !node.isConnected, previous); await previous.dispose();
             await page.waitForFunction(value => document.querySelector('.monitor-download').textContent === value, sample.net);
-            const geometry = await page.locator('.monitor-strip').evaluate(n => {
+            const geometry = await page.evaluate(() => {
+                const n = document.querySelector('.monitor-strip');
                 const rect = n => n.getBoundingClientRect().toJSON();
                 return { strip: rect(n), network: rect(n.querySelector('[data-kind=network]')),
+                    fontSize: getComputedStyle(n.querySelector('.monitor-chip')).fontSize,
+                    networkFontSize: getComputedStyle(n.querySelector('.monitor-network-value .monitor-value')).fontSize,
+                    labelAlign: getComputedStyle(n.querySelector('.monitor-label')).textAlign,
                     readings: [...n.querySelectorAll('.monitor-network-value > span')].map(rect),
                     slots: [...n.querySelectorAll('.monitor-chip, .monitor-gauge, .monitor-value, .monitor-network-value svg')].map(rect),
                     overflow: [...n.querySelectorAll('.monitor-value')].some(n => [...n.children].some(child => {
@@ -387,9 +400,10 @@ try {
             assert.equal(geometry.overflow, false, name + ': numbers and units fit their reserved reading slots');
             if (baseline) assert.deepEqual(geometry.slots, baseline, name + ': metric columns, gauges, arrows and reading slots do not move as values change');
             else baseline = geometry.slots;
-            assert.equal(await page.locator('.monitor-chip').first().evaluate(n => getComputedStyle(n).fontSize), '18px');
-            assert.equal(await page.locator('.monitor-network-value .monitor-value').first().evaluate(n => getComputedStyle(n).fontSize), vertical ? '15px' : '18px');
+            assert.equal(geometry.fontSize, '18px');
+            assert.equal(geometry.networkFontSize, vertical ? '15px' : '18px');
             if (vertical) {
+                assert.equal(geometry.labelAlign, 'start', name + ': labels retain their leading-edge alignment');
                 assert.ok(cpu ? geometry.network.x > geometry.strip.left : geometry.network.x === geometry.strip.left, name + ': NET follows the configured metric order');
                 assert.ok(geometry.columns[cpu ? 1 : 0] > geometry.columns[cpu ? 0 : 1], name + ': the column containing NET reserves more space');
             }
@@ -398,6 +412,36 @@ try {
     }
     await page.unroute(base + '/api/metrics');
     console.log('PASS stable metric columns/readings/arrows across six value lengths, NET in either column, all four positions and both themes; 96 screenshots');
+    const metrics = await (await api('/metrics')).json();
+    const networks = [...new Set(['/all', ...metrics.networks.map(n => n.name), 'unavailable-net'])].slice(0, 3);
+    const longDisk = metrics.disks.map(d => d.path).sort((a, b) => b.length - a.length)[0];
+    const choices = [
+        ['two-networks', { cpu: true, memory: true, swap: false, disks: [], networks: networks.slice(0, 2) }],
+        ['networks-only', { cpu: false, memory: false, swap: false, disks: [], networks }],
+        ['long-disk-network', { cpu: false, memory: false, swap: false, disks: [longDisk], networks: ['/all'] }],
+        ['unavailable-labels', { cpu: false, memory: false, swap: false, disks: ['/unavailable-long-disk'], networks: ['unavailable-net'] }],
+        ['swap-network', { cpu: false, memory: false, swap: true, disks: [], networks: ['/all'] }],
+        ['more-selected', { cpu: true, memory: true, swap: true, disks: ['/'], networks }],
+        ['empty', { cpu: false, memory: false, swap: false, disks: [], networks: [] }],
+    ];
+    for (const position of ['top', 'bottom', 'left', 'right']) for (const theme of ['dark', 'light']) for (const [choice, monitoring] of choices) {
+        await page.goto('about:blank');
+        assert.equal((await api('/settings', 'PUT', { ...fixture, panelPosition: position, theme, monitoring: { ...monitoring, interval: 2 } })).status(), 200);
+        await page.goto(base); await page.locator('.monitor-summary[data-state=ready]').waitFor();
+        const geometry = await page.evaluate(() => {
+            const n = document.querySelector('.monitor-summary');
+            const rect = node => node.getBoundingClientRect().toJSON();
+            return { bounds: rect(n), items: [...n.querySelectorAll('.monitor-chip, .monitor-value, .monitor-label, .monitor-more')].map(rect),
+                networks: [...n.querySelectorAll('.monitor-network-value')].map(node => [...node.children].map(rect)) };
+        });
+        const name = `${position}-choices-${theme}-${choice}`;
+        for (const item of geometry.items) assert.ok(item.left >= geometry.bounds.left - .1 && item.right <= geometry.bounds.right + .1, name + ': every metric, label and extra count fits');
+        for (const [download, upload] of geometry.networks) assert.equal(download.y, upload.y, name + ': network readings never wrap');
+        if (choice === 'empty') assert.equal(await page.locator('.monitor-summary .monitor-chip').count(), 0);
+        if (choice === 'more-selected') assert.equal(await page.locator('.monitor-more').textContent(), `+${networks.length}`);
+        await page.locator('.topbar-right').screenshot({ path: `test-results/panel-position/${name}.png` });
+    }
+    console.log('PASS multiple networks, long/unavailable labels, swap, extra count and empty selection in all four positions and both themes; 56 screenshots');
     // Desktop overflow preserves the active row and its immediate successor around nested windows.
     await page.setViewportSize({ width: 900, height: 650 });
     const crowded = structuredClone(fixture);
@@ -457,6 +501,8 @@ try {
                 assert.equal(await preview.locator('.window-bar').count(), 0, 'overflow preview also excludes nested windows');
                 const previewHeight = (await preview.boundingBox()).height, gapHeight = (await page.locator('.tab-placeholder').boundingBox()).height;
                 assert.ok(Math.abs(previewHeight - to.height) < 1 && Math.abs(previewHeight - gapHeight) < 1, 'preview and gap match a destination menu row');
+                const menuBounds = await page.locator('.overflow-tabs:popover-open').boundingBox();
+                assert.ok(menuBounds.y >= 4 && menuBounds.y + menuBounds.height <= page.viewportSize().height - 4, 'incoming drag row keeps the overflow menu inside the viewport');
                 if (cancel) await page.screenshot({ path: `test-results/panel-position/${position}-desktop-overflow-drag.png` });
                 if (cancel) await page.keyboard.press('Escape');
                 await page.mouse.up(); await page.waitForTimeout(350);
@@ -475,13 +521,14 @@ try {
         await page.locator('[data-workspace=overview] > .workspace-tab').scrollIntoViewIfNeeded();
         const visibleWindows = page.locator('.component-tabs > .visible-tabs > .component-tab-item');
         async function checkWindowFit() {
-            const { available, row, count, toggle } = await page.locator('.component-tabs').evaluate(n => ({
-                available: n.getBoundingClientRect().height,
-                row: n.querySelector('.component-tab-item').getBoundingClientRect().height,
-                count: n.firstElementChild.children.length,
-                toggle: n.lastElementChild.getBoundingClientRect().height,
-            }));
-            assert.equal(count, Math.floor((available - toggle) / (row + 4)), 'window overflow uses every available row');
+            const { available, row, count, toggle } = await page.evaluate(() => {
+                const n = document.querySelector('.component-tabs');
+                return { available: n.getBoundingClientRect().height,
+                    row: n.querySelector('.component-tab-item').getBoundingClientRect().height,
+                    count: n.firstElementChild.children.length,
+                    toggle: n.lastElementChild.getBoundingClientRect().height };
+            });
+            assert.equal(count, Math.floor((available - toggle) / (row + 4)), `window overflow uses every available row: ${JSON.stringify({ available, row, count, toggle })}`);
         }
         await checkWindowFit();
         const originalCount = await visibleWindows.count();

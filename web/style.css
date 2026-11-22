@@ -359,6 +359,8 @@ h3 {
 #app.side-panel .monitor-summary { width: 100%; }
 #app.side-panel .monitor-strip { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 6px 2px; width: 100%; }
 #app.side-panel .monitor-chip { font-size: 18px; align-self: start; }
+#app.side-panel .monitor-strip:has(.monitor-chip[data-kind=network] ~ .monitor-chip[data-kind=network]) .monitor-chip[data-kind=network] { grid-column: 1 / -1; }
+#app.side-panel .monitor-label { contain: inline-size; align-self: stretch; max-width: 100%; text-align: start; }
 #app.side-panel .monitor-network-value { font-size: 15px; }
 #app.side-panel .monitor-network-value .monitor-value { width: 4.2ch; }
 #app.side-panel ~ .notification-stack { top: 18px; max-height: calc(100% - 36px); }

@@ -257,6 +257,8 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
     }
     content.style.left = `${Math.max(4, Math.min(left, innerWidth - content.offsetWidth - 4))}px`;
     content.style.top = `${Math.max(4, Math.min(top, innerHeight - content.offsetHeight - 4))}px`;
+    const heightLimit = getComputedStyle(content).maxHeight;
+    if (heightLimit !== 'none') content.style.maxHeight = `min(${heightLimit}, ${innerHeight - parseFloat(content.style.top) - 4}px)`;
     const close = () => {
         if (!popovers.includes(popup)) return;
         while (popovers.at(-1) !== popup) popovers.at(-1)!.close();

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
 
@@ -78,6 +79,21 @@ try {
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.pointedOpeners = true);
     await page.addStyleTag({ content: '.popover-menu { box-sizing:border-box; width:190px; max-height:calc(100vh - 8px); overflow-y:auto } .popover-menu > button { width:100%; height:36px } #root > .popover-menu > button { height:120px } [aria-label=Overflow] { position:fixed; left:4px }' });
+    await button('Overflow').evaluate(node => node.style.top = '500px');
+    await button('Overflow').click();
+    await mkdir('test-results', { recursive: true });
+    await page.screenshot({ path: 'test-results/popover-before-growth.png' });
+    await page.locator('#root').evaluate(node => {
+        for (let i = 0; i < 20; i++) node.append(node.firstElementChild.cloneNode(true));
+    });
+    const grown = await page.locator('#root').boundingBox();
+    assert.ok(grown.y + grown.height <= 696, 'adding rows keeps an open menu inside the viewport');
+    assert.ok(await page.locator('#root').evaluate(node => node.scrollHeight > node.clientHeight), 'extra rows remain scrollable');
+    await page.screenshot({ path: 'test-results/popover-after-growth.png' });
+    const closed = await page.locator('#root').elementHandle();
+    await page.keyboard.press('Escape');
+    assert.equal(await closed.evaluate(node => node.style.maxHeight), '', 'closing restores the original height limit');
+    await closed.dispose();
     for (const width of [320, 390]) for (const top of [8, 250]) {
         await page.setViewportSize({ width, height: 320 });
         await button('Overflow').evaluate((node, top) => node.style.top = `${top}px`, top);

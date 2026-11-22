@@ -140,6 +140,7 @@ try {
                     assert.ok(stack.x + stack.width <= rail.x || stack.x >= rail.x + rail.width || stack.y + stack.height <= rail.y || stack.y >= rail.y + rail.height, `${position}: notifications never cover either rail`);
                 }
                 await page.getByRole('button', { name: 'Navbar', exact: true }).click();
+                await page.screenshot({ path: `test-results/notifications-${name}-${position}-${hidden ? 'empty' : 'windows'}.png` });
             }
             await page.locator('.component-controls').evaluate(node => node.hidden = false);
         }
