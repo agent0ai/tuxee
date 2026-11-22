@@ -24,6 +24,7 @@ export class Monitoring {
     private events = new AbortController();
     private header?: HTMLButtonElement;
     private verticalHeader = false;
+    private headerSize = new ResizeObserver(() => this.fitSummary());
     private dialog?: HTMLDialogElement;
     private details?: HTMLElement;
     private configuring = false;
@@ -55,6 +56,7 @@ export class Monitoring {
         const control = button(t("app.resourceMonitor"), undefined, () => this.open(), 'monitor-summary');
         control.setAttribute('aria-haspopup', 'dialog');
         this.header = control;
+        this.headerSize.disconnect(); this.headerSize.observe(control);
         this.paintSummary(control);
         return control;
     }
@@ -125,6 +127,15 @@ export class Monitoring {
         if (!metrics.length) strip.append(icon('Activity'));
         if (metrics.length > visible) strip.append(el('span', 'monitor-more', `+${metrics.length - visible}`));
         control.append(strip);
+        this.fitSummary();
+    }
+    private fitSummary() {
+        const strip = this.header?.querySelector<HTMLElement>('.monitor-strip');
+        if (!this.verticalHeader || !strip?.clientWidth) return;
+        // Keep fixed reading slots stable, but fit wider system fonts inside the sidebar.
+        strip.style.removeProperty('--monitor-scale');
+        if (strip.scrollWidth > strip.clientWidth)
+            strip.style.setProperty('--monitor-scale', String((strip.clientWidth - 1) / strip.scrollWidth));
     }
     private paint() {
         if (this.header?.isConnected) this.paintSummary(this.header);
@@ -244,7 +255,7 @@ export class Monitoring {
         };
         content.replaceChildren(form);
     }
-    dispose() { this.processes?.dispose(); this.processes = undefined; this.events.abort(); clearTimeout(this.timer); this.request?.abort(); this.dialog?.close(); }
+    dispose() { this.headerSize.disconnect(); this.processes?.dispose(); this.processes = undefined; this.events.abort(); clearTimeout(this.timer); this.request?.abort(); this.dialog?.close(); }
 }
 
 function networkState(state?: string) {

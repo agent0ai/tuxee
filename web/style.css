@@ -357,12 +357,12 @@ h3 {
 #app.side-panel .layout-label { display: none; }
 #app.side-panel .monitor-controls { grid-column: 1 / -1; padding-block: 0; }
 #app.side-panel .monitor-summary { width: 100%; }
-#app.side-panel .monitor-strip { display: grid; grid-template-columns: max-content max-content; justify-content: start; gap: 6px 2px; width: 100%; }
-#app.side-panel .monitor-chip { font-size: 18px; align-self: start; }
+#app.side-panel .monitor-strip { display: grid; grid-template-columns: repeat(2, minmax(max-content, 1fr)); gap: 6px 1px; width: 100%; }
+#app.side-panel .monitor-chip { font-size: calc(18px * var(--monitor-scale, 1)); align-self: start; }
 #app.side-panel .monitor-strip:has(.monitor-chip[data-kind=network] ~ .monitor-chip[data-kind=network]) .monitor-chip[data-kind=network] { grid-column: 1 / -1; }
 #app.side-panel .monitor-label { contain: inline-size; align-self: stretch; max-width: 100%; text-align: start; }
-#app.side-panel .monitor-network-value { font-size: 15px; }
-#app.side-panel .monitor-network-value .monitor-value { width: 4.2ch; }
+#app.side-panel .monitor-network-value { font-size: calc(15px * var(--monitor-scale, 1)); gap: 0; }
+#app.side-panel .monitor-download, #app.side-panel .monitor-upload { gap: 0; }
 #app.side-panel ~ .notification-stack { top: 18px; max-height: calc(100% - 36px); }
 #app[data-panel-position=right] ~ .notification-stack { right: 172px; width: min(390px, calc(100vw - 190px)); }
 #app[data-panel-position=bottom] ~ .notification-stack { top: 18px; }
@@ -1370,7 +1370,7 @@ h3 {
 .monitor-chip { display: flex; align-items: center; gap: .15em; min-width: 0; font-size: 18px; }
 .monitor-chip-text { display: flex; flex-direction: column; align-items: flex-start; gap: .12em; min-width: 0; }
 .monitor-label { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .5em; font-weight: 600; line-height: 1.2; letter-spacing: .04em; }
-.monitor-value { display: inline-flex; align-items: baseline; gap: .12em; width: 4.4ch; flex-shrink: 0; color: var(--text); font-size: 1em; font-weight: 700; line-height: 1.05; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.monitor-value { display: inline-flex; align-items: baseline; gap: .12em; width: 4.4ch; height: 1.05em; flex-shrink: 0; color: var(--text); font-size: 1em; font-weight: 700; line-height: 1.05; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .monitor-unit { color: var(--muted); font-size: .65em; font-weight: 600; }
 .monitor-network-value { display: flex; gap: .1em; }
 .monitor-download, .monitor-upload { display: flex; align-items: center; gap: .05em; }
