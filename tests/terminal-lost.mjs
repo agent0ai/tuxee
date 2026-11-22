@@ -59,7 +59,7 @@ try {
         assert.ok(text.y + text.height < action.y, 'message sits above the button');
         assert.ok(Math.abs((text.y + action.y + action.height) / 2 - body.y - body.height / 2) < 2, 'message and action are centered together vertically');
         assert.equal(await terminal.evaluate(node => getComputedStyle(node).backgroundColor),
-            theme === 'dark' ? 'rgb(20, 25, 34)' : 'rgb(255, 255, 255)');
+            theme === 'dark' ? 'rgb(24, 31, 46)' : 'rgb(255, 255, 255)');
         assert.ok(await restart.evaluate(node => node.classList.contains('primary')));
     }
     console.log('PASS real missing session renders centered themed recovery on desktop/mobile in both themes');

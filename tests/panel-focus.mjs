@@ -88,7 +88,9 @@ try {
     const down = await point(terminal.getByRole('button', { name: 'Next input', exact: true }));
     await page.touchscreen.tap(down.x, down.y); await focused(drawer);
     assert.equal(await drawer.inputValue(), 'touch draft');
-    await page.locator('[data-component-name=files]').click();
+    const fileTab = page.locator('[data-component-name=files]');
+    if (!await fileTab.isVisible()) await page.locator('.component-tabs .overflow-toggle').tap();
+    await fileTab.tap();
     await click(files.locator('.file-nav'), .995, .995); await focused(files.locator('.file-list'));
     assert.deepEqual(errors, []);
     console.log('PASS panel chrome focus, disabled arrows, drawer priority, editor/list input, controls, menus, cancelled header drag and touch');

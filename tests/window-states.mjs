@@ -428,14 +428,15 @@ try {
             const group = bar.querySelector('.component-tab-item'), tab = group.querySelector('.component-tab');
             return { x: rect.x, width: rect.width, viewportWidth: innerWidth, height: rect.height, gap: panel.top - rect.bottom, topGap: rect.top - top.bottom,
                 background: getComputedStyle(bar).backgroundColor, surface: getComputedStyle(document.querySelector('.topbar')).backgroundColor,
-                barBorder: getComputedStyle(bar).borderBottom, mainBorder: getComputedStyle(document.querySelector('.topbar')).borderBottom,
+                barBorder: getComputedStyle(bar).borderBottomWidth, mainBorder: getComputedStyle(document.querySelector('.topbar')).borderBottomWidth,
                 tabBackground: getComputedStyle(tab).backgroundColor, groupBackground: getComputedStyle(group).backgroundColor,
                 border: getComputedStyle(tab).borderWidth, separator: getComputedStyle(group.nextElementSibling, '::before').content };
         });
         assert.equal(styles.x, 0); assert.equal(styles.width, styles.viewportWidth); assert.equal(styles.height, 27);
         assert.equal(styles.topGap, 0); assert.ok(styles.gap >= 0 && styles.gap <= 8, 'small gap below the secondary bar');
         assert.equal(styles.background, styles.surface);
-        assert.equal(styles.barBorder, styles.mainBorder, 'secondary bar has the main bar bottom rule');
+        assert.equal(styles.barBorder, '1px', 'combined bars retain their outside edge');
+        assert.equal(styles.mainBorder, '0px', 'adjacent bars have no ordinary separator');
         assert.equal(styles.tabBackground, 'rgba(0, 0, 0, 0)'); assert.equal(styles.groupBackground, 'rgba(0, 0, 0, 0)');
         assert.equal(styles.border, '0px'); assert.equal(styles.separator, 'none');
         await title('a').hover(); await page.waitForTimeout(150);

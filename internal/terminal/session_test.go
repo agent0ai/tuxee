@@ -138,7 +138,7 @@ func TestBackgroundUpdatesOwnedSessions(t *testing.T) {
 		update, err := s.engine.Apply([]byte("\x1b]11;?\x07"), 0, 0)
 		want := "1212/3434/5656"
 		if id == "other" {
-			want = "1b1b/2222/3030"
+			want = "1818/1f1f/2e2e"
 		}
 		if err != nil || !strings.Contains(string(update.Reply), want) {
 			t.Fatalf("%s: %q, %v", id, update.Reply, err)
