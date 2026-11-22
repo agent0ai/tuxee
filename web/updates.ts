@@ -1,4 +1,4 @@
-import { locale, t, errorText } from './i18n';
+import { formatDateTime, t, errorText } from './i18n';
 import { api, button, el, icon, notify } from './ui';
 
 type Schedule = { enabled: boolean; hour: number; timezone: string };
@@ -104,7 +104,6 @@ export class Updates {
         enabled.onchange = hour.onchange = zone.onchange = saveSchedule;
         scheduleLine.append(label, hour, zone);
         cell.append(summary, detail, subtitle, scheduleLine); content.append(cell);
-        const dateFormat = new Intl.DateTimeFormat(locale() === 'en' ? 'de-DE' : locale(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         const paint = () => {
             const status = this.status, busy = this.applying || !!status?.installing;
             content.classList.toggle('update-available', !!status?.available);
@@ -115,7 +114,7 @@ export class Updates {
                 message.append(badge, document.createTextNode(t("updates.versionAvailable", { version: status.latest })));
             } else message.textContent = status?.restartNeeded ? t('updates.restartRequired') : checkError ? t("updates.checkFailed") : status?.latest ? t("updates.upToDate") : t("updates.notChecked");
             checked.hidden = !status || status.checkedAt.startsWith('0001-');
-            checked.textContent = checked.hidden ? '' : t("updates.checked", { date: dateFormat.format(new Date(status!.checkedAt)).replace(',', '') });
+            checked.textContent = checked.hidden ? '' : t("updates.checked", { date: formatDateTime(status!.checkedAt) });
             install.hidden = !status?.available || !status.canApply;
             install.disabled = check.disabled = busy || checking || this.savingSchedule;
             const schedule = status?.schedule;

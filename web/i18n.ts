@@ -4,9 +4,12 @@ let catalog: Translations = { language: 'en', direction: 'ltr', texts: {}, langu
 const data = typeof document !== 'undefined' && document.querySelector('#tuxee-i18n');
 if (data?.textContent) catalog = JSON.parse(data.textContent);
 
+let dateTimeFormatter: Intl.DateTimeFormat | undefined;
+
 export function translations() { return catalog; }
 export function setTranslations(value: Translations) {
     catalog = value;
+    dateTimeFormatter = undefined;
     if (typeof document !== 'undefined') {
         document.documentElement.lang = value.language;
         document.documentElement.dir = value.direction;
@@ -32,4 +35,8 @@ export function errorText(value: { text?: Message; error?: string; message?: str
 }
 export function locale() {
     try { return Intl.getCanonicalLocales(catalog.language)[0] || 'en'; } catch { return 'en'; }
+}
+export function formatDateTime(value: string) {
+    dateTimeFormatter ??= new Intl.DateTimeFormat(locale(), { dateStyle: 'medium', timeStyle: 'short' });
+    return dateTimeFormatter.format(new Date(value));
 }

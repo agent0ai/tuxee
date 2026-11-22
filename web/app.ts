@@ -26,7 +26,7 @@ import { connectEvents } from './events';
 import { Inbox } from './notifications';
 import { openHowTo } from './how-to';
 import { setFaviconColor } from './favicon';
-import { locale, t, errorText, translations, setTranslations, type Translations } from './i18n';
+import { formatDateTime, locale, t, errorText, translations, setTranslations, type Translations } from './i18n';
 import { preventFileNavigation } from './file-drag';
 preventFileNavigation();
 const root = document.querySelector<HTMLElement>('#app')!;
@@ -1578,10 +1578,6 @@ async function retainedTerminals() {
     header.append(tabs, all); content.append(header, list);
     const { close } = modal(t("app.retainedTerminals"), content);
     const select = (value: boolean) => { closed = value; paint(); };
-    const date = (value: string) => {
-        const d = new Date(value), pad = (n: number) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    };
     const remove = async (entries: TerminalInfo[], bulk = false) => {
         if (busy || !entries.length) return;
         const deleting = closed;
@@ -1635,7 +1631,7 @@ async function retainedTerminals() {
             ];
             for (const [value, key] of stamps) if (value) {
                 if (times.childNodes.length) times.append(', ');
-                times.append(el('bdi', '', t(key!, { time: `\u2066${date(value)}\u2069` })));
+                times.append(el('bdi', '', t(key!, { time: `\u2068${formatDateTime(value)}\u2069` })));
             }
             text.append(name, times);
             if (!info.exited) text.append(el('small', 'muted', t("terminal.summary", { pid: info.pid, state: t(info.attached ? 'terminal.attached' : 'terminal.detached') })));
@@ -1765,7 +1761,7 @@ async function openSettings() {
     const https = location.protocol === 'https:';
     const certificate = https && (tls.source === 'public' || tls.source === 'local') ? tls.source : undefined;
     const details = el('section', 'tls-status');
-    details.append(el('h3', '', t("app.connection")), el('p', '', !https ? t("app.plainHTTP") : certificate === 'public' ? t("settings.certificateExpiry", { date: new Date(tls.expires).toLocaleString(locale()) }) : certificate === 'local' ? t("app.encryptedWithALocalCertificate") : t("app.encryptedHTTPS")));
+    details.append(el('h3', '', t("app.connection")), el('p', '', !https ? t("app.plainHTTP") : certificate === 'public' ? t("settings.certificateExpiry", { date: formatDateTime(tls.expires) }) : certificate === 'local' ? t("app.encryptedWithALocalCertificate") : t("app.encryptedHTTPS")));
     if (certificate === 'local') {
         const link = el('a', 'text-link', t("app.downloadLocalCACertificate"));
         link.href = 'api/tls/ca';

@@ -1,5 +1,5 @@
 import { Marked } from 'marked';
-import { locale, t } from './i18n';
+import { formatDateTime, locale, t } from './i18n';
 import { api, button, el, icon, popover } from './ui';
 
 const noticeIcons = { default: 'Bell', info: 'Info', success: 'CircleCheck', warning: 'TriangleAlert', error: 'CircleAlert' } as const;
@@ -117,7 +117,7 @@ export class Inbox {
                 severity.setAttribute('aria-label', t(`notifications.type.${item.type}`));
                 const time = el('time', 'muted');
                 time.dateTime = item.created;
-                time.textContent = new Date(item.created).toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' });
+                time.textContent = formatDateTime(item.created);
                 const dismiss = button(t('display.clipboard.dismiss'), 'X', async () => {
                     dismiss.disabled = true;
                     try {

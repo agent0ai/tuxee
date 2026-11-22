@@ -212,12 +212,12 @@ try {
     assert.equal(await dialog.locator('.retained-status[data-exited=true]').count(),0);
     await dialog.getByRole('tab').nth(1).click();
     await dialog.locator('.retained-row').filter({hasText:'Archive fixture'}).getByRole('button',{name:'View',exact:true}).waitFor();
-    assert.match((await dialog.locator('.retained-times').first().textContent()).replace(/[\u2066\u2069]/g,''),/Started \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, closed by user /);
     const spacing=await dialog.locator('.retained-row').first().evaluate(row=>({top:parseFloat(getComputedStyle(row).paddingTop),bottom:parseFloat(getComputedStyle(row).paddingBottom)}));
     assert.ok(spacing.top>=14 && spacing.top===spacing.bottom,'uniform first-row padding');
     const closedInfo=await json(`/terminals/${natural.id}`);
     assert.equal(Date.parse(closedInfo.expiresAt)-Date.parse(closedInfo.closedAt),168*3600000);
-    assert.match(await dialog.locator('.retained-times').textContent(),/closed by user .*Expires /);
+    const formatted = await page.evaluate(values => values.map(value => new Date(value).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })), [closedInfo.startedAt, closedInfo.closedAt, closedInfo.expiresAt]);
+    assert.deepEqual((await dialog.locator('.retained-times bdi').allTextContents()).map(text => text.replace(/[\u2068\u2069]/g, '')), ['Started ' + formatted[0], 'closed by user ' + formatted[1], 'Expires ' + formatted[2]]);
     assert.equal(await dialog.locator('.retained-row button[aria-label="Delete"] svg').count(),1);
     assert.ok((await json(`/terminals/${natural.id}`)).closedAt); assert.deepEqual(await output(natural.id),saved);
     await page.keyboard.press('Escape');

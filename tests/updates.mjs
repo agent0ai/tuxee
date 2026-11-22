@@ -108,7 +108,8 @@ try {
     }
     await dialog.getByText('Up to date', { exact: true }).waitFor();
     assert.ok(await updateRow.evaluate(node => node.previousElementSibling?.querySelector('th')?.textContent === 'Tuxee version'));
-    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:12');
+    const checkedText = () => page.evaluate(value => 'checked ' + new Date(value).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }), status.checkedAt);
+    assert.equal(await updateRow.locator('.update-checked').textContent(), await checkedText());
     assert.equal(await checkNow.locator('svg').count(), 1);
     assert.equal(await updateRow.locator('.menu-warning').count(), 0);
     assert.ok(await updateRow.evaluate(node => !node.classList.contains('update-available')));
@@ -123,7 +124,7 @@ try {
     status = { ...status, latest: 'v99.0.0', available: true, checkedAt: '2026-10-20T19:13:00Z' };
     await checkNow.click();
     await dialog.getByText('v99.0.0 available', { exact: true }).waitFor();
-    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:13');
+    assert.equal(await updateRow.locator('.update-checked').textContent(), await checkedText());
     await checkSummaryLine(); await checkNotice();
     assert.equal(await updateRow.locator('.update-subtitle code').textContent(), real.command);
     assert.equal(checks, 1);
@@ -151,7 +152,7 @@ try {
     await checkNow.click();
     await dialog.getByText('Check failed: GitHub download returned HTTP 503', { exact: true }).waitFor();
     assert.equal(await updateRow.locator('.update-subtitle code').textContent(), real.command);
-    assert.equal(await updateRow.locator('.update-checked').textContent(), 'checked 20.10.2026 21:14');
+    assert.equal(await updateRow.locator('.update-checked').textContent(), await checkedText());
     await checkNotice();
     const box = await dialog.boundingBox();
     assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= 390 && box.y + box.height <= 844);

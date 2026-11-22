@@ -1,4 +1,4 @@
-import { t, errorText, locale } from './i18n';
+import { formatDateTime, t, errorText } from './i18n';
 import { TerminalDisplay } from './display';
 import { TerminalInputDraft } from './terminal-draft';
 import { Terminal } from '@xterm/xterm';
@@ -516,7 +516,7 @@ export class TerminalView implements View {
             top.disabled = pre.scrollTop <= 0; bottom.disabled = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 1;
         };
         pre.textContent = archive?.text || '';
-        pre.title = archive?.capturedAt ? new Date(archive.capturedAt).toLocaleString(locale()) : '';
+        pre.title = archive?.capturedAt ? formatDateTime(archive.capturedAt) : '';
         pre.onscroll = updateScroll;
         const restart = button(t("term.restartArchive"), undefined, () => {
             if (this.disposed || this.closing || this.resetting) return;
@@ -868,7 +868,7 @@ export class TerminalView implements View {
     }
     get renamePanel() { return this.ended ? undefined : () => this.rename(); }
     private async rename() {
-        const name = await ask(t("term.renameTerminal"), t("common.name"), this.name, 'Terminal');
+        const name = await ask(t("term.renameTerminal"), t("common.name"), this.name, t('common.terminal'));
         if (!name) return;
         await this.starting;
         const info = await api<TerminalInfo>(`/terminals/${this.panel.terminal}`, 'PATCH', { name });

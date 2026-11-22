@@ -1,4 +1,4 @@
-import { locale, errorText, t } from './i18n';
+import { formatDateTime, locale, errorText, t } from './i18n';
 import { api, APIError, ask, bindContextMenu, button, confirmAction, el, icon, modal, notify, popover, scopeNotifications, focusPanelChrome } from './ui';
 import { download, downloadArchive, upload, uploadBatch, type UploadSource, operation as trackOperation } from './transfers';
 import { id, join, type Panel, type Hooks, type View } from './model';
@@ -834,6 +834,10 @@ export class FileView implements View {
             const value = get(entries[0]);
             return entries.every(entry => get(entry) === value) ? value : undefined;
         };
+        const commonDate = (key: 'modified' | 'accessed' | 'changed') => {
+            const value = common(entry => entry[key]);
+            return value && formatDateTime(value);
+        };
         const content = el('div', 'form'), details = el('dl', 'properties');
         const lifetime = new AbortController();
         scopeNotifications(content, this.root);
@@ -841,8 +845,8 @@ export class FileView implements View {
             'files.property.name': entries.length === 1 ? entries[0].name : t("files.itemsCount", { count: entries.length }), 'files.property.path': common(entry => entry.path),
             'files.property.type': common(entry => t(entry.symlink ? 'files.symlink' : entry.directory ? 'common.directory' : 'files.file')),
             'files.property.size': compactSize(entries.reduce((sum, entry) => sum + (entry.directory && !entry.symlink ? 0 : entry.size), 0), 1024, true),
-            'files.property.modified': common(entry => new Date(entry.modified).toLocaleString(locale())), 'files.property.accessed': common(entry => new Date(entry.accessed).toLocaleString(locale())),
-            'files.property.changed': common(entry => new Date(entry.changed).toLocaleString(locale())),
+            'files.property.modified': commonDate('modified'), 'files.property.accessed': commonDate('accessed'),
+            'files.property.changed': commonDate('changed'),
             ...(entries.some(entry => entry.link) ? { 'files.property.target': common(entry => entry.link || '—') } : {})
         };
         for (const [key, value] of Object.entries(values)) {
@@ -969,7 +973,7 @@ export class FileView implements View {
         ] as const : [
             ['open', t("files.open"), 'FilePenLine', () => this.openFile()], ['compress', t("files.compressMenu"), 'Archive', () => this.archiveDialog()], ['extract', t("files.extractMenu"), 'FolderOpen', () => this.archiveDialog(true)],
             ['cut', t("common.cut"), 'Scissors', () => this.copySelection(true)], ['copy', 'Copy', 'Copy', () => this.copySelection()], ['paste', t("common.paste"), 'ClipboardPaste', () => this.paste()],
-            ['rename', t("common.rename"), 'Pencil', () => this.rename()], ['copy-to', t("files.copyTo"), 'Copy', () => this.transferPrompt('copy')], ['move-to', t("files.moveTo"), 'MoveRight', () => this.transferPrompt('move')], ['download', 'Download', 'Download', () => this.downloadSelected()], ['workspace-default', t("files.workspaceDefault"), 'House', () => this.workspaceDefault(directory!)], ['properties', t("common.properties"), 'Info', () => this.properties()], ['delete', t("common.delete"), 'Trash2', () => this.remove()]
+            ['rename', t("common.rename"), 'Pencil', () => this.rename()], ['copy-to', t("files.copyTo"), 'Copy', () => this.transferPrompt('copy')], ['move-to', t("files.moveTo"), 'MoveRight', () => this.transferPrompt('move')], ['download', 'Download', 'Download', () => this.downloadSelected()], ['workspace-default', t("files.workspaceDefault"), 'House', () => this.workspaceDefault(directory!)], ['delete', t("common.delete"), 'Trash2', () => this.remove()], ['properties', t("common.properties"), 'Info', () => this.properties()]
         ] as const) {
             if (overflow.some(source => source.dataset.action === id)) continue;
             if (id === 'workspace-default' && !directory) continue;
