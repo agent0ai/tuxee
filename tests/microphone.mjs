@@ -51,9 +51,9 @@ try {
     await page.screenshot({ path: 'test-results/microphone-initial.png' });
     assert.equal(await page.locator('.topbar .volume-toggle').count(), 1);
     assert.equal(await page.locator('.topbar .microphone-toggle').count(), 0);
-    assert.equal(await page.locator('.user-menu-button').textContent(), '', 'hamburger is icon-only');
-    await page.locator('.user-menu-button').click();
-    assert.equal(await page.locator('.menu-username').textContent(), user);
+    assert.equal(await page.locator('.brand-button img').count(), 1, 'Start uses the Tuxee logo');
+    await page.locator('.brand-button').click();
+    assert.equal(await page.locator('.start-user').textContent(), user);
     await page.keyboard.press('Escape');
     assert.equal(sockets.length, 0); assert.equal(await page.evaluate(() => micStreams.length), 0, 'no unsolicited microphone permission');
     const micMenu = async () => { if (!await page.getByRole('slider', { name: 'Microphone', exact: true }).isVisible()) await page.locator('.volume-toggle').click(); };
@@ -115,7 +115,7 @@ try {
             const mic = await page.getByRole('slider', { name: 'Microphone', exact: true }).boundingBox();
             assert.ok(Math.abs(speaker.y - mic.y) < 1 && Math.abs(speaker.height - mic.height) < 1, 'sliders share a row');
             assert.ok(direction === 'ltr' ? speaker.x + speaker.width < mic.x : mic.x + mic.width < speaker.x, 'channels follow reading direction without overlap');
-            assert.equal(await page.locator('.user-menu-button').textContent(), '');
+            assert.equal(await page.locator('.brand-button img').count(), 1);
             assert.ok(await page.evaluate(() => document.body.scrollWidth <= innerWidth), 'header stays within viewport');
         }
         await page.evaluate(() => { document.documentElement.dir = 'ltr'; });

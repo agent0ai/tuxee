@@ -204,7 +204,7 @@ try {
     const replacement=(await json('/me')).settings.workspaces[0].panels[0].terminal;
     assert.notEqual(replacement,natural.id); assert.deepEqual(await json(`/terminals/${replacement}/input-history`),[]);
     assert.deepEqual(await output(natural.id),saved); assert.equal((await json(`/terminals/${natural.id}`)).closedAt,restartedArchive.closedAt);
-    const openRetained=async()=>{ await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
+    const openRetained=async()=>{ await page.getByRole('button',{name:'Start menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Retained terminals',exact:true}).click(); };
     await openRetained();
     const dialog=page.getByRole('dialog',{name:'Retained terminals',exact:true});
     await dialog.getByRole('tab').nth(0).waitFor();
@@ -221,7 +221,7 @@ try {
     assert.equal(await dialog.locator('.retained-row button[aria-label="Delete"] svg').count(),1);
     assert.ok((await json(`/terminals/${natural.id}`)).closedAt); assert.deepEqual(await output(natural.id),saved);
     await page.keyboard.press('Escape');
-    await page.getByRole('button',{name:'User menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Settings',exact:true}).click();
+    await page.getByRole('button',{name:'Start menu',exact:true}).click(); await page.getByRole('menuitem',{name:'Settings',exact:true}).click();
     const retention=page.locator('[name=closedTerminalHistoryHours]'); assert.equal(await retention.inputValue(),'168'); await retention.fill('72');
     await page.getByRole('dialog',{name:'Settings',exact:true}).getByRole('button',{name:'Save',exact:true}).click();
     await wait(async()=> (await json('/me')).settings.closedTerminalHistoryHours===72,'retention save');
@@ -330,7 +330,7 @@ try {
         assert.ok(bounds.scroll<=bounds.width+1,language+': '+JSON.stringify(bounds));
         assert.equal(await mobile.locator('.terminal-archive pre').textContent(),mcArchive.text);
         if (['ar','cs'].includes(language)) await mobile.screenshot({path:`test-results/terminal-archive-${language}-320.png`});
-        await mobile.getByRole('button',{name:catalog['app.userMenu'],exact:true}).click();
+        await mobile.getByRole('button',{name:catalog['app.startMenu'],exact:true}).click();
         await mobile.getByRole('menuitem',{name:catalog['app.retainedTerminals'],exact:true}).click();
         const inventory=mobile.getByRole('dialog',{name:catalog['app.retainedTerminals'],exact:true});
         for (const theme of ['dark','light']) {
@@ -376,7 +376,7 @@ try {
     await mobile.close();
     csrf=await login();
     const listPage=await appPage(context); listPage.on('pageerror',error=>errors.push(error.message)); await listPage.goto(base); await listPage.locator('.terminal-archive pre').waitFor();
-    await listPage.getByRole('button',{name:'User menu',exact:true}).click(); await listPage.getByRole('menuitem',{name:'Retained terminals',exact:true}).click();
+    await listPage.getByRole('button',{name:'Start menu',exact:true}).click(); await listPage.getByRole('menuitem',{name:'Retained terminals',exact:true}).click();
     const inventory=listPage.getByRole('dialog',{name:'Retained terminals',exact:true}); await inventory.waitFor();
     const listed=id=>inventory.locator(`[data-terminal-id="${id}"]`);
     assert.equal(await listed(liveFixture.id).getByRole('button',{name:'Connect',exact:true}).count(),1);

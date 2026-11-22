@@ -129,7 +129,7 @@ try {
     assert.equal(await content.textContent(), 'last🙂');
     await page.screenshot({ path: 'test-results/editor-docker-mobile.png' });
     await replace('logout🙂'); edits.at(-1).content = 'logout🙂';
-    await page.getByRole('button', { name: 'User menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor(); await page.goto('about:blank'); await login();
     let state = (await editor('load')).editor; state.index = 0; state.anchor = state.head = 0; state.top = state.left = 0;
     await editor('checkpoint', { editor: state });

@@ -64,6 +64,8 @@ type Server struct {
 	languageCookie string
 	Translations   *i18n.Store
 	mu             sync.Mutex
+	eventsMu       sync.Mutex
+	inboxWatches   map[uint32]*inboxWatch
 	settingsMu     sync.Mutex
 	closed         atomic.Bool
 	logins         map[[32]byte]*login
@@ -80,6 +82,7 @@ type Server struct {
 
 func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 64), clipSlots: make(chan struct{}, 2)}
+	s.inboxWatches = make(map[uint32]*inboxWatch)
 	s.cookieName = "tuxee_session_" + instanceID
 	s.instanceID = instanceID
 	s.languageCookie = "tuxee_language_" + instanceID
@@ -350,6 +353,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == "/api/microphone" && r.Method == "GET":
 		s.userMicrophone(w, r, session)
+	case r.URL.Path == "/api/events" && r.Method == "GET":
+		s.userEvents(w, r, session)
 	case r.URL.Path == "/api/audio" && r.Method == "GET":
 		s.userAudio(w, r, session)
 	case r.URL.Path == "/api/restart" && r.Method == "POST":
@@ -388,6 +393,39 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path == "/api/update/apply" && r.Method == "POST",
 		r.URL.Path == "/api/update/schedule" && r.Method == "PUT":
 		s.updateOperation(w, r, session)
+	case r.URL.Path == "/api/notifications" && r.Method == "GET":
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		result, err := files.Run(ctx, session.user, files.Request{Operation: "notification-list"})
+		if err != nil {
+			failure(w, 422, err)
+			return
+		}
+		type notice struct {
+			files.Notification
+			Resolved bool `json:"resolved,omitempty"`
+		}
+		inbox := result.Inbox
+		if inbox == nil {
+			inbox = &files.NotificationFeed{}
+		}
+		items := make([]notice, 0, len(inbox.Items))
+		for _, item := range inbox.Items {
+			items = append(items, notice{item, update.ValidTag(item.Release) && !update.Newer(item.Release, s.Version)})
+		}
+		jsonResponse(w, 200, map[string]any{"items": items, "count": inbox.Count})
+	case (r.URL.Path == "/api/notifications" || strings.HasPrefix(r.URL.Path, "/api/notifications/")) && r.Method == "DELETE":
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		req := files.Request{Operation: "notification-dismiss-all"}
+		if r.URL.Path != "/api/notifications" {
+			req = files.Request{Operation: "notification-dismiss", Path: strings.TrimPrefix(r.URL.Path, "/api/notifications/")}
+		}
+		if _, err := files.Run(ctx, session.user, req); err != nil {
+			failure(w, 422, err)
+			return
+		}
+		jsonResponse(w, 200, map[string]bool{"ok": true})
 	case r.URL.Path == "/api/metrics" && r.Method == "GET":
 		jsonResponse(w, 200, s.monitor.Sample())
 	case r.URL.Path == "/api/system" && r.Method == "GET":

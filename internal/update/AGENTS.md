@@ -40,6 +40,8 @@ Shared update status carries structured i18n `text` alongside diagnostic `error`
   release on failure and timestamp completed attempts. GitHub failures must not
   interrupt Tuxee.
 
+The daily checker publishes release notices through the same delivery as `tuxee notify --users-all` before any scheduled installation. Publish only on a successful scheduled check for a newer release in a versioned build, including when automatic installation is disabled. Startup and manual checks still refresh only cached availability. A delivery failure is logged and leaves scheduled installation eligible.
+
 # Work Guidance
 
 Use the standard library and the existing x/mod semantic-version package.

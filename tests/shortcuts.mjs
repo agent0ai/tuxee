@@ -70,7 +70,7 @@ try {
     });
     const page = await appPage(context); page.setDefaultTimeout(10000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(base); await page.locator('.user-menu-button').waitFor();
+    await page.goto(base); await page.locator('.brand-button').waitFor();
     const hotkey = key => page.keyboard.press(`Alt+Shift+${key}`);
     const waitActive = name => page.waitForFunction(name => document.querySelector('.workspace-tab.active')?.getAttribute('aria-label') === name, name);
     for (let n = 1; n <= 10; n++) {
@@ -147,7 +147,7 @@ try {
     const settingName = page.locator('dialog[open] [name=serverName]'); await settingName.waitFor(); await settingName.focus();
     await page.keyboard.up('Shift'); await page.keyboard.up('Alt'); await page.keyboard.down('s'); await page.keyboard.up('s'); assert.equal(await settingName.inputValue(), '', 'held shortcut must not type into its new dialog');
     await page.keyboard.press('Escape');
-    const open = async () => { await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Keyboard]').click(); };
+    const open = async () => { await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Keyboard]').click(); };
     const editor = page.locator('.shortcuts-modal'), recorder = page.locator('.shortcut-record-modal');
     await hotkey('k'); await editor.waitFor(); assert.equal(await editor.locator('[data-shortcut]').count(), 30);
     await editor.locator('[data-shortcut="app.about"] th').dblclick(); await recorder.waitFor();
@@ -178,7 +178,7 @@ try {
     assert.deepEqual((await saved()).shortcuts['app.about'][1], ['Control+Shift+KeyU'], 'outside dismissal discards the unsaved recording');
     await page.mouse.click(3, 3); await editor.waitFor({ state: 'detached' });
     await page.keyboard.press('Control+Shift+u'); await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');
-    await page.reload(); await page.locator('.user-menu-button').waitFor();
+    await page.reload(); await page.locator('.brand-button').waitFor();
     await page.keyboard.press('Control+Shift+u'); await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');
     const disk = JSON.parse(await readFile(home + '/.config/tuxee/settings.json','utf8')); assert.deepEqual(disk.shortcuts, (await saved()).shortcuts);
     await open();
@@ -234,7 +234,7 @@ try {
     await waitActive('Desktop 10');
     await page.waitForFunction(async id => (await (await fetch(`/api/terminals/${id}`)).json()).exited,desktopTerminal.id);
     await hotkey('q'); await page.locator('.login-page').waitFor();
-    csrf = await login('cs'); await page.reload(); await page.locator('.user-menu-button').waitFor();
+    csrf = await login('cs'); await page.reload(); await page.locator('.brand-button').waitFor();
     await open(); assert.equal(await editor.getAttribute('aria-label'),'Zkratky');
     await mkdir('test-results',{recursive:true});
     for (const theme of ['dark','light']) for (const width of [1440,390,320]) {
@@ -249,7 +249,7 @@ try {
     await page.goto('about:blank');
     csrf = await login('en');
     await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {value:'MacIntel', configurable:true}));
-    await page.goto(base); await page.locator('.user-menu-button').waitFor();
+    await page.goto(base); await page.locator('.brand-button').waitFor();
     await hotkey('h'); await page.getByRole('dialog',{name:'About Tuxee',exact:true}).waitFor(); await page.keyboard.press('Escape');
     await open(); assert.equal(await editor.locator('[data-shortcut="app.about"] [data-slot="0"]').textContent(),'Option+Shift+H');
     await record('app.about'); await page.keyboard.press('Meta+Alt+u');
@@ -262,7 +262,7 @@ try {
         const panels = rectangles.map(([id,x,y,w,h]) => ({id,kind:'files',path:home,x,y,w,h})).reverse();
         const settings = {...await saved(), current:'ordered', workspaces:[{id:'ordered',name:'Ordered',columns:4,rows:2,active:order[0],panels}]};
         assert.equal((await api('/settings','PUT',settings)).status(),200);
-        await page.goto(base); await page.locator('.user-menu-button').waitFor();
+        await page.goto(base); await page.locator('.brand-button').waitFor();
         for (const id of [...order.slice(1),order[0]]) {
             await hotkey('ArrowDown'); assert.equal(await focused(),id,`next at ${width}x${height}`);
         }
@@ -280,7 +280,7 @@ try {
     console.log('shortcuts: spatial panel order, merged cells, reverse/wrap, portrait and compact passed');
     for (const file of await readdir('internal/i18n/locales')) {
         const code=file.replace('.json',''), catalog=JSON.parse(await readFile('internal/i18n/locales/'+file,'utf8')).texts;
-        await page.goto('about:blank'); csrf=await login(code); await page.goto(base); await page.locator('.user-menu-button').waitFor();
+        await page.goto('about:blank'); csrf=await login(code); await page.goto(base); await page.locator('.brand-button').waitFor();
         await open(); assert.equal(await editor.getAttribute('aria-label'),catalog['shortcuts.title']);
         await page.setViewportSize({width:320,height:850});
         assert.ok(await editor.evaluate(node => [...node.querySelectorAll('button,th,td')].every(el => el.scrollWidth <= el.clientWidth+1)), `shortcuts bounds: ${code}`);

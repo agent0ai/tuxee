@@ -93,11 +93,11 @@ func editorBase(instance string, create bool) (*os.File, error) {
 	if instance == "" || len(instance) > 128 {
 		return nil, os.ErrInvalid
 	}
-	terminals, err := terminalBase()
+	path, err := stateDirectory("editors")
 	if err != nil {
 		return nil, err
 	}
-	parent, err := editorDirectory(filepath.Join(filepath.Dir(terminals), "editors"), create)
+	parent, err := editorDirectory(path, create)
 	if err != nil {
 		return nil, err
 	}

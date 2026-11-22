@@ -151,8 +151,8 @@ try {
         await resize(650); await load(fixture(31, position, 4, 2, theme));
         const before = await check(`${position}-${theme}-monitor-shown`, 31);
         for (const hidden of [true, false]) {
-            await page.locator('.user-menu-button').click();
-            await page.locator('.account-menu [data-action=Activity]').click();
+            await page.locator('.brand-button').click();
+            await page.locator('.start-menu [data-action=Activity]').click();
             await page.locator('.monitor-display input').setChecked(!hidden);
             await page.waitForFunction(() => !document.querySelector('.monitor-display input').disabled);
             await page.locator('dialog:open .modal-head > button').last().click();

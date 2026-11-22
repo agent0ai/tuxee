@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -111,6 +112,8 @@ func help() {
                                          Use the system service manager
   tuxee restart [--name tuxee] [--state directory]
                                          Restart the running Tuxee runtime
+  tuxee notify [--name NAME] [--state DIR] (--users NAME[,NAME] | --users-all) [--type default|info|success|warning|error] --text TEXT
+                                         Post a Markdown notification as root
   tuxee version                          Print version
   tuxee update [--check] [--name tuxee]    Check/install the latest stable release
   tuxee upgrade [--check] [--name tuxee]   Alias for update
@@ -153,6 +156,8 @@ func run(args []string) error {
 		return nil
 	case "update", "upgrade":
 		return runUpdate(args[1:])
+	case "notify":
+		return runNotify(args[1:])
 	case "ports":
 		return runPorts(args[1:], os.Stdout)
 	case "restart":
@@ -606,7 +611,14 @@ func serve(value *config) error {
 	updatesDone := make(chan struct{})
 	go func() {
 		defer close(updatesDone)
-		app.Updates.Run(updateCtx, app.ApplyScheduledUpdate)
+		app.Updates.Run(updateCtx, app.ApplyScheduledUpdate, func(ctx context.Context, release update.Release) {
+			notifyCtx, cancel := context.WithTimeout(ctx, time.Minute)
+			defer cancel()
+			err := postNotifications(notifyCtx, nil, true, files.Notification{Type: "info", Release: release.Tag})
+			if err != nil {
+				log.Printf("update notification: %v", err)
+			}
+		})
 	}()
 	go app.Prune(ctx)
 	errorsCh := make(chan error, len(listeners))

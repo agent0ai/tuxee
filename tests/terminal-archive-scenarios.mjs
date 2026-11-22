@@ -195,7 +195,7 @@ try {
     }
     await visit('Subject');await panel().locator('.terminal-view[data-state=connected]').waitFor();
     await wait(async()=>programs[0].screen.test(await liveText()),'MC after cache eviction');
-    await page.getByRole('button',{name:'User menu',exact:true}).click();await page.getByRole('menuitem',{name:'Log out',exact:true}).click();
+    await page.getByRole('button',{name:'Start menu',exact:true}).click();await page.getByRole('menuitem',{name:'Log out',exact:true}).click();
     await page.locator('[name=username]').waitFor();await login();await page.goto(base);await panel().locator('.terminal-view[data-state=connected]').waitFor();
     assert.equal((await api('/terminals/'+warm.id)).pid,warm.pid);
     await wait(async()=>programs[0].screen.test(await liveText()),'MC after logout');

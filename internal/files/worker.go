@@ -21,6 +21,7 @@ import (
 )
 
 type Request struct {
+	Notice      *Notification   `json:"notification,omitempty"`
 	EditorID    string          `json:"editorId,omitempty"`
 	Editor      *EditorState    `json:"editor,omitempty"`
 	Draft       *TerminalDraft  `json:"draft,omitempty"`
@@ -86,6 +87,8 @@ type Response struct {
 	Entry     *Entry           `json:"entry,omitempty"`
 	Truncated bool             `json:"truncated,omitempty"`
 	Settings  json.RawMessage  `json:"settings,omitempty"`
+
+	Inbox *NotificationFeed `json:"inbox,omitempty"`
 }
 
 // Worker serves one operation after exec has applied the user's Linux credentials.
@@ -201,6 +204,10 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 	}
 	if strings.HasPrefix(r.Operation, "trash-") || r.Operation == "trash" {
 		response, err := trashOperation(ctx, r)
+		return response, nil, err
+	}
+	if strings.HasPrefix(r.Operation, "notification-") {
+		response, err := notificationOperation(ctx, r)
 		return response, nil, err
 	}
 	if r.Operation == "settings-load" || r.Operation == "settings-save" {

@@ -37,6 +37,13 @@ export class Monitoring {
         this.poll();
     }
     get displayed() { return !this.preferences.hidden; }
+    async setDisplayed(displayed: boolean) {
+        const preferences = { ...this.preferences, hidden: !displayed };
+        await this.save(preferences);
+        this.preferences = preferences;
+        this.paint();
+        void this.poll();
+    }
     private async poll() {
         clearTimeout(this.timer); this.request?.abort();
         if (this.events.signal.aborted || document.hidden || (!this.displayed && !this.dialog?.isConnected)) return;
@@ -205,8 +212,7 @@ export class Monitoring {
         toggle.onchange = async () => {
             toggle.disabled = cog.disabled = true; error.textContent = '';
             try {
-                const preferences = { ...this.preferences, hidden: !toggle.checked };
-                await this.save(preferences); this.preferences = preferences; this.paint(); this.poll();
+                await this.setDisplayed(toggle.checked);
             } catch (value) {
                 toggle.checked = this.displayed;
                 error.textContent = value instanceof Error ? errorText(value) : t("monitor.cannotSaveResourceMonitor");

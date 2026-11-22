@@ -137,7 +137,7 @@ try {
 
     // Logout waits for the debounced draft and restores it on the next login.
     await drawer.fill('draft before logout');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('input[name=username]').waitFor();
     csrf = await login(); await page.goto(base); await connected();

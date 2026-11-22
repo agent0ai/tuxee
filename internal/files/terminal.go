@@ -65,7 +65,7 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 	if r.Instance == "" || len(r.Instance) > 128 || len(r.Content) > InputHistoryEntryBytes {
 		return Response{}, i18n.New("backend.files.invalidWorkerRequest")
 	}
-	base, err := terminalBase()
+	base, err := stateDirectory("terminals")
 	if err != nil {
 		return Response{}, err
 	}
@@ -119,7 +119,7 @@ func terminalFiles(ctx context.Context, r Request) (Response, error) {
 	return Response{History: history}, nil
 }
 
-func terminalBase() (string, error) {
+func stateDirectory(component string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -128,7 +128,7 @@ func terminalBase() (string, error) {
 	if !filepath.IsAbs(state) {
 		state = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(state, "tuxee", "terminals"), nil
+	return filepath.Join(state, "tuxee", component), nil
 }
 
 // TerminalDirectory must run in a credential-dropped worker, like terminalFiles.
@@ -136,7 +136,7 @@ func TerminalDirectory(id, instance string, create bool) (*os.File, error) {
 	if !terminalID(id) || instance == "" || len(instance) > 128 {
 		return nil, os.ErrInvalid
 	}
-	base, err := terminalBase()
+	base, err := stateDirectory("terminals")
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func AudioDirectory(instance string, create bool) (*os.File, error) {
 	if instance == "" || len(instance) > 128 {
 		return nil, os.ErrInvalid
 	}
-	base, err := terminalBase()
+	base, err := stateDirectory("terminals")
 	if err != nil {
 		return nil, err
 	}

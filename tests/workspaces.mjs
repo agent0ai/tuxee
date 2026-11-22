@@ -134,7 +134,7 @@ try {
     assert.equal(connections(0).length, 3); assert.equal(connections(0)[2].snapshots, 1);
     await page.locator('.cm-content').click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('logout draft');
     await visit(3);
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     csrf = await login();

@@ -27,6 +27,9 @@ try {
         sockets.push(socket.url());
         socket.on('framesent', ({ payload }) => { if (typeof payload === 'string' && JSON.parse(payload).type === 'resize') resizes++; });
     } });
+    await page.route('**/api/notifications', route => route.fulfill({ json: { count: 1, items: [{
+        id: '1'.repeat(32), type: 'info', text: 'Layout fixture', created: new Date().toISOString(),
+    }] } }));
     await page.goto(base);
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
     await page.locator('button[type=submit]').click(); await page.locator('.topbar').waitFor();
@@ -54,7 +57,7 @@ try {
         return (await (await api('/me')).json()).settings;
     };
     async function choose(position, save = true) {
-        await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Settings]').click();
+        await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Settings]').click();
         await page.locator('[name=panelPosition]').waitFor();
         const compact = page.viewportSize().width < 760 || page.viewportSize().height < 480;
         assert.deepEqual(await page.locator('[name=panelPosition] option').evaluateAll(options => options.map(option => option.value)), compact ? ['top', 'bottom'] : ['top', 'bottom', 'left', 'right']);
@@ -98,20 +101,23 @@ try {
             const plus = await page.locator('.workspace-add').boundingBox();
             assert.ok(plus.y >= tabs.at(-1).bottom && plus.y - tabs.at(-1).bottom < 10);
             const actions = await page.locator('.panel-additions > button').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
+            assert.equal(actions.length, 3);
             assert.ok(actions.every(r => r.y === actions[0].y));
             const network = await page.locator('.monitor-network-value > span').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().y));
             assert.ok(network.length === 2 && network[0] === network[1], 'network readings stay on one line');
             assert.equal(await page.locator('.panel-additions > button > svg').first().evaluate(n => n.getBoundingClientRect().width), 18);
-            const theme = await page.locator('.theme-toggle').boundingBox(), volume = await page.locator('.volume-toggle').boundingBox(), account = await page.locator('.user-menu-button').boundingBox();
-            assert.equal(theme.y, volume.y); assert.equal(account.y, theme.y);
+            const theme = await page.locator('.theme-toggle').boundingBox(), volume = await page.locator('.volume-toggle').boundingBox(), bell = await page.locator('.notifications-button').boundingBox();
+            assert.equal(theme.y, volume.y); assert.equal(bell.y, theme.y);
         }
-        for (const [opener, popup] of [['.user-menu-button', '.account-menu'], ['.volume-toggle', '.volume-popover'], ['.workspace-menu', '.menu-actions'], ['[data-component-menu=minimized]', '.menu-actions'], ['.command-shortcuts-toggle', '.command-shortcuts']]) {
+        for (const [opener, popup] of [['.brand-button', '.start-menu'], ['.notifications-button', '.inbox'], ['.volume-toggle', '.volume-popover'], ['.workspace-menu', '.menu-actions'], ['[data-component-menu=minimized]', '.menu-actions']]) {
             await page.locator(opener).first().click();
-            const box = await page.locator(popup + ':popover-open').boundingBox();
+            const popover = page.locator(popup + ':popover-open');
+            await popover.evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished)));
+            const box = await popover.boundingBox();
             assert.ok(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= 1440 && box.y + box.height <= 960);
-            const button = await page.locator(opener).first().boundingBox();
-            if (position === 'left') assert.ok(Math.abs(box.x - button.x - button.width - 4) < 1);
-            if (position === 'right') assert.ok(Math.abs(box.x + box.width - button.x + 4) < 1);
+            const anchor = ['.brand-button', '.notifications-button'].includes(opener) ? top : await page.locator(opener).first().boundingBox();
+            if (position === 'left') assert.ok(Math.abs(box.x - anchor.x - anchor.width - 4) < 1);
+            if (position === 'right') assert.ok(Math.abs(box.x + box.width - anchor.x + 4) < 1);
             if (position === 'bottom') assert.ok(box.y + box.height <= top.y);
             await page.screenshot({ path: `test-results/panel-position/${position}-menu-${opener.replace(/[^a-z-]/g, '')}.png` });
             await page.locator(opener).first().click(); assert.equal(await page.locator(popup + ':popover-open').count(), 0);
@@ -299,7 +305,7 @@ try {
             if (position === 'top') hoverStyles[theme] = appearances;
             else assert.deepEqual(appearances, hoverStyles[theme], 'hover appearance matches horizontal mode in both themes');
             await page.mouse.move(720, 600);
-            for (const selector of ['.theme-toggle', '.volume-toggle', '.user-menu-button']) assert.equal(await page.locator(selector).evaluate(n => getComputedStyle(n).backgroundColor), 'rgba(0, 0, 0, 0)', 'utility controls have no permanent backgrounds');
+            for (const selector of ['.theme-toggle', '.volume-toggle', '.notifications-button']) assert.equal(await page.locator(selector).evaluate(n => getComputedStyle(n).backgroundColor), 'rgba(0, 0, 0, 0)', 'utility controls have no permanent backgrounds');
             await page.screenshot({ path: `test-results/panel-position/${position}${theme === 'light' ? '-light' : ''}.png` });
         }
         await page.locator('.theme-toggle').click(); await settled();
@@ -317,7 +323,7 @@ try {
     await choose('left', false); assert.equal((await snapshot()).panelPosition, 'right', 'Cancel preserves the saved position');
     await page.reload(); await page.locator('#app[data-panel-position=right]').waitFor();
     await page.setViewportSize({ width: 390, height: 844 }); await page.locator('#app.compact[data-panel-position=top]').waitFor();
-    assert.deepEqual(await page.locator('.component-controls > .panel-additions > button').evaluateAll(nodes => nodes.map(n => n.dataset.kind || n.className)), ['files', 'terminal', 'command-shortcuts-toggle'], 'mobile actions stay together in Files, Terminal, Favorites order');
+    assert.deepEqual(await page.locator('.component-controls > .panel-additions > button').evaluateAll(nodes => nodes.map(n => n.dataset.kind || n.className)), ['files', 'terminal'], 'mobile actions stay together in Files, Terminal order');
     assert.equal((await snapshot()).panelPosition, 'right', 'compact fallback preserves side preference');
     await choose('bottom');
     assert.equal((await snapshot()).mobilePanelPosition, 'bottom'); assert.equal((await snapshot()).panelPosition, 'right');
@@ -334,7 +340,7 @@ try {
     await page.evaluate(() => { document.documentElement.dir = 'rtl'; });
     const rtlPanel = await page.locator('.topbar').boundingBox();
     assert.ok(rtlPanel.x >= 679, 'Right stays on the physical right with RTL chrome');
-    await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Settings]').click();
+    await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Settings]').click();
     await page.screenshot({ path: 'test-results/panel-position/settings-rtl.png' });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.querySelector('[name=panelPosition]').options.length === 2);

@@ -66,7 +66,7 @@ export class FileView implements View {
     private propertiesButton = button(t("common.properties"), 'Info', () => this.properties());
     private fitActions = () => {};
     private get inTrash() { return this.panel.path === trashPath; }
-    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks) {
+    constructor(private root: HTMLElement, private panel: Panel, private hooks: Hooks, initialPath?: string) {
         const frame = root.closest('.panel')!;
         instances.add(this);
         window.addEventListener('tuxee-file-cut', event => {
@@ -251,7 +251,11 @@ export class FileView implements View {
         const observer = new ResizeObserver(fitActions); observer.observe(actions); fitActions();
         this.events.signal.addEventListener('abort', () => { observer.disconnect(); this.closeMenu(); }, { once: true });
         this.paintSelection();
-        this.restoreEditor().catch(this.notice);
+        if (initialPath) this.openPath(initialPath).catch(async error => {
+            this.notice(error);
+            if (!this.disposed) await this.refresh();
+        }).catch(this.notice);
+        else this.restoreEditor().catch(this.notice);
     }
     private async restoreEditor() {
         await this.hooks.changed(true);

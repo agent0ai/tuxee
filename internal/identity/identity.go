@@ -25,6 +25,15 @@ type User struct {
 const Self = "/proc/self/exe"
 
 func Lookup(name string) (User, error) {
+	result, err := LookupAccount(name)
+	if err == nil {
+		result.Shell, err = shell(result.Name)
+	}
+	return result, err
+}
+
+// LookupAccount resolves credentials for a filesystem worker without admitting a login.
+func LookupAccount(name string) (User, error) {
 	var result User
 	account, err := user.Lookup(name)
 	if err != nil {
@@ -50,8 +59,7 @@ func Lookup(name string) (User, error) {
 		}
 		result.Groups = append(result.Groups, uint32(id))
 	}
-	result.Shell, err = shell(account.Username)
-	return result, err
+	return result, nil
 }
 
 func Authenticate(ctx context.Context, service, name string, password []byte) (User, error) {

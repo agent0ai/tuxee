@@ -1,7 +1,7 @@
 import { t } from './i18n';
 import type { ShortcutBindings } from './shortcuts';
 export type Kind = 'files' | 'terminal';
-export type CommandShortcut = { name: string; command: string };
+export type CommandShortcut = { name: string; command?: string; path?: string };
 export type Panel = {
     id: string;
     kind: Kind;

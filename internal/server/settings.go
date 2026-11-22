@@ -88,7 +88,8 @@ type Settings struct {
 }
 type CommandShortcut struct {
 	Name    string `json:"name"`
-	Command string `json:"command"`
+	Command string `json:"command,omitempty"`
+	Path    string `json:"path,omitempty"`
 }
 type Monitoring struct {
 	Hidden   bool     `json:"hidden,omitempty"`
@@ -131,7 +132,16 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	for i := range value.CommandShortcuts {
 		shortcut := &value.CommandShortcuts[i]
 		shortcut.Name = strings.TrimSpace(shortcut.Name)
-		if shortcut.Name == "" || len(utf16.Encode([]rune(shortcut.Name))) > 64 || strings.ContainsRune(shortcut.Name, 0) || strings.TrimSpace(shortcut.Command) == "" || len(shortcut.Command) > 16384 || strings.ContainsRune(shortcut.Command, 0) {
+		if shortcut.Name == "" || len(utf16.Encode([]rune(shortcut.Name))) > 64 || strings.ContainsRune(shortcut.Name, 0) {
+			return i18n.New("commandShortcuts.invalid")
+		}
+		if shortcut.Path != "" {
+			if !filepath.IsAbs(shortcut.Path) || len(shortcut.Path) > maxDefaultDirectoryBytes || strings.ContainsRune(shortcut.Path, 0) || shortcut.Command != "" {
+				return i18n.New("commandShortcuts.invalid")
+			}
+			continue
+		}
+		if strings.TrimSpace(shortcut.Command) == "" || len(shortcut.Command) > 16384 || strings.ContainsRune(shortcut.Command, 0) {
 			return i18n.New("commandShortcuts.invalid")
 		}
 	}

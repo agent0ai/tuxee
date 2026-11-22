@@ -22,6 +22,8 @@ import { installShortcuts, openShortcuts } from './shortcuts';
 import type { CommandShortcut } from './model';
 import { BackendConnection } from './connection';
 import { Updates } from './updates';
+import { connectEvents } from './events';
+import { Inbox } from './notifications';
 import { openHowTo } from './how-to';
 import { setFaviconColor } from './favicon';
 import { locale, t, errorText, translations, setTranslations, type Translations } from './i18n';
@@ -40,6 +42,8 @@ let loggedIn = false, loggingOut = false, saveTimer: ReturnType<typeof setTimeou
 let monitoring: Monitoring | undefined;
 let connection: BackendConnection | undefined;
 let updates: Updates | undefined;
+let inbox: Inbox | undefined;
+let disconnectEvents: (() => void) | undefined;
 let terminalSessions: TerminalInfo[] = [], terminalError = '';
 let terminalRequest: AbortController | undefined, terminalTimer: ReturnType<typeof setTimeout> | undefined;
 let terminalRefresh = Promise.resolve(true);
@@ -47,7 +51,7 @@ type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; parked:
 let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animation | undefined;
 const warmWorkspaces = new Map<string, Mounted>();
 // Creation commands belong to one explicit launch, never to persisted panel state.
-const initialCommands = new WeakMap<Panel, string>();
+const initialFavorites = new WeakMap<Panel, CommandShortcut>();
 const MAX_WARM_WORKSPACES = 8;
 const windowAnimations = new Map<HTMLElement, () => void>();
 const resizeContent = new Map<HTMLElement, () => void>();
@@ -131,6 +135,8 @@ function showLogin() {
     clearFileCut();
     audio.available(false);
     updates?.dispose(); updates = undefined;
+    disconnectEvents?.(); disconnectEvents = undefined;
+    inbox?.dispose(); inbox = undefined;
     monitoring?.dispose(); monitoring = undefined;
     stopTerminalPolling();
     terminalSessions = []; terminalError = '';
@@ -160,6 +166,9 @@ async function load(signal?: AbortSignal) {
     setUploadConcurrency(settings.uploadConcurrency);
     setCSRF(value.csrf);
     loggedIn = true;
+    disconnectEvents?.();
+    inbox?.dispose(); inbox = new Inbox(openAbout);
+    disconnectEvents = connectEvents(new Map([['notifications.changed', () => void inbox?.refresh(true)]]));
     audio.available(value.audio);
     updateTitle();
     setColorMarker(settings.serverColor);
@@ -199,7 +208,6 @@ function mountWorkspace(ws: Workspace): Mounted {
         tabMenu(document.activeElement as HTMLElement, t('app.workspace'), false, [
             [t('app.addTerminal'), 'SquareTerminal', () => addPanel('terminal', defaultDirectory(ws), undefined, near), disabled],
             [t('app.addFileBrowser'), 'FolderPlus', () => addPanel('files', defaultDirectory(ws), undefined, near), disabled],
-            commandShortcutAdditions(command => addPanel('terminal', defaultDirectory(ws), undefined, near, command), disabled),
         ], { x: event.clientX, y: event.clientY });
     };
     warmWorkspaces.set(ws.id, value);
@@ -241,6 +249,37 @@ function render(direction = 0) {
     } else syncWorkspace(mounted);
     renderChrome();
 }
+function panelPositions(compact: boolean) {
+    const choices = [
+        ['top', t('settings.panelTop')], ['bottom', t('settings.panelBottom')],
+        ['left', t('settings.panelLeft')], ['right', t('settings.panelRight')],
+    ] as const;
+    return compact ? choices.slice(0, 2) : choices;
+}
+function tabBarActions(tab: HTMLElement, point?: { x: number; y: number }) {
+    return point && tab.closest('.topbar, .component-controls') ? barActions() : [];
+}
+function barActions(): (TabAction | TabSubmenu)[] {
+    const compact = isCompact();
+    const actions: (TabAction | TabSubmenu)[] = [
+        [t('bar.addDesktop'), 'Plus', () => createWorkspace(), settings.workspaces.length >= 32],
+        [t('bar.closeAll'), 'ListX', () => closeWorkspaces()],
+        { label: t('bar.position'), icon: 'LayoutPanelTop', items: panelPositions(compact).map(([edge, label]) => ({
+            label, disabled: edge === root.dataset.panelPosition,
+            action: async () => {
+                const previous = settings.panelPosition, mobile = settings.mobilePanelPosition;
+                if (!compact) settings.panelPosition = edge;
+                else if (edge === 'top' || edge === 'bottom') settings.mobilePanelPosition = edge;
+                try { await save(); }
+                catch (error) { settings.panelPosition = previous; settings.mobilePanelPosition = mobile; throw error; }
+                renderChrome();
+            },
+        })) },
+    ];
+    const monitor = monitoring;
+    if (monitor) actions.push([t(monitor.displayed ? 'bar.hideMonitor' : 'bar.showMonitor'), 'Activity', () => monitor.setDisplayed(!monitor.displayed)]);
+    return actions;
+}
 function renderChrome() {
     chromeDisposers.splice(0).forEach(dispose => dispose());
     root.querySelector('.topbar')?.remove();
@@ -259,10 +298,12 @@ function renderChrome() {
     brand.width = 128;
     brand.height = 117;
     brand.draggable = false;
-    const about = button(t("app.aboutTuxee"), undefined, openAbout, 'brand-button');
-    about.setAttribute('aria-haspopup', 'dialog');
-    about.replaceChildren(brand);
-    top.append(about);
+    let closeStart = () => {};
+    const start = button(t('app.startMenu'), undefined, () => { closeStart = startMenu(start, compact); }, 'brand-button');
+    chromeDisposers.push(() => closeStart());
+    start.setAttribute('aria-haspopup', 'menu');
+    start.replaceChildren(brand);
+    top.append(start);
     const tabs = el('nav', 'workspace-tabs');
     tabs.classList.toggle('vertical-tabs', vertical);
     tabs.setAttribute('aria-label', t("app.workspaces"));
@@ -297,11 +338,6 @@ function renderChrome() {
         add.onpointerdown = event => { if (!compact) beginDrag(event, kind); };
         additions.append(add);
     }
-    let closeCommands = () => {};
-    const commands = button(t('commandShortcuts.title'), 'Star', () => { closeCommands = commandShortcutsMenu(commands); }, 'command-shortcuts-toggle');
-    commands.setAttribute('aria-haspopup', 'menu');
-    additions.append(commands);
-    chromeDisposers.push(() => closeCommands());
     if (!compact) {
         let collapseTimer: ReturnType<typeof setTimeout> | undefined;
         const collapseLater = () => {
@@ -333,16 +369,22 @@ function renderChrome() {
     }, 'theme-toggle'));
     const sound = audioControl();
     right.append(sound.control); chromeDisposers.push(sound.dispose);
-    const account = button(t("app.userMenu"), 'Menu', () => userMenu(account), 'user-menu-button');
-    account.setAttribute('aria-haspopup', 'menu');
-    setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
-    right.append(account); top.append(right);
+    const notifications = inbox!.control(compact);
+    chromeDisposers.push(notifications.dispose);
+    right.append(notifications.button); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
     componentTabs.classList.toggle('vertical-tabs', vertical);
     componentTabs.setAttribute('aria-label', t("app.components"));
     const componentControls = el('div', 'component-controls');
     componentControls.append(componentTabs);
     if (compact) componentControls.append(additions);
+    for (const bar of [top, componentControls]) {
+        chromeDisposers.push(bindContextMenu(bar, point => {
+            const focused = document.activeElement;
+            const anchor = focused instanceof HTMLElement && bar.contains(focused) ? focused : bar;
+            tabMenu(anchor, t('app.workspaces'), false, barActions(), point);
+        }));
+    }
     const components: HTMLElement[] = [];
     componentControls.classList.toggle('window-bar', !compact);
     const barPanels = compact ? ws.panels : ws.panels.filter(p => ws.maximized ? p.id !== ws.maximized : p.minimized);
@@ -433,8 +475,8 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
                 node.append(grip);
             }
             const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; window.dispatchEvent(new Event('tuxee-tabs-changed')); } };
-            const command = initialCommands.get(panel); initialCommands.delete(panel);
-            const view = panel.kind === 'files' ? new FileView(body, panel, hooks) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, command);
+            const favorite = initialFavorites.get(panel); initialFavorites.delete(panel);
+            const view = panel.kind === 'files' ? new FileView(body, panel, hooks, favorite?.path) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, favorite?.command);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         const shown = compact ? panel.id === ws.active : ws.maximized ? panel.id === ws.maximized : !panel.minimized;
@@ -684,7 +726,7 @@ function animateGeometry(node: HTMLElement, from: DOMRect, to: DOMRect) {
     if (release) animation.finished.finally(release).catch(() => {});
     return animation;
 }
-function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: string) {
+function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, favorite?: CommandShortcut) {
     if (event.button !== 0 || dragging || !mounted || mounted.compact) return;
     if (existing && (mounted.items.get(existing.id)?.node.dataset.moving || mounted.items.get(existing.id)?.node.dataset.closing)) return;
     cancelDrag(); finishSlide();
@@ -748,7 +790,7 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
         let applied = false;
         if (!cancelled && where) {
             for (const next of where.layout) { const old = ws.panels.find(p => p.id === next.id); if (old) Object.assign(old, next); else ws.panels.push(Object.assign(panel, next)); }
-            if (!existing && command !== undefined) initialCommands.set(panel, command);
+            if (!existing && favorite) initialFavorites.set(panel, favorite);
             applied = true;
         }
         node.style.transform = ''; node.classList.remove('panel-dragging');
@@ -848,14 +890,17 @@ function beginDrag(event: PointerEvent, kind: Kind, existing?: Panel, command?: 
                 leaveBar();
             }
         }
-        const grid = value.gridEl.getBoundingClientRect(), cellW = grid.width / ws.columns, cellH = grid.height / ws.rows;
+        const grid = value.gridEl.getBoundingClientRect();
         where = undefined;
         const rect = screenSnap(ws, move.clientX - grid.left, move.clientY - grid.top, grid.width, grid.height)
             || gridDrop(ws, move.clientX - grid.left, move.clientY - grid.top, grid.width, grid.height);
         if (!rect) { hidePreview(); return; }
         const layout = dropLayout(ws, panel, rect, true);
         if (layout) where = { layout, rect };
-        showPreview(value.gridEl, { x: rect.x * cellW / scaleX, y: rect.y * cellH / scaleY, w: rect.w * cellW / scaleX, h: rect.h * cellH / scaleY }, 'empty', !layout);
+        // A successful drop leaves maximized presentation and restores the board's padding.
+        const inset = ws.maximized ? parseFloat(getComputedStyle(value.board).getPropertyValue('--board-padding')) : 0;
+        const width = (grid.width / scaleX - 2 * inset) / ws.columns, height = (grid.height / scaleY - 2 * inset) / ws.rows;
+        showPreview(value.gridEl, { x: inset + rect.x * width, y: inset + rect.y * height, w: rect.w * width, h: rect.h * height }, 'empty', !layout);
     }, { signal: events.signal });
 }
 function rearrangeWorkspace() {
@@ -863,10 +908,13 @@ function rearrangeWorkspace() {
     cycleLayout(current(), mounted.gridEl.clientWidth, mounted.gridEl.clientHeight);
     changed(); syncWorkspace(mounted); renderChrome(); updateLayoutButton(true);
 }
+function layoutNames() {
+    return [t('app.custom'), t('app.balanced'), t('app.terminals'), t('common.files')];
+}
 function updateLayoutButton(advance = false) {
     const button = root.querySelector<HTMLButtonElement>('.layout-cycle');
     if (!button) return;
-    const mode = current().layout?.mode || 0, names = [t("app.custom"), t("app.balanced"), t("app.terminals"), t("common.files")];
+    const mode = current().layout?.mode || 0, names = layoutNames();
     const turn = advance ? Number(button.dataset.turn || 0) + 1 : mode;
     button.dataset.mode = String(mode); button.dataset.turn = String(turn);
     button.setAttribute('aria-description', `${names[mode]} → ${names[(mode + 1) % 4]}`);
@@ -896,12 +944,12 @@ function splitPanel(target: Panel, panel: Panel) {
     const edge = target.w > 1 && (target.h === 1 || width >= height) ? 'right' : 'bottom';
     return split(current(), target.id, panel, edge);
 }
-function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }, command?: string) {
+function addPanel(kind: Kind, path = defaultDirectory(current()), terminal?: TerminalInfo, near?: { x: number; y: number }, favorite?: CommandShortcut) {
     const ws = current(), panel = newPanel(kind, path);
     if (terminal) panel.terminal = terminal.id;
     if (ws.panels.length >= MAX_PANELS) throw new Error(t("app.workspaceFull"));
     if (!addCompact(ws, panel, near, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight) && !restorePanel(ws, panel, undefined, mounted!.gridEl.clientWidth, mounted!.gridEl.clientHeight)) throw new Error(t("app.workspaceFull"));
-    if (command !== undefined) initialCommands.set(panel, command);
+    if (favorite) initialFavorites.set(panel, favorite);
     ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
     return panel;
@@ -917,12 +965,11 @@ async function openFileBrowser(owner: Mounted, path: string, line?: number, colu
     activatePanel(panel);
     view.focusOpened();
 }
-function addSplitPanel(kind: Kind, target: Panel, command?: string) {
+function addSplitPanel(kind: Kind, target: Panel) {
     const ws = current();
-    if (visiblePanels(ws).length === 8) { addPanel(kind, defaultDirectory(ws), undefined, undefined, command); return; }
+    if (visiblePanels(ws).length === 8) { addPanel(kind); return; }
     const panel = newPanel(kind, defaultDirectory(ws));
     if (!splitPanel(target, panel)) return;
-    if (command !== undefined) initialCommands.set(panel, command);
     ws.active = panel.id; if (ws.maximized) ws.maximized = panel.id; layoutChanged(ws); render();
     if (kind === 'terminal') focusActivePanel();
 }
@@ -1062,7 +1109,8 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
         [t("common.rename"), 'Pencil', () => renameWorkspace(ws)],
         [t("app.cloneWorkspace"), 'Copy', () => createWorkspace(ws)],
         [t("app.defaultDirectory"), 'Folder', () => editWorkspaceDirectory(ws)],
-        [t("common.close"), 'X', () => closeWorkspace(ws)],
+        [t("common.close"), 'X', () => closeWorkspaces(ws)],
+        ...tabBarActions(tab, position),
     ], position);
 }
 function activatePanel(panel: Panel) {
@@ -1082,7 +1130,7 @@ function windowMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: n
     const actions: (TabAction | TabSubmenu)[] = [[t("app.restoreWindow"), 'Square', () => restoreWindow(panel)], workspaceMoves(panel)];
     if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
-    tabMenu(tab, item.title.textContent || panel.kind, false, actions, position);
+    tabMenu(tab, item.title.textContent || panel.kind, false, [...actions, ...tabBarActions(tab, position)], position);
 }
 function restoreWindow(panel: Panel) {
     const item = mounted?.items.get(panel.id);
@@ -1133,41 +1181,41 @@ function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y
     const disabled = current().panels.length >= MAX_PANELS || visiblePanels(current()).length < 8 && (panel.minimized || panel.w === 1 && panel.h === 1);
     for (const [kind, label, name] of [['terminal', t("app.addTerminal"), 'SquareTerminal'], ['files', t("app.addFileBrowser"), 'FolderPlus']] as const)
         actions.push([label, name, () => addSplitPanel(kind, panel), disabled]);
-    actions.push(commandShortcutAdditions(command => addSplitPanel('terminal', panel, command), disabled), workspaceMoves(panel));
+    actions.push(workspaceMoves(panel));
     if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
     const control = item.tools.querySelector<HTMLButtonElement>('[data-action="take-control"]');
     if (!header && control && !control.hidden) actions.splice(1, 0, [t("app.takeControl"), 'Hand', () => control.click()]);
-    tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
+    tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, [...actions, ...tabBarActions(tab, position)], position);
 }
 type TabAction = [string, Parameters<typeof icon>[0], () => unknown, boolean?];
-type TabSubmenu = { label: string; icon?: Parameters<typeof icon>[0]; empty?: string; items: { label: string; icon?: Parameters<typeof icon>[0]; disabled?: boolean; description?: string; action: () => unknown }[] };
+type TabSubmenu = { label: string; icon?: Parameters<typeof icon>[0]; items: { label: string; icon?: Parameters<typeof icon>[0]; disabled?: boolean; description?: string; action: () => unknown }[] };
 function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (TabAction | TabSubmenu)[], position?: { x: number; y: number }) {
     const content = el('div', 'menu-actions');
     content.setAttribute('aria-label', title);
     const item = mounted?.items.get(tab.dataset.componentName || tab.dataset.componentMenu || tab.closest<HTMLElement>('[data-panel]')?.dataset.panel || '');
     if (item) scopeNotifications(content, item.node.querySelector<HTMLElement>('.panel')!);
-    let close = () => {};
+    let close = () => {}, reposition = () => {};
     for (const entry of actions) {
         if (!Array.isArray(entry)) {
             const children = el('div', 'menu-actions menu-submenu'); children.hidden = true;
             children.setAttribute('role', 'menu'); children.setAttribute('aria-label', entry.label);
-            const toggle = button(entry.label, entry.icon || 'MoveRight', () => expand(children.hidden));
+            const toggle = button(entry.label, entry.icon || 'MoveRight');
+            toggle.onclick = event => expand(children.hidden, event.detail === 0);
             toggle.append(el('span', '', entry.label), icon('ChevronRight')); toggle.setAttribute('role', 'menuitem'); toggle.setAttribute('aria-haspopup', 'menu'); toggle.setAttribute('aria-expanded', 'false');
-            const expand = (open: boolean) => {
+            const expand = (open: boolean, keyboard = true) => {
                 children.hidden = !open; toggle.setAttribute('aria-expanded', String(open));
+                reposition();
+                if (!keyboard) return;
                 if (open) {
-                    content.style.top = `${Math.max(4, Math.min(parseFloat(content.style.top), innerHeight - content.offsetHeight - 4))}px`;
                     children.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
                 } else toggle.focus();
             };
-            const rows = entry.empty ? el('div', 'command-shortcuts-head') : children;
-            if (entry.empty) { rows.append(el('span', 'muted', entry.empty)); children.append(rows); }
             for (const target of entry.items) {
                 const choice = button(target.label, target.icon || 'LayoutPanelTop', () => { close(); return target.action(); });
-                if (!entry.empty) choice.append(el('span', '', target.label));
+                choice.append(el('span', '', target.label));
                 choice.disabled = !!target.disabled; choice.title = target.description || target.label;
-                choice.setAttribute('role', 'menuitem'); rows.append(choice);
+                choice.setAttribute('role', 'menuitem'); children.append(choice);
             }
             toggle.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight')) { event.preventDefault(); expand(true); } });
             children.addEventListener('keydown', event => { if (event.key === (document.documentElement.dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft')) { event.preventDefault(); event.stopPropagation(); expand(false); } });
@@ -1180,23 +1228,32 @@ function tabMenu(tab: HTMLElement, title: string, active: boolean, actions: (Tab
     }
     const rect = tab.getBoundingClientRect();
     const returnFocus = tab.classList.contains('panel-header') ? document.activeElement as HTMLElement : tab;
-    ({ close } = popover(position || { x: rect.left, y: rect.bottom, opener: tab instanceof HTMLButtonElement ? tab : undefined }, content, returnFocus));
+    ({ close, reposition } = popover(position || { x: rect.left, y: rect.bottom, opener: tab instanceof HTMLButtonElement ? tab : undefined }, content, returnFocus, { focusMenu: !!position }));
 }
-async function closeWorkspace(ws = current()) {
-    const value = warmWorkspaces.get(ws.id);
-    if (!await canLeave(value, true)) return;
-    if (!value) for (const panel of ws.panels.filter(panel => panel.kind === 'files')) {
-        const { editor } = await api('/files', 'POST', { operation: 'editor-load', editorId: panel.id });
-        if (editor?.edits.length && !await confirmAction(t('editor.discardChanges'), editor.path, t('editor.discard'))) return;
+async function closeWorkspaces(single?: Workspace) {
+    const targets = single ? [single] : [...settings.workspaces];
+    const title = single ? t("app.closeNamedWorkspace", { name: single.name }) : t('bar.closeAll');
+    const message = single ? t("app.stopAllTerminalsInThisWorkspace") : t('bar.closeAllConfirm');
+    if (!single && !await confirmAction(title, message, title)) return;
+    for (const ws of targets) {
+        const value = warmWorkspaces.get(ws.id);
+        if (!await canLeave(value, true)) return;
+        if (!value) for (const panel of ws.panels.filter(panel => panel.kind === 'files')) {
+            const { editor } = await api('/files', 'POST', { operation: 'editor-load', editorId: panel.id });
+            if (editor?.edits.length && !await confirmAction(t('editor.discardChanges'), editor.path, t('editor.discard'))) return;
+        }
     }
-    if (!await confirmAction(t("app.closeNamedWorkspace", { name: ws.name }), t("app.stopAllTerminalsInThisWorkspace"), t("app.closeWorkspace"))) return;
-    const index = settings.workspaces.indexOf(ws), active = settings.current === ws.id;
-    ws.panels.forEach(panel => stopPanel(panel, value));
-    settings.workspaces = settings.workspaces.filter(value => value.id !== ws.id);
-    warmWorkspaces.delete(ws.id);
-    if (value !== mounted && value !== outgoing) destroyWorkspace(value);
+    if (single && !await confirmAction(title, message, t("app.closeWorkspace"))) return;
+    const index = settings.workspaces.indexOf(current()), active = targets.includes(current());
+    for (const ws of targets) {
+        const value = warmWorkspaces.get(ws.id);
+        ws.panels.forEach(panel => stopPanel(panel, value));
+        warmWorkspaces.delete(ws.id);
+        if (value !== mounted && value !== outgoing) destroyWorkspace(value);
+    }
+    settings.workspaces = settings.workspaces.filter(ws => !targets.includes(ws));
     if (!settings.workspaces.length) settings.workspaces.push(newWorkspace(t('app.workspaceNumber', { count: 1 }), defaultDirectory()));
-    if (active) settings.current = settings.workspaces[Math.max(0, index - 1)].id;
+    if (active) settings.current = settings.workspaces[Math.min(settings.workspaces.length - 1, Math.max(0, index - 1))].id;
     changed(); render(active ? (index ? -1 : 1) : 0);
 }
 function unlistedTerminals() {
@@ -1230,50 +1287,11 @@ function refreshTerminals(): Promise<boolean> {
     return terminalRefresh;
 }
 
-function commandShortcutAdditions(run: (command: string) => unknown, disabled: boolean): TabSubmenu {
-    const shortcuts = settings.commandShortcuts || [];
-    return {
-        label: t('commandShortcuts.title'), icon: 'Star',
-        empty: shortcuts.length ? undefined : t('commandShortcuts.empty'),
-        items: shortcuts.length
-            ? shortcuts.map(shortcut => ({ label: shortcut.name, icon: 'Play', disabled, action: () => run(shortcut.command) }))
-            : [{ label: t('commandShortcuts.add'), icon: 'Plus', action: () => editCommandShortcut() }],
-    };
-}
 async function saveCommandShortcuts(value: CommandShortcut[]) {
     const previous = settings.commandShortcuts;
     settings.commandShortcuts = value;
     try { await save(); }
     catch (error) { settings.commandShortcuts = previous; throw error; }
-}
-function commandShortcutsMenu(anchor: HTMLElement) {
-    const content = el('div', 'command-shortcuts');
-    content.setAttribute('aria-label', t('commandShortcuts.title'));
-    let close = () => {};
-    const header = el('div', 'command-shortcuts-head');
-    const add = button(t('commandShortcuts.add'), 'Plus', () => { close(); editCommandShortcut(); });
-    add.setAttribute('role', 'menuitem'); add.disabled = (settings.commandShortcuts?.length || 0) >= 64;
-    header.append(el('strong', '', t('commandShortcuts.title')), add); content.append(header);
-    const rows = el('div', 'command-shortcuts-rows'); content.append(rows);
-    if (!settings.commandShortcuts?.length) rows.append(el('p', 'command-shortcuts-empty muted', t('commandShortcuts.emptyHint')));
-    for (const [index, shortcut] of (settings.commandShortcuts || []).entries()) {
-        const row = el('div', 'command-shortcut-row');
-        const run = () => { close(); addPanel('terminal', defaultDirectory(current()), undefined, undefined, shortcut.command); };
-        const launch = button(shortcut.name, undefined, run, 'command-shortcut-run');
-        launch.dir = 'auto'; launch.setAttribute('role', 'menuitem');
-        launch.onpointerdown = event => beginDrag(event, 'terminal', undefined, shortcut.command);
-        const actions = (opener: HTMLElement, position?: { x: number; y: number }) => tabMenu(opener, shortcut.name, false, [
-            [t('commandShortcuts.run'), 'Play', run],
-            [t('commandShortcuts.edit'), 'Pencil', () => { close(); editCommandShortcut(index); }],
-            [t('common.delete'), 'Trash2', () => { close(); return saveCommandShortcuts(settings.commandShortcuts!.filter((_, i) => i !== index)); }],
-        ], position);
-        const menu = button(t('commandShortcuts.actions'), 'ChevronDown', () => actions(menu), 'component-menu');
-        menu.setAttribute('role', 'menuitem'); menu.setAttribute('aria-haspopup', 'menu');
-        bindContextMenu(row, position => actions(launch, position));
-        row.append(launch, menu); rows.append(row);
-    }
-    ({ close } = popover(anchor, content, anchor));
-    return close;
 }
 function editCommandShortcut(index?: number) {
     const shortcut = index === undefined ? undefined : settings.commandShortcuts![index];
@@ -1281,18 +1299,35 @@ function editCommandShortcut(index?: number) {
     const name = el('input'); name.name = 'name'; name.required = true; name.maxLength = 64; name.value = shortcut?.name || '';
     const command = el('textarea'); command.name = 'command'; command.required = true; command.rows = 3; command.dir = 'ltr'; command.value = shortcut?.command || '';
     const nameLabel = el('label', 'field', t('common.name')), commandLabel = el('label', 'field', t('commandShortcuts.command'));
-    nameLabel.append(name); commandLabel.append(command); form.append(nameLabel, commandLabel);
+    const type = el('select'); type.name = 'type';
+    type.add(new Option(t('commandShortcuts.command'), 'command')); type.add(new Option(t('files.property.path'), 'path'));
+    type.value = shortcut?.path ? 'path' : 'command';
+    const typeLabel = el('label', 'field', t('files.property.type')); typeLabel.append(type);
+    const path = el('input'); path.name = 'path'; path.dir = 'ltr'; path.placeholder = '/'; path.value = shortcut?.path || '';
+    const pathLabel = el('label', 'field', t('files.property.path')); pathLabel.append(path);
+    const updateType = () => {
+        commandLabel.hidden = command.disabled = type.value === 'path';
+        pathLabel.hidden = path.disabled = !command.disabled;
+        path.required = !path.disabled;
+    };
+    type.onchange = updateType; updateType();
+    nameLabel.append(name); commandLabel.append(command); form.append(nameLabel, typeLabel, commandLabel, pathLabel);
+    for (const input of [name, command, path]) input.oninput = () => input.setCustomValidity('');
     const dialog = modal(t(shortcut ? 'commandShortcuts.edit' : 'commandShortcuts.add'), form);
     const actions = el('div', 'actions'), submit = button(t('common.save'), undefined, undefined, 'primary'); submit.type = 'submit';
     actions.append(button(t('common.cancel'), undefined, dialog.close), submit); dialog.setFooter(actions);
     form.onsubmit = async event => {
         event.preventDefault();
         if (submit.disabled) return;
-        for (const input of [name, command]) {
+        for (const input of [name, type.value === 'path' ? path : command]) {
             input.setCustomValidity(input.value.trim() ? '' : t('validation.required'));
             if (!input.reportValidity()) return;
         }
-        const value = { name: name.value.trim(), command: command.value }, list = [...settings.commandShortcuts || []];
+        if (type.value === 'path' && !path.value.startsWith('/')) {
+            path.setCustomValidity(t('backend.files.pathMustBeAbsolute')); path.reportValidity(); return;
+        }
+        const value = { name: name.value.trim(), ...(type.value === 'path' ? { path: path.value } : { command: command.value }) };
+        const list = [...settings.commandShortcuts || []];
         if (index === undefined) list.push(value); else list[index] = value;
         submit.disabled = true;
         try { await saveCommandShortcuts(list); dialog.close(); }
@@ -1337,7 +1372,7 @@ async function runShortcut(action: string) {
     }
     switch (action) {
         case 'desktop.add': await createWorkspace(); focusActivePanel(); break;
-        case 'desktop.close': await closeWorkspace(ws); focusActivePanel(); break;
+        case 'desktop.close': await closeWorkspaces(ws); focusActivePanel(); break;
         case 'panel.terminal': addPanel('terminal'); break;
         case 'panel.files': addPanel('files'); focusActivePanel(); break;
         case 'panel.close': {
@@ -1346,8 +1381,7 @@ async function runShortcut(action: string) {
             break;
         }
         case 'panel.layout':
-            if (isCompact()) rearrangeWorkspace();
-            else root.querySelector<HTMLButtonElement>('.layout-cycle')?.click();
+            root.querySelector<HTMLButtonElement>('.layout-cycle')?.click();
             break;
         case 'audio.mute': toggleMute(); break;
         case 'audio.up': adjustVolume(5); break;
@@ -1398,28 +1432,74 @@ function setMenuWarning(control: HTMLElement, warning: string) {
 }
 function updateMenuWarnings() {
     if (!loggedIn) return;
-    const actions = accountActions(), account = root.querySelector<HTMLElement>('.user-menu-button');
-    if (account) setMenuWarning(account, actions.flatMap(action => action[3] ? [action[3]] : []).join('\n'));
-    for (const [, name, , warning] of actions) {
-        const control = document.querySelector<HTMLElement>(`.account-menu [data-action="${name}"]`);
+    for (const [, name, , warning] of accountActions()) {
+        const control = document.querySelector<HTMLElement>(`.start-menu .start-apps [data-action="${name}"]`);
         if (control) setMenuWarning(control, warning || '');
     }
 }
-function userMenu(anchor: HTMLElement) {
-    const content = el('div', 'menu-actions');
-    content.classList.add('account-menu');
-    const account = el('div', 'menu-username');
-    account.append(icon('UserRound'), el('span', '', user.name));
-    content.append(account);
+function startMenu(anchor: HTMLElement, compact: boolean) {
+    const content = el('div', 'start-menu');
+    content.dataset.edge = root.dataset.panelPosition;
+    content.setAttribute('aria-label', t('app.startMenu'));
+    const body = el('div', 'start-body');
+    const apps = el('section', 'start-apps');
+    const desktop = el('section', 'start-desktop');
+    desktop.setAttribute('aria-label', t('commandShortcuts.favorites'));
+
     let close = () => {};
+    const actionButton = (label: string, name: Parameters<typeof icon>[0], action: () => unknown) => {
+        const item = button(label, name, () => { close(); return action(); });
+        item.dataset.action = name;
+        item.append(el('span', '', label)); item.setAttribute('role', 'menuitem');
+        return item;
+    };
+    const footer = el('footer', 'start-footer');
+    const account = el('div', 'start-user');
+    const username = el('bdi', '', user.name);
+    account.title = user.name;
+    account.append(icon('UserRound'), username);
+    const session = el('div', 'start-session');
+    footer.append(account, session);
     for (const [label, name, action, warning] of accountActions()) {
-        const b = button(label, name, () => { close(); return action(); });
-        b.dataset.action = name!;
-        b.append(el('span', '', label)); b.setAttribute('role', 'menuitem'); content.append(b);
-        setMenuWarning(b, warning || '');
+        const item = actionButton(label, name, action);
+        if (name === 'RefreshCw' || name === 'LogOut') session.append(item);
+        else { apps.append(item); setMenuWarning(item, warning || ''); }
     }
-    ({ close } = popover(anchor, content));
+    const ws = current(), atCapacity = ws.panels.length >= MAX_PANELS;
+    const favorites = el('div', 'start-favorites');
+    const heading = el('div', 'start-favorites-heading');
+    const addFavorite = button(t('commandShortcuts.add'), 'Plus', () => { close(); return editCommandShortcut(); });
+    addFavorite.setAttribute('role', 'menuitem');
+    addFavorite.disabled = (settings.commandShortcuts?.length || 0) >= 64;
+    heading.append(el('strong', '', t('commandShortcuts.favorites')), addFavorite);
+    const rows = el('div', 'start-favorite-rows');
+    if (!settings.commandShortcuts?.length) rows.append(el('p', 'muted', t('commandShortcuts.empty')));
+    const sorted = [...settings.commandShortcuts || []].sort((a, b) => a.name.localeCompare(b.name, locale()));
+    for (const favorite of sorted) {
+        const kind = favorite.path ? 'files' : 'terminal';
+        const run = () => { close(); return addPanel(kind, defaultDirectory(ws), undefined, undefined, favorite); };
+        const launch = button(favorite.name, kind === 'files' ? 'Folder' : 'SquareTerminal', run, 'command-shortcut-run');
+        launch.append(el('span', '', favorite.name)); launch.dir = 'auto';
+        launch.setAttribute('role', 'menuitem'); launch.disabled = atCapacity;
+        launch.onpointerdown = event => beginDrag(event, kind, undefined, favorite);
+        const actions = (anchor: HTMLElement, position?: { x: number; y: number }) => tabMenu(anchor, favorite.name, false, [
+            [kind === 'files' ? t('files.open') : t('commandShortcuts.run'), kind === 'files' ? 'Folder' : 'Play', run, atCapacity],
+            [t('commandShortcuts.edit'), 'Pencil', () => { close(); editCommandShortcut(settings.commandShortcuts!.indexOf(favorite)); }],
+            [t('common.delete'), 'Trash2', () => { close(); return saveCommandShortcuts(settings.commandShortcuts!.filter(item => item !== favorite)); }],
+        ], position);
+        const menu = button(t('commandShortcuts.actions'), 'ChevronDown', () => actions(menu), 'component-menu');
+        menu.setAttribute('role', 'menuitem'); menu.setAttribute('aria-haspopup', 'menu');
+        const row = el('div', 'command-shortcut-row');
+        bindContextMenu(row, position => actions(menu, position));
+        row.append(launch, menu); rows.append(row);
+    }
+    favorites.append(heading, rows);
+    desktop.append(favorites);
+    body.append(apps, desktop);
+    content.append(body, footer);
+    ({ close } = popover(anchor, content, anchor, { alignToPanel: true, fillWorkspace: compact }));
     void refreshTerminals();
+    return close;
 }
 async function openAbout() {
     const content = el('div', 'about-content'), logo = el('img', 'about-logo');
@@ -1631,8 +1711,7 @@ async function openSettings() {
     const panelPosition = el('select'); panelPosition.name = 'panelPosition';
     const updatePositionOptions = () => {
         const compact = isCompact(); panelPosition.replaceChildren();
-        const choices = [['top', t('settings.panelTop')], ['bottom', t('settings.panelBottom')], ['left', t('settings.panelLeft')], ['right', t('settings.panelRight')]];
-        for (const [value, text] of compact ? choices.slice(0, 2) : choices) {
+        for (const [value, text] of panelPositions(compact)) {
             const option = el('option', '', text); option.value = value; panelPosition.append(option);
         }
         panelPosition.value = compact ? mobilePositionDraft || (positionDraft === 'bottom' ? 'bottom' : 'top') : positionDraft;
@@ -1780,7 +1859,7 @@ visualViewport?.addEventListener('resize', viewport);
 viewport();
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
-window.addEventListener('pagehide', () => { disposeShortcuts(); clearFileCut(); audio.available(false); updates?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
+window.addEventListener('pagehide', () => { disconnectEvents?.(); disposeShortcuts(); clearFileCut(); audio.available(false); updates?.dispose(); inbox?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
     else if (session.uid === user.uid && (!session.language || session.language === translations().language)) setCSRF(session.csrf);

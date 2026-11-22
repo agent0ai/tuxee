@@ -54,7 +54,7 @@ await page.route(base + '/api/update', async route => {
     await route.fulfill({ json: status });
 });
 const dialog = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
-const menu = page.getByRole('button', { name: 'User menu', exact: true });
+const menu = page.getByRole('button', { name: 'Start menu', exact: true });
 const updateRow = dialog.locator('.about-details tr.about-update');
 const install = updateRow.locator('.update-install');
 const checkNow = dialog.getByRole('button', { name: 'Check now', exact: true });
@@ -135,8 +135,8 @@ try {
     assert.ok(installBox.x + installBox.width < refreshBox.x, 'Update precedes refresh');
     await page.screenshot({ path: 'test-results/updates-desktop.png' });
     await page.keyboard.press('Escape');
-    assert.equal(await menu.locator('.menu-warning').count(), 1);
     await menu.click();
+    assert.equal(await menu.locator('.menu-warning').count(), 0);
     assert.equal(await page.getByRole('menuitem', { name: 'About', exact: true }).locator('.menu-warning').count(), 1);
     await page.getByRole('menuitem', { name: 'About', exact: true }).click();
     await checkNotice();
@@ -195,7 +195,6 @@ try {
     status = { ...status, available: false, restartNeeded: false, error: '' };
     const refresh = page.waitForResponse(base + '/api/update');
     await page.clock.fastForward(61000); await refresh;
-    await page.waitForFunction(() => !document.querySelector('.user-menu-button .menu-warning'));
     await openAbout();
     await updateRow.getByText('Up to date', { exact: true }).waitFor();
     assert.ok(await updateRow.evaluate(node => !node.classList.contains('update-available')));
@@ -204,9 +203,10 @@ try {
     status = { ...status, available: true };
     const automatic = page.waitForResponse(base + '/api/update');
     await page.clock.fastForward(61000); await automatic;
-    await menu.locator('.menu-warning').waitFor();
+    await menu.click();
+    await page.locator('.start-menu [data-action=Info] .menu-warning').waitFor();
     assert.equal(checks, 4, 'background refresh must read cached server status, not force GitHub checks');
-    await menu.click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     const afterLogout = polls;
     await page.clock.fastForward(120000);
@@ -231,8 +231,8 @@ try {
         localized = { language: code, direction: ['ar', 'he', 'fa'].includes(code) ? 'rtl' : 'ltr', texts };
         status = { ...status, canApply: true, available: true, restartNeeded: false, installing: false, error: '' };
         await page.goto(base);
-        await page.locator('.user-menu-button').waitFor();
         await page.locator('.brand-button').click();
+        await page.locator('.start-menu [data-action=Info]').click();
         const row = page.locator('.about-update'), update = row.locator('.update-install'), refresh = row.locator('.update-actions button:last-child');
         await update.waitFor();
         assert.equal(await update.getAttribute('aria-label'), texts['updates.install']);

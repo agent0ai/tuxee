@@ -114,12 +114,12 @@ async function checkGridDragLayers() {
     assert.deepEqual(layers, { isolated: true, above: true, opacity: .8, neighborsOpaque: true }, 'grid overlays stay above every window and only the dragged window is translucent');
 }
 async function checkAbout(source, screenshot) {
-    const control = page.getByRole('button', { name: source === 'logo' ? 'About Tuxee' : 'User menu', exact: true });
-    if (source === 'menu') await control.click();
-    const response = page.waitForResponse(response => response.url() === `${base}/api/system`);
+    const control = page.getByRole('button', { name: 'Start menu', exact: true });
     if (source === 'logo') {
         await control.focus(); await page.keyboard.press('Enter');
-    } else await page.getByRole('menuitem', { name: 'About', exact: true }).click();
+    } else await control.click();
+    const response = page.waitForResponse(response => response.url() === `${base}/api/system`);
+    await page.getByRole('menuitem', { name: 'About', exact: true }).click();
     const info = await (await response).json();
     const dialog = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
     await dialog.getByRole('rowheader', { name: 'Shell', exact: true }).waitFor();
@@ -173,7 +173,7 @@ try {
     check('real PAM login and simplified desktop controls');
     await checkAbout('logo', 'about-desktop');
     await checkAbout('menu');
-    check('About opens from the logo and user menu with real system/account details and keyboard focus restoration');
+    check('About opens from the Start menu by keyboard and mouse with real system/account details and keyboard focus restoration');
     await command("printf 'TUXEE_%s\\n' 'DISPLAY_OK'");
     await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent.includes('TUXEE_DISPLAY_OK'));
     const before = await (await api('/terminals')).json();
@@ -397,7 +397,7 @@ try {
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     await page.locator('dialog input').fill('Motion');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     assert.equal(await page.getByRole('menuitem', { name: 'Rename desktop', exact: true }).count(), 0);
     await page.keyboard.press('Escape');
     const motionTerminalID = await page.locator('.panel-body.terminal-view').getAttribute('data-terminal');
@@ -541,15 +541,15 @@ try {
     await page.waitForFunction(() => document.querySelector('.panel-body.terminal-view[data-state=connected]'));
     assert.equal((await (await api(`/terminals/${retained.id}`)).json()).pid, retained.pid);
     check('workspace switch retains terminal');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
-    const accountBox = await page.getByRole('button', { name: 'User menu', exact: true }).boundingBox();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    const accountBox = await page.getByRole('button', { name: 'Start menu', exact: true }).boundingBox();
     const menuBox = await page.locator('.popover-menu').boundingBox();
     assert.ok(menuBox.y >= accountBox.y + accountBox.height);
     assert.equal(await page.locator('dialog[open]').count(), 0);
     await page.keyboard.press('Escape');
     await page.locator('.popover-menu').waitFor({ state: 'detached' });
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('user-menu-button')), true);
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('brand-button')), true);
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     const parallelUploads = page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
     assert.equal(await parallelUploads.inputValue(), '4');
@@ -591,7 +591,7 @@ try {
     assert.deepEqual(await markerBorder(), defaultBorder, 'closing discards the preview');
     await checkFavicon();
     assert.equal((await (await api('/me')).json()).settings.uploadConcurrency, undefined);
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await parallelUploads.inputValue(), '4');
     await parallelUploads.selectOption('8');
@@ -630,12 +630,14 @@ try {
     assert.equal(await page.locator('.component-tabs .panel-tools').count(), 0);
     assert.ok(await page.locator('.workspace-menu:visible').count() > 0);
     assert.equal(await page.locator('.panel:visible').evaluate(node => getComputedStyle(node).borderRadius), '0px');
-    const mobileAccount = await page.getByRole('button', { name: 'User menu', exact: true }).boundingBox();
-    assert.ok(mobileAccount.x + mobileAccount.width > 375);
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
-    assert.equal(await page.locator('.menu-username').textContent(), a.name);
+    const inboxCount = await page.locator('.inbox-badge').textContent();
+    const bell = await page.locator('.notifications-button').boundingBox();
+    if (inboxCount === '0') assert.equal(bell, null);
+    else assert.ok(bell.x + bell.width > 375);
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    assert.equal(await page.locator('.start-user').textContent(), a.name);
     await page.keyboard.press('Escape');
-    check('mobile content is flush, tab controls work, and account menu stays on the right');
+    check('mobile content is flush, tab controls work, and the notification bell follows inbox state');
     await checkAbout('logo');
     await checkAbout('menu', 'about-mobile');
     check('About remains accessible from both controls in mobile light mode without overflow');
@@ -690,7 +692,7 @@ try {
     await page.keyboard.press('Enter');
     await page.waitForFunction(id => fetch('/api/terminals/'+id).then(response => response.status === 404), portraitTerminal);
     check('confirmed workspace closure terminates its terminal');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('[name=username]').waitFor();
     assert.equal(await page.title(), 'Tuxee');
@@ -719,7 +721,7 @@ try {
     assert.equal((await other.request.get(`${base}/api/terminals/${retained.id}`)).status(), 404);
     await other.close();
     check('cross-user file and terminal denial');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await parallelUploads.inputValue(), '8', 'parallel uploads persists across reload and login');
     await serverName.fill('   ');
@@ -730,7 +732,7 @@ try {
     await page.locator('dialog:has(.settings-color)').waitFor({ state: 'detached' });
     assert.deepEqual(await markerBorder(), orangeBorder, 'cancelled reset restores the saved color');
     await checkFavicon('#ea580c');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     await serverName.fill('   ');
     await color.locator('..').getByRole('button', { name: 'Reset', exact: true }).click();

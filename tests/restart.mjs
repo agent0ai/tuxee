@@ -70,8 +70,8 @@ try {
     const guiPID = gui ? Number(await readFile(`${users[0].home}/gui-pid`, 'utf8')) : 0;
     for (const mobile of [false, true]) {
         if (mobile) await other.setViewportSize({ width: 390, height: 844 });
-        await other.getByRole('button', { name: 'User menu', exact: true }).click();
-        assert.deepEqual(await other.locator('.account-menu [role=menuitem]').allTextContents().then(items => items.slice(-2)), ['Restart Tuxee', 'Log out']);
+        await other.getByRole('button', { name: 'Start menu', exact: true }).click();
+        assert.deepEqual(await other.locator('.start-menu [role=menuitem]').allTextContents().then(items => items.slice(-2)), ['Restart Tuxee', 'Log out']);
         await other.getByRole('menuitem', { name: 'Restart Tuxee', exact: true }).click();
         const denied = other.waitForResponse(base + '/api/restart');
         await other.getByRole('dialog', { name: 'Restart Tuxee?', exact: true }).getByRole('button', { name: 'Restart Tuxee', exact: true }).click();
@@ -94,8 +94,8 @@ try {
     assert.equal((await contexts[0].request.post(base + '/api/restart', { headers: { 'Origin': 'http://evil.test', 'X-Tuxee-CSRF': identities[0].csrf } })).status(), 403);
     assert.equal(starts, 1);
     const openRestart = async () => {
-        await page.getByRole('button', { name: 'User menu', exact: true }).click();
-        assert.deepEqual(await page.locator('.account-menu [role=menuitem]').allTextContents().then(items => items.slice(-2)), ['Restart Tuxee', 'Log out']);
+        await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+        assert.deepEqual(await page.locator('.start-menu [role=menuitem]').allTextContents().then(items => items.slice(-2)), ['Restart Tuxee', 'Log out']);
         await page.getByRole('menuitem', { name: 'Restart Tuxee', exact: true }).click();
     };
     await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();

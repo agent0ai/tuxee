@@ -140,8 +140,12 @@ try {
     console.log('PASS rejected archive closure keeps recovery visible; a failed save retries the same shell and restores real input');
 
     const beforeSwitch = saves.length;
+    const replaced = page.waitForEvent('framenavigated', frame => frame === page.mainFrame());
     await login(users[1]); await page.bringToFront();
-    await page.waitForFunction(name => document.querySelector('[aria-label="User menu"]')?.textContent.includes(name), users[1].name);
+    await replaced;
+    await page.locator('.brand-button').click();
+    assert.equal(await page.locator('.start-user').textContent(), users[1].name);
+    await page.keyboard.press('Escape');
     assert.equal(documents, 2, 'a different account must replace the previous account UI');
     assert.ok(saves.slice(beforeSwitch).every(settings => settings.workspaces.every(ws => ws.id !== 'recovery')), 'account switch must not replay the previous layout');
     assert.equal(await readFile(draftFile, 'utf8'), 'original\n');

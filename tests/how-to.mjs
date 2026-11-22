@@ -46,7 +46,7 @@ try {
         const response = await ctx.request.put(base + '/api/settings', { data: settings, headers: { 'X-Tuxee-Client': 'web', 'X-Tuxee-CSRF': (await me(ctx)).csrf } });
         assert.equal(response.status(), 200, await response.text());
     };
-    const open = async target => { await target.locator('.user-menu-button').click(); assert.equal(await target.locator('.account-menu [role=menuitem]').first().getAttribute('data-action'), 'BookOpen'); await target.locator('[data-action=BookOpen]').click(); await target.locator('.howto-modal').waitFor(); };
+    const open = async target => { await target.locator('.brand-button').click(); assert.equal(await target.locator('.start-menu [role=menuitem]').first().getAttribute('data-action'), 'BookOpen'); await target.locator('[data-action=BookOpen]').click(); await target.locator('.howto-modal').waitFor(); };
     const settled = async (target, index) => target.waitForFunction(index => {
         const dialog = document.querySelector('.howto-modal');
         return dialog?.dataset.page === String(index) && dialog.querySelectorAll('.howto-page').length === 1 && !dialog.getAnimations({ subtree: true }).length;
@@ -189,7 +189,7 @@ try {
             assert.match(await dialog.locator('.howto-copy').innerText(), /AI agent/);
             for (const name of ['archive', 'retained', 'drawer', 'text', 'files', 'settings']) assert.equal(await dialog.locator(`.howto-terminal-${name}`).count(), 1);
             assert.match(await dialog.locator('.howto-terminal-archive').innerText(), /accidentally closed.*server restarts.*transcript.*Post mortem.*analyze.*copy/s);
-            assert.match(await dialog.locator('.howto-terminal-retained').innerText(), /Retained terminals.*user menu.*lost or closed/s);
+            assert.match(await dialog.locator('.howto-terminal-retained').innerText(), /Retained terminals.*Start menu.*lost or closed/s);
             assert.ok(!(await dialog.innerText()).includes('The snapshot is read-only.'));
             assert.ok(!(await dialog.innerText()).includes('Submit the input when you are ready.'));
             assert.deepEqual(await dialog.locator('.howto-screenshot').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[1364, 822], [1368, 836], [674, 626], [682, 822], [680, 820], [1360, 824]]);
@@ -249,11 +249,11 @@ try {
             assert.equal(await dialog.locator('.howto-tip-customization h4').textContent(), 'Customization');
             assert.match(await dialog.locator('.howto-tip-customization p').textContent(), /name and color marker.*Settings.*servers/);
             assert.equal(await dialog.locator('.howto-tip-processes h4').textContent(), 'Process Manager');
-            assert.match(await dialog.locator('.howto-tip-processes p').textContent(), /Resource monitor.*resources widget.*top bar.*user menu.*Processes.*terminate individual processes.*overloaded.*unresponsive/);
+            assert.match(await dialog.locator('.howto-tip-processes p').textContent(), /Resource monitor.*resources widget.*top bar.*Start menu.*Processes.*terminate individual processes.*overloaded.*unresponsive/);
             assert.equal(await dialog.locator('.howto-tip-updates h4').textContent(), 'Updates');
-            assert.match(await dialog.locator('.howto-tip-updates p').textContent(), /Check for updates.*About.*user menu.*Tuxee logo.*top bar/);
+            assert.match(await dialog.locator('.howto-tip-updates p').textContent(), /Tuxee logo.*Start menu.*About.*check for updates/);
             assert.equal(await dialog.locator('.howto-tip-shortcuts h4').textContent(), 'Keyboard shortcuts');
-            assert.equal(await dialog.locator('.howto-tip-shortcuts p').textContent(), 'You can customize keyboard shortcuts with the Shortcuts button in the user menu.');
+            assert.equal(await dialog.locator('.howto-tip-shortcuts p').textContent(), 'You can customize keyboard shortcuts with the Shortcuts button in the Start menu.');
         }
         await page.screenshot({ path: `test-results/howto-desktop-${n}.png` });
         if (n < titles.length - 1) {
@@ -290,7 +290,7 @@ try {
     await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowLeft'); await settled(page, 1);
     await dialog.locator('.howto-nav').last().locator('[data-page="4"]').click(); await settled(page, 4);
     await page.keyboard.press('Escape'); await dialog.waitFor({ state: 'detached' }); assert.equal(await dialog.count(), 0);
-    await page.locator('.user-menu-button').click(); await page.locator('[data-action=LogOut]').click(); await page.locator('.login-form').waitFor();
+    await page.locator('.brand-button').click(); await page.locator('[data-action=LogOut]').click(); await page.locator('.login-form').waitFor();
     await login(context); await page.goto(base); await page.locator('.topbar').waitFor(); assert.equal(await dialog.count(), 0);
     const freshBrowser = await browser.newContext(); await login(freshBrowser); const freshPage = await freshBrowser.newPage(); await freshPage.goto(base); await freshPage.locator('.topbar').waitFor(); assert.equal(await freshPage.locator('.howto-modal').count(), 0); await freshBrowser.close();
     const originalSettings = (await me(context)).settings;

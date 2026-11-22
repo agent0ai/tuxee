@@ -97,7 +97,7 @@ try {
             await properties.waitFor(); await focusRing(properties, 'Apply', `${label}-permissions`);
             await page.keyboard.press('Escape'); await properties.waitFor({ state: 'detached' });
 
-            await page.getByRole('button', { name: 'User menu', exact: true }).click();
+            await page.getByRole('button', { name: 'Start menu', exact: true }).click();
             await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
             const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
             await settings.waitFor();

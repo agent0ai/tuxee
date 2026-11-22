@@ -147,8 +147,8 @@ and its warning icon. Manual checks and installations report errors to the calle
 The server keeps working when GitHub is unavailable.
 
 Signed-in visible browsers read cached status once a minute and on focus/visibility
-return. Available updates show the existing warning icon on About and the hamburger
-button. Directly below the version, About shows the status, local check time and
+return. Available updates show a warning icon on About and its Start item. The nightly check posts a dismissible notification for a newer release.
+Directly below the version, About shows the status, local check time and
 refresh-icon Check now action in one table row. Available updates highlight that
 row and show **Update** beside an icon-only check button. Update is available only
 when the signed-in Linux account can replace the installation and restart Tuxee; other users see a

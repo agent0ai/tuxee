@@ -30,6 +30,10 @@ type Process struct {
 }
 
 func Start(ctx context.Context, user identity.User, request Request, body io.Reader) (*Process, error) {
+	return start(ctx, user, request, body, nil)
+}
+
+func start(ctx context.Context, user identity.User, request Request, body io.Reader, extra []*os.File) (*Process, error) {
 	header, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -37,6 +41,7 @@ func Start(ctx context.Context, user identity.User, request Request, body io.Rea
 	header = append(header, '\n')
 	ctx, cancel := context.WithCancel(ctx)
 	cmd := user.Command(ctx, identity.Self, "__files")
+	cmd.ExtraFiles = extra
 	// A service account's state override must not redirect another user's files.
 	if state := os.Getenv("XDG_STATE_HOME"); user.UID == uint32(os.Geteuid()) && filepath.IsAbs(state) {
 		cmd.Env = append(cmd.Env, "XDG_STATE_HOME="+state)

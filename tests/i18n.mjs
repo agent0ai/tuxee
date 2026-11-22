@@ -115,8 +115,8 @@ try {
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     assert.equal(await page.getByRole('menuitem', { name: 'Aktivovat', exact: true }).isDisabled(), true);
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Uživatelská nabídka', exact: true }).click();
-    assert.equal(await page.locator('.account-menu [data-action=Info]').innerText(), 'O aplikaci');
+    await page.getByRole('button', { name: 'Nabídka Start', exact: true }).click();
+    assert.equal(await page.locator('.start-menu [data-action=Info]').innerText(), 'O aplikaci');
     await page.getByRole('menuitem', { name: 'Nastavení', exact: true }).click();
     assert.equal(await page.getByRole('dialog', { name: 'Nastavení', exact: true }).locator('[name=language]').count(), 0);
     await page.getByRole('button', { name: 'Zavřít dialog', exact: true }).click();
@@ -131,11 +131,11 @@ try {
     assert.equal(permission.language, 'cs'); assert.equal(permission.status, 400);
     assert.equal(permission.body.text.key, 'error.path'); assert.equal(permission.body.text.vars.detail.key, 'error.permissionDenied');
     await page.evaluate(name => { document.cookie = `${name}=en; Path=/; SameSite=Strict`; }, languageCookie.name);
-    await page.reload(); await page.getByRole('button', { name: 'Uživatelská nabídka', exact: true }).waitFor();
+    await page.reload(); await page.getByRole('button', { name: 'Nabídka Start', exact: true }).waitFor();
     assert.equal(await page.locator('html').getAttribute('lang'), 'cs', 'active session overrides a changed preference cookie');
     const locked = await (await context.request.get(base + '/api/language?language=en')).json();
     assert.equal(locked.language, 'cs');
-    await page.getByRole('button', { name: 'Uživatelská nabídka', exact: true }).click();
+    await page.getByRole('button', { name: 'Nabídka Start', exact: true }).click();
     await page.evaluate(() => { window.logoutMarker = true; });
     await page.route('**/api/logout', async route => {
         const response = await route.fetch();
@@ -149,7 +149,7 @@ try {
     await page.unroute('**/api/logout');
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('button', { name: 'User menu', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).waitFor();
     assert.equal(await terminalLanguage(retained.pid), 'LANGUAGE=cs:en', 'English re-login leaves retained terminal language unchanged');
     const me = await (await context.request.get(base + '/api/me')).json();
     const created = await context.request.post(base + '/api/terminals', {
@@ -196,7 +196,7 @@ try {
         await view.screenshot({ path: `test-results/i18n-${code}-login-mobile.png` });
         await view.locator('[name=username]').fill(user); await view.locator('[name=password]').fill(password);
         await view.getByRole('button', { name: texts['login.signIn'], exact: true }).click();
-        await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).waitFor();
+        await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).waitFor();
         const sessionBundle = (await (await localized.request.get(base + '/api/me')).json()).i18n;
         assert.equal(sessionBundle.language, code);
         assert.equal(sessionBundle.texts['common.save'], texts['common.save'], 'session retains the exact catalog');
@@ -208,13 +208,13 @@ try {
             && response.request().postDataJSON().workspaces.some(workspace => workspace.name === tabName));
         await view.getByRole('button', { name: texts['common.continue'], exact: true }).click();
         assert.ok((await savedName).ok());
-        await view.reload(); await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).waitFor();
+        await view.reload(); await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).waitFor();
         if (['ca', 'ms', 'sr-Latn'].includes(code)) {
             const preference = (await localized.cookies()).find(cookie => cookie.name.startsWith('tuxee_language_'));
             assert.equal(preference?.value, code, 'preference keeps the exact locale code');
             await view.evaluate(name => { document.cookie = `${name}=en; Path=/; SameSite=Strict`; }, preference.name);
             await view.reload();
-            await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).waitFor();
+            await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).waitFor();
             assert.equal(await view.locator('html').getAttribute('lang'), code, 'session survives preference changes and reload');
             assert.equal(await view.locator('html').getAttribute('dir'), 'ltr');
             const locked = await (await localized.request.get(base + '/api/language?language=en')).json();
@@ -278,7 +278,7 @@ try {
             await view.screenshot({ path: `test-results/i18n-${code}-workspace.png` });
             const cookie = (await localized.cookies()).find(c => c.name.startsWith('tuxee_language_'));
             await view.evaluate(name => { document.cookie = `${name}=en; Path=/; SameSite=Strict`; }, cookie.name);
-            await view.reload(); await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).waitFor();
+            await view.reload(); await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).waitFor();
             assert.equal(await view.locator('html').getAttribute('dir'), 'rtl', 'session freezes direction too');
         }
         for (const width of [1440, 390, 320]) {
@@ -288,8 +288,8 @@ try {
             assert.equal(await tab.textContent(), tabName);
             assert.ok(await tab.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${code}: ${tabName} must fit the ${width}px workspace tab`);
             for (const action of ['Settings', 'Activity', 'RefreshCw']) {
-                await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).click();
-                await view.locator(`.account-menu [data-action="${action}"]`).click();
+                await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).click();
+                await view.locator(`.start-menu [data-action="${action}"]`).click();
                 await view.locator('dialog[open]').waitFor(); await bounds();
                 assert.ok(!(await view.locator('dialog[open]').innerText()).includes('[!'));
                 if (action !== 'RefreshCw') {
@@ -315,8 +315,8 @@ try {
                 await view.getByRole('button', { name: texts['ui.closeDialog'], exact: true }).click();
             }
         }
-        await view.getByRole('button', { name: texts['app.userMenu'], exact: true }).click();
-        await view.locator('.account-menu [data-action="LogOut"]').click();
+        await view.getByRole('button', { name: texts['app.startMenu'], exact: true }).click();
+        await view.locator('.start-menu [data-action="LogOut"]').click();
         await view.locator('[name=language]').waitFor();
         await localized.close();
         console.log(`i18n: ${code} login, session and desktop/mobile dialogs passed.`);

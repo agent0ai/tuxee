@@ -186,6 +186,25 @@ func findRuntime(directory, executable, state string) (*os.File, *runtimeRecord,
 	return found, selected, nil
 }
 
+// Signal zero asks the kernel to check the caller against this pinned process.
+func checkRuntimeSignal(proc *os.File) error {
+	return unix.PidfdSendSignal(int(proc.Fd()), 0, nil, 0)
+}
+
+func selectRuntime(name, state string) (*os.File, *runtimeRecord, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return nil, nil, err
+	}
+	if name != "" {
+		executable, err = service.Executable(name)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return findRuntime(runtimeDirectory, executable, state)
+}
+
 func runRestart(args []string) (err error) {
 	defer func() {
 		if err != nil && !errors.Is(err, flag.ErrHelp) {
@@ -202,17 +221,7 @@ func runRestart(args []string) (err error) {
 	if f.NArg() != 0 {
 		return errors.New("unexpected restart arguments")
 	}
-	executable, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	if *name != "" {
-		executable, err = service.Executable(*name)
-		if err != nil {
-			return err
-		}
-	}
-	proc, _, err := findRuntime(runtimeDirectory, executable, *state)
+	proc, _, err := selectRuntime(*name, *state)
 	if err != nil {
 		if errors.Is(err, errRuntimeNotFound) {
 			return fmt.Errorf("%w; older versions need the UI restart or a service/supervisor restart once", err)
@@ -221,7 +230,7 @@ func runRestart(args []string) (err error) {
 	}
 	defer proc.Close()
 	// Use the pinned proc descriptor for both permission checking and signalling.
-	if err := unix.PidfdSendSignal(int(proc.Fd()), 0, nil, 0); err != nil {
+	if err := checkRuntimeSignal(proc); err != nil {
 		return err
 	}
 	fmt.Println("\nRestarting Tuxee signs everyone out. Terminals and GUI applications keep running.")

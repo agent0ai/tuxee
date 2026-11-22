@@ -371,7 +371,7 @@ try {
     assert.equal(await item('other').isVisible(), false);
     await minimize('shell');
     await title('shell').click({ button: 'right' });
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Restore', 'Move to desktop', 'Rename', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Restore', 'Move to desktop', 'Rename', 'Close', 'Add desktop', 'Close all desktops', 'Bar position', 'Hide resource monitor']);
     await page.keyboard.press('Escape'); assert.ok(await title('shell').evaluate(n => n === document.activeElement));
     await restore('shell');
     for (let i = 0; i < 4; i++) {

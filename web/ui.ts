@@ -1,6 +1,6 @@
 import { t, errorText } from './i18n';
-import { createElement, Square, Minus, Star, Play, BookOpen, Keyboard, MicOff, Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Search, CaseSensitive, Regex, FilePlus, FolderPlus, TextCursorInput, SquareTerminal, Hand, Pencil, Pin, Copy, Scissors, ClipboardPaste, ArrowUp, ArrowDown, MoveUp, MoveDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Power, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, ListX, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
-const icons = { Square, Minus, Star, Play, BookOpen, Keyboard, MicOff, Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Search, CaseSensitive, Regex, FilePlus, FolderPlus, TextCursorInput, SquareTerminal, Hand, Pencil, Pin, Copy, Scissors, ClipboardPaste, ArrowUp, ArrowDown, MoveUp, MoveDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Power, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, ListX, Plus, Sun, Moon, Menu, UserRound, Settings, LogOut, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
+import { createElement, Square, Minus, Star, Play, BookOpen, Keyboard, MicOff, Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Search, CaseSensitive, Regex, FilePlus, FolderPlus, TextCursorInput, SquareTerminal, Hand, Pencil, Pin, Copy, Scissors, ClipboardPaste, ArrowUp, ArrowDown, MoveUp, MoveDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Power, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, ListX, Plus, Sun, Moon, UserRound, Settings, LogOut, Bell, CircleCheck, CircleAlert, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen } from 'lucide';
+const icons = { Square, Minus, Star, Play, BookOpen, Keyboard, MicOff, Volume1, Volume2, VolumeX, Monitor, X, ChevronDown, ChevronLeft, ChevronRight, TriangleAlert, Activity, Search, CaseSensitive, Regex, FilePlus, FolderPlus, TextCursorInput, SquareTerminal, Hand, Pencil, Pin, Copy, Scissors, ClipboardPaste, ArrowUp, ArrowDown, MoveUp, MoveDown, Undo2, Redo2, ZoomIn, ZoomOut, Scan, House, RefreshCw, Power, Upload, Download, MoveRight, Ellipsis, Info, Folder, Link, File, Trash2, ListX, Plus, Sun, Moon, UserRound, Settings, LogOut, Bell, CircleCheck, CircleAlert, LayoutPanelTop, ArrowLeft, ArrowRight, Save, FilePenLine, Archive, FolderOpen };
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
     node.className = cls;
@@ -215,11 +215,12 @@ export function bindContextMenu(target: HTMLElement, open: (position?: { x: numb
     }, { signal: events.signal });
     return () => { events.abort(); cancelPress(); cancelRelease(); target.classList.remove('long-press'); };
 }
-export function popover(anchor: HTMLElement | { x: number; y: number; opener?: HTMLElement }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement, centerOn?: HTMLElement) {
+export function popover(anchor: HTMLElement | { x: number; y: number; opener?: HTMLElement }, content: HTMLElement, returnFocus = document.activeElement as HTMLElement, { centerOn, alignToPanel = false, fillWorkspace = false, focusMenu = false }: { centerOn?: HTMLElement; alignToPanel?: boolean; fillWorkspace?: boolean; focusMenu?: boolean } = {}) {
     const control = anchor instanceof HTMLElement ? anchor : anchor.opener;
     const parent = (control || returnFocus)?.closest<HTMLElement>('.popover-menu:popover-open');
     while (popovers.length && popovers.at(-1)!.content !== parent) popovers.at(-1)!.close();
     content.classList.add('popover-menu');
+    content.classList.toggle('workspace-popover', fillWorkspace);
     // Own dismissal so a second opener click closes once instead of dismissing before reopening.
     content.popover = 'manual';
     if (!content.hasAttribute('role')) content.setAttribute('role', 'menu');
@@ -227,38 +228,54 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
     control?.setAttribute('aria-expanded', 'true');
     (parent || document.body).append(content);
     content.showPopover();
-    const rect = anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : undefined;
-    const centered = centerOn?.getBoundingClientRect();
     const maxHeight = content.style.maxHeight;
-    let left = rect
-        ? centered ? rect.left + rect.width / 2 - (centered.left + centered.width / 2 - content.getBoundingClientRect().left) : rect.right - content.offsetWidth
-        : (anchor as { x: number }).x;
-    let top = rect ? rect.bottom + 4 : (anchor as { y: number }).y;
-    const panel = control?.closest<HTMLElement>('.topbar, .component-controls');
-    if (parent && control) {
-        const bounds = parent.getBoundingClientRect(), opener = control.getBoundingClientRect();
-        left = bounds.right + content.offsetWidth + 4 <= innerWidth ? bounds.right + 4 : bounds.left - content.offsetWidth - 4;
-        top = opener.top;
-        if (left < 4) {
-            // Narrow screens cannot fit both menus beside each other; keep the opener tappable.
-            const below = innerHeight - opener.bottom - 8, above = opener.top - 8;
-            const down = content.offsetHeight <= below || below >= above;
-            content.style.maxHeight = `${Math.min(content.offsetHeight, down ? below : above)}px`;
-            left = opener.right - content.offsetWidth;
-            top = down ? opener.bottom + 4 : opener.top - content.offsetHeight - 4;
+    const reposition = () => {
+        if (!content.matches(':popover-open')) return;
+        if (fillWorkspace) {
+            const panel = control?.closest<HTMLElement>('.topbar');
+            const bounds = panel?.getBoundingClientRect();
+            const bottom = panel?.closest<HTMLElement>('#app')?.dataset.panelPosition === 'bottom';
+            if (bounds) {
+                content.style.top = `${bottom ? 0 : bounds.bottom}px`;
+                content.style.bottom = `${bottom ? innerHeight - bounds.top : 0}px`;
+            }
+            return;
         }
-    } else if (panel) {
-        const edge = panel.closest<HTMLElement>('#app')?.dataset.panelPosition, bounds = panel.getBoundingClientRect();
-        if (edge === 'left' || edge === 'right') {
-            const opener = control!.getBoundingClientRect();
-            left = edge === 'left' ? opener.right + 4 : opener.left - content.offsetWidth - 4;
+        content.style.maxHeight = maxHeight;
+        const rect = anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : undefined;
+        const centered = centerOn?.getBoundingClientRect();
+        let left = rect
+            ? centered ? rect.left + rect.width / 2 - (centered.left + centered.width / 2 - content.getBoundingClientRect().left) : rect.right - content.offsetWidth
+            : (anchor as { x: number }).x;
+        let top = rect ? rect.bottom + 4 : (anchor as { y: number }).y;
+        const panel = control?.closest<HTMLElement>('.topbar, .component-controls');
+        if (parent && control) {
+            const bounds = parent.getBoundingClientRect(), opener = control.getBoundingClientRect();
+            left = bounds.right + content.offsetWidth + 4 <= innerWidth ? bounds.right + 4 : bounds.left - content.offsetWidth - 4;
             top = opener.top;
-        } else if (edge === 'bottom') top = bounds.top - content.offsetHeight - 4;
-    }
-    content.style.left = `${Math.max(4, Math.min(left, innerWidth - content.offsetWidth - 4))}px`;
-    content.style.top = `${Math.max(4, Math.min(top, innerHeight - content.offsetHeight - 4))}px`;
-    const heightLimit = getComputedStyle(content).maxHeight;
-    if (heightLimit !== 'none') content.style.maxHeight = `min(${heightLimit}, ${innerHeight - parseFloat(content.style.top) - 4}px)`;
+            if (left < 4) {
+                // Narrow screens cannot fit both menus beside each other; keep the opener tappable.
+                const below = innerHeight - opener.bottom - 8, above = opener.top - 8;
+                const down = content.offsetHeight <= below || below >= above;
+                content.style.maxHeight = `${Math.min(content.offsetHeight, down ? below : above)}px`;
+                left = opener.right - content.offsetWidth;
+                top = down ? opener.bottom + 4 : opener.top - content.offsetHeight - 4;
+            }
+        } else if (panel) {
+            const edge = panel.closest<HTMLElement>('#app')?.dataset.panelPosition, bounds = panel.getBoundingClientRect();
+            if (edge === 'left' || edge === 'right') {
+                const opener = control!.getBoundingClientRect();
+                const horizontal = alignToPanel ? bounds : opener;
+                left = edge === 'left' ? horizontal.right + 4 : horizontal.left - content.offsetWidth - 4;
+                top = opener.top;
+            } else if (edge === 'bottom') top = bounds.top - content.offsetHeight - 4;
+        }
+        content.style.left = `${Math.max(4, Math.min(left, innerWidth - content.offsetWidth - 4))}px`;
+        content.style.top = `${Math.max(4, Math.min(top, innerHeight - content.offsetHeight - 4))}px`;
+        const heightLimit = getComputedStyle(content).maxHeight;
+        if (heightLimit !== 'none') content.style.maxHeight = `min(${heightLimit}, ${innerHeight - parseFloat(content.style.top) - 4}px)`;
+    };
+    reposition();
     const close = () => {
         if (!popovers.includes(popup)) return;
         while (popovers.at(-1) !== popup) popovers.at(-1)!.close();
@@ -284,10 +301,14 @@ export function popover(anchor: HTMLElement | { x: number; y: number; opener?: H
         event.preventDefault();
         const items = [...content.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')].filter(item => item.checkVisibility() && item.closest('.popover-menu') === content);
         const index = items.indexOf(document.activeElement as HTMLButtonElement);
-        items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length]?.focus();
+        const previous = index <= 0 ? items.length - 1 : index - 1;
+        items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowUp' ? previous : (index + 1) % items.length]?.focus();
     };
-    content.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), button:not(:disabled)')?.focus();
-    return { close };
+    if (focusMenu) {
+        content.tabIndex = -1;
+        content.focus({ preventScroll: true });
+    } else content.querySelector<HTMLElement>('input:not(:disabled), select:not(:disabled), button:not(:disabled)')?.focus();
+    return { close, reposition };
 }
 export function ask(title: string, label: string, initial = '', reset?: string): Promise<string | null> {
     return new Promise(resolve => {

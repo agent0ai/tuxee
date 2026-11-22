@@ -33,10 +33,10 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 - [audio/AGENTS.md](audio/AGENTS.md): Shared per-user PulseAudio, lazy client endpoints, silence suppression, browser playback subscriptions and microphone input.
 
 - [identity/AGENTS.md](identity/AGENTS.md): PAM authentication and Linux process credentials.
-- [files/AGENTS.md](files/AGENTS.md): Credential-dropped filesystem workers and settings.
+- [files/AGENTS.md](files/AGENTS.md): Credential-dropped filesystem workers, settings and notification storage.
 - [tlsmanager/AGENTS.md](tlsmanager/AGENTS.md): ACME and local-CA certificate lifecycle.
 - [monitor/AGENTS.md](monitor/AGENTS.md): Cached Linux CPU, memory, swap, filesystem and network metrics with container accounting.
 - [processes/AGENTS.md](processes/AGENTS.md): On-demand process trees, bounded grouping, stable user-scoped signals and runtime signal-permission checks.
 - [server/AGENTS.md](server/AGENTS.md): HTTP sessions, APIs, and browser terminal transport.
 - [service/AGENTS.md](service/AGENTS.md): Native systemd registration and lifecycle commands.
-- [update/AGENTS.md](update/AGENTS.md): Official releases, verified replacement, versioned container setup and daily update status.
+- [update/AGENTS.md](update/AGENTS.md): Official releases, verified replacement, versioned container setup and scheduled update notices.

@@ -81,7 +81,7 @@ try {
     for (const p of pages) await p.locator('.terminal-view[data-state=connected]').waitFor();
     await page.locator('.file-name').filter({ hasText: 'draft.txt' }).dblclick();
     const editor = page.locator('.cm-content'); await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.insertText('unsaved');
-    await page.locator('.brand-button').click();
+    await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Info]').click();
     const install = page.locator('.update-install'); await install.waitFor();
     let reloads = 0; page.on('framenavigated', frame => { if (frame === page.mainFrame()) reloads++; });
     const dialog = page.locator('.about-modal');
@@ -98,7 +98,7 @@ try {
     assert.equal(await hour.inputValue(), '4'); assert.equal(await zone.inputValue(), 'Local');
     await change(() => hour.selectOption('23'));
     await change(() => hour.selectOption('4'));
-    await pages[1].locator('.brand-button').click();
+    await pages[1].locator('.brand-button').click(); await pages[1].locator('.start-menu [data-action=Info]').click();
     assert.equal(await pages[1].locator('.about-modal .update-schedule').isVisible(), false);
     if (scheduled) {
         // Give the isolated server a zone whose 04:00 occurs in a few seconds.
@@ -127,7 +127,7 @@ try {
     }
     await page.goto(base); await page.locator('.terminal-view[data-state=connected]').waitFor();
     await editor.waitFor(); assert.match(await editor.textContent(), /unsaved/, 'update restores editor drafts');
-    await page.locator('.brand-button').click(); await page.getByText('Up to date', { exact: true }).waitFor();
+    await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Info]').click(); await page.getByText('Up to date', { exact: true }).waitFor();
     assert.equal(await toggle.isChecked(), true);
     assert.equal(await zone.inputValue(), scheduled ? 'Europe/Prague' : 'Local');
     if (scheduled) await change(() => zone.selectOption('Local'));

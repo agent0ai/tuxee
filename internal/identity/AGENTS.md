@@ -16,7 +16,7 @@ Passwords travel only through transient stdin to a short-lived PAM helper. Perfo
 
 # Work Guidance
 
-Use libc/NSS and PAM instead of parsing password hashes. Reject non-login shells. Bound concurrent authentication at the server boundary.
+Use libc/NSS and PAM instead of parsing password hashes. Reject non-login shells when admitting a session. Notification delivery resolves file-worker credentials even for existing accounts with login disabled. Bound concurrent authentication at the server boundary.
 
 # Verification
 

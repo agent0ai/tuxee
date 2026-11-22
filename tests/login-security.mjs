@@ -87,12 +87,13 @@ try {
     await checkPrivate();
     const system = await (await api('/system')).json();
     assert.equal(await page.locator('meta[name=tuxee-hostname]').getAttribute('content'), system.hostname);
-    await page.getByRole('button', { name: 'About Tuxee', exact: true }).click();
+    await page.locator('.brand-button').click();
+    await page.locator('.start-menu [data-action=Info]').click();
     const about = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
     await about.getByRole('cell', { name: system.version, exact: true }).waitFor();
     await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.evaluate(() => { window.authenticatedPage = true; });
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('.login-form').waitFor();
     assert.equal(await page.evaluate(() => window.authenticatedPage), undefined, 'logout replaces the private document');

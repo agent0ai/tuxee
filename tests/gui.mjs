@@ -221,7 +221,7 @@ try {
         await page.keyboard.press('ArrowDown');
         assert.equal(await files.locator('.file-entry:focus').evaluate(node => getComputedStyle(node).outlineStyle), 'solid', 'keyboard row focus must remain visible');
         await files.getByRole('textbox', { name: 'File or directory path' }).focus(); await panelFocus('files');
-        await page.getByRole('button', { name: 'User menu', exact: true }).focus(); await panelFocus(undefined);
+        await page.getByRole('button', { name: 'Start menu', exact: true }).focus(); await panelFocus(undefined);
         await shell(first, `printf '${theme}' > ${fixture}/focus.txt`);
         await poll(async () => (await readFile(`${fixture}/focus.txt`, 'utf8').catch(() => '')) === theme, 'terminal input failed after changing focus');
         await panelFocus('shell', `panel-focus-terminal-${theme}`);
@@ -568,7 +568,7 @@ try {
         socket.onopen = resolve; socket.onerror = reject;
     }), panels[0].terminal);
     const probeClosed = (await probeOpened).waitForEvent('close');
-    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     await probeClosed;

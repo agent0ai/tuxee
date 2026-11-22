@@ -34,7 +34,7 @@ const preview = (text, limit) => Array.from(text).length > limit ? Array.from(te
 const commandLine = preview('/usr/bin/node /srv/app.js --label=<b>plain text</b> ' + '🐧'.repeat(250), 250);
 for (const key of ['container', 'containerCore']) fixtures[key].rows.find(row => row.pid === 2).commandLine = commandLine;
 let fixture = 'container', worker, family, workerExit;
-async function openProcesses() { await page.getByRole('button', { name: 'User menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Resource monitor', exact: true }).click(); await dialog.getByRole('tab', { name: 'Processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
+async function openProcesses() { await page.getByRole('button', { name: 'Start menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Resource monitor', exact: true }).click(); await dialog.getByRole('tab', { name: 'Processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
 async function refresh() { await dialog.getByRole('button', { name: 'Refresh processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
 try {
  await api('/settings', 'PUT', { theme: 'dark', current: 'processes', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 2 }, workspaces: [{ id: 'processes', name: 'Processes', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: '/', x: 0, y: 0, w: 4, h: 2 }] }] });
@@ -136,6 +136,15 @@ try {
   assert.equal(await dialog.locator('tbody tr').count(), fixtures[name].rows.length); assert.ok(fixtures[name].rows.length <= 1000);
   assert.ok((await dialog.locator('.process-footer').textContent()).startsWith(footerPrefixes[name]), name + ' footer counts');
   assert.ok(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth), name + ' overflow');
+  if (name === 'large') {
+   for (const height of [680, 480, 360]) {
+    await page.setViewportSize({ width: 980, height });
+    assert.ok(await dialog.locator('.modal-body').evaluate(n => n.scrollHeight <= n.clientHeight + 1));
+    assert.ok(await dialog.locator('.process-scroll').evaluate(n => { n.scrollTop = n.scrollHeight; return n.scrollTop > 0; }));
+   }
+   await page.screenshot({ path: 'test-results/processes-short.png' });
+   await page.setViewportSize({ width: 1440, height: 1000 });
+  }
   await page.screenshot({ path: `test-results/processes-${name}.png` });
   const fold = dialog.locator('.process-fold').first(), beforeFold = requests;
   await fold.click(); assert.equal(await dialog.locator('tbody tr:visible').count(), 1);

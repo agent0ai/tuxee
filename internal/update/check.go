@@ -93,7 +93,7 @@ func (c *Checker) Check(ctx context.Context) Status {
 	return result
 }
 
-func (c *Checker) Run(ctx context.Context, install func(context.Context, Release)) {
+func (c *Checker) Run(ctx context.Context, install, publish func(context.Context, Release)) {
 	c.Check(ctx)
 	for ctx.Err() == nil {
 		schedule := c.Schedule()
@@ -111,8 +111,14 @@ func (c *Checker) Run(ctx context.Context, install func(context.Context, Release
 				continue
 			}
 			status := c.Check(ctx)
-			if schedule.Enabled && status.Available && status.Error == "" && ctx.Err() == nil && c.Schedule() == schedule {
-				install(ctx, Release{Tag: status.Latest})
+			if status.Available && status.Error == "" && ctx.Err() == nil && c.Schedule() == schedule {
+				release := Release{Tag: status.Latest}
+				if c.schedulePath != "" {
+					publish(ctx, release)
+				}
+				if schedule.Enabled && ctx.Err() == nil && c.Schedule() == schedule {
+					install(ctx, release)
+				}
 			}
 		}
 	}

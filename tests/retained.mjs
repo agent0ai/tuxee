@@ -23,7 +23,7 @@ async function create(name, command) {
     assert.equal(response.status(), 201);
     const info = await response.json(); sessions.push(info); return info;
 }
-const menu = page.getByRole('button', { name: 'User menu', exact: true });
+const menu = page.getByRole('button', { name: 'Start menu', exact: true });
 const retained = page.getByRole('dialog', { name: 'Retained terminals', exact: true });
 const row = name => retained.locator('.retained-row').filter({ has: page.getByText(name, { exact: true }) });
 async function openRetained() {
@@ -38,10 +38,12 @@ async function focused(id) {
     }, id);
 }
 async function warning(count) {
-    await page.waitForFunction(count => {
-        const control = document.querySelector('.user-menu-button');
-        return count ? control?.getAttribute('aria-description')?.startsWith(`${count} running terminal`) : !control?.getAttribute('aria-description')?.includes('running terminal');
-    }, count, { timeout: 15000 });
+    await menu.click();
+    const item = page.getByRole('menuitem', { name: 'Retained terminals', exact: true });
+    await item.locator('.menu-warning').waitFor({ state: count ? 'visible' : 'detached' });
+    if (count) await page.waitForFunction(count => document.querySelector('.start-apps [data-action=SquareTerminal]')?.getAttribute('aria-description')?.startsWith(`${count} running terminal`), count);
+    assert.equal(await menu.locator('.menu-warning').count(), 0);
+    await menu.click();
 }
 async function terminate(name, exited = false) {
     await row(name).getByRole('button', { name: 'Close', exact: true }).click();
@@ -75,7 +77,7 @@ try {
     await menu.click();
     const item = page.getByRole('menuitem', { name: 'Retained terminals', exact: true });
     assert.equal(await item.locator('.menu-warning').count(), 1);
-    assert.ok((await menu.getAttribute('aria-description')).split('\n').includes(await item.getAttribute('aria-description')));
+    assert.equal(await menu.getAttribute('aria-description'), null);
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     assert.equal(await page.locator('[name=closedTerminalHistoryHours]').inputValue(), String(me.settings.closedTerminalHistoryHours ?? 168));
     assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0);
@@ -120,7 +122,7 @@ try {
     await row(attached.name).getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 200);
-    await terminate(attached.name); await warning(0);
+    await terminate(attached.name);
     assert.equal((await api(`/terminals/${attached.id}`)).status(), 404);
     await terminate(ended.name, true);
     await retained.getByText('No lost terminals.', { exact: true }).waitFor();
@@ -141,10 +143,11 @@ try {
     await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).click();
     const later = await create('Discovered while menu is closed', 'printf later; sleep 300');
     await warning(1);
-    assert.ok(await menu.locator('.menu-warning').isVisible());
+    await menu.click();
     assert.ok(await page.locator('.topbar').evaluate(node => node.scrollWidth <= innerWidth));
     await page.screenshot({ path: 'test-results/retained-mobile-light.png' });
-    await openRetained(); await terminate(later.name); await warning(0);
+    await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
+    await terminate(later.name);
     await retained.getByRole('tab').nth(1).click();
     await row(later.name).getByRole('button',{name:'View',exact:true}).focus(); await page.keyboard.press('Enter');
     await page.locator(`.terminal-view[data-terminal="${later.id}"] .terminal-archive pre`).waitFor(); await focused(later.id);
@@ -152,7 +155,9 @@ try {
     // A failed inventory request must warn rather than clear the last known status.
     await page.route(base + '/api/terminals', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Inventory unavailable"}' }));
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-    await page.waitForFunction(() => document.querySelector('.user-menu-button')?.getAttribute('aria-description')?.split('\n').includes('Inventory unavailable'));
+    await menu.click();
+    await page.waitForFunction(() => document.querySelector('.start-apps [data-action=SquareTerminal]')?.getAttribute('aria-description')?.includes('Inventory unavailable'));
+    await menu.click();
     await page.unroute(base + '/api/terminals');
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await warning(0);
     await menu.click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();

@@ -77,7 +77,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Shortcuts', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Clone', 'Default directory']), 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Clone', 'Default directory']), 'Close', ...(await target.evaluate(n => n.closest('.topbar, .component-controls') !== null) ? ['Add desktop', 'Close all desktops', 'Bar position', 'Hide resource monitor'] : [])]);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -94,10 +94,14 @@ async function resetDialog(kind) {
 }
 await mkdir('test-results', { recursive: true });
 try {
+    await page.route('**/api/notifications', route => route.fulfill({ json: { count: 1, items: [{
+        id: '1'.repeat(32), type: 'info', text: 'Layout fixture', created: new Date().toISOString(),
+    }] } }));
     await page.goto(base);
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-view')].length === 2 &&
         [...document.querySelectorAll('.terminal-view')].every(node => node.dataset.state === 'connected'));
-    await toggleDropdown(page.locator('.user-menu-button'), page.locator('.account-menu'));
+    await toggleDropdown(page.locator('.brand-button'), page.locator('.start-menu'));
+    await toggleDropdown(page.locator('.notifications-button'), page.locator('.inbox'));
     await toggleDropdown(page.locator('.workspace-menu').first(), menu);
     const initialNames = await page.locator('.terminal-tab .panel-title').allTextContents();
     assert.equal(new Set(initialNames).size, 2);

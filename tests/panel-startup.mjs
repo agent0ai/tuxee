@@ -34,7 +34,7 @@ try {
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))));
     }
     async function choose(position) {
-        await page.locator('.user-menu-button').click(); await page.locator('.account-menu [data-action=Settings]').click();
+        await page.locator('.brand-button').click(); await page.locator('.start-menu [data-action=Settings]').click();
         await page.locator('[name=panelPosition]').selectOption(position);
         await page.screenshot({ path: `${output}/settings-${position}-${await page.locator('html').getAttribute('data-theme')}.png` });
         await page.locator('dialog:has(.settings-form) .modal-footer button[type=submit]').click();

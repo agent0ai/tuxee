@@ -212,7 +212,8 @@ try {
     for (const theme of ['dark', 'light']) {
         if (theme === 'light') await page.getByRole('button', { name: 'Toggle light or dark theme', exact: true }).tap();
         await page.setViewportSize({ width: 320, height: 568 }); await page.waitForTimeout(200);
-        await page.getByRole('button', { name: 'About Tuxee', exact: true }).tap();
+        await page.locator('.brand-button').tap();
+        await page.locator('.start-menu [data-action=Info]').tap();
         const about = page.getByRole('dialog', { name: 'About Tuxee', exact: true }), close = about.getByRole('button', { name: 'Close dialog', exact: true });
         await about.getByRole('rowheader', { name: 'Shell', exact: true }).waitFor();
         const before = await close.boundingBox();

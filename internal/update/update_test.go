@@ -416,7 +416,7 @@ func TestOnlyScheduledSuccessfulChecksInstall(t *testing.T) {
 		c := NewChecker("1.0.0", t.TempDir())
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		var calls, installs atomic.Int32
+		var calls, installs, publishes atomic.Int32
 		c.fetch = func(context.Context) (Release, error) {
 			if calls.Add(1) == 2 {
 				return Release{}, errors.New("offline")
@@ -437,34 +437,65 @@ func TestOnlyScheduledSuccessfulChecksInstall(t *testing.T) {
 				t.Error(release)
 			}
 			installs.Add(1)
+		}, func(_ context.Context, release Release) {
+			if release.Tag != "v1.1.0" {
+				t.Error(release)
+			}
+			publishes.Add(1)
 		})
 		synctest.Wait()
-		if calls.Load() != 1 || installs.Load() != 0 {
+		if calls.Load() != 1 || installs.Load() != 0 || publishes.Load() != 0 {
 			t.Fatal("startup installed", calls.Load(), installs.Load())
 		}
 		time.Sleep(4 * time.Hour)
 		synctest.Wait()
-		if calls.Load() != 2 || installs.Load() != 0 || !c.Status().Available {
+		if calls.Load() != 2 || installs.Load() != 0 || publishes.Load() != 0 || !c.Status().Available {
 			t.Fatal("failed check used stale release")
 		}
 		time.Sleep(time.Minute)
 		c.Check(ctx)
-		if calls.Load() != 3 || installs.Load() != 0 {
+		if calls.Load() != 3 || installs.Load() != 0 || publishes.Load() != 0 {
 			t.Fatal("manual check installed")
 		}
 		s.Hour = 5
 		save()
 		time.Sleep(59 * time.Minute)
 		synctest.Wait()
-		if calls.Load() != 4 || installs.Load() != 1 {
+		if calls.Load() != 4 || installs.Load() != 1 || publishes.Load() != 1 {
 			t.Fatal("new schedule did not install", calls.Load(), installs.Load())
 		}
 		s.Enabled = false
 		save()
 		time.Sleep(24 * time.Hour)
 		synctest.Wait()
-		if calls.Load() != 5 || installs.Load() != 1 {
+		if calls.Load() != 5 || installs.Load() != 1 || publishes.Load() != 2 {
 			t.Fatal("disabled schedule", calls.Load(), installs.Load())
+		}
+	})
+}
+
+func TestChangingScheduleDuringNotificationCancelsInstallation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		checker := NewChecker("1.0.0", t.TempDir())
+		checker.fetch = func(context.Context) (Release, error) { return Release{Tag: "v1.1.0"}, nil }
+		schedule := Schedule{Enabled: true, Hour: 1, Timezone: "UTC"}
+		if err := checker.SaveSchedule(schedule); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go checker.Run(ctx, func(context.Context, Release) {
+			t.Error("installation ran after the policy was disabled")
+		}, func(context.Context, Release) {
+			schedule.Enabled = false
+			if err := checker.SaveSchedule(schedule); err != nil {
+				t.Error(err)
+			}
+		})
+		time.Sleep(time.Hour)
+		synctest.Wait()
+		if checker.Schedule().Enabled {
+			t.Fatal("scheduled notification did not run")
 		}
 	})
 }

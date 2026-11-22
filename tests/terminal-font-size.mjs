@@ -71,7 +71,7 @@ try {
     const fontGroup = dialog.getByRole('group', { name: 'Terminal font', exact: true });
     const reset = fontGroup.getByRole('button', { name: 'Reset', exact: true });
     const open = async () => {
-        await page.getByRole('button', { name: 'User menu', exact: true }).click();
+        await page.getByRole('button', { name: 'Start menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
         await input.waitFor();
     };

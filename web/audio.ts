@@ -20,7 +20,7 @@ export function audioControl() {
     const control = button(t("audio.audio"), 'Volume2', () => {
         if (control.getAttribute('aria-expanded') === 'true') { close(); return; }
         content.style.height = `${Math.min(42, control.closest('header')!.getBoundingClientRect().height) * 4}px`;
-        ({ close } = popover(control, content, control, content.querySelector<HTMLElement>('[data-channel=speaker]')!));
+        ({ close } = popover(control, content, control, { centerOn: content.querySelector<HTMLElement>('[data-channel=speaker]')! }));
     }, 'volume-toggle');
     control.setAttribute('aria-haspopup', 'dialog'); control.setAttribute('aria-expanded', 'false');
     const channels = [false, true].map(input => {
