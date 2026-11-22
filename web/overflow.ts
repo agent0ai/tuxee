@@ -75,16 +75,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
         const style = getComputedStyle(host), toggleGap = parseFloat(style[vertical ? 'rowGap' : 'columnGap']) || 0;
         let widths = candidates.map(item => item.getBoundingClientRect()[vertical ? 'height' : 'width']);
         // The outer strip can grow into its parent's free space; its content-sized height is only the current result.
-        let height = host.getBoundingClientRect().height;
-        if (vertical && !allocated) {
-            const container = host.parentElement!, containerStyle = getComputedStyle(container);
-            height = container.getBoundingClientRect().bottom - host.getBoundingClientRect().top - parseFloat(containerStyle.paddingBottom);
-            for (let sibling = host.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
-                if (!sibling.getClientRects().length) continue;
-                const peerStyle = getComputedStyle(sibling);
-                height -= sibling.getBoundingClientRect().height + parseFloat(peerStyle.marginTop) + parseFloat(peerStyle.marginBottom) + (parseFloat(containerStyle.rowGap) || 0);
-            }
-        }
+        const height = vertical && !allocated ? host.parentElement!.getBoundingClientRect().bottom - host.getBoundingClientRect().top - parseFloat(getComputedStyle(host.parentElement!).paddingBottom) : host.getBoundingClientRect().height;
         const available = vertical ? height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - (actions ? actions.getBoundingClientRect().height + toggleGap : 0) + .001
             : host.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
         if (vertical && child?.items.length && active) {
@@ -132,9 +123,7 @@ export function overflowTabs(host: HTMLElement, items: HTMLElement[], label: str
     const observer = new ResizeObserver(schedule);
     menu.addEventListener('toggle', schedule);
     window.addEventListener('tuxee-tabs-changed', schedule);
-    observer.observe(host); observer.observe(host.parentElement!);
-    if (vertical) for (let sibling = host.nextElementSibling; sibling; sibling = sibling.nextElementSibling) observer.observe(sibling);
-    fit();
+    observer.observe(host); observer.observe(host.parentElement!); fit();
     return () => { dragging?.dispose(); strips.delete(host); observer.disconnect(); menu.removeEventListener('toggle', schedule); window.removeEventListener('tuxee-tabs-changed', schedule); cancelAnimationFrame(frame); close(); };
 }
 

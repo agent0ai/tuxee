@@ -336,7 +336,7 @@ function renderChrome() {
     const account = button(t("app.userMenu"), 'Menu', () => userMenu(account), 'user-menu-button');
     account.setAttribute('aria-haspopup', 'menu');
     setMenuWarning(account, accountActions().flatMap(action => action[3] ? [action[3]] : []).join('\n'));
-    right.append(account); (vertical ? workspaces : top).append(right);
+    right.append(account); top.append(right);
     const componentTabs = el('nav', 'component-tabs');
     componentTabs.classList.toggle('vertical-tabs', vertical);
     componentTabs.setAttribute('aria-label', t("app.components"));

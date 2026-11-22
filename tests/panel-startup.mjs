@@ -48,7 +48,9 @@ try {
             const rect = n => n.getBoundingClientRect().toJSON();
             const rows = [...list.children].map(n => ({ id: n.dataset.workspace, rect: rect(n) }));
             const tab = active?.querySelector('.workspace-tab'), more = document.querySelector('.workspace-tab-actions > .overflow-toggle, .workspace-tabs > .overflow-toggle');
+            const topbar = document.querySelector('.topbar'), controls = document.querySelector('.topbar-right');
             return { rows, active: active && rect(active), label: tab && rect(tab), list: rect(list), overflow: !more.hidden,
+                bottomGap: rect(topbar).bottom - rect(controls).bottom - parseFloat(getComputedStyle(topbar).paddingBottom),
                 plus: rect(document.querySelector('.workspace-add')), vertical: document.querySelector('#app').classList.contains('side-panel'),
                 windows: document.querySelectorAll('.component-tabs > .visible-tabs > .component-tab-item').length,
                 windowOverflow: !document.querySelector('.component-tabs > .overflow-toggle').hidden, origin: [scrollX, scrollY] };
@@ -59,6 +61,7 @@ try {
         assert.ok(geometry.active, name + ': active desktop is visible');
         assert.deepEqual(geometry.origin, [0, 0]);
         if (geometry.vertical) {
+            assert.ok(Math.abs(geometry.bottomGap) < .1, name + ': bottom controls remain anchored to the viewport bottom');
             assert.equal(geometry.windows, windows, name + ': all sparse window rows remain visible');
             assert.equal(geometry.windowOverflow, false, name + ': no unnecessary window overflow');
             assert.ok(geometry.plus.y >= geometry.rows.at(-1).rect.bottom && geometry.plus.y - geometry.rows.at(-1).rect.bottom <= 5, name + ': Plus immediately follows the tabs');

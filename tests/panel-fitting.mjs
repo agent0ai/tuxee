@@ -50,12 +50,13 @@ try {
             const highlight = active && getComputedStyle(active, '::before'), highlightHeight = highlight && parseFloat(highlight.height) + (highlight.boxSizing === 'border-box' ? 0 : parseFloat(highlight.borderTopWidth) + parseFloat(highlight.borderBottomWidth));
             const highlightTop = active && rect(active).top + parseFloat(getComputedStyle(active).borderTopWidth) + parseFloat(highlight.top);
             const desktopMore = document.querySelector('.workspace-tab-actions > .overflow-toggle');
-            const parent = document.querySelector('.workspace-controls'), actions = document.querySelector('.workspace-tab-actions');
+            const topbar = document.querySelector('.topbar'), actions = document.querySelector('.workspace-tab-actions');
             return { desktops: desktops.map(n => n.dataset.workspace), following: desktops.slice(desktops.indexOf(active) + 1).map(n => n.dataset.workspace),
                 desktopOverflow: !desktopMore.hidden, actions: [rect(desktopMore).toJSON(), rect(plus).toJSON()], count: visible.length, overflow: !more.hidden, row: visible.length ? rect(visible[0]).height : 25,
                 gap: next && end ? rect(next).top - rect(end).bottom : 0,
-                slack: rect(parent).bottom - rect(controls).bottom - parseFloat(getComputedStyle(parent).paddingBottom),
-                toolbarGap: rect(controls).top - rect(actions).bottom, actionsGap: rect(actions).top - rect(desktopList).bottom,
+                slack: rect(controls).top - rect(actions).bottom,
+                bottomGap: rect(topbar).bottom - rect(controls).bottom - parseFloat(getComputedStyle(topbar).paddingBottom),
+                controlRowGap: parseFloat(getComputedStyle(controls).rowGap), actionsGap: rect(actions).top - rect(desktopList).bottom,
                 rowGap: parseFloat(getComputedStyle(host.firstElementChild).rowGap),
                 controlsClipped: rect(controls).bottom > innerHeight + .1,
                 clipped: visible.some(n => rect(n).bottom > rect(host).bottom + .1),
@@ -69,7 +70,8 @@ try {
             assert.equal(geometry.desktopClipped, false, name + ': desktop rows must be fully visible');
             assert.equal(geometry.highlightClipped, false, name + ': the complete rounded active border must fit');
             assert.ok(geometry.gap <= 4.1, name + ': next desktop must follow the last window/ellipsis without empty rows: ' + JSON.stringify(geometry));
-            assert.ok(Math.abs(geometry.toolbarGap) < .1 && Math.abs(geometry.actionsGap) < .1, name + ': no extra vertical space around ellipsis/Plus or the action row: ' + JSON.stringify(geometry));
+            assert.ok(Math.abs(geometry.bottomGap) < .1, name + ': controls stay at the viewport bottom: ' + JSON.stringify(geometry));
+            assert.ok(geometry.controlRowGap === 0 && Math.abs(geometry.actionsGap) < .1, name + ': no extra vertical space around ellipsis/Plus or between bottom control rows: ' + JSON.stringify(geometry));
             assert.equal(geometry.controlsClipped, false, name + ': every bottom control fits');
             if (geometry.overflow) {
                 assert.ok(count - geometry.count >= 2, name + ': show the last window instead of an equally tall ellipsis');
