@@ -1049,7 +1049,7 @@ h3 {
   border: 1px solid var(--line);
   padding: 12px;
   border-radius: 9px;
-  box-shadow: 0 4px 24px #0003;
+  box-shadow: var(--popover-shadow);
   pointer-events: auto;
   font-size: 12px;
 }
