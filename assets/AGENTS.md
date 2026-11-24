@@ -39,7 +39,8 @@ desktop menu). Use quality around 82, keep size budgets from `web/AGENTS.md`
 and update the width/height passed to `screenshot()` in `web/how-to.ts` and
 `tests/how-to.mjs`. Crop exports, never the originals, so the guide's own
 border frames clean content: drop the 4px capture line above the Tips favorites
-and customization screenshots, and crop the Tips processes screenshot to the
+and customization screenshots and the 2px line left of the Tips bar-position
+screenshot, and crop the Tips processes screenshot to the
 inside of the modal border (11,17–1807,1603 of the original) so no page
 backdrop remains. README copies follow `.github/resources/AGENTS.md`.
 

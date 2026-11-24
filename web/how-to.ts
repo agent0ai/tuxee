@@ -244,7 +244,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const barPosition = el('section', 'howto-tip-bar-position'), barPositionCopy = el('div', 'howto-detail');
             barPositionCopy.append(el('h4', '', t('bar.position')),
                 el('p', '', t('howto.barPositionBody', { barPosition: t('bar.position'), settings: t('app.settings'), panelPosition: t('settings.panelPosition') })));
-            barPosition.append(barPositionCopy, screenshot(barPositionImage, t('howto.barPositionScreenshot'), 632, 970));
+            barPosition.append(barPositionCopy, screenshot(barPositionImage, t('howto.barPositionScreenshot'), 630, 970));
             const keyboard = el('section', 'howto-detail howto-tip-shortcuts'), keyboardBody = el('p');
             const shortcutControl = el('span', 'howto-inline-control');
             shortcutControl.append(icon('Keyboard'), el('span', '', t('shortcuts.title')));

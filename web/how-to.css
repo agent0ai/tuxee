@@ -75,7 +75,7 @@
 .howto-command pre, pre.howto-command { margin: 6px 0 0; padding: 14px 16px; border-radius: 8px; background: var(--raised); color: var(--text); font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .howto-gui > section + section { padding-top: 28px; border-top: 1px solid var(--line); }
 .howto-gui-tabs > img { max-width: 375px; }
-.howto-tip-bar-position > img { max-width: 316px; justify-self: center; }
+.howto-tip-bar-position > img { max-width: 315px; justify-self: center; }
 .howto-tip-favorites > img { max-width: 597px; }
 @media (max-width: 600px) {
   .howto-modal .modal-head { grid-template-columns: minmax(0, 1fr); }

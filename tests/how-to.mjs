@@ -121,8 +121,8 @@ try {
         assert.equal(await barPosition.count(), 1);
         assert.ok(await barPosition.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-updates')), 'Bar position follows Updates');
         await barPositionImage.scrollIntoViewIfNeeded(); await barPositionImage.evaluate(node => node.decode());
-        assert.deepEqual(await barPositionImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [632, 970]);
-        assert.ok(await barPositionImage.evaluate(node => node.getBoundingClientRect().width <= 316.5), 'the portrait bar screenshot is not upscaled');
+        assert.deepEqual(await barPositionImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [630, 970]);
+        assert.ok(await barPositionImage.evaluate(node => node.getBoundingClientRect().width <= 315.5), 'the portrait bar screenshot is not upscaled');
         for (const tip of [processes, updates, barPosition]) assert.ok(await tip.evaluate(node => {
             const copy = node.querySelector('.howto-detail').getBoundingClientRect(), image = node.querySelector('img').getBoundingClientRect();
             if (innerWidth <= 600) return image.top >= copy.bottom + 19;
