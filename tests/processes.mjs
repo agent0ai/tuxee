@@ -34,7 +34,7 @@ const preview = (text, limit) => Array.from(text).length > limit ? Array.from(te
 const commandLine = preview('/usr/bin/node /srv/app.js --label=<b>plain text</b> ' + '🐧'.repeat(250), 250);
 for (const key of ['container', 'containerCore']) fixtures[key].rows.find(row => row.pid === 2).commandLine = commandLine;
 let fixture = 'container', worker, family, workerExit;
-async function openProcesses() { await page.getByRole('button', { name: 'Start menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Resource monitor', exact: true }).click(); await dialog.getByRole('tab', { name: 'Processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
+async function openProcesses() { await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Resource monitor', exact: true }).click(); await dialog.getByRole('tab', { name: 'Processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
 async function refresh() { await dialog.getByRole('button', { name: 'Refresh processes', exact: true }).click(); await dialog.locator('.processes[aria-busy=false]').waitFor(); }
 try {
  await api('/settings', 'PUT', { theme: 'dark', current: 'processes', monitoring: { hidden: true, cpu: true, memory: true, swap: false, disks: [], networks: [], interval: 2 }, workspaces: [{ id: 'processes', name: 'Processes', columns: 4, rows: 2, active: 'files', panels: [{ id: 'files', kind: 'files', path: '/', x: 0, y: 0, w: 4, h: 2 }] }] });

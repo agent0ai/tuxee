@@ -46,7 +46,7 @@ page.on('request', request => {
 });
 const overlay = page.getByRole('dialog', { name: 'Connection lost, reconnecting...', exact: true });
 async function about() {
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'About', exact: true }).click();
     await page.getByRole('dialog', { name: 'About Tuxee', exact: true }).waitFor();
 }
@@ -204,9 +204,9 @@ try {
     await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await anonymousProbe;
     await page.locator('[name=username]').fill(user); await page.locator('[name=password]').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('button', { name: 'Start menu', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).waitFor();
     releaseSession(); await page.unroute(base + '/api/connection'); await page.waitForTimeout(100);
-    assert.ok(await page.getByRole('button', { name: 'Start menu', exact: true }).isVisible(), 'a pre-login probe cannot undo successful login');
+    assert.ok(await page.getByRole('button', { name: 'Tuxee menu', exact: true }).isVisible(), 'a pre-login probe cannot undo successful login');
     assert.equal(documentRequests, 2, 'a stale anonymous response after login must not reload');
     assert.equal(await page.locator('.login-error').count(), 0, 'first sign-in after readiness must work');
     // Reload while readiness is unavailable must not turn a temporary bootstrap failure into login.
@@ -214,8 +214,8 @@ try {
     await page.reload(); await overlay.waitFor();
     assert.equal(await page.locator('[name=username]').count(), 0);
     await page.unroute(base + '/api/connection'); await overlay.waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'Start menu', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('[name=username]').waitFor();
     const checked = connectionRequests;

@@ -199,8 +199,8 @@ try {
         if (n === 2) {
             assert.match(await dialog.locator('.howto-copy').innerText(), /AI agent/);
             for (const name of ['archive', 'retained', 'drawer', 'text', 'files', 'settings']) assert.equal(await dialog.locator(`.howto-terminal-${name}`).count(), 1);
-            assert.match(await dialog.locator('.howto-terminal-archive').innerText(), /accidentally closed.*server restarts.*transcript.*Post mortem.*analyze.*copy/s);
-            assert.match(await dialog.locator('.howto-terminal-retained').innerText(), /Retained terminals.*Start menu.*lost or closed/s);
+            assert.match(await dialog.locator('.howto-terminal-archive').innerText(), /very resilient.*Lost or closed.*Post mortem.*archived text transcript.*full-screen apps.*yesterday/s);
+            assert.match(await dialog.locator('.howto-terminal-retained').innerText(), /Retained terminals.*Tuxee menu.*lost or closed/s);
             assert.ok(!(await dialog.innerText()).includes('The snapshot is read-only.'));
             assert.ok(!(await dialog.innerText()).includes('Submit the input when you are ready.'));
             assert.deepEqual(await dialog.locator('.howto-screenshot').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[1584, 772], [1236, 824], [600, 589], [654, 832], [654, 832], [1300, 832]]);
@@ -258,17 +258,17 @@ try {
         if (n === 5) {
             await checkTips(page);
             assert.equal(await dialog.locator('.howto-tip-favorites h4').textContent(), 'Favorites');
-            assert.match(await dialog.locator('.howto-tip-favorites p').textContent(), /Tuxee logo.*Start menu.*\+ button next to Favorites.*commands, files and folders.*new terminal.*Right-click.*edit or delete/);
+            assert.match(await dialog.locator('.howto-tip-favorites p').textContent(), /Tuxee logo.*Tuxee menu.*\+ button next to Favorites.*commands, files and folders.*new terminal.*Right-click.*edit or delete/);
             assert.equal(await dialog.locator('.howto-tip-customization h4').textContent(), 'Customization');
             assert.match(await dialog.locator('.howto-tip-customization p').textContent(), /name and color marker.*Settings.*servers/);
             assert.equal(await dialog.locator('.howto-tip-processes h4').textContent(), 'Process Manager');
-            assert.match(await dialog.locator('.howto-tip-processes p').textContent(), /Resource monitor.*resources widget.*top bar.*Start menu.*Processes.*terminate individual processes.*overloaded.*unresponsive/);
+            assert.match(await dialog.locator('.howto-tip-processes p').textContent(), /Resource monitor.*resources widget.*top bar.*Tuxee menu.*Processes.*terminate individual processes.*overloaded.*unresponsive/);
             assert.equal(await dialog.locator('.howto-tip-updates h4').textContent(), 'Updates');
-            assert.match(await dialog.locator('.howto-tip-updates p').textContent(), /Tuxee logo.*Start menu.*About.*check for updates/);
+            assert.match(await dialog.locator('.howto-tip-updates p').textContent(), /Tuxee logo.*Tuxee menu.*About.*check for updates/);
             assert.equal(await dialog.locator('.howto-tip-bar-position h4').textContent(), 'Bar position');
             assert.equal(await dialog.locator('.howto-tip-bar-position p').textContent(), 'Right-click the top bar and choose Bar position to move it to the bottom, left or right edge. The same option is in Settings › Panel position.');
             assert.equal(await dialog.locator('.howto-tip-shortcuts h4').textContent(), 'Keyboard shortcuts');
-            assert.equal(await dialog.locator('.howto-tip-shortcuts p').textContent(), 'You can customize keyboard shortcuts with the Shortcuts button in the Start menu.');
+            assert.equal(await dialog.locator('.howto-tip-shortcuts p').textContent(), 'You can customize keyboard shortcuts with the Shortcuts button in the Tuxee menu.');
         }
         await page.screenshot({ path: `test-results/howto-desktop-${n}.png` });
         if (n < titles.length - 1) {

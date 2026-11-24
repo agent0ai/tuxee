@@ -36,7 +36,7 @@ async function setDisplay(visible) {
  assert.equal(await displaySwitch.isChecked(),visible);
 }
 async function openFromMenu() {
- await page.getByRole('button',{name:'Start menu',exact:true}).click();
+ await page.getByRole('button',{name:'Tuxee menu',exact:true}).click();
  assert.equal(await page.locator('.popover-menu .monitor-strip').count(),0);
  await page.getByRole('menuitem',{name:'Resource monitor',exact:true}).click();
  await dialog.waitFor();
@@ -240,7 +240,7 @@ try {
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await dialog.waitFor({state:'detached'});
  const afterDisable=polls;await page.waitForTimeout(5200);assert.equal(polls,afterDisable);
  await page.reload();await page.locator('.topbar').waitFor();assert.equal(await summary.isVisible(),false);assert.equal(polls,afterDisable);
- await page.getByRole('button',{name:'Start menu',exact:true}).click();await page.getByRole('menuitem',{name:'Resource monitor',exact:true}).waitFor();await page.waitForTimeout(5200);assert.equal(polls,afterDisable,'opening the menu must not restart disabled monitoring');await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Tuxee menu',exact:true}).click();await page.getByRole('menuitem',{name:'Resource monitor',exact:true}).waitFor();await page.waitForTimeout(5200);assert.equal(polls,afterDisable,'opening the menu must not restart disabled monitoring');await page.keyboard.press('Escape');
  const quickLook=page.waitForResponse(r=>r.url()===base+'/api/metrics');await openFromMenu();assert.equal((await quickLook).status(),200);
  assert.equal(await displaySwitch.isChecked(),false);assert.equal(await summary.isVisible(),false);assert.equal(await dialog.locator('.monitor-card').count(),4);
  assert.equal((await page.waitForResponse(r=>r.url()===base+'/api/metrics')).status(),200);
@@ -255,15 +255,15 @@ try {
  check('display switch persists, stops background polling, keeps live menu quick looks and recovers from failed saves');
  await page.setViewportSize({width:900,height:750});await page.waitForTimeout(250);assert.ok(await page.locator('.topbar').evaluate(node=>node.scrollWidth<=innerWidth));assert.equal(await summary.locator('.monitor-more').textContent(),'+1');
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(250);assert.equal(await page.locator('.topbar .monitor-summary').count(),0);
- await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await page.getByRole('button',{name:'Start menu',exact:true}).click();
+ await page.getByRole('button',{name:'Toggle light or dark theme',exact:true}).click();await page.getByRole('button',{name:'Tuxee menu',exact:true}).click();
  const menu=page.locator('.popover-menu');await menu.getByRole('menuitem',{name:'Resource monitor',exact:true}).waitFor();assert.equal(await menu.locator('.monitor-strip').count(),0);assert.equal(await menu.getByRole('menuitem',{name:'Resource monitor',exact:true}).textContent(),'Resource monitor');assert.ok(await menu.evaluate(node=>node.scrollWidth<=node.clientWidth));await page.screenshot({path:'test-results/monitoring-mobile-menu.png'});
  await menu.getByRole('menuitem',{name:'Resource monitor',exact:true}).tap();await dialog.waitFor();assert.equal(await page.locator('.popover-menu').count(),0);assert.ok(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth));await page.screenshot({path:'test-results/monitoring-mobile.png'});
- await setDisplay(false);await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await page.getByRole('button',{name:'Start menu',exact:true}).click();
+ await setDisplay(false);await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await page.getByRole('button',{name:'Tuxee menu',exact:true}).click();
  assert.equal(await menu.locator('.monitor-strip').count(),0);const mobileDisabled=polls;await page.waitForTimeout(5200);assert.equal(polls,mobileDisabled,'mobile menu must not poll when display is disabled');const mobileQuickLook=page.waitForResponse(r=>r.url()===base+'/api/metrics');await menu.getByRole('menuitem',{name:'Resource monitor',exact:true}).tap();await dialog.waitFor();assert.equal((await mobileQuickLook).status(),200);assert.equal(await displaySwitch.isChecked(),false);await setDisplay(true);
  await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();assert.ok(await dialog.getByRole('checkbox',{name:network,exact:true}).isChecked());check('mobile menu has a plain Resource monitor button; disabled monitoring polls only while its modal is open');
  for(const checkbox of await dialog.getByRole('checkbox').all())await checkbox.uncheck();await dialog.getByRole('button',{name:'Save resource monitor',exact:true}).click();await dialog.getByText('No metrics selected',{exact:true}).waitFor();
  await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();await page.setViewportSize({width:1440,height:1000});await page.waitForTimeout(250);await summary.click();await dialog.getByRole('button',{name:'Configure resource monitor',exact:true}).click();await dialog.getByRole('checkbox',{name:'CPU',exact:true}).check();await dialog.getByRole('button',{name:'Save resource monitor',exact:true}).click();await dialog.getByRole('heading',{name:'CPU',exact:true}).waitFor();await dialog.getByRole('button',{name:'Close dialog',exact:true}).click();check('all metrics can be hidden and configuration remains reachable');
- await page.getByRole('button',{name:'Start menu',exact:true}).click();await page.getByRole('menuitem',{name:'Log out',exact:true}).click();await page.locator('[name=username]').waitFor();const afterLogout=polls;await page.waitForTimeout(2200);assert.equal(polls,afterLogout);
+ await page.getByRole('button',{name:'Tuxee menu',exact:true}).click();await page.getByRole('menuitem',{name:'Log out',exact:true}).click();await page.locator('[name=username]').waitFor();const afterLogout=polls;await page.waitForTimeout(2200);assert.equal(polls,afterLogout);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);check('logout stops polling; no browser exceptions or external assets');
 } catch(error) {await page.screenshot({path:'test-results/monitoring-failure.png'});console.log({errors});throw error;} finally {
  await page.goto('about:blank');

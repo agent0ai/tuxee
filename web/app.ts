@@ -299,7 +299,7 @@ function renderChrome() {
     brand.height = 117;
     brand.draggable = false;
     let closeStart = () => {};
-    const start = button(t('app.startMenu'), undefined, () => { closeStart = startMenu(start, compact); }, 'brand-button');
+    const start = button(t('app.tuxeeMenu'), undefined, () => { closeStart = startMenu(start, compact); }, 'brand-button');
     chromeDisposers.push(() => closeStart());
     start.setAttribute('aria-haspopup', 'menu');
     start.replaceChildren(brand);
@@ -1448,7 +1448,7 @@ function updateMenuWarnings() {
 function startMenu(anchor: HTMLElement, compact: boolean) {
     const content = el('div', 'start-menu');
     content.dataset.edge = root.dataset.panelPosition;
-    content.setAttribute('aria-label', t('app.startMenu'));
+    content.setAttribute('aria-label', t('app.tuxeeMenu'));
     const body = el('div', 'start-body');
     const apps = el('section', 'start-apps');
     const desktop = el('section', 'start-desktop');

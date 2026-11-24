@@ -105,7 +105,7 @@ async function uploadedRows(path) {
     assert.ok(await terminal.locator('.xterm-helper-textarea').evaluate(node => document.activeElement === node), 'automatic refresh preserves terminal focus');
 }
 async function openUploadSettings() {
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     return page.getByRole('combobox', { name: 'Parallel uploads', exact: true });
 }

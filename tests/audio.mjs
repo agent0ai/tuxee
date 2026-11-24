@@ -340,7 +340,7 @@ audio.resume(); const canvas=document.querySelector('canvas'),ctx=canvas.getCont
         await page.waitForTimeout(500);
         await route.fulfill({ response });
     });
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('[name=username]').waitFor();
     assert.ok(!logoutNotices.some(text => text.includes('Sound disconnected')), 'logout must close audio silently, even before its HTTP response arrives');

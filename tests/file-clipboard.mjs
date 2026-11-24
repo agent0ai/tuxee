@@ -264,7 +264,7 @@ try {
     console.log('PASS concurrent cut paste is blocked; cancellation consumes the uncertain in-flight item without replay');
 
     await select(['tab.txt']); await page.keyboard.press('Control+X');
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.getByRole('textbox', { name: 'Username', exact: true }).fill(user);
     await page.getByLabel('Password', { exact: true }).fill(password);

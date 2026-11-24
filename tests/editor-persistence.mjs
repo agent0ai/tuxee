@@ -96,7 +96,7 @@ try {
  assert.deepEqual((await readdir(folder)).sort(), ['session.json']);
  // Re-edit the shortened current page, then flush through logout and restore after restart.
  await replace('pending restart');
- await page.getByRole('button', { name: 'Start menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
+ await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
  await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
  await page.goto('about:blank'); server.kill('SIGKILL'); await stopped; await start(); await login();
  await page.goto(base); await ready(); assert.equal(await content.textContent(), 'pending restart');

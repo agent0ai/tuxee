@@ -61,7 +61,7 @@ try {
     const picker = dialog.getByLabel('Dark terminal background', { exact: true });
     const reset = dialog.getByRole('button', { name: 'Reset dark terminal background', exact: true });
     const open = async () => {
-        await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+        await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
         await picker.waitFor();
     };

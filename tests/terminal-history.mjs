@@ -130,7 +130,7 @@ try {
         await route.continue();
     });
     await drawer.fill(": 'before logout'"); await drawer.press('Enter'); await saveStarted;
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.waitForTimeout(150);
     assert.equal(await page.locator('[name=username]').count(), 0, 'logout abandoned the pending history save');

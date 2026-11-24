@@ -23,7 +23,7 @@ async function create(name, command) {
     assert.equal(response.status(), 201);
     const info = await response.json(); sessions.push(info); return info;
 }
-const menu = page.getByRole('button', { name: 'Start menu', exact: true });
+const menu = page.getByRole('button', { name: 'Tuxee menu', exact: true });
 const retained = page.getByRole('dialog', { name: 'Retained terminals', exact: true });
 const row = name => retained.locator('.retained-row').filter({ has: page.getByText(name, { exact: true }) });
 async function openRetained() {

@@ -168,7 +168,7 @@ try {
         assert.equal(tls.source, test.source);
         if (test.source !== 'local') assert.deepEqual(Object.keys(tls), ['source']);
         async function checkConnection() {
-            await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+            await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
             await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
             const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
             await dialog.waitFor();
@@ -205,7 +205,7 @@ try {
             assert.equal(response.status(), 403, 'foreign origin was accepted');
         }
         assert.equal((await context.request.post(base + '/api/logout', { headers: { Origin: new URL(base).origin } })).status(), 403, 'CSRF token was not required');
-        await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+        await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
         await page.locator('[name=username]').waitFor();
         assert.equal(page.url(), base + '/', 'logout stays at the public base');

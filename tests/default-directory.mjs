@@ -51,7 +51,7 @@ try {
     const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
     const menuitem = name => page.getByRole('menuitem', { name, exact: true });
     const dialog = name => page.getByRole('dialog', { name, exact: true });
-    const openSettings = async () => { await button('Start menu').click(); await menuitem('Settings').click(); await dialog('Settings').waitFor(); };
+    const openSettings = async () => { await button('Tuxee menu').click(); await menuitem('Settings').click(); await dialog('Settings').waitFor(); };
     const saveSettings = async (path, status = 200) => {
         await dialog('Settings').getByLabel('Default directory', { exact: true }).fill(path);
         const response = page.waitForResponse(r => r.url() === base + '/api/settings' && r.request().method() === 'PUT');

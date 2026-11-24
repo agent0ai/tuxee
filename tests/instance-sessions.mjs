@@ -75,7 +75,7 @@ try {
     })).status, { username: user, password: passwords[0] }), 200);
     assert.ok((await cookie(1)).value === secondCookie && (await me(1)).csrf === secondCSRF, 're-login changed another instance session');
     await checkTerminal(0); await checkTerminal(1);
-    await pages[0].getByRole('button', { name: 'Start menu', exact: true }).click();
+    await pages[0].getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await pages[0].getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await pages[0].locator('[name=username]').waitFor();
     assert.ok(!await cookie(0), 'logout left its session cookie');

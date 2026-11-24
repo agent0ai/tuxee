@@ -49,7 +49,7 @@ try {
     const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
     const shell = dialog.getByLabel('Shell command', { exact: true });
     const prompt = dialog.getByRole('switch', { name: 'Use Tuxee shell prompt', exact: true });
-    const open = async () => { await page.getByRole('button', { name: 'Start menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Settings', exact: true }).click(); await shell.waitFor(); };
+    const open = async () => { await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click(); await page.getByRole('menuitem', { name: 'Settings', exact: true }).click(); await shell.waitFor(); };
     const close = async () => { await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click(); };
     const save = async (status = 200) => {
         const response = page.waitForResponse(r => r.url() === base + '/api/settings' && r.request().method() === 'PUT');

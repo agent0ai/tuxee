@@ -54,7 +54,7 @@ await page.route(base + '/api/update', async route => {
     await route.fulfill({ json: status });
 });
 const dialog = page.getByRole('dialog', { name: 'About Tuxee', exact: true });
-const menu = page.getByRole('button', { name: 'Start menu', exact: true });
+const menu = page.getByRole('button', { name: 'Tuxee menu', exact: true });
 const updateRow = dialog.locator('.about-details tr.about-update');
 const install = updateRow.locator('.update-install');
 const checkNow = dialog.getByRole('button', { name: 'Check now', exact: true });

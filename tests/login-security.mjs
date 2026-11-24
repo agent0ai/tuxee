@@ -93,7 +93,7 @@ try {
     await about.getByRole('cell', { name: system.version, exact: true }).waitFor();
     await about.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.evaluate(() => { window.authenticatedPage = true; });
-    await page.getByRole('button', { name: 'Start menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
     await page.locator('.login-form').waitFor();
     assert.equal(await page.evaluate(() => window.authenticatedPage), undefined, 'logout replaces the private document');
