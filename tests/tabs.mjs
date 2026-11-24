@@ -77,7 +77,7 @@ async function hold(target, canRename = true) {
     await page.waitForTimeout(100);
     assert.ok(await menu.isVisible(), 'releasing a hold must leave its menu open');
     assert.equal(await page.locator('dialog').count(), 0, 'release must not invoke a menu action');
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Clone', 'Default directory']), 'Close', ...(await target.evaluate(n => n.closest('.topbar, .component-controls') !== null) ? ['Add desktop', 'Close all desktops', 'Bar position', 'Hide resource monitor'] : [])]);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', ...(component ? ['Add terminal', 'Add file browser', 'Move to desktop'] : []), ...(canRename ? ['Rename'] : []), ...(component ? [] : ['Clone', 'Default directory', 'Archive']), 'Close']);
 }
 async function renameDialog(kind, name) {
     const dialog = page.getByRole('dialog', { name: `Rename ${kind}`, exact: true });
@@ -184,7 +184,7 @@ try {
     await page.setViewportSize({ width: 1920, height: 1000 });
     await page.waitForFunction(header => !header.isConnected, oldHeader);
     await workspace('other-0').getByRole('button', { name: 'Desktop menu', exact: true }).click();
-    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Clone', 'Default directory', 'Close']);
+    assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), ['Activate', 'Rename', 'Clone', 'Default directory', 'Archive', 'Close']);
     assert.ok(await menu.getByRole('menuitem', { name: 'Activate', exact: true }).isEnabled());
     await menu.getByRole('menuitem', { name: 'Rename', exact: true }).click();
     save = saved(); await renameDialog('desktop', 'A much wider workspace'); await save;
