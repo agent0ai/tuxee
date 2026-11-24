@@ -174,7 +174,7 @@ try {
         assert.deepEqual(sizes.map(dot => dot.width), titles.map((_, i) => i === n ? 16 : 8));
         assert.ok(sizes.every(dot => dot.outline === 'none'), `dots use one filled circle: ${JSON.stringify(sizes)}`);
         if (n >= 1 && n <= 5) {
-            const images = dialog.locator('.howto-screenshot'); assert.equal(await images.count(), [0, 3, 6, 4, 2, 5][n]);
+            const images = dialog.locator('.howto-screenshot'); assert.equal(await images.count(), [0, 5, 6, 4, 2, 5][n]);
             let bytes = 0;
             for (const image of await images.all()) {
                 await image.scrollIntoViewIfNeeded();
@@ -187,7 +187,7 @@ try {
                 assert.match(response.headers()['cache-control'], /immutable/); bytes += (await response.body()).length;
                 assert.ok(await image.getAttribute('alt'));
             }
-            assert.ok(bytes < (n === 2 ? 320 : 200) * 1024, 'screenshot sets stay within their size budgets');
+            assert.ok(bytes < ({ 1: 240, 2: 320 }[n] ?? 200) * 1024, 'screenshot sets stay within their size budgets');
             await dialog.locator('.howto-page').evaluate(node => node.scrollTop = 0);
         }
         if (n === 1) {
@@ -198,6 +198,11 @@ try {
             assert.equal(await dialog.locator('.howto-desktop-auto .howto-inline-control svg').count(), 1);
             assert.equal(await dialog.locator('.howto-desktop-auto .howto-inline-control').innerText(), 'Auto layout');
             assert.ok(!(await dialog.innerText()).includes('\uFFFC'), 'the localized control placeholder is replaced with its icon and label');
+            assert.equal(await dialog.locator('.howto-desktop-archive h4').textContent(), 'Archived desktops');
+            assert.equal(await dialog.locator('.howto-desktop-archive p').textContent(), 'Choose “Archive” in a desktop’s arrow menu to put it aside. Its terminals and GUI apps close, while its layout, name and default directory are kept. Restore it anytime from “Archived desktops” in the Tuxee menu.');
+            assert.deepEqual(await dialog.locator('.howto-desktop-archive img').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[526, 658], [908, 676]]);
+            const [menuBox, tuxeeBox] = await dialog.locator('.howto-desktop-archive img').evaluateAll(images => images.map(image => image.getBoundingClientRect().toJSON()));
+            assert.ok(Math.abs(menuBox.height - tuxeeBox.height) < 2 && Math.abs(menuBox.top - tuxeeBox.top) < 1, 'archive screenshots share one row and height');
             await dialog.locator('.howto-page').evaluate(node => node.scrollTop = 0);
         }
         if (n === 2) {

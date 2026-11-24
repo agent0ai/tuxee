@@ -42,6 +42,7 @@
 .howto-terminal-drawer > .howto-detail { grid-column: 2; grid-row: 1; }
 .howto-terminal-drawer > img { grid-column: 1; grid-row: 1; }
 .howto-desktop-settings { display: grid; grid-template-columns: minmax(0, 1fr) 257px; align-items: center; gap: 24px; }
+.howto-desktop-archive-images { display: grid; grid-template-columns: 799fr 1343fr; gap: 16px; align-items: start; }
 .howto-files-pair, .howto-tip-processes, .howto-tip-updates, .howto-tip-bar-position { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 28px; }
 .howto-files-editor > .howto-detail, .howto-tip-updates > .howto-detail { grid-column: 2; grid-row: 1; }
 .howto-files-editor > img, .howto-tip-updates > img { grid-column: 1; grid-row: 1; }
@@ -94,6 +95,8 @@
   .howto-copy h3 { margin: 0 0 12px; }
   .howto-desktop-settings { grid-template-columns: minmax(0, 1fr); }
   .howto-desktop-settings .howto-screenshot { max-width: 257px; justify-self: center; }
+  .howto-desktop-archive-images { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .howto-desktop-archive-images > :first-child { max-width: 263px; }
   .howto-chapters { margin-top: 20px; grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .howto-dot span { transition: none; } }

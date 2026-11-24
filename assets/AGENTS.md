@@ -42,7 +42,8 @@ border frames clean content: drop the 4px capture line above the Tips favorites
 and customization screenshots and the 2px line left of the Tips bar-position
 screenshot, and crop the Tips processes screenshot to the
 inside of the modal border (11,17–1807,1603 of the original) so no page
-backdrop remains. README copies follow `.github/resources/AGENTS.md`.
+backdrop remains. Crop the Archived desktops Tuxee-menu screenshot the same way
+(8,8–916,684); export both archive screenshots at their supplied sizes. README copies follow `.github/resources/AGENTS.md`.
 
 # Verification
 

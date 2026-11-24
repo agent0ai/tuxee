@@ -7,6 +7,8 @@ import logoLight from './tuxee-logo-vertical-light.webp';
 import desktopImage from './howto-desktop.webp';
 import desktopMenuImage from './howto-desktop-menu.webp';
 import desktopLayoutImage from './howto-desktop-layout.webp';
+import desktopArchiveImage from './howto-desktop-archive.webp';
+import desktopArchivedImage from './howto-desktop-archived.webp';
 import filesTransferImage from './howto-files-transfer.webp';
 import filesMenuImage from './howto-files-menu.webp';
 import filesEditorImage from './howto-files-editor.webp';
@@ -131,6 +133,12 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
                 shortcuts('desktop.previous', 'desktop.next', 'panel.previous', 'panel.next'), composition,
                 screenshot(desktopLayoutImage, t('howto.desktopLayoutScreenshot'), 1800, 1209),
                 shortcuts('panel.terminal', 'panel.files', 'panel.close'), auto, settings);
+            const archive = el('section', 'howto-detail howto-desktop-archive'), archiveImages = el('div', 'howto-desktop-archive-images');
+            archiveImages.append(screenshot(desktopArchiveImage, t('howto.desktopArchiveMenuScreenshot', { archive: t('app.archiveWorkspace') }), 526, 658),
+                screenshot(desktopArchivedImage, t('howto.desktopArchivedScreenshot', { archived: t('app.archivedWorkspaces') }), 908, 676));
+            archive.append(el('h4', '', t('app.archivedWorkspaces')),
+                el('p', '', t('howto.desktopArchiveBody', { archive: t('app.archiveWorkspace'), archived: t('app.archivedWorkspaces') })), archiveImages);
+            section.append(archive);
         } else if (target === 2) {
             section.classList.add('howto-terminals');
             section.append(copy, screenshot(terminalImage, t('app.terminals'), 1584, 772),
