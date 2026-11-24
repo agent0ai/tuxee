@@ -969,7 +969,8 @@ h3 {
   padding: 3px 8px;
   font-size: inherit;
 }
-.tls-status {
+.settings-reset button { align-self: flex-start; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.tls-status, .settings-reset {
   display: flex;
   flex-direction: column;
   gap: 10px;

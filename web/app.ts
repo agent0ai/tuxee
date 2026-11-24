@@ -1843,10 +1843,14 @@ async function openSettings() {
     }
     if (certificate && tls.error)
         details.append(el('p', 'muted', errorText(tls)));
+    // The standalone recovery page confirms before changing anything.
+    const factoryReset = el('section', 'settings-reset');
+    factoryReset.append(el('h3', '', t('settings.reset')), el('p', 'muted', t('settings.factoryResetDescription')),
+        button(t('settings.factoryReset'), undefined, () => location.assign('reset'), 'settings-factory-reset'));
     const submit = button(t("common.save"));
     submit.type = 'submit'; submit.className = 'primary';
     const actions = el('div', 'actions'); actions.append(submit);
-    content.append(label, marker, positionLabel, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details);
+    content.append(label, marker, positionLabel, el('hr'), shellLabel, promptLabel, fontField, backgroundField, directoryLabel, retentionLabel, el('hr'), uploadsLabel, el('hr'), details, el('hr'), factoryReset);
     const dialog = modal(t("app.settings"), content);
     dialog.setFooter(actions);
     window.addEventListener('resize', updatePositionOptions);

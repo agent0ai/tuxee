@@ -65,6 +65,24 @@ try {
     const sleeper = () => spawnSync('pgrep', ['-u', String(uid), '-f', 'sleep 7777'], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean);
     assert.ok(sleeper().length > 0, 'terminal command must be running');
 
+    // Settings ends with Reset, whose Factory reset button opens the confirmation page.
+    const opener = await appPage(main.context); opener.setDefaultTimeout(15000);
+    await opener.goto(base); await opener.locator('[data-panel=shell] .terminal-view').waitFor();
+    await opener.getByRole('button', { name: 'Tuxee menu', exact: true }).click();
+    await opener.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+    const settingsDialog = opener.getByRole('dialog', { name: 'Settings', exact: true });
+    const resetSection = settingsDialog.locator('.settings-reset');
+    assert.ok(await resetSection.evaluate(node => !node.nextElementSibling), 'Reset is the last Settings section');
+    assert.equal(await resetSection.locator('h3').innerText(), 'Reset');
+    assert.equal(await resetSection.locator('p').innerText(), 'Reset Tuxee settings and state to factory state for this user.');
+    await resetSection.getByRole('button', { name: 'Factory reset', exact: true }).scrollIntoViewIfNeeded();
+    await mkdir('test-results/config-reset', { recursive: true });
+    await settingsDialog.screenshot({ path: 'test-results/config-reset/settings.png' });
+    await resetSection.getByRole('button', { name: 'Factory reset', exact: true }).click();
+    await opener.waitForURL(base + '/reset');
+    await opener.getByRole('dialog', { name: 'Reset Tuxee' }).waitFor();
+    await opener.close();
+
     // Break the saved configuration so the workspace can no longer load.
     const broken = '{"workspaces": [ broken';
     await writeFile(home + '/.config/tuxee/settings.json', broken); await chown(home + '/.config/tuxee/settings.json', uid, gid);
@@ -87,7 +105,7 @@ try {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     // Cancel returns to the workspace without changing anything.
-    assert.equal(await dialog.getByRole('link', { name: 'Cancel' }).getAttribute('href'), '/');
+    assert.equal(await dialog.getByRole('link', { name: 'Cancel' }).getAttribute('href'), './');
 
     // Hold the first status reply to capture the progress state.
     let release; const held = new Promise(resolve => { release = resolve; });

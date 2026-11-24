@@ -41,12 +41,12 @@ async function poll() {
 	for (;;) {
 		let value;
 		try {
-			const response = await fetch('/api/reset', { credentials: 'same-origin', cache: 'no-store' });
+			const response = await fetch('api/reset', { credentials: 'same-origin', cache: 'no-store' });
 			value = await response.json();
 			if (!response.ok || typeof value.message !== 'string') throw new Error();
 		} catch { fail(data.unavailable); return; }
 		show(value.message, value.state);
-		if (value.state === 'done') { setTimeout(() => location.replace('/'), 1500); return; }
+		if (value.state === 'done') { setTimeout(() => location.replace('./'), 1500); return; }
 		if (value.state !== 'running') { confirm.disabled = false; return; }
 		await new Promise(resolve => setTimeout(resolve, 500));
 	}
@@ -55,7 +55,7 @@ confirm.addEventListener('click', async () => {
 	confirm.disabled = true; cancel.hidden = true;
 	show(data.progress, 'running');
 	try {
-		const response = await fetch('/api/reset', { method: 'POST', credentials: 'same-origin', headers: { 'X-Tuxee-CSRF': data.csrf } });
+		const response = await fetch('api/reset', { method: 'POST', credentials: 'same-origin', headers: { 'X-Tuxee-CSRF': data.csrf } });
 		const value = await response.json().catch(() => ({}));
 		if (!response.ok) { fail(typeof value.message === 'string' ? value.message : data.unavailable); return; }
 		if (typeof value.csrf === 'string') data.csrf = value.csrf;
@@ -79,7 +79,7 @@ var resetPage = template.Must(template.New("reset").Parse(`<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>{{.Title}}</title>
-<link rel="icon" href="/favicon.png">
+<link rel="icon" href="favicon.png">
 <style>
 :root { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color-scheme: dark; font-size: 14px; background: #0c1017; color: #e3e9f2; }
 * { box-sizing: border-box; }
@@ -115,7 +115,7 @@ button:disabled { opacity: .5; cursor: default; }
 <ul>{{range .Effects}}<li>{{.}}</li>{{end}}</ul>
 <p class="status" id="reset-status" role="status" aria-live="polite">{{.Status}}</p>
 <div class="progress" aria-hidden="true"></div>
-<div class="actions"><a id="reset-cancel" href="/">{{.Cancel}}</a><button id="reset-confirm" type="button">{{.Confirm}}</button></div>
+<div class="actions"><a id="reset-cancel" href="./">{{.Cancel}}</a><button id="reset-confirm" type="button">{{.Confirm}}</button></div>
 </main>
 <script>` + resetScript + `</script>
 </body>

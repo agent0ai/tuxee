@@ -372,7 +372,7 @@ tuxee notify --users-all --text 'Backups completed.'
 
 ## Recovery reset
 
-If Tuxee stops loading after a broken settings change, an unreadable `settings.json` or other corrupted per-user state, sign in and open `/reset` (for example `https://server.example/reset`). The page is a standalone confirmation dialog: it loads no workspace, application bundle, WebSocket or saved setting, so it keeps working when the regular interface does not. After a successful login the session cookie already admits it even if the workspace crashes; open the address directly in the same browser. Signed-out visitors get the same 404 as any other private path.
+To start over deliberately, open **Settings** and choose **Factory reset** in the last section, **Reset**. If Tuxee stops loading after a broken settings change, an unreadable `settings.json` or other corrupted per-user state, sign in and open `/reset` directly (for example `https://server.example/reset`). The page is a standalone confirmation dialog: it loads no workspace, application bundle, WebSocket or saved setting, so it keeps working when the regular interface does not. After a successful login the session cookie already admits it even if the workspace crashes; open the address directly in the same browser. Signed-out visitors get the same 404 as any other private path.
 
 **Reset Tuxee** shows progress while the server:
 
