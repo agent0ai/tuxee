@@ -986,6 +986,11 @@ h3 {
   margin-inline-start: auto;
 }
 .menu-warning svg { width: 16px; height: 16px; }
+.menu-status { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto; }
+.menu-status .menu-warning { margin-inline-start: 0; }
+.menu-count { min-width: 1ch; color: var(--muted); font-variant-numeric: tabular-nums; text-align: end; }
+.tab-count { margin-inline-start: 6px; color: color-mix(in srgb, currentColor 55%, transparent); font-variant-numeric: tabular-nums; }
+.archived-empty { margin: 0; padding-block: 8px; line-height: 1.5; }
 .retained-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 .retained-header .monitor-tabs { margin: 0; min-width: 0; max-width: 100%; border-bottom: 0; padding-bottom: 0; }
 .retained-header [role=tab] { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
@@ -1643,7 +1648,7 @@ pre, code, .process-label small {
 @media (prefers-reduced-motion: reduce) {
   .start-menu:popover-open, .inbox:popover-open { animation: none; }
 }
-.start-menu { width: min(432px, calc(100vw - 8px)); }
+.start-menu { width: min(456px, calc(100vw - 8px)); }
 .start-body {
   display: grid;
   grid-template-rows: minmax(0, 1fr);

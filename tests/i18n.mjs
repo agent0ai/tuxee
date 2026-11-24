@@ -122,7 +122,7 @@ try {
     await page.locator('.workspace-tab-item.active .workspace-menu').click();
     assert.equal(await page.getByRole('menuitem', { name: 'Aktivovat', exact: true }).isDisabled(), true);
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Nabídka Start', exact: true }).click();
+    await page.getByRole('button', { name: 'Nabídka Tuxee', exact: true }).click();
     assert.equal(await page.locator('.start-menu [data-action=Info]').innerText(), 'O aplikaci');
     await page.getByRole('menuitem', { name: 'Nastavení', exact: true }).click();
     assert.equal(await page.getByRole('dialog', { name: 'Nastavení', exact: true }).locator('[name=language]').count(), 0);
@@ -138,11 +138,11 @@ try {
     assert.equal(permission.language, 'cs'); assert.equal(permission.status, 400);
     assert.equal(permission.body.text.key, 'error.path'); assert.equal(permission.body.text.vars.detail.key, 'error.permissionDenied');
     await page.evaluate(name => { document.cookie = `${name}=en; Path=/; SameSite=Strict`; }, languageCookie.name);
-    await page.reload(); await page.getByRole('button', { name: 'Nabídka Start', exact: true }).waitFor();
+    await page.reload(); await page.getByRole('button', { name: 'Nabídka Tuxee', exact: true }).waitFor();
     assert.equal(await page.locator('html').getAttribute('lang'), 'cs', 'active session overrides a changed preference cookie');
     const locked = await (await context.request.get(base + '/api/language?language=en')).json();
     assert.equal(locked.language, 'cs');
-    await page.getByRole('button', { name: 'Nabídka Start', exact: true }).click();
+    await page.getByRole('button', { name: 'Nabídka Tuxee', exact: true }).click();
     await page.evaluate(() => { window.logoutMarker = true; });
     await page.route('**/api/logout', async route => {
         const response = await route.fetch();

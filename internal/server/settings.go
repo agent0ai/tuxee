@@ -84,6 +84,7 @@ type Settings struct {
 	Theme                      string                `json:"theme"`
 	Current                    string                `json:"current"`
 	Workspaces                 []Workspace           `json:"workspaces"`
+	ArchivedWorkspaces         []Workspace           `json:"archivedWorkspaces,omitempty"`
 	Monitoring                 *Monitoring           `json:"monitoring,omitempty"`
 }
 type CommandShortcut struct {
@@ -213,83 +214,96 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	if len(value.Workspaces) > maxWorkspaces {
 		return i18n.New("backend.server.workspaceCountLimit", i18n.Vars{"max": maxWorkspaces})
 	}
+	// Archived desktops keep their IDs for restoration, so IDs are unique across both lists.
 	seen := map[string]bool{}
 	current := value.Current == "" && len(value.Workspaces) == 0
 	for _, ws := range value.Workspaces {
-		if err := validateDefaultDirectory(ws.DefaultDirectory); err != nil {
-			return err
-		}
-		if ws.Panels == nil {
-			return i18n.New("backend.server.workspacePanelsMustBeAnArray")
-		}
-		if ws.ID == "" || len(ws.ID) > 80 || seen[ws.ID] || len(ws.Name) == 0 || len(ws.Name) > 60 {
-			return i18n.New("backend.server.invalidOrDuplicateWorkspace")
-		}
-		seen[ws.ID] = true
 		if ws.ID == value.Current {
 			current = true
 		}
-		if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || legacy && len(value.Workspaces) <= 12 && ws.Columns == 8 && ws.Rows == 2) {
-			return i18n.New("backend.server.invalidWorkspaceGridDimensions")
-		}
-		if len(ws.Panels) > maxPanels || ws.Columns == 8 && len(ws.Panels) > 16 {
-			return i18n.New("backend.server.workspaceIsFull")
-		}
-		positions := make([]PanelPosition, 0, len(ws.Panels))
-		panelIDs := map[string]bool{}
-		minimized := map[string]bool{}
-		for _, panel := range ws.Panels {
-			if panel.ID == "" || len(panel.ID) > 80 || seen[panel.ID] || panel.Kind != "files" && panel.Kind != "terminal" {
-				return i18n.New("backend.server.invalidOrDuplicatePanel")
-			}
-			seen[panel.ID] = true
-			panelIDs[panel.ID] = true
-			minimized[panel.ID] = panel.Minimized
-			if panel.Path != "" && !(panel.Kind == "files" && panel.Path == files.TrashPath) && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
-				return i18n.New("backend.server.invalidPanelLocation")
-			}
-			position := PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H}
-			if panel.Minimized {
-				if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
-					return err
-				}
-			} else {
-				positions = append(positions, position)
-			}
-		}
-		if ws.Maximized != "" && !panelIDs[ws.Maximized] {
-			return i18n.New("backend.server.invalidOrDuplicatePanel")
-		}
-		if err := validatePanelPositions(positions, ws.Columns, ws.Rows); err != nil {
+		if err := validateWorkspace(ws, seen, legacy && len(value.Workspaces) <= 12); err != nil {
 			return err
 		}
-		if layout := ws.Layout; layout != nil {
-			if layout.Mode < 1 || layout.Mode > 3 || layout.Custom == nil || len(layout.Custom) != len(ws.Panels) {
-				return i18n.New("backend.server.invalidLayoutCycle")
-			}
-			for _, position := range layout.Custom {
-				if !panelIDs[position.ID] {
-					return i18n.New("backend.server.customLayoutPanelsDoNotMatchWorkspace")
-				}
-				delete(panelIDs, position.ID)
-			}
-			visible := make([]PanelPosition, 0, len(layout.Custom))
-			for _, position := range layout.Custom {
-				if minimized[position.ID] {
-					if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
-						return err
-					}
-				} else {
-					visible = append(visible, position)
-				}
-			}
-			if err := validatePanelPositions(visible, ws.Columns, ws.Rows); err != nil {
-				return err
-			}
+	}
+	for _, ws := range value.ArchivedWorkspaces {
+		if err := validateWorkspace(ws, seen, false); err != nil {
+			return err
 		}
 	}
 	if !current {
 		return i18n.New("backend.server.currentWorkspaceDoesNotExist")
+	}
+	return nil
+}
+
+func validateWorkspace(ws Workspace, seen map[string]bool, legacy bool) error {
+	if err := validateDefaultDirectory(ws.DefaultDirectory); err != nil {
+		return err
+	}
+	if ws.Panels == nil {
+		return i18n.New("backend.server.workspacePanelsMustBeAnArray")
+	}
+	if ws.ID == "" || len(ws.ID) > 80 || seen[ws.ID] || len(ws.Name) == 0 || len(ws.Name) > 60 {
+		return i18n.New("backend.server.invalidOrDuplicateWorkspace")
+	}
+	seen[ws.ID] = true
+	if !(ws.Columns == 4 && ws.Rows == 2 || ws.Columns == 2 && ws.Rows == 4 || legacy && ws.Columns == 8 && ws.Rows == 2) {
+		return i18n.New("backend.server.invalidWorkspaceGridDimensions")
+	}
+	if len(ws.Panels) > maxPanels || ws.Columns == 8 && len(ws.Panels) > 16 {
+		return i18n.New("backend.server.workspaceIsFull")
+	}
+	positions := make([]PanelPosition, 0, len(ws.Panels))
+	panelIDs := map[string]bool{}
+	minimized := map[string]bool{}
+	for _, panel := range ws.Panels {
+		if panel.ID == "" || len(panel.ID) > 80 || seen[panel.ID] || panel.Kind != "files" && panel.Kind != "terminal" {
+			return i18n.New("backend.server.invalidOrDuplicatePanel")
+		}
+		seen[panel.ID] = true
+		panelIDs[panel.ID] = true
+		minimized[panel.ID] = panel.Minimized
+		if panel.Path != "" && !(panel.Kind == "files" && panel.Path == files.TrashPath) && (!filepath.IsAbs(panel.Path) || len(panel.Path) > 4096) || len(panel.Terminal) > 80 {
+			return i18n.New("backend.server.invalidPanelLocation")
+		}
+		position := PanelPosition{panel.ID, panel.X, panel.Y, panel.W, panel.H}
+		if panel.Minimized {
+			if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
+				return err
+			}
+		} else {
+			positions = append(positions, position)
+		}
+	}
+	if ws.Maximized != "" && !panelIDs[ws.Maximized] {
+		return i18n.New("backend.server.invalidOrDuplicatePanel")
+	}
+	if err := validatePanelPositions(positions, ws.Columns, ws.Rows); err != nil {
+		return err
+	}
+	if layout := ws.Layout; layout != nil {
+		if layout.Mode < 1 || layout.Mode > 3 || layout.Custom == nil || len(layout.Custom) != len(ws.Panels) {
+			return i18n.New("backend.server.invalidLayoutCycle")
+		}
+		for _, position := range layout.Custom {
+			if !panelIDs[position.ID] {
+				return i18n.New("backend.server.customLayoutPanelsDoNotMatchWorkspace")
+			}
+			delete(panelIDs, position.ID)
+		}
+		visible := make([]PanelPosition, 0, len(layout.Custom))
+		for _, position := range layout.Custom {
+			if minimized[position.ID] {
+				if err := validatePanelPositions([]PanelPosition{position}, ws.Columns, ws.Rows); err != nil {
+					return err
+				}
+			} else {
+				visible = append(visible, position)
+			}
+		}
+		if err := validatePanelPositions(visible, ws.Columns, ws.Rows); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -46,6 +46,7 @@ export type Settings = {
     theme: 'dark' | 'light';
     current: string;
     workspaces: Workspace[];
+    archivedWorkspaces?: Workspace[];
     monitoring?: MonitoringPreferences;
 };
 export type MonitoringPreferences = { hidden?: boolean; cpu: boolean; memory: boolean; swap: boolean; disks: string[]; networks: string[]; interval: number };

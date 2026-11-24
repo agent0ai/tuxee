@@ -52,7 +52,7 @@ let mounted: Mounted | undefined, outgoing: Mounted | undefined, slide: Animatio
 const warmWorkspaces = new Map<string, Mounted>();
 // Creation commands belong to one explicit launch, never to persisted panel state.
 const initialFavorites = new WeakMap<Panel, CommandShortcut>();
-const MAX_WARM_WORKSPACES = 8;
+const MAX_WARM_WORKSPACES = 8, MAX_WORKSPACES = 32;
 const windowAnimations = new Map<HTMLElement, () => void>();
 const resizeContent = new Map<HTMLElement, () => void>();
 let track: HTMLElement, viewportRoot: HTMLElement;
@@ -264,7 +264,7 @@ function tabBarActions(tab: HTMLElement, point?: { x: number; y: number }) {
 function barActions(): (TabAction | TabSubmenu)[] {
     const compact = isCompact();
     const actions: (TabAction | TabSubmenu)[] = [
-        [t('bar.addDesktop'), 'Plus', () => createWorkspace(), settings.workspaces.length >= 32],
+        [t('bar.addDesktop'), 'Plus', () => createWorkspace(), settings.workspaces.length >= MAX_WORKSPACES],
         [t('bar.closeAll'), 'ListX', () => closeWorkspaces()],
         { label: t('bar.position'), icon: 'LayoutPanelTop', items: panelPositions(compact).map(([edge, label]) => ({
             label, disabled: edge === root.dataset.panelPosition,
@@ -1070,7 +1070,7 @@ async function switchWorkspace(value: string, checked = false) {
     settings.current = value; changed(); render(to > from ? 1 : -1);
 }
 async function createWorkspace(source?: Workspace) {
-    if (settings.workspaces.length >= 32) { notify(t("app.workspaceLimitReached")); return; }
+    if (settings.workspaces.length >= MAX_WORKSPACES) { notify(t("app.workspaceLimitReached")); return; }
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return;
     const ws = source ? cloneWorkspace(source, defaultDirectory(source), settings.workspaces) : newWorkspace(t("app.workspaceNumber", { count: settings.workspaces.length + 1 }), defaultDirectory());
     settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
@@ -1118,6 +1118,7 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
         [t("common.rename"), 'Pencil', () => renameWorkspace(ws)],
         [t("app.cloneWorkspace"), 'Copy', () => createWorkspace(ws)],
         [t("app.defaultDirectory"), 'Folder', () => editWorkspaceDirectory(ws)],
+        [t("app.archiveWorkspace"), 'Archive', () => archiveWorkspace(ws)],
         [t("common.close"), 'X', () => closeWorkspaces(ws)],
         ...tabBarActions(tab, position),
     ], position);
@@ -1244,15 +1245,23 @@ async function closeWorkspaces(single?: Workspace) {
     const title = single ? t("app.closeNamedWorkspace", { name: single.name }) : t('bar.closeAll');
     const message = single ? t("app.stopAllTerminalsInThisWorkspace") : t('bar.closeAllConfirm');
     if (!single && !await confirmAction(title, message, title)) return;
+    if (!await canDiscard(targets)) return;
+    if (single && !await confirmAction(title, message, t("app.closeWorkspace"))) return;
+    removeWorkspaces(targets);
+}
+// Closing and archiving both discard editor drafts; unloaded desktops check their persisted drafts.
+async function canDiscard(targets: Workspace[]) {
     for (const ws of targets) {
         const value = warmWorkspaces.get(ws.id);
-        if (!await canLeave(value, true)) return;
+        if (!await canLeave(value, true)) return false;
         if (!value) for (const panel of ws.panels.filter(panel => panel.kind === 'files')) {
             const { editor } = await api('/files', 'POST', { operation: 'editor-load', editorId: panel.id });
-            if (editor?.edits.length && !await confirmAction(t('editor.discardChanges'), editor.path, t('editor.discard'))) return;
+            if (editor?.edits.length && !await confirmAction(t('editor.discardChanges'), editor.path, t('editor.discard'))) return false;
         }
     }
-    if (single && !await confirmAction(title, message, t("app.closeWorkspace"))) return;
+    return true;
+}
+function removeWorkspaces(targets: Workspace[]) {
     const index = settings.workspaces.indexOf(current()), active = targets.includes(current());
     for (const ws of targets) {
         const value = warmWorkspaces.get(ws.id);
@@ -1264,6 +1273,46 @@ async function closeWorkspaces(single?: Workspace) {
     if (!settings.workspaces.length) settings.workspaces.push(newWorkspace(t('app.workspaceNumber', { count: 1 }), defaultDirectory()));
     if (active) settings.current = settings.workspaces[Math.min(settings.workspaces.length - 1, Math.max(0, index - 1))].id;
     changed(); render(active ? (index ? -1 : 1) : 0);
+}
+async function archiveWorkspace(ws: Workspace) {
+    if (!await canDiscard([ws])) return;
+    if (!await confirmAction(t("app.archiveNamedWorkspace", { name: ws.name }), t("app.archiveWorkspaceConfirm"), t("app.archiveWorkspace"))) return;
+    // Terminals are terminated now; restoration starts fresh shells in the same panels.
+    const archived = structuredClone(ws);
+    for (const panel of archived.panels) delete panel.terminal;
+    settings.archivedWorkspaces = [archived, ...settings.archivedWorkspaces || []];
+    removeWorkspaces([ws]);
+}
+async function restoreWorkspace(ws: Workspace) {
+    if (settings.workspaces.length >= MAX_WORKSPACES) throw new Error(t("app.workspaceLimitReached"));
+    if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return false;
+    settings.archivedWorkspaces = settings.archivedWorkspaces?.filter(item => item !== ws);
+    settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
+    return true;
+}
+function archivedWorkspaces() {
+    const list = el('div', 'retained-list archived-list');
+    const { close } = modal(t("app.archivedWorkspaces"), list);
+    const paint = () => {
+        const entries = settings.archivedWorkspaces || [];
+        list.replaceChildren();
+        if (!entries.length) list.append(el('p', 'muted archived-empty', t("app.archivedWorkspacesEmpty")));
+        for (const ws of entries) {
+            const row = el('div', 'retained-row'), text = el('div'), name = el('strong', 'retained-name');
+            row.dataset.workspace = ws.id;
+            const directory = el('bdi', 'retained-directory', ws.defaultDirectory || settings.defaultDirectory || '~'); directory.dir = 'ltr';
+            name.append(el('span', 'retained-label', ws.name), directory);
+            text.append(name);
+            const restore = button(t("app.restoreWorkspace"), undefined, async () => { if (await restoreWorkspace(ws)) close(); });
+            const remove = button(t("common.delete"), 'Trash2', async () => {
+                if (!await confirmAction(t("app.deleteNamedArchivedWorkspace", { name: ws.name }), t("app.deleteArchivedWorkspaceConfirm"), t("common.delete"))) return;
+                settings.archivedWorkspaces = settings.archivedWorkspaces?.filter(item => item !== ws);
+                changed(); paint(); updateMenuWarnings();
+            });
+            row.append(text, restore, remove); list.append(row);
+        }
+    };
+    paint();
 }
 function unlistedTerminals() {
     const listed = new Set(settings.workspaces.flatMap(ws => ws.panels.filter(panel => panel.kind === 'terminal').map(panel => panel.terminal)));
@@ -1407,12 +1456,14 @@ async function runShortcut(action: string) {
 }
 const disposeShortcuts = installShortcuts(() => settings.shortcuts || {}, () => loggedIn && !loggingOut && !dragging, runShortcut);
 
-function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, string?][] {
-    const count = unlistedTerminals().filter(info => !info.exited).length;
+type MenuCount = { count: number; label: string };
+function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, string?, MenuCount?][] {
+    const lost = unlistedTerminals(), count = lost.filter(info => !info.exited).length, archived = settings.archivedWorkspaces?.length || 0;
     const actions: ReturnType<typeof accountActions> = [
         [t("app.settings"), 'Settings', openSettings],
         [t("shortcuts.title"), 'Keyboard', editShortcuts],
-        [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : '')],
+        [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : ''), { count: lost.length, label: t("app.retainedTerminalsCount", { count: lost.length }) }],
+        [t("app.archivedWorkspaces"), 'Archive', archivedWorkspaces, '', { count: archived, label: t("app.archivedWorkspacesCount", { count: archived }) }],
         [t("app.about"), 'Info', openAbout, updates?.warning],
         [t("app.restartTuxee"), 'RefreshCw', restartTuxee], [t("app.logOut"), 'LogOut', logout]
     ];
@@ -1430,21 +1481,28 @@ async function showHowTo() {
     try { await save(); }
     catch (error) { value.howToSeen = false; throw error; }
 }
-function setMenuWarning(control: HTMLElement, warning: string) {
-    control.querySelector('.menu-warning')?.remove();
+// Nonzero counts show a muted trailing number and name the item with its count.
+function setMenuWarning(control: HTMLElement, label: string, warning: string, counted?: MenuCount) {
+    if (!counted?.count) counted = undefined;
+    control.querySelector('.menu-status')?.remove();
     control.removeAttribute('aria-description');
-    control.title = control.getAttribute('aria-label') || '';
-    if (!warning) return;
-    const badge = el('span', 'menu-warning');
-    badge.append(icon('TriangleAlert')); badge.setAttribute('aria-hidden', 'true');
-    control.append(badge);
-    control.setAttribute('aria-description', warning); control.title += `: ${warning}`;
+    control.title = counted?.label || label; control.setAttribute('aria-label', control.title);
+    if (!warning && !counted) return;
+    // Keep the warning and count together so labels keep their width.
+    const status = el('span', 'menu-status'); status.setAttribute('aria-hidden', 'true');
+    if (warning) {
+        const badge = el('span', 'menu-warning');
+        badge.append(icon('TriangleAlert')); status.append(badge);
+        control.setAttribute('aria-description', warning); control.title += `: ${warning}`;
+    }
+    if (counted) status.append(el('span', 'menu-count', String(counted.count)));
+    control.append(status);
 }
 function updateMenuWarnings() {
     if (!loggedIn) return;
-    for (const [, name, , warning] of accountActions()) {
+    for (const [label, name, , warning, counted] of accountActions()) {
         const control = document.querySelector<HTMLElement>(`.start-menu .start-apps [data-action="${name}"]`);
-        if (control) setMenuWarning(control, warning || '');
+        if (control) setMenuWarning(control, label, warning || '', counted);
     }
 }
 function startMenu(anchor: HTMLElement, compact: boolean) {
@@ -1470,10 +1528,10 @@ function startMenu(anchor: HTMLElement, compact: boolean) {
     account.append(icon('UserRound'), username);
     const session = el('div', 'start-session');
     footer.append(account, session);
-    for (const [label, name, action, warning] of accountActions()) {
+    for (const [label, name, action, warning, counted] of accountActions()) {
         const item = actionButton(label, name, action);
         if (name === 'RefreshCw' || name === 'LogOut') session.append(item);
-        else { apps.append(item); setMenuWarning(item, warning || ''); }
+        else { apps.append(item); setMenuWarning(item, label, warning || '', counted); }
     }
     const ws = current(), atCapacity = ws.panels.length >= MAX_PANELS;
     const favorites = el('div', 'start-favorites');
@@ -1609,9 +1667,9 @@ async function retainedTerminals() {
     };
     const paint = () => {
         const lost = unlistedTerminals(), archives = terminalSessions.filter(info => info.closedAt);
-        for (const [tab, label] of [[activeTab, t('term.lostTerminals', { count: lost.length })], [closedTab, t('term.closedArchives', { count: archives.length })]] as const) {
-            tab.textContent = tab.title = label;
-            tab.setAttribute('aria-label', label);
+        for (const [tab, text, count, label] of [[activeTab, t('term.lostTab'), lost.length, t('term.lostTerminals', { count: lost.length })], [closedTab, t('term.closedTab'), archives.length, t('term.closedArchives', { count: archives.length })]] as const) {
+            tab.replaceChildren(text, el('span', 'tab-count', String(count)));
+            tab.title = label; tab.setAttribute('aria-label', label);
         }
         activeTab.setAttribute('aria-selected', String(!closed)); closedTab.setAttribute('aria-selected', String(closed));
         activeTab.tabIndex = closed ? -1 : 0; closedTab.tabIndex = closed ? 0 : -1;

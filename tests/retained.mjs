@@ -28,7 +28,7 @@ const retained = page.getByRole('dialog', { name: 'Retained terminals', exact: t
 const row = name => retained.locator('.retained-row').filter({ has: page.getByText(name, { exact: true }) });
 async function openRetained() {
     await menu.click();
-    await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
+    await page.locator('.start-menu [data-action=SquareTerminal]').click();
     await retained.waitFor();
 }
 async function focused(id) {
@@ -39,7 +39,7 @@ async function focused(id) {
 }
 async function warning(count) {
     await menu.click();
-    const item = page.getByRole('menuitem', { name: 'Retained terminals', exact: true });
+    const item = page.locator('.start-menu [data-action=SquareTerminal]');
     await item.locator('.menu-warning').waitFor({ state: count ? 'visible' : 'detached' });
     if (count) await page.waitForFunction(count => document.querySelector('.start-apps [data-action=SquareTerminal]')?.getAttribute('aria-description')?.startsWith(`${count} running terminal`), count);
     assert.equal(await menu.locator('.menu-warning').count(), 0);
@@ -75,7 +75,7 @@ try {
     }), attached.id);
     await warning(2);
     await menu.click();
-    const item = page.getByRole('menuitem', { name: 'Retained terminals', exact: true });
+    const item = page.locator('.start-menu [data-action=SquareTerminal]');
     assert.equal(await item.locator('.menu-warning').count(), 1);
     assert.equal(await menu.getAttribute('aria-description'), null);
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
@@ -90,10 +90,10 @@ try {
         await route.continue();
     });
     await menu.click(); await requested;
-    await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
+    await page.locator('.start-menu [data-action=SquareTerminal]').click();
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     release(); await retained.waitFor(); await page.unroute(base + '/api/terminals');
-    assert.deepEqual(await retained.getByRole('tab').allTextContents(), ['Lost (3)', `Closed (${previousClosed})`]);
+    assert.deepEqual(await retained.getByRole('tab').evaluateAll(tabs => tabs.map(tab => tab.getAttribute('aria-label'))), ['Lost (3)', `Closed (${previousClosed})`]);
     assert.equal(await row(listed.name).count(), 0, 'inactive workspace terminals are already represented');
     assert.equal(await row(lost.name).count(), 1);
     assert.ok((await row(attached.name).textContent()).includes('Attached'));
@@ -146,7 +146,7 @@ try {
     await menu.click();
     assert.ok(await page.locator('.topbar').evaluate(node => node.scrollWidth <= innerWidth));
     await page.screenshot({ path: 'test-results/retained-mobile-light.png' });
-    await page.getByRole('menuitem', { name: 'Retained terminals', exact: true }).click();
+    await page.locator('.start-menu [data-action=SquareTerminal]').click();
     await terminate(later.name);
     await retained.getByRole('tab').nth(1).click();
     await row(later.name).getByRole('button',{name:'View',exact:true}).focus(); await page.keyboard.press('Enter');

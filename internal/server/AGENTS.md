@@ -78,6 +78,8 @@ Optional `uploadConcurrency` in per-user settings accepts only integers from 1 t
 
 Multiple selected items use the cleaned parent directory's basename plus `.zip`, or `sys-root.zip` for `/`. A single selected folder retains its own name plus `.zip`. Registration, progress UI and Content-Disposition share this server-owned name.
 
+Optional `archivedWorkspaces` stores archived desktops in the same per-user settings, omitted when empty. The 32-desktop limit applies only to active desktops; the settings file size bounds the archive. Validate each with the same workspace rules as active desktops (grid, panels, layout, default directory); workspace and panel IDs are unique across both lists, and archived desktops never count toward the current-desktop check. Editor pruning considers only active desktops, so archiving discards drafts.
+
 Optional workspace `layout` stores auto mode 1/2/3 and `custom` geometry keyed by panel ID. Validate bounds for every current/saved rectangle and overlap only for panels whose current minimized flag is false; the custom snapshot must contain exactly the current panel IDs, without duplicates. It stores no paths or terminal identities. Absent layout means custom and remains compatible with older settings.
 
 Panels have no display-name field. Loading older saved settings ignores file-browser aliases while preserving paths/layouts; newly returned and saved settings omit them. Terminal sessions own their names. The only panel kinds are `files` and `terminal`; there is no separate GUI kind or GUI launch API.

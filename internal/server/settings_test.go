@@ -540,3 +540,42 @@ func TestWindowStateSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestArchivedWorkspaceSettings(t *testing.T) {
+	desk := func(id, panel string) Workspace {
+		return Workspace{ID: id, Name: id, Columns: 4, Rows: 2, DefaultDirectory: "~/project", Panels: []Panel{{ID: panel, Kind: "terminal", Path: "/tmp", W: 2, H: 2}}, Active: panel}
+	}
+	settings := Settings{Theme: "dark", Current: "a", Workspaces: []Workspace{desk("a", "a1")}, ArchivedWorkspaces: []Workspace{desk("b", "b1")}}
+	if err := migrateSettings(&settings); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(settings)
+	var restored Settings
+	if err != nil || json.Unmarshal(data, &restored) != nil || !reflect.DeepEqual(settings, restored) {
+		t.Fatal("archived desktops did not round-trip")
+	}
+	if data, _ := json.Marshal(Settings{Theme: "dark", Workspaces: []Workspace{}}); strings.Contains(string(data), "archivedWorkspaces") {
+		t.Fatal("empty archive list was persisted")
+	}
+	for name, archived := range map[string][]Workspace{
+		"current":   {desk("a", "x")},
+		"panel":     {desk("b", "a1")},
+		"duplicate": {desk("b", "b1"), desk("b", "b2")},
+		"grid":      {{ID: "b", Name: "b", Columns: 8, Rows: 2, Panels: []Panel{}}},
+		"directory": {{ID: "b", Name: "b", Columns: 4, Rows: 2, Panels: []Panel{}, DefaultDirectory: "relative"}},
+	} {
+		value := settings
+		value.ArchivedWorkspaces = archived
+		if validateSettings(&value) == nil {
+			t.Fatalf("accepted invalid archived desktop: %s", name)
+		}
+	}
+	// The desktop limit applies only to active desktops.
+	settings.ArchivedWorkspaces = make([]Workspace, maxWorkspaces+8)
+	for i := range settings.ArchivedWorkspaces {
+		settings.ArchivedWorkspaces[i] = desk(fmt.Sprint("b", i), fmt.Sprint("p", i))
+	}
+	if err := validateSettings(&settings); err != nil {
+		t.Fatal(err)
+	}
+}
