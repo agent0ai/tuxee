@@ -358,6 +358,7 @@
     "commandShortcuts.run": "تشغيل",
     "commandShortcuts.actions": "إجراءات الاختصار",
     "commandShortcuts.invalid": "اسم الاختصار أو الأمر غير صالح.",
+    "commandShortcuts.pathFormat": "يجب أن يكون المسار مطلقًا أو يبدأ بـ ~/",
     "common.cancel": "إلغاء",
     "common.cancelled": "أُلغي",
     "common.close": "إغلاق",

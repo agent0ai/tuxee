@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Εκτέλεση",
     "commandShortcuts.actions": "Ενέργειες συντόμευσης",
     "commandShortcuts.invalid": "Μη έγκυρο όνομα ή εντολή συντόμευσης.",
+    "commandShortcuts.pathFormat": "Η διαδρομή πρέπει να είναι απόλυτη ή να ξεκινά με ~/",
     "common.cancel": "Ακύρωση",
     "common.cancelled": "Ακυρώθηκε",
     "common.close": "Κλείσιμο",

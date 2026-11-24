@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Rulează",
     "commandShortcuts.actions": "Acțiuni scurtătură",
     "commandShortcuts.invalid": "Nume sau comandă de scurtătură nevalidă.",
+    "commandShortcuts.pathFormat": "Calea trebuie să fie absolută sau să înceapă cu ~/",
     "common.cancel": "Anulează",
     "common.cancelled": "Anulat",
     "common.close": "Închide",

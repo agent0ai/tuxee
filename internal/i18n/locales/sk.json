@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Spustiť",
     "commandShortcuts.actions": "Akcie skratky",
     "commandShortcuts.invalid": "Neplatný názov alebo príkaz skratky.",
+    "commandShortcuts.pathFormat": "Cesta musí byť absolútna alebo začínať na ~/",
     "common.cancel": "Zrušiť",
     "common.cancelled": "Zrušené",
     "common.close": "Zavrieť",

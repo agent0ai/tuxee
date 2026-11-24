@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Kør",
     "commandShortcuts.actions": "Genvejshandlinger",
     "commandShortcuts.invalid": "Ugyldigt genvejsnavn eller ugyldig kommando.",
+    "commandShortcuts.pathFormat": "Stien skal være absolut eller starte med ~/",
     "common.cancel": "Annuller",
     "common.cancelled": "Annulleret",
     "common.close": "Luk",

@@ -358,6 +358,7 @@
     "commandShortcuts.run": "เรียกใช้",
     "commandShortcuts.actions": "การดำเนินการทางลัด",
     "commandShortcuts.invalid": "ชื่อทางลัดหรือคำสั่งไม่ถูกต้อง",
+    "commandShortcuts.pathFormat": "พาธต้องเป็นพาธสัมบูรณ์หรือขึ้นต้นด้วย ~/",
     "common.cancel": "ยกเลิก",
     "common.cancelled": "ยกเลิกแล้ว",
     "common.close": "ปิด",

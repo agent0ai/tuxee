@@ -358,6 +358,7 @@
     "commandShortcuts.run": "הפעלה",
     "commandShortcuts.actions": "פעולות קיצור דרך",
     "commandShortcuts.invalid": "שם או פקודה לא תקינים בקיצור הדרך.",
+    "commandShortcuts.pathFormat": "הנתיב חייב להיות מוחלט או להתחיל ב-~/",
     "common.cancel": "ביטול",
     "common.cancelled": "בוטל",
     "common.close": "סגירה",

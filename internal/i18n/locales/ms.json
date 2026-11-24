@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Jalankan",
     "commandShortcuts.actions": "Tindakan pintasan",
     "commandShortcuts.invalid": "Nama atau arahan pintasan tidak sah.",
+    "commandShortcuts.pathFormat": "Laluan mesti mutlak atau bermula dengan ~/",
     "common.cancel": "Batal",
     "common.cancelled": "Dibatalkan",
     "common.close": "Tutup",

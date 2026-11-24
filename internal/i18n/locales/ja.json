@@ -358,6 +358,7 @@
     "commandShortcuts.run": "実行",
     "commandShortcuts.actions": "ショートカットの操作",
     "commandShortcuts.invalid": "ショートカット名またはコマンドが無効です。",
+    "commandShortcuts.pathFormat": "パスは絶対パスであるか、~/ で始まる必要があります。",
     "common.cancel": "キャンセル",
     "common.cancelled": "キャンセル済み",
     "common.close": "閉じる",

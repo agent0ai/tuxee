@@ -358,6 +358,7 @@
     "commandShortcuts.run": "运行",
     "commandShortcuts.actions": "快捷方式操作",
     "commandShortcuts.invalid": "快捷方式名称或命令无效。",
+    "commandShortcuts.pathFormat": "路径必须是绝对路径或以 ~/ 开头",
     "common.cancel": "取消",
     "common.cancelled": "已取消",
     "common.close": "关闭",

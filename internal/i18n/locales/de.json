@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Ausführen",
     "commandShortcuts.actions": "Kurzbefehl-Aktionen",
     "commandShortcuts.invalid": "Ungültiger Name oder Befehl des Kurzbefehls.",
+    "commandShortcuts.pathFormat": "Pfad muss absolut sein oder mit ~/ beginnen",
     "common.cancel": "Abbrechen",
     "common.cancelled": "Abgebrochen",
     "common.close": "Schließen",

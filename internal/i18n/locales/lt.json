@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Vykdyti",
     "commandShortcuts.actions": "Nuorodos veiksmai",
     "commandShortcuts.invalid": "Netinkamas nuorodos pavadinimas arba komanda.",
+    "commandShortcuts.pathFormat": "Kelias turi būti absoliutus arba prasidėti ~/",
     "common.cancel": "Atšaukti",
     "common.cancelled": "Atšaukta",
     "common.close": "Užverti",

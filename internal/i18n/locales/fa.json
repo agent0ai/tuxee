@@ -358,6 +358,7 @@
     "commandShortcuts.run": "اجرا",
     "commandShortcuts.actions": "عملیات میان‌بر",
     "commandShortcuts.invalid": "نام یا فرمان میان‌بر نامعتبر است.",
+    "commandShortcuts.pathFormat": "مسیر باید مطلق باشد یا با ~/ شروع شود",
     "common.cancel": "لغو",
     "common.cancelled": "لغو شد",
     "common.close": "بستن",

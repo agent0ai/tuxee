@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Zaženi",
     "commandShortcuts.actions": "Dejanja bližnjice",
     "commandShortcuts.invalid": "Neveljavno ime ali ukaz bližnjice.",
+    "commandShortcuts.pathFormat": "Pot mora biti absolutna ali se začeti s ~/",
     "common.cancel": "Prekliči",
     "common.cancelled": "Preklicano",
     "common.close": "Zapri",

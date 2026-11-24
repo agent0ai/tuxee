@@ -119,7 +119,11 @@ try {
     assert.equal(await dialog.locator('textarea').inputValue(), command); assert.equal((await getSettings()).commandShortcuts[0].name, '<b>Multiline</b>');
     await page.unroute('**/api/settings', failSave); await dialog.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
     assert.deepEqual((await getSettings()).shortcuts, preferences.shortcuts); assert.equal((await getSettings()).serverName, preferences.serverName);
-    console.log('PASS create/edit/cancel, failed-save recovery, literal text, row actions and keyboard focus');
+    await toggle.click(); await menu.locator('.start-favorites-heading strong').click({ button: 'right' });
+    assert.deepEqual(await page.locator('.menu-actions [role=menuitem]').allTextContents(), ['Add favorite']);
+    await page.locator('.menu-actions').getByRole('menuitem', { name: 'Add favorite', exact: true }).click();
+    assert.equal(await dialog.locator('[name=name]').inputValue(), ''); await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    console.log('PASS create/edit/cancel, failed-save recovery, literal text, row and empty-area context actions and keyboard focus');
 
     await toggle.click(); await rows.locator('.command-shortcut-run').click();
     await terminal.locator('[data-state=connected]').waitFor({ state: 'attached' });
@@ -262,7 +266,7 @@ try {
         await dialog.locator('[name=path]').fill(path);
         await dialog.getByRole('button', { name: 'Save', exact: true }).tap(); await saved();
     }
-    await addPath('Z folder', home + '/cwd');
+    await addPath('Z folder', '~/cwd');
     await addPath('A file', home + '/cwd/count');
     await toggle.tap();
     assert.deepEqual(await rows.locator('.command-shortcut-run').allTextContents(), ['A file', 'Multiline', 'Z folder']);
@@ -271,7 +275,8 @@ try {
     await toggle.tap(); await rows.first().locator('.command-shortcut-run').tap();
     await page.locator('.cm-content').getByText('first', {exact:true}).first().waitFor();
     assert.equal((await getSettings()).commandShortcuts.find(f => f.name === 'A file').path, home + '/cwd/count');
-    console.log('PASS sorted command and path favorites, directory navigation and editor opening');
+    assert.equal((await getSettings()).commandShortcuts.find(f => f.name === 'Z folder').path, '~/cwd', 'home-relative paths stay portable');
+    console.log('PASS sorted command and path favorites, home-relative paths, directory navigation and editor opening');
     const otherContext = await browser.newContext(); const otherMe = await login(otherContext, other);
     assert.equal(otherMe.settings.commandShortcuts, undefined, 'commands are private to the Linux user'); await otherContext.close();
     await page.waitForTimeout(400); await page.goto('about:blank');

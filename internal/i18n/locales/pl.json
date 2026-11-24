@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Uruchom",
     "commandShortcuts.actions": "Działania skrótu",
     "commandShortcuts.invalid": "Nieprawidłowa nazwa lub polecenie skrótu.",
+    "commandShortcuts.pathFormat": "Ścieżka musi być bezwzględna lub zaczynać się od ~/",
     "common.cancel": "Anuluj",
     "common.cancelled": "Anulowano",
     "common.close": "Zamknij",

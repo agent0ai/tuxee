@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Запустити",
     "commandShortcuts.actions": "Дії ярлика",
     "commandShortcuts.invalid": "Неприпустима назва або команда ярлика.",
+    "commandShortcuts.pathFormat": "Шлях має бути абсолютним або починатися з ~/",
     "common.cancel": "Скасувати",
     "common.cancelled": "Скасовано",
     "common.close": "Закрити",

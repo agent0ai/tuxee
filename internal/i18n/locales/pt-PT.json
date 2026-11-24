@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Executar",
     "commandShortcuts.actions": "Ações do atalho",
     "commandShortcuts.invalid": "Nome ou comando do atalho inválido.",
+    "commandShortcuts.pathFormat": "O caminho tem de ser absoluto ou começar por ~/",
     "common.cancel": "Cancelar",
     "common.cancelled": "Cancelado",
     "common.close": "Fechar",

@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Exécuter",
     "commandShortcuts.actions": "Actions du raccourci",
     "commandShortcuts.invalid": "Nom ou commande du raccourci invalide.",
+    "commandShortcuts.pathFormat": "Le chemin doit être absolu ou commencer par ~/",
     "common.cancel": "Annuler",
     "common.cancelled": "Annulé",
     "common.close": "Fermer",

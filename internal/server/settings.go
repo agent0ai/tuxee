@@ -136,7 +136,7 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 			return i18n.New("commandShortcuts.invalid")
 		}
 		if shortcut.Path != "" {
-			if !filepath.IsAbs(shortcut.Path) || len(shortcut.Path) > maxDefaultDirectoryBytes || strings.ContainsRune(shortcut.Path, 0) || shortcut.Command != "" {
+			if !filepath.IsAbs(shortcut.Path) && shortcut.Path != "~" && !strings.HasPrefix(shortcut.Path, "~/") || len(shortcut.Path) > maxDefaultDirectoryBytes || strings.ContainsRune(shortcut.Path, 0) || shortcut.Command != "" {
 				return i18n.New("commandShortcuts.invalid")
 			}
 			continue

@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Suorita",
     "commandShortcuts.actions": "Pikakomennon toiminnot",
     "commandShortcuts.invalid": "Virheellinen pikakomennon nimi tai komento.",
+    "commandShortcuts.pathFormat": "Polun on oltava absoluuttinen tai alettava ~/",
     "common.cancel": "Peruuta",
     "common.cancelled": "Peruutettu",
     "common.close": "Sulje",

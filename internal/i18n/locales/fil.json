@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Patakbuhin",
     "commandShortcuts.actions": "Mga aksyon ng shortcut",
     "commandShortcuts.invalid": "Hindi wastong pangalan o command ng shortcut.",
+    "commandShortcuts.pathFormat": "Ang path ay dapat ganap o magsimula sa ~/",
     "common.cancel": "Kanselahin",
     "common.cancelled": "Kinansela",
     "common.close": "Isara",

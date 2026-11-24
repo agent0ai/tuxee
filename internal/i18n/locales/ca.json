@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Executa",
     "commandShortcuts.actions": "Accions de la drecera",
     "commandShortcuts.invalid": "El nom o l’ordre de la drecera no és vàlid.",
+    "commandShortcuts.pathFormat": "El camí ha de ser absolut o començar per ~/",
     "common.cancel": "Cancel·la",
     "common.cancelled": "Cancel·lat",
     "common.close": "Tanca",

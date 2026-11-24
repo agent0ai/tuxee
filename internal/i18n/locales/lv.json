@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Palaist",
     "commandShortcuts.actions": "Saīsnes darbības",
     "commandShortcuts.invalid": "Nederīgs saīsnes nosaukums vai komanda.",
+    "commandShortcuts.pathFormat": "Ceļam jābūt absolūtam vai jāsākas ar ~/",
     "common.cancel": "Atcelt",
     "common.cancelled": "Atcelts",
     "common.close": "Aizvērt",

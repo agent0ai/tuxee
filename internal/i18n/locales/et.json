@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Käivita",
     "commandShortcuts.actions": "Otsetee toimingud",
     "commandShortcuts.invalid": "Vigane otsetee nimi või käsk.",
+    "commandShortcuts.pathFormat": "Tee peab olema absoluutne või algama ~/",
     "common.cancel": "Loobu",
     "common.cancelled": "Tühistatud",
     "common.close": "Sulge",

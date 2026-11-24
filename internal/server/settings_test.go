@@ -22,12 +22,12 @@ func TestCommandShortcutSettings(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &restored) != nil || !reflect.DeepEqual(settings, restored) {
 		t.Fatal("command shortcuts did not round-trip")
 	}
-	settings.CommandShortcuts = []CommandShortcut{{Name: "Config", Path: "/etc/hosts"}}
+	settings.CommandShortcuts = []CommandShortcut{{Name: "Config", Path: "/etc/hosts"}, {Name: "Home", Path: "~"}, {Name: "Docs", Path: "~/docs"}}
 	if err := validateSettings(&settings); err != nil {
 		t.Fatal(err)
 	}
 	for _, value := range []CommandShortcut{
-		{Name: "Both", Path: "/tmp", Command: "pwd"}, {Name: "Relative", Path: "docs"}, {Name: "NUL", Path: "/tmp\x00"}, {Name: "Long", Path: "/" + strings.Repeat("a", 4096)},
+		{Name: "Both", Path: "/tmp", Command: "pwd"}, {Name: "Relative", Path: "docs"}, {Name: "Other home", Path: "~other"}, {Name: "NUL", Path: "/tmp\x00"}, {Name: "Long", Path: "/" + strings.Repeat("a", 4096)},
 		{Name: " ", Command: "pwd"}, {Name: "Test", Command: "\n \t"},
 		{Name: "a\x00", Command: "pwd"}, {Name: "Test", Command: "pwd\x00"},
 		{Name: strings.Repeat("😀", 33), Command: "pwd"}, {Name: "Test", Command: strings.Repeat("é", 8193)},

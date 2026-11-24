@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Pokreni",
     "commandShortcuts.actions": "Radnje prečice",
     "commandShortcuts.invalid": "Neispravan naziv ili naredba prečice.",
+    "commandShortcuts.pathFormat": "Putanja mora biti apsolutna ili počinjati sa ~/",
     "common.cancel": "Otkaži",
     "common.cancelled": "Otkazano",
     "common.close": "Zatvori",

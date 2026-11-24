@@ -358,6 +358,7 @@
     "commandShortcuts.run": "執行",
     "commandShortcuts.actions": "捷徑操作",
     "commandShortcuts.invalid": "捷徑名稱或指令無效。",
+    "commandShortcuts.pathFormat": "路徑必須是絕對路徑或以 ~/ 開頭",
     "common.cancel": "取消",
     "common.cancelled": "已取消",
     "common.close": "關閉",

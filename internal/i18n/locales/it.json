@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Esegui",
     "commandShortcuts.actions": "Azioni scorciatoia",
     "commandShortcuts.invalid": "Nome o comando della scorciatoia non valido.",
+    "commandShortcuts.pathFormat": "Il percorso deve essere assoluto o iniziare con ~/",
     "common.cancel": "Annulla",
     "common.cancelled": "Annullato",
     "common.close": "Chiudi",

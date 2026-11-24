@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Futtatás",
     "commandShortcuts.actions": "Parancsikon műveletei",
     "commandShortcuts.invalid": "Érvénytelen parancsikonnév vagy parancs.",
+    "commandShortcuts.pathFormat": "Az elérési útnak abszolútnak kell lennie, vagy ~/-val kell kezdődnie",
     "common.cancel": "Mégse",
     "common.cancelled": "Megszakítva",
     "common.close": "Bezárás",

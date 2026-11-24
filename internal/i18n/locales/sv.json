@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Kör",
     "commandShortcuts.actions": "Genvägsåtgärder",
     "commandShortcuts.invalid": "Ogiltigt genvägsnamn eller kommando.",
+    "commandShortcuts.pathFormat": "Sökvägen måste vara absolut eller börja med ~/",
     "common.cancel": "Avbryt",
     "common.cancelled": "Avbrutet",
     "common.close": "Stäng",

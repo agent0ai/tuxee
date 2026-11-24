@@ -476,7 +476,7 @@ function syncWorkspace(value: Mounted, previousRects?: Map<string, DOMRect>) {
             }
             const hooks = { user, changed, editorLineWrap: () => settings.editorLineWrap !== false, setEditorLineWrap, defaultDirectory: () => defaultDirectory(item?.owner.ws || ws), workspaceDefault: (path: string) => setWorkspaceDirectory(item?.owner.ws || ws, path), close: () => closePanel(panel), openTerminal: (path: string) => addPanel('terminal', path), openFileBrowser: (path: string, line?: number, column?: number) => openFileBrowser(item!.owner, path, line, column), title: (name: string) => { title.textContent = name; window.dispatchEvent(new Event('tuxee-tabs-changed')); } };
             const favorite = initialFavorites.get(panel); initialFavorites.delete(panel);
-            const view = panel.kind === 'files' ? new FileView(body, panel, hooks, favorite?.path) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, favorite?.command);
+            const view = panel.kind === 'files' ? new FileView(body, panel, hooks, favorite?.path && directoryPath(favorite.path, user.home)) : new TerminalView(body, panel, hooks, settings.terminalFontSize, settings.terminalFontFamily || TERMINAL_FONT.family, favorite?.command);
             item = { owner: value, node, view, tools, title }; items.set(panel.id, item);
         }
         const shown = compact ? panel.id === ws.active : ws.maximized ? panel.id === ws.maximized : !panel.minimized;
@@ -1310,7 +1310,8 @@ function editCommandShortcut(index?: number) {
     type.add(new Option(t('commandShortcuts.command'), 'command')); type.add(new Option(t('files.property.path'), 'path'));
     type.value = shortcut?.path ? 'path' : 'command';
     const typeLabel = el('label', 'field', t('files.property.type')); typeLabel.append(type);
-    const path = el('input'); path.name = 'path'; path.dir = 'ltr'; path.placeholder = '/'; path.value = shortcut?.path || '';
+    const path = el('input'); path.name = 'path'; path.dir = 'ltr'; path.placeholder = '~/'; path.value = shortcut?.path || '';
+    path.autocomplete = 'off'; path.spellcheck = false;
     const pathLabel = el('label', 'field', t('files.property.path')); pathLabel.append(path);
     const updateType = () => {
         commandLabel.hidden = command.disabled = type.value === 'path';
@@ -1330,8 +1331,8 @@ function editCommandShortcut(index?: number) {
             input.setCustomValidity(input.value.trim() ? '' : t('validation.required'));
             if (!input.reportValidity()) return;
         }
-        if (type.value === 'path' && !path.value.startsWith('/')) {
-            path.setCustomValidity(t('backend.files.pathMustBeAbsolute')); path.reportValidity(); return;
+        if (type.value === 'path' && path.value !== '~' && !/^(~?\/)/.test(path.value)) {
+            path.setCustomValidity(t('commandShortcuts.pathFormat')); path.reportValidity(); return;
         }
         const value = { name: name.value.trim(), ...(type.value === 'path' ? { path: path.value } : { command: command.value }) };
         const list = [...settings.commandShortcuts || []];
@@ -1502,6 +1503,9 @@ function startMenu(anchor: HTMLElement, compact: boolean) {
     }
     favorites.append(heading, rows);
     desktop.append(favorites);
+    bindContextMenu(desktop, position => tabMenu(addFavorite, t('commandShortcuts.favorites'), false, [
+        [t('commandShortcuts.add'), 'Plus', () => { close(); return editCommandShortcut(); }, addFavorite.disabled],
+    ], position));
     body.append(apps, desktop);
     content.append(body, footer);
     ({ close } = popover(anchor, content, anchor, { alignToPanel: true, fillWorkspace: compact }));

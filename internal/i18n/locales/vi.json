@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Chạy",
     "commandShortcuts.actions": "Thao tác lối tắt",
     "commandShortcuts.invalid": "Tên hoặc lệnh của lối tắt không hợp lệ.",
+    "commandShortcuts.pathFormat": "Đường dẫn phải là tuyệt đối hoặc bắt đầu bằng ~/",
     "common.cancel": "Hủy",
     "common.cancelled": "Đã hủy",
     "common.close": "Đóng",

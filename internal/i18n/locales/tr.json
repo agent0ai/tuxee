@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Çalıştır",
     "commandShortcuts.actions": "Kısayol işlemleri",
     "commandShortcuts.invalid": "Geçersiz kısayol adı veya komutu.",
+    "commandShortcuts.pathFormat": "Yol mutlak olmalı veya ~/ ile başlamalıdır",
     "common.cancel": "İptal",
     "common.cancelled": "İptal edildi",
     "common.close": "Kapat",

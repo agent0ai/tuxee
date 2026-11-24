@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Изпълнение",
     "commandShortcuts.actions": "Действия за пряк път",
     "commandShortcuts.invalid": "Невалидно име или команда на пряк път.",
+    "commandShortcuts.pathFormat": "Пътят трябва да е абсолютен или да започва с ~/",
     "common.cancel": "Отказ",
     "common.cancelled": "Отменено",
     "common.close": "Затваряне",

@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Run",
     "commandShortcuts.actions": "Shortcut actions",
     "commandShortcuts.invalid": "Invalid shortcut name or command.",
+    "commandShortcuts.pathFormat": "Path must be absolute or start with ~/",
     "common.cancel": "Cancel",
     "common.cancelled": "Cancelled",
     "common.close": "Close",

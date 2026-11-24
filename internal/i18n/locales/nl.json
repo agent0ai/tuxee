@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Uitvoeren",
     "commandShortcuts.actions": "Snelkoppelingsacties",
     "commandShortcuts.invalid": "Ongeldige naam of opdracht voor snelkoppeling.",
+    "commandShortcuts.pathFormat": "Pad moet absoluut zijn of beginnen met ~/",
     "common.cancel": "Annuleren",
     "common.cancelled": "Geannuleerd",
     "common.close": "Sluiten",

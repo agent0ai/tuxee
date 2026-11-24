@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Запустить",
     "commandShortcuts.actions": "Действия ярлыка",
     "commandShortcuts.invalid": "Недопустимое имя или команда ярлыка.",
+    "commandShortcuts.pathFormat": "Путь должен быть абсолютным или начинаться с ~/",
     "common.cancel": "Отмена",
     "common.cancelled": "Отменено",
     "common.close": "Закрыть",

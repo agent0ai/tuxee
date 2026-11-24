@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Spustit",
     "commandShortcuts.actions": "Akce zkratky",
     "commandShortcuts.invalid": "Neplatný název nebo příkaz zkratky.",
+    "commandShortcuts.pathFormat": "Cesta musí být absolutní nebo začínat ~/",
     "common.cancel": "Zrušit",
     "common.cancelled": "Zrušeno",
     "common.close": "Zavřít",

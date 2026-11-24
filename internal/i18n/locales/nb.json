@@ -358,6 +358,7 @@
     "commandShortcuts.run": "Kjør",
     "commandShortcuts.actions": "Snarveishandlinger",
     "commandShortcuts.invalid": "Ugyldig snarveinavn eller kommando.",
+    "commandShortcuts.pathFormat": "Banen må være absolutt eller starte med ~/",
     "common.cancel": "Avbryt",
     "common.cancelled": "Avbrutt",
     "common.close": "Lukk",

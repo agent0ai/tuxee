@@ -358,6 +358,7 @@
     "commandShortcuts.run": "चलाएँ",
     "commandShortcuts.actions": "शॉर्टकट क्रियाएँ",
     "commandShortcuts.invalid": "शॉर्टकट का नाम या कमांड अमान्य है।",
+    "commandShortcuts.pathFormat": "पथ पूर्ण होना चाहिए या ~/ से प्रारंभ होना चाहिए",
     "common.cancel": "रद्द करें",
     "common.cancelled": "रद्द किया गया",
     "common.close": "बंद करें",
