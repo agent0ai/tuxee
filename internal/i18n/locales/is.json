@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Upplýsingagluggi með tiltækri uppfærslu og uppfærsluskipuninni",
     "howto.keyboardShortcutsTitle": "Flýtilyklar",
     "howto.keyboardShortcutsBody": "Þú getur sérsniðið flýtilykla með hnappinum {button} í Tuxee-valmyndinni.",
+    "howto.resetTitle": "Endurstilling til endurheimtar",
+    "howto.resetBody": "Ef Tuxee hættir að hlaðast rétt, til dæmis eftir gallaða breytingu á stillingum, skráðu þig inn og opnaðu {path} í veffangastikunni. Það lokar Tuxee-skjáhermum og myndrænum forritum, færir stillingar og stöðu Tuxee í {backup} og endurheimtir sjálfgefin gildi; skrár þínar haldast óbreyttar. Þú eða gervigreindarfulltrúi getið síðar endurheimt stillingar úr öryggisafritinu.",
     "settings.panelPosition": "Staðsetning spjalds",
     "settings.panelTop": "Efst",
     "settings.panelBottom": "Neðst",
     "settings.panelLeft": "Vinstri",
     "settings.panelRight": "Hægri",
-    "settings.invalidPanelPosition": "Ógild staðsetning spjalds"
+    "settings.invalidPanelPosition": "Ógild staðsetning spjalds",
+    "reset.title": "Endurstilla Tuxee",
+    "reset.intro": "Færa Tuxee fyrir {user} aftur í sjálfgefna stöðu:",
+    "reset.effectTerminals": "Tuxee-skjáhermum þínum og myndrænum forritum þeirra er lokað.",
+    "reset.effectDefaults": "Svæði, útlit, stillingar, ferill skjáherma og tilkynningar fara aftur í sjálfgefið.",
+    "reset.effectBackup": "Núverandi stillingar og staða Tuxee eru færðar í öryggisafrit í {path}.",
+    "reset.effectFiles": "Skrár þínar og upphleðslur haldast óbreyttar.",
+    "reset.effectSessions": "Aðrir vafrar sem eru innskráðir sem {user} þurfa að skrá sig inn aftur.",
+    "reset.confirm": "Endurstilla",
+    "reset.progress": "Tek öryggisafrit og endurstilli…",
+    "reset.complete": "Öryggisafrit vistað í {path}. Endurhleð…",
+    "reset.failed": "Endurstilling mistókst: {detail}",
+    "reset.statusUnavailable": "Staða endurstillingar er ekki tiltæk. Endurhlaðið síðunni til að reyna aftur."
   }
 }

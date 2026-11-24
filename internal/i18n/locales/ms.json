@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Tetingkap Perihal yang menunjukkan kemas kini tersedia dan arahan kemas kini",
     "howto.keyboardShortcutsTitle": "Pintasan papan kekunci",
     "howto.keyboardShortcutsBody": "Anda boleh menyesuaikan pintasan papan kekunci dengan butang {button} dalam menu Tuxee.",
+    "howto.resetTitle": "Set semula pemulihan",
+    "howto.resetBody": "Jika Tuxee berhenti dimuatkan dengan betul, contohnya selepas perubahan tetapan yang rosak, log masuk dan buka {path} dalam bar alamat. Ia menutup terminal Tuxee dan aplikasi GUI anda, memindahkan konfigurasi dan keadaan Tuxee ke {backup} dan memulihkan tetapan lalai; fail anda kekal tidak berubah. Anda atau ejen AI boleh memulihkan tetapan daripada sandaran kemudian.",
     "settings.panelPosition": "Kedudukan panel",
     "settings.panelTop": "Atas",
     "settings.panelBottom": "Bawah",
     "settings.panelLeft": "Kiri",
     "settings.panelRight": "Kanan",
-    "settings.invalidPanelPosition": "Kedudukan panel tidak sah"
+    "settings.invalidPanelPosition": "Kedudukan panel tidak sah",
+    "reset.title": "Set semula Tuxee",
+    "reset.intro": "Pulihkan Tuxee untuk {user} kepada keadaan lalainya:",
+    "reset.effectTerminals": "Terminal Tuxee anda dan aplikasi GUI-nya ditutup.",
+    "reset.effectDefaults": "Ruang, susun atur, tetapan, sejarah terminal dan pemberitahuan kembali kepada lalai.",
+    "reset.effectBackup": "Konfigurasi dan keadaan semasa Tuxee dipindahkan ke sandaran dalam {path}.",
+    "reset.effectFiles": "Fail dan muat naik anda kekal tidak berubah.",
+    "reset.effectSessions": "Pelayar lain yang log masuk sebagai {user} perlu log masuk semula.",
+    "reset.confirm": "Set semula",
+    "reset.progress": "Membuat sandaran dan menetapkan semula…",
+    "reset.complete": "Sandaran disimpan dalam {path}. Memuat semula…",
+    "reset.failed": "Set semula gagal: {detail}",
+    "reset.statusUnavailable": "Status set semula tidak tersedia. Muat semula halaman ini untuk mencuba lagi."
   }
 }

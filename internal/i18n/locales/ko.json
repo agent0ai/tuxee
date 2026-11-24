@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "사용 가능한 업데이트와 업데이트 명령을 표시하는 정보 창",
     "howto.keyboardShortcutsTitle": "키보드 단축키",
     "howto.keyboardShortcutsBody": "Tuxee 메뉴의 {button} 버튼으로 키보드 단축키를 원하는 대로 설정할 수 있습니다.",
+    "howto.resetTitle": "복구 초기화",
+    "howto.resetBody": "설정을 잘못 변경한 후처럼 Tuxee가 제대로 로드되지 않으면 로그인한 뒤 주소 표시줄에서 {path}을(를) 여세요. Tuxee 터미널과 GUI 앱을 닫고, Tuxee 구성과 상태를 {backup}(으)로 옮긴 뒤 기본값을 복원합니다. 파일은 변경되지 않습니다. 나중에 직접 또는 AI 에이전트를 통해 백업에서 설정을 복원할 수 있습니다.",
     "settings.panelPosition": "패널 위치",
     "settings.panelTop": "위",
     "settings.panelBottom": "아래",
     "settings.panelLeft": "왼쪽",
     "settings.panelRight": "오른쪽",
-    "settings.invalidPanelPosition": "잘못된 패널 위치"
+    "settings.invalidPanelPosition": "잘못된 패널 위치",
+    "reset.title": "Tuxee 초기화",
+    "reset.intro": "{user}의 Tuxee를 기본 상태로 되돌립니다:",
+    "reset.effectTerminals": "Tuxee 터미널과 해당 GUI 앱이 닫힙니다.",
+    "reset.effectDefaults": "작업공간, 레이아웃, 설정, 터미널 기록 및 알림이 기본값으로 돌아갑니다.",
+    "reset.effectBackup": "현재 Tuxee 구성과 상태는 {path}의 백업으로 이동됩니다.",
+    "reset.effectFiles": "파일과 업로드는 변경되지 않습니다.",
+    "reset.effectSessions": "{user}(으)로 로그인한 다른 브라우저는 다시 로그인해야 합니다.",
+    "reset.confirm": "초기화",
+    "reset.progress": "백업 및 초기화 중…",
+    "reset.complete": "백업이 {path}에 저장되었습니다. 다시 로드 중…",
+    "reset.failed": "초기화 실패: {detail}",
+    "reset.statusUnavailable": "초기화 상태를 확인할 수 없습니다. 다시 시도하려면 이 페이지를 새로 고치세요."
   }
 }

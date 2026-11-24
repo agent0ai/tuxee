@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Prozor sa informacijama o aplikaciji, dostupnim ažuriranjem i komandom za ažuriranje",
     "howto.keyboardShortcutsTitle": "Prečice na tastaturi",
     "howto.keyboardShortcutsBody": "Prečice na tastaturi možete prilagoditi dugmetom {button} u meniju Tuxee.",
+    "howto.resetTitle": "Resetovanje za oporavak",
+    "howto.resetBody": "Ako Tuxee prestane ispravno da se učitava, na primer posle neispravne promene podešavanja, prijavite se i otvorite {path} u adresnoj traci. Time se zatvaraju vaši Tuxee terminali i grafičke aplikacije, konfiguracija i stanje Tuxee-a premeštaju se u {backup} i vraćaju se podrazumevane vrednosti; vaše datoteke ostaju nepromenjene. Vi ili AI agent kasnije možete vratiti podešavanja iz rezervne kopije.",
     "settings.panelPosition": "Položaj panela",
     "settings.panelTop": "Gore",
     "settings.panelBottom": "Dole",
     "settings.panelLeft": "Levo",
     "settings.panelRight": "Desno",
-    "settings.invalidPanelPosition": "Nevažeći položaj panela"
+    "settings.invalidPanelPosition": "Nevažeći položaj panela",
+    "reset.title": "Resetuj Tuxee",
+    "reset.intro": "Vrati Tuxee za korisnika {user} u podrazumevano stanje:",
+    "reset.effectTerminals": "Vaši Tuxee terminali i njihove grafičke aplikacije se zatvaraju.",
+    "reset.effectDefaults": "Prostori, rasporedi, podešavanja, istorija terminala i obaveštenja vraćaju se na podrazumevane vrednosti.",
+    "reset.effectBackup": "Trenutna konfiguracija i stanje Tuxee-a premeštaju se u rezervnu kopiju u {path}.",
+    "reset.effectFiles": "Vaše datoteke i otpremanja ostaju nepromenjeni.",
+    "reset.effectSessions": "Ostali pregledači prijavljeni kao {user} moraju ponovo da se prijave.",
+    "reset.confirm": "Resetuj",
+    "reset.progress": "Pravljenje kopije i resetovanje…",
+    "reset.complete": "Kopija sačuvana u {path}. Ponovno učitavanje…",
+    "reset.failed": "Resetovanje nije uspelo: {detail}",
+    "reset.statusUnavailable": "Status resetovanja nije dostupan. Ponovo učitajte stranicu da biste pokušali ponovo."
   }
 }

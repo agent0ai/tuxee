@@ -253,7 +253,9 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
                 keyboardBody.append(part);
             });
             keyboard.append(el('h4', '', t('howto.keyboardShortcutsTitle')), keyboardBody, shortcuts('app.shortcuts'));
-            section.append(copy, favorites, customization, processes, updates, barPosition, keyboard);
+            const reset = el('section', 'howto-detail howto-tip-reset');
+            reset.append(el('h4', '', t('howto.resetTitle')), el('p', '', t('howto.resetBody', { path: '/reset', backup: '~/tuxee-backups' })));
+            section.append(copy, favorites, customization, processes, updates, barPosition, keyboard, reset);
         }
         return section;
     }

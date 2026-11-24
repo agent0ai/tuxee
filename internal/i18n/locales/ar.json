@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "نافذة حول تعرض تحديثًا متاحًا وأمر التحديث",
     "howto.keyboardShortcutsTitle": "اختصارات لوحة المفاتيح",
     "howto.keyboardShortcutsBody": "يمكنك تخصيص اختصارات لوحة المفاتيح باستخدام زر {button} في قائمة Tuxee.",
+    "howto.resetTitle": "إعادة ضبط للاسترداد",
+    "howto.resetBody": "إذا توقف Tuxee عن التحميل بشكل صحيح، مثلًا بعد تغيير إعدادات معطوب، فسجّل الدخول وافتح {path} في شريط العنوان. سيُغلق ذلك طرفيات Tuxee والتطبيقات الرسومية، وينقل إعدادات Tuxee وحالته إلى {backup} ويستعيد الإعدادات الافتراضية؛ وتبقى ملفاتك دون تغيير. يمكنك أنت أو وكيل ذكاء اصطناعي استعادة الإعدادات من النسخة الاحتياطية لاحقًا.",
     "settings.panelPosition": "موضع اللوحة",
     "settings.panelTop": "أعلى",
     "settings.panelBottom": "أسفل",
     "settings.panelLeft": "يسار",
     "settings.panelRight": "يمين",
-    "settings.invalidPanelPosition": "موضع اللوحة غير صالح"
+    "settings.invalidPanelPosition": "موضع اللوحة غير صالح",
+    "reset.title": "إعادة ضبط Tuxee",
+    "reset.intro": "استعادة Tuxee للمستخدم {user} إلى حالته الافتراضية:",
+    "reset.effectTerminals": "تُغلق طرفيات Tuxee الخاصة بك وتطبيقاتها الرسومية.",
+    "reset.effectDefaults": "تعود المساحات والتخطيطات والإعدادات وسجل الطرفية والإشعارات إلى الوضع الافتراضي.",
+    "reset.effectBackup": "تُنقل إعدادات Tuxee وحالته الحالية إلى نسخة احتياطية في {path}.",
+    "reset.effectFiles": "تبقى ملفاتك ومرفوعاتك دون تغيير.",
+    "reset.effectSessions": "يجب على المتصفحات الأخرى المسجّل فيها الدخول باسم {user} تسجيل الدخول مجددًا.",
+    "reset.confirm": "إعادة ضبط",
+    "reset.progress": "جارٍ النسخ الاحتياطي وإعادة الضبط…",
+    "reset.complete": "حُفظت النسخة الاحتياطية في {path}. جارٍ إعادة التحميل…",
+    "reset.failed": "فشلت إعادة الضبط: {detail}",
+    "reset.statusUnavailable": "حالة إعادة الضبط غير متاحة. أعد تحميل هذه الصفحة للمحاولة مجددًا."
   }
 }

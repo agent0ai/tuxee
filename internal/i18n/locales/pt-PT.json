@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Janela Sobre com uma atualização disponível e o comando de atualização",
     "howto.keyboardShortcutsTitle": "Atalhos de teclado",
     "howto.keyboardShortcutsBody": "Pode personalizar os atalhos de teclado com o botão {button} no menu do Tuxee.",
+    "howto.resetTitle": "Reposição de recuperação",
+    "howto.resetBody": "Se o Tuxee deixar de carregar corretamente, por exemplo após uma alteração de definições com erro, inicie sessão e abra {path} na barra de endereço. Isto fecha os seus terminais do Tuxee e aplicações gráficas, move a configuração e o estado do Tuxee para {backup} e repõe as predefinições; os seus ficheiros mantêm-se inalterados. O utilizador ou um agente de IA pode restaurar as definições a partir da cópia mais tarde.",
     "settings.panelPosition": "Posição do painel",
     "settings.panelTop": "Em cima",
     "settings.panelBottom": "Em baixo",
     "settings.panelLeft": "Esquerda",
     "settings.panelRight": "Direita",
-    "settings.invalidPanelPosition": "Posição do painel inválida"
+    "settings.invalidPanelPosition": "Posição do painel inválida",
+    "reset.title": "Repor Tuxee",
+    "reset.intro": "Repor o Tuxee de {user} no estado predefinido:",
+    "reset.effectTerminals": "Os seus terminais do Tuxee e as respetivas aplicações gráficas são fechados.",
+    "reset.effectDefaults": "Áreas, esquemas, definições, histórico de terminais e notificações voltam às predefinições.",
+    "reset.effectBackup": "A configuração e o estado atuais do Tuxee são movidos para uma cópia de segurança em {path}.",
+    "reset.effectFiles": "Os seus ficheiros e carregamentos mantêm-se inalterados.",
+    "reset.effectSessions": "Outros navegadores com sessão iniciada como {user} terão de iniciar sessão novamente.",
+    "reset.confirm": "Repor",
+    "reset.progress": "A criar cópia e a repor…",
+    "reset.complete": "Cópia guardada em {path}. A recarregar…",
+    "reset.failed": "Falha ao repor: {detail}",
+    "reset.statusUnavailable": "O estado da reposição não está disponível. Recarregue esta página para tentar novamente."
   }
 }

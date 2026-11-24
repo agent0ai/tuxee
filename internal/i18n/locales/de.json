@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Infofenster mit einem verfügbaren Update und dem Update-Befehl",
     "howto.keyboardShortcutsTitle": "Tastenkürzel",
     "howto.keyboardShortcutsBody": "Du kannst Tastenkürzel über die Schaltfläche {button} im Tuxee-Menü anpassen.",
+    "howto.resetTitle": "Wiederherstellung durch Zurücksetzen",
+    "howto.resetBody": "Wenn Tuxee nicht mehr richtig lädt, etwa nach einer fehlerhaften Einstellungsänderung, melden Sie sich an und öffnen Sie {path} in der Adressleiste. Dadurch werden Ihre Tuxee-Terminals und GUI-Anwendungen geschlossen, Ihre Tuxee-Konfiguration und Ihr Zustand nach {backup} verschoben und die Standardwerte wiederhergestellt; Ihre Dateien bleiben unverändert. Sie oder ein KI-Agent können Einstellungen später aus der Sicherung wiederherstellen.",
     "settings.panelPosition": "Panelposition",
     "settings.panelTop": "Oben",
     "settings.panelBottom": "Unten",
     "settings.panelLeft": "Links",
     "settings.panelRight": "Rechts",
-    "settings.invalidPanelPosition": "Ungültige Panelposition"
+    "settings.invalidPanelPosition": "Ungültige Panelposition",
+    "reset.title": "Tuxee zurücksetzen",
+    "reset.intro": "Tuxee für {user} auf den Standardzustand zurücksetzen:",
+    "reset.effectTerminals": "Ihre Tuxee-Terminals und deren GUI-Anwendungen werden geschlossen.",
+    "reset.effectDefaults": "Desktops, Layouts, Einstellungen, Terminalverlauf und Benachrichtigungen werden auf Standardwerte zurückgesetzt.",
+    "reset.effectBackup": "Die aktuelle Tuxee-Konfiguration und der Zustand werden in eine Sicherung unter {path} verschoben.",
+    "reset.effectFiles": "Ihre Dateien und Uploads bleiben unverändert.",
+    "reset.effectSessions": "Andere als {user} angemeldete Browser müssen sich erneut anmelden.",
+    "reset.confirm": "Zurücksetzen",
+    "reset.progress": "Sichern und zurücksetzen…",
+    "reset.complete": "Sicherung in {path} gespeichert. Neu laden…",
+    "reset.failed": "Zurücksetzen fehlgeschlagen: {detail}",
+    "reset.statusUnavailable": "Der Status des Zurücksetzens ist nicht verfügbar. Laden Sie die Seite neu, um es erneut zu versuchen."
   }
 }

@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Informācijas logs ar pieejamu atjauninājumu un atjaunināšanas komandu",
     "howto.keyboardShortcutsTitle": "Tastatūras īsinājumtaustiņi",
     "howto.keyboardShortcutsBody": "Tastatūras īsinājumtaustiņus varat pielāgot ar pogu {button} Tuxee izvēlnē.",
+    "howto.resetTitle": "Atkopšanas atiestatīšana",
+    "howto.resetBody": "Ja Tuxee pārstāj pareizi ielādēties, piemēram, pēc kļūdainas iestatījumu maiņas, pierakstieties un adreses joslā atveriet {path}. Tas aizver jūsu Tuxee termināļus un grafiskās lietotnes, pārvieto Tuxee konfigurāciju un stāvokli uz {backup} un atjauno noklusējumus; jūsu faili paliek nemainīti. Jūs vai MI aģents vēlāk varat atjaunot iestatījumus no rezerves kopijas.",
     "settings.panelPosition": "Paneļa novietojums",
     "settings.panelTop": "Augšā",
     "settings.panelBottom": "Apakšā",
     "settings.panelLeft": "Pa kreisi",
     "settings.panelRight": "Pa labi",
-    "settings.invalidPanelPosition": "Nederīgs paneļa novietojums"
+    "settings.invalidPanelPosition": "Nederīgs paneļa novietojums",
+    "reset.title": "Atiestatīt Tuxee",
+    "reset.intro": "Atjaunot Tuxee lietotājam {user} noklusējuma stāvoklī:",
+    "reset.effectTerminals": "Jūsu Tuxee termināļi un to grafiskās lietotnes tiek aizvērtas.",
+    "reset.effectDefaults": "Darbvietas, izkārtojumi, iestatījumi, termināļu vēsture un paziņojumi tiek atjaunoti uz noklusējumu.",
+    "reset.effectBackup": "Pašreizējā Tuxee konfigurācija un stāvoklis tiek pārvietoti uz rezerves kopiju mapē {path}.",
+    "reset.effectFiles": "Jūsu faili un augšupielādes paliek nemainīti.",
+    "reset.effectSessions": "Citās pārlūkprogrammās, kur pierakstījies {user}, jāpierakstās vēlreiz.",
+    "reset.confirm": "Atiestatīt",
+    "reset.progress": "Dublē un atiestata…",
+    "reset.complete": "Rezerves kopija saglabāta: {path}. Pārlādē…",
+    "reset.failed": "Atiestatīšana neizdevās: {detail}",
+    "reset.statusUnavailable": "Atiestatīšanas statuss nav pieejams. Pārlādējiet lapu, lai mēģinātu vēlreiz."
   }
 }

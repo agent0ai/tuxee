@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "About window showing an available update and the update command",
     "howto.keyboardShortcutsTitle": "Keyboard shortcuts",
     "howto.keyboardShortcutsBody": "You can customize keyboard shortcuts with the {button} button in the Tuxee menu.",
+    "howto.resetTitle": "Recovery reset",
+    "howto.resetBody": "If Tuxee stops loading correctly, for example after a broken settings change, sign in and open {path} in the address bar. It closes your Tuxee terminals and GUI applications, moves your Tuxee configuration and state to {backup} and restores the defaults; your files stay unchanged. You or an AI agent can restore settings from the backup later.",
     "settings.panelPosition": "Panel position",
     "settings.panelTop": "Top",
     "settings.panelBottom": "Bottom",
     "settings.panelLeft": "Left",
     "settings.panelRight": "Right",
-    "settings.invalidPanelPosition": "Invalid panel position"
+    "settings.invalidPanelPosition": "Invalid panel position",
+    "reset.title": "Reset Tuxee",
+    "reset.intro": "Restore Tuxee for {user} to its default state:",
+    "reset.effectTerminals": "Your Tuxee terminals and their GUI applications are closed.",
+    "reset.effectDefaults": "Desktops, layouts, settings, terminal history and notifications return to defaults.",
+    "reset.effectBackup": "The current Tuxee configuration and state are moved to a backup in {path}.",
+    "reset.effectFiles": "Your files and uploads stay unchanged.",
+    "reset.effectSessions": "Other browsers signed in as {user} must sign in again.",
+    "reset.confirm": "Reset Tuxee",
+    "reset.progress": "Backing up and resetting…",
+    "reset.complete": "Backup saved in {path}. Reloading…",
+    "reset.failed": "Reset failed: {detail}",
+    "reset.statusUnavailable": "Reset status is unavailable. Reload this page to try again."
   }
 }

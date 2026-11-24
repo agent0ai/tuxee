@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "利用可能な更新と更新コマンドを表示する情報ウィンドウ",
     "howto.keyboardShortcutsTitle": "キーボードショートカット",
     "howto.keyboardShortcutsBody": "Tuxeeメニューの{button}ボタンでキーボードショートカットをカスタマイズできます。",
+    "howto.resetTitle": "復旧リセット",
+    "howto.resetBody": "設定の誤った変更などで Tuxee が正しく読み込まれなくなった場合は、サインインしてアドレスバーで {path} を開きます。Tuxee の端末と GUI アプリを閉じ、Tuxee の構成と状態を {backup} に移動して既定に戻します。ファイルは変更されません。あとで自分または AI エージェントがバックアップから設定を復元できます。",
     "settings.panelPosition": "パネルの位置",
     "settings.panelTop": "上",
     "settings.panelBottom": "下",
     "settings.panelLeft": "左",
     "settings.panelRight": "右",
-    "settings.invalidPanelPosition": "パネルの位置が無効です"
+    "settings.invalidPanelPosition": "パネルの位置が無効です",
+    "reset.title": "Tuxee をリセット",
+    "reset.intro": "{user} の Tuxee を既定の状態に戻します:",
+    "reset.effectTerminals": "Tuxee の端末とその GUI アプリが閉じられます。",
+    "reset.effectDefaults": "デスク、レイアウト、設定、端末履歴、通知が既定に戻ります。",
+    "reset.effectBackup": "現在の Tuxee の構成と状態は {path} のバックアップに移動されます。",
+    "reset.effectFiles": "ファイルとアップロードは変更されません。",
+    "reset.effectSessions": "{user} としてサインインしている他のブラウザーは再度サインインが必要です。",
+    "reset.confirm": "リセット",
+    "reset.progress": "バックアップしてリセット中…",
+    "reset.complete": "バックアップを {path} に保存しました。再読み込み中…",
+    "reset.failed": "リセットに失敗しました: {detail}",
+    "reset.statusUnavailable": "リセットの状態を取得できません。このページを再読み込みして再試行してください。"
   }
 }

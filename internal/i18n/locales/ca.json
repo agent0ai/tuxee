@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Finestra d’informació amb una actualització disponible i l’ordre per actualitzar",
     "howto.keyboardShortcutsTitle": "Dreceres de teclat",
     "howto.keyboardShortcutsBody": "Pots personalitzar les dreceres de teclat amb el botó {button} del menú de Tuxee.",
+    "howto.resetTitle": "Restabliment de recuperació",
+    "howto.resetBody": "Si Tuxee deixa de carregar-se correctament, per exemple després d'un canvi de configuració defectuós, inicia la sessió i obre {path} a la barra d'adreces. Tanca els teus terminals de Tuxee i les aplicacions gràfiques, mou la configuració i l'estat de Tuxee a {backup} i restaura els valors predeterminats; els teus fitxers no canvien. Tu o un agent d'IA podeu restaurar la configuració des de la còpia més endavant.",
     "settings.panelPosition": "Posició del tauler",
     "settings.panelTop": "A dalt",
     "settings.panelBottom": "A baix",
     "settings.panelLeft": "A l’esquerra",
     "settings.panelRight": "A la dreta",
-    "settings.invalidPanelPosition": "La posició del tauler no és vàlida"
+    "settings.invalidPanelPosition": "La posició del tauler no és vàlida",
+    "reset.title": "Restableix Tuxee",
+    "reset.intro": "Restaura Tuxee per a {user} al seu estat predeterminat:",
+    "reset.effectTerminals": "Es tanquen els teus terminals de Tuxee i les seves aplicacions gràfiques.",
+    "reset.effectDefaults": "Els espais, les disposicions, la configuració, l'historial dels terminals i les notificacions tornen als valors predeterminats.",
+    "reset.effectBackup": "La configuració i l'estat actuals de Tuxee es mouen a una còpia de seguretat a {path}.",
+    "reset.effectFiles": "Els teus fitxers i càrregues no canvien.",
+    "reset.effectSessions": "Els altres navegadors amb la sessió iniciada com a {user} hauran de tornar a iniciar la sessió.",
+    "reset.confirm": "Restableix",
+    "reset.progress": "Fent la còpia i restablint…",
+    "reset.complete": "Còpia desada a {path}. Recarregant…",
+    "reset.failed": "El restabliment ha fallat: {detail}",
+    "reset.statusUnavailable": "L'estat del restabliment no està disponible. Recarrega aquesta pàgina per tornar-ho a provar."
   }
 }

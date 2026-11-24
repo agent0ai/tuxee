@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Okno z informacijami, razpoložljivo posodobitvijo in ukazom za posodobitev",
     "howto.keyboardShortcutsTitle": "Bližnjice na tipkovnici",
     "howto.keyboardShortcutsBody": "Bližnjice na tipkovnici lahko prilagodite z gumbom {button} v meniju Tuxee.",
+    "howto.resetTitle": "Obnovitvena ponastavitev",
+    "howto.resetBody": "Če se Tuxee preneha pravilno nalagati, na primer po napačni spremembi nastavitev, se prijavite in v naslovni vrstici odprite {path}. Zaprejo se vaši terminali Tuxee in grafične aplikacije, konfiguracija in stanje Tuxee se premakneta v {backup}, privzete vrednosti pa se obnovijo; vaše datoteke ostanejo nespremenjene. Vi ali agent UI lahko nastavitve pozneje obnovite iz varnostne kopije.",
     "settings.panelPosition": "Položaj plošče",
     "settings.panelTop": "Zgoraj",
     "settings.panelBottom": "Spodaj",
     "settings.panelLeft": "Levo",
     "settings.panelRight": "Desno",
-    "settings.invalidPanelPosition": "Neveljaven položaj plošče"
+    "settings.invalidPanelPosition": "Neveljaven položaj plošče",
+    "reset.title": "Ponastavi Tuxee",
+    "reset.intro": "Povrni Tuxee za uporabnika {user} v privzeto stanje:",
+    "reset.effectTerminals": "Vaši terminali Tuxee in njihove grafične aplikacije se zaprejo.",
+    "reset.effectDefaults": "Prostori, postavitve, nastavitve, zgodovina terminalov in obvestila se vrnejo na privzeto.",
+    "reset.effectBackup": "Trenutna konfiguracija in stanje Tuxee se premakneta v varnostno kopijo v {path}.",
+    "reset.effectFiles": "Vaše datoteke in naložene vsebine ostanejo nespremenjene.",
+    "reset.effectSessions": "Drugi brskalniki, prijavljeni kot {user}, se morajo znova prijaviti.",
+    "reset.confirm": "Ponastavi",
+    "reset.progress": "Varnostno kopiranje in ponastavljanje…",
+    "reset.complete": "Kopija shranjena v {path}. Ponovno nalaganje…",
+    "reset.failed": "Ponastavitev ni uspela: {detail}",
+    "reset.statusUnavailable": "Stanje ponastavitve ni na voljo. Znova naložite stran in poskusite znova."
   }
 }

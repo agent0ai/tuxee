@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Cửa sổ giới thiệu hiển thị bản cập nhật có sẵn và lệnh cập nhật",
     "howto.keyboardShortcutsTitle": "Phím tắt",
     "howto.keyboardShortcutsBody": "Bạn có thể tùy chỉnh phím tắt bằng nút {button} trong menu Tuxee.",
+    "howto.resetTitle": "Đặt lại để khôi phục",
+    "howto.resetBody": "Nếu Tuxee không còn tải đúng cách, ví dụ sau một thay đổi cài đặt bị lỗi, hãy đăng nhập và mở {path} trên thanh địa chỉ. Thao tác này đóng các terminal Tuxee và ứng dụng GUI của bạn, chuyển cấu hình và trạng thái Tuxee vào {backup} rồi khôi phục mặc định; tệp của bạn được giữ nguyên. Sau đó bạn hoặc một tác tử AI có thể khôi phục cài đặt từ bản sao lưu.",
     "settings.panelPosition": "Vị trí bảng",
     "settings.panelTop": "Trên",
     "settings.panelBottom": "Dưới",
     "settings.panelLeft": "Trái",
     "settings.panelRight": "Phải",
-    "settings.invalidPanelPosition": "Vị trí bảng không hợp lệ"
+    "settings.invalidPanelPosition": "Vị trí bảng không hợp lệ",
+    "reset.title": "Đặt lại Tuxee",
+    "reset.intro": "Khôi phục Tuxee của {user} về trạng thái mặc định:",
+    "reset.effectTerminals": "Các terminal Tuxee của bạn và ứng dụng GUI của chúng sẽ bị đóng.",
+    "reset.effectDefaults": "Vùng, bố cục, cài đặt, lịch sử terminal và thông báo trở về mặc định.",
+    "reset.effectBackup": "Cấu hình và trạng thái hiện tại của Tuxee được chuyển vào bản sao lưu trong {path}.",
+    "reset.effectFiles": "Tệp và nội dung tải lên của bạn được giữ nguyên.",
+    "reset.effectSessions": "Các trình duyệt khác đã đăng nhập bằng {user} phải đăng nhập lại.",
+    "reset.confirm": "Đặt lại",
+    "reset.progress": "Đang sao lưu và đặt lại…",
+    "reset.complete": "Đã lưu bản sao lưu trong {path}. Đang tải lại…",
+    "reset.failed": "Đặt lại thất bại: {detail}",
+    "reset.statusUnavailable": "Không có trạng thái đặt lại. Hãy tải lại trang này để thử lại."
   }
 }

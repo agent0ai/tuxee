@@ -30,6 +30,8 @@ Keep ordinary deployment zero-configuration: start the supplied image, forward p
 
 Document `tuxee ports` as editing saved configuration, with explicit restart and startup override precedence. Use `--config` for named/custom installations; distinguish container listening ports from host-published ports and container restart from recreation.
 
+`guide.md#recovery-reset` owns the user-facing `/reset` recovery page, backup layout under `~/tuxee-backups` and restore guidance; keep it consistent with the server contract and the How to Tips section.
+
 `guide.md#runtime-status` owns `tuxee status`: live instance selection, local health semantics, root-only activity counts and exit status. Keep it distinct from saved `ports` configuration and systemd `service status`.
 
 # Verification

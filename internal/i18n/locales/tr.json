@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Kullanılabilir güncellemeyi ve güncelleme komutunu gösteren Hakkında penceresi",
     "howto.keyboardShortcutsTitle": "Klavye kısayolları",
     "howto.keyboardShortcutsBody": "Klavye kısayollarını Tuxee menüsündeki {button} düğmesiyle özelleştirebilirsiniz.",
+    "howto.resetTitle": "Kurtarma sıfırlaması",
+    "howto.resetBody": "Tuxee düzgün yüklenmeyi bırakırsa, örneğin hatalı bir ayar değişikliğinden sonra, oturum açın ve adres çubuğunda {path} adresini açın. Bu işlem Tuxee terminallerinizi ve GUI uygulamalarınızı kapatır, Tuxee yapılandırmasını ve durumunu {backup} konumuna taşır ve varsayılanları geri yükler; dosyalarınız değişmeden kalır. Ayarları daha sonra siz veya bir yapay zekâ ajanı yedekten geri yükleyebilir.",
     "settings.panelPosition": "Panel konumu",
     "settings.panelTop": "Üst",
     "settings.panelBottom": "Alt",
     "settings.panelLeft": "Sol",
     "settings.panelRight": "Sağ",
-    "settings.invalidPanelPosition": "Geçersiz panel konumu"
+    "settings.invalidPanelPosition": "Geçersiz panel konumu",
+    "reset.title": "Tuxee'yi sıfırla",
+    "reset.intro": "{user} için Tuxee'yi varsayılan durumuna döndür:",
+    "reset.effectTerminals": "Tuxee terminalleriniz ve GUI uygulamaları kapatılır.",
+    "reset.effectDefaults": "Alanlar, düzenler, ayarlar, terminal geçmişi ve bildirimler varsayılana döner.",
+    "reset.effectBackup": "Geçerli Tuxee yapılandırması ve durumu {path} içindeki bir yedeğe taşınır.",
+    "reset.effectFiles": "Dosyalarınız ve yüklemeleriniz değişmeden kalır.",
+    "reset.effectSessions": "{user} olarak oturum açmış diğer tarayıcıların yeniden oturum açması gerekir.",
+    "reset.confirm": "Sıfırla",
+    "reset.progress": "Yedekleniyor ve sıfırlanıyor…",
+    "reset.complete": "Yedek {path} içine kaydedildi. Yeniden yükleniyor…",
+    "reset.failed": "Sıfırlama başarısız: {detail}",
+    "reset.statusUnavailable": "Sıfırlama durumu kullanılamıyor. Yeniden denemek için bu sayfayı yeniden yükleyin."
   }
 }

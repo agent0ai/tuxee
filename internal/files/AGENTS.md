@@ -43,6 +43,10 @@ Reconciliation receives live IDs from the terminal manager, marks stale records 
 
 `TerminalDirectory` and `AudioDirectory` authorize private metadata descriptors for the guardian worker. Discover guardians through `keeper.sock` in existing terminal folders; reuse installation/account scoping without a new catalog. A guardian holds a directory flock for its lifetime. Reconciliation skips locked folders, and explicit archive closure/deletion refuses a locked folder, protecting processes that could not be adopted.
 
+## Configuration reset
+
+Internal `config-reset` (never a public `/api/files` operation) runs under the account's credentials. It creates a private, uniquely named `~/tuxee-backups/<UTC date_time>/`, renames `~/.config/tuxee` to `config/` and the resolved `$XDG_STATE_HOME/tuxee` to `state/` (entry by entry, skipping terminal folders whose guardian still holds the directory lock), writes `backup.json` with the creation time and both original paths, and recreates an empty private `~/.config/tuxee`. Cross-filesystem moves use the shared no-replace copy, then remove the source. Never touch other home content or follow symlinks out of these folders. Returns the backup path.
+
 ## Content and archives
 
 - Text reads use bounded, cancellable sequential reads of regular UTF-8 files, rejecting invalid encodings and binary control bytes before returning content. Each page contains at most 1 MiB and 10,000 budgeted rows, counting another row after 1,000 Unicode code points independently of browser wrapping; never split UTF-8 characters or CRLF pairs. Return exact byte offset/end/total, physical line-break count, page SHA-256 and a file version covering device/inode/size/mtime/ctime/mode. Subsequent reads check that version. The direct `write` operation requires explicit original page range/hash and file version; never interpret a missing range as a whole-file replacement. Validate replacement limits, actual write permission and advisory locking. Stream the complete original prefix, edited page and complete suffix into a private temporary file with bounded memory; check the complete length, sync and recheck the source version/path before atomic rename. Failure/cancellation before commit removes the temporary file and leaves the original intact. Return the resized page range/hash and new version. Preserve ownership, ordinary permissions, line endings and extended attributes/ACLs; modified files lose privilege bits/capabilities. Refuse integrity-protected files. Resolve symlinks to their target; atomic replacement changes the inode (other hard links retain old content). Saving needs parent-directory write permission and temporary disk space for the complete result. Advisory locks cannot prevent writes by programs that ignore them.
@@ -62,6 +66,8 @@ Never pre-check permissions as root and then perform the operation as root. Do n
 # Verification
 
 Run `go test ./internal/files -v`. Worker tests cover incomplete/cancelled uploads, collision preservation, numbered file/folder names, concurrent unique uploads, directory preparation, symlink copying and consistent stat/list metadata, same-directory duplication/naming/cancellation, and directory-into-descendant rejection. Real credential boundaries are checked by identity tests. `TUXEE_SYSTEM_TEST=1 go test ./tests` verifies cleanup of failed copies containing read-only directories as an unprivileged user; browser tests cover HTTP file operations and cancellation.
+
+Reset checks cover backup layout/metadata/private modes, guardian-locked folders left in place, `XDG_STATE_HOME`, unique same-second folders and untouched user files.
 
 Size checks cover mixed/overlapping selections, empty directories, sparse files, symlink cycles, hard links, progress cadence, cancellation and partial permission failures.
 

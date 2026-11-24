@@ -67,6 +67,7 @@ type Server struct {
 	eventsMu       sync.Mutex
 	inboxWatches   map[uint32]*inboxWatch
 	settingsMu     sync.Mutex
+	resets         resetJobs
 	closed         atomic.Bool
 	logins         map[[32]byte]*login
 	archives       map[string]*archiveDownload
@@ -228,6 +229,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if r.URL.Path == "/reset" && session != nil && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+			s.resetView(w, r, session)
+			return
+		}
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			bundle := s.requestTranslations(r)
 			translations, _ := json.Marshal(bundle)
@@ -333,6 +338,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if session.translations != nil {
 				state["language"] = session.translations.Language
 			}
+			if epoch := s.resetEpoch(session.user.UID); epoch != "" {
+				state["reset"] = epoch
+			}
 		}
 		jsonResponse(w, 200, state)
 		return
@@ -357,6 +365,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.userEvents(w, r, session)
 	case r.URL.Path == "/api/audio" && r.Method == "GET":
 		s.userAudio(w, r, session)
+	case r.URL.Path == "/api/reset" && (r.Method == "GET" || r.Method == "POST"):
+		s.resetOperation(w, r, session)
 	case r.URL.Path == "/api/restart" && r.Method == "POST":
 		if s.Restart == nil {
 			failure(w, 503, i18n.New("backend.server.runtimeRestartIsUnavailable"))
@@ -444,7 +454,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.pruneEditors(ctx, session.user, settings)
-		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available(), "i18n": session.translations})
+		jsonResponse(w, 200, map[string]any{"user": session.user, "csrf": session.csrf, "settings": settings, "audio": audio.Available(), "i18n": session.translations, "reset": s.resetEpoch(session.user.UID)})
 	case r.URL.Path == "/api/logout" && r.Method == "POST":
 		cookie, _ := r.Cookie(s.cookieName)
 		s.mu.Lock()

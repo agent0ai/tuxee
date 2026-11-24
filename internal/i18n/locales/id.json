@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Jendela Tentang yang menampilkan pembaruan tersedia dan perintah pembaruan",
     "howto.keyboardShortcutsTitle": "Pintasan papan ketik",
     "howto.keyboardShortcutsBody": "Anda dapat menyesuaikan pintasan papan ketik dengan tombol {button} di menu Tuxee.",
+    "howto.resetTitle": "Setel ulang pemulihan",
+    "howto.resetBody": "Jika Tuxee berhenti dimuat dengan benar, misalnya setelah perubahan pengaturan yang rusak, masuk dan buka {path} di bilah alamat. Ini menutup terminal Tuxee dan aplikasi GUI Anda, memindahkan konfigurasi dan status Tuxee ke {backup}, lalu memulihkan pengaturan bawaan; file Anda tetap tidak berubah. Anda atau agen AI dapat memulihkan pengaturan dari cadangan nanti.",
     "settings.panelPosition": "Posisi panel",
     "settings.panelTop": "Atas",
     "settings.panelBottom": "Bawah",
     "settings.panelLeft": "Kiri",
     "settings.panelRight": "Kanan",
-    "settings.invalidPanelPosition": "Posisi panel tidak valid"
+    "settings.invalidPanelPosition": "Posisi panel tidak valid",
+    "reset.title": "Setel ulang Tuxee",
+    "reset.intro": "Pulihkan Tuxee untuk {user} ke keadaan bawaan:",
+    "reset.effectTerminals": "Terminal Tuxee Anda dan aplikasi GUI-nya ditutup.",
+    "reset.effectDefaults": "Ruang, tata letak, pengaturan, riwayat terminal, dan notifikasi kembali ke bawaan.",
+    "reset.effectBackup": "Konfigurasi dan status Tuxee saat ini dipindahkan ke cadangan di {path}.",
+    "reset.effectFiles": "File dan unggahan Anda tetap tidak berubah.",
+    "reset.effectSessions": "Browser lain yang masuk sebagai {user} harus masuk kembali.",
+    "reset.confirm": "Setel ulang",
+    "reset.progress": "Mencadangkan dan menyetel ulang…",
+    "reset.complete": "Cadangan disimpan di {path}. Memuat ulang…",
+    "reset.failed": "Penyetelan ulang gagal: {detail}",
+    "reset.statusUnavailable": "Status penyetelan ulang tidak tersedia. Muat ulang halaman ini untuk mencoba lagi."
   }
 }

@@ -38,7 +38,7 @@ if (boot) {
 }
 const hostname = document.querySelector<HTMLMetaElement>('meta[name="tuxee-hostname"]')!.content;
 let user: User, settings: Settings;
-let loggedIn = false, loggingOut = false, saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
+let loggedIn = false, loggingOut = false, resetEpoch = '', saveTimer: ReturnType<typeof setTimeout> | undefined, savePromise = Promise.resolve();
 let monitoring: Monitoring | undefined;
 let connection: BackendConnection | undefined;
 let updates: Updates | undefined;
@@ -158,8 +158,10 @@ async function load(signal?: AbortSignal) {
         settings: Settings;
         audio: boolean;
         i18n: Translations;
+        reset?: string;
     }>('/me', 'GET', undefined, signal);
     if (signal?.aborted) return;
+    resetEpoch = value.reset ?? '';
     if (value.i18n) setTranslations(value.i18n);
     user = value.user;
     settings = value.settings;
@@ -1882,6 +1884,8 @@ window.addEventListener('focus', () => { void refreshTerminals(); });
 window.addEventListener('pagehide', () => { disconnectEvents?.(); disposeShortcuts(); clearFileCut(); audio.available(false); updates?.dispose(); inbox?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });
 connection = new BackendConnection(async (session, signal) => {
     if (!loggedIn) await load(signal);
+    // A configuration reset replaced this account's state; never save this tab's stale layout.
+    else if ((session.reset ?? '') !== resetEpoch) location.reload();
     else if (session.uid === user.uid && (!session.language || session.language === translations().language)) setCSRF(session.csrf);
     else showLogin();
 }, () => {

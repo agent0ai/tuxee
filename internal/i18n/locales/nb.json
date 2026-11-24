@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Om-vindu med en tilgjengelig oppdatering og oppdateringskommandoen",
     "howto.keyboardShortcutsTitle": "Tastatursnarveier",
     "howto.keyboardShortcutsBody": "Du kan tilpasse tastatursnarveier med knappen {button} i Tuxee-menyen.",
+    "howto.resetTitle": "Gjenopprettingstilbakestilling",
+    "howto.resetBody": "Hvis Tuxee slutter å laste riktig, for eksempel etter en feilaktig endring av innstillinger, logger du inn og åpner {path} i adressefeltet. Det lukker Tuxee-terminalene og GUI-programmene dine, flytter Tuxee-konfigurasjonen og -tilstanden til {backup} og gjenoppretter standardene; filene dine forblir uendret. Du eller en KI-agent kan senere gjenopprette innstillinger fra sikkerhetskopien.",
     "settings.panelPosition": "Panelplassering",
     "settings.panelTop": "Øverst",
     "settings.panelBottom": "Nederst",
     "settings.panelLeft": "Venstre",
     "settings.panelRight": "Høyre",
-    "settings.invalidPanelPosition": "Ugyldig panelplassering"
+    "settings.invalidPanelPosition": "Ugyldig panelplassering",
+    "reset.title": "Tilbakestill Tuxee",
+    "reset.intro": "Gjenopprett Tuxee for {user} til standardtilstanden:",
+    "reset.effectTerminals": "Tuxee-terminalene dine og GUI-programmene deres lukkes.",
+    "reset.effectDefaults": "Områder, oppsett, innstillinger, terminalhistorikk og varsler tilbakestilles til standard.",
+    "reset.effectBackup": "Gjeldende Tuxee-konfigurasjon og -tilstand flyttes til en sikkerhetskopi i {path}.",
+    "reset.effectFiles": "Filene og opplastingene dine forblir uendret.",
+    "reset.effectSessions": "Andre nettlesere som er logget inn som {user}, må logge inn på nytt.",
+    "reset.confirm": "Tilbakestill",
+    "reset.progress": "Sikkerhetskopierer og tilbakestiller…",
+    "reset.complete": "Sikkerhetskopi lagret i {path}. Laster inn på nytt…",
+    "reset.failed": "Tilbakestilling mislyktes: {detail}",
+    "reset.statusUnavailable": "Status for tilbakestilling er ikke tilgjengelig. Last inn siden på nytt for å prøve igjen."
   }
 }

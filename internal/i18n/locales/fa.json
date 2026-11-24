@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "پنجرهٔ درباره با نمایش به‌روزرسانی موجود و فرمان به‌روزرسانی",
     "howto.keyboardShortcutsTitle": "میان‌برهای صفحه‌کلید",
     "howto.keyboardShortcutsBody": "می‌توانید میان‌برهای صفحه‌کلید را با دکمهٔ {button} در منوی Tuxee شخصی‌سازی کنید.",
+    "howto.resetTitle": "بازنشانی برای بازیابی",
+    "howto.resetBody": "اگر Tuxee دیگر درست بارگذاری نمی‌شود، برای مثال پس از یک تغییر نادرست در تنظیمات، وارد شوید و {path} را در نوار نشانی باز کنید. این کار پایانه‌های Tuxee و برنامه‌های گرافیکی را می‌بندد، پیکربندی و وضعیت Tuxee را به {backup} منتقل می‌کند و پیش‌فرض‌ها را بازمی‌گرداند؛ فایل‌های شما بدون تغییر می‌مانند. شما یا یک عامل هوش مصنوعی می‌توانید بعداً تنظیمات را از نسخهٔ پشتیبان بازیابی کنید.",
     "settings.panelPosition": "موقعیت پنل",
     "settings.panelTop": "بالا",
     "settings.panelBottom": "پایین",
     "settings.panelLeft": "چپ",
     "settings.panelRight": "راست",
-    "settings.invalidPanelPosition": "موقعیت پنل نامعتبر است"
+    "settings.invalidPanelPosition": "موقعیت پنل نامعتبر است",
+    "reset.title": "بازنشانی Tuxee",
+    "reset.intro": "بازگرداندن Tuxee برای {user} به حالت پیش‌فرض:",
+    "reset.effectTerminals": "پایانه‌های Tuxee شما و برنامه‌های گرافیکی آن‌ها بسته می‌شوند.",
+    "reset.effectDefaults": "فضاها، چیدمان‌ها، تنظیمات، تاریخچهٔ پایانه و اعلان‌ها به پیش‌فرض برمی‌گردند.",
+    "reset.effectBackup": "پیکربندی و وضعیت فعلی Tuxee به یک نسخهٔ پشتیبان در {path} منتقل می‌شود.",
+    "reset.effectFiles": "فایل‌ها و بارگذاری‌های شما بدون تغییر می‌مانند.",
+    "reset.effectSessions": "مرورگرهای دیگری که با {user} وارد شده‌اند باید دوباره وارد شوند.",
+    "reset.confirm": "بازنشانی",
+    "reset.progress": "در حال پشتیبان‌گیری و بازنشانی…",
+    "reset.complete": "نسخهٔ پشتیبان در {path} ذخیره شد. در حال بارگذاری مجدد…",
+    "reset.failed": "بازنشانی ناموفق بود: {detail}",
+    "reset.statusUnavailable": "وضعیت بازنشانی در دسترس نیست. برای تلاش دوباره این صفحه را بارگذاری مجدد کنید."
   }
 }

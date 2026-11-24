@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Fenêtre À propos affichant une mise à jour disponible et la commande de mise à jour",
     "howto.keyboardShortcutsTitle": "Raccourcis clavier",
     "howto.keyboardShortcutsBody": "Vous pouvez personnaliser les raccourcis clavier avec le bouton {button} du menu Tuxee.",
+    "howto.resetTitle": "Réinitialisation de secours",
+    "howto.resetBody": "Si Tuxee ne se charge plus correctement, par exemple après une modification de paramètres défectueuse, connectez-vous et ouvrez {path} dans la barre d’adresse. Cela ferme vos terminaux Tuxee et applications graphiques, déplace la configuration et l’état de Tuxee vers {backup} et restaure les valeurs par défaut ; vos fichiers restent inchangés. Vous ou un agent IA pourrez restaurer les paramètres depuis la sauvegarde plus tard.",
     "settings.panelPosition": "Position du panneau",
     "settings.panelTop": "En haut",
     "settings.panelBottom": "En bas",
     "settings.panelLeft": "À gauche",
     "settings.panelRight": "À droite",
-    "settings.invalidPanelPosition": "Position du panneau invalide"
+    "settings.invalidPanelPosition": "Position du panneau invalide",
+    "reset.title": "Réinitialiser Tuxee",
+    "reset.intro": "Restaurer Tuxee pour {user} à son état par défaut :",
+    "reset.effectTerminals": "Vos terminaux Tuxee et leurs applications graphiques sont fermés.",
+    "reset.effectDefaults": "Les espaces, dispositions, paramètres, historique des terminaux et notifications reviennent aux valeurs par défaut.",
+    "reset.effectBackup": "La configuration et l’état actuels de Tuxee sont déplacés dans une sauvegarde dans {path}.",
+    "reset.effectFiles": "Vos fichiers et téléversements restent inchangés.",
+    "reset.effectSessions": "Les autres navigateurs connectés en tant que {user} devront se reconnecter.",
+    "reset.confirm": "Réinitialiser",
+    "reset.progress": "Sauvegarde et réinitialisation…",
+    "reset.complete": "Sauvegarde enregistrée dans {path}. Rechargement…",
+    "reset.failed": "Échec de la réinitialisation : {detail}",
+    "reset.statusUnavailable": "L’état de la réinitialisation est indisponible. Rechargez cette page pour réessayer."
   }
 }

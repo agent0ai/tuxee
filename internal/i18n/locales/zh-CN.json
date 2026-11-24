@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "显示可用更新和更新命令的关于窗口",
     "howto.keyboardShortcutsTitle": "键盘快捷键",
     "howto.keyboardShortcutsBody": "你可以通过Tuxee 菜单中的{button}按钮自定义键盘快捷键。",
+    "howto.resetTitle": "恢复性重置",
+    "howto.resetBody": "如果 Tuxee 无法正常加载（例如设置更改出错后），请登录并在地址栏中打开 {path}。这会关闭你的 Tuxee 终端和图形应用，将 Tuxee 配置和状态移至 {backup}，并恢复默认值；你的文件保持不变。之后你或 AI 智能体可以从备份中恢复设置。",
     "settings.panelPosition": "面板位置",
     "settings.panelTop": "顶部",
     "settings.panelBottom": "底部",
     "settings.panelLeft": "左侧",
     "settings.panelRight": "右侧",
-    "settings.invalidPanelPosition": "面板位置无效"
+    "settings.invalidPanelPosition": "面板位置无效",
+    "reset.title": "重置 Tuxee",
+    "reset.intro": "将 {user} 的 Tuxee 恢复为默认状态：",
+    "reset.effectTerminals": "你的 Tuxee 终端及其图形应用将被关闭。",
+    "reset.effectDefaults": "工作区、布局、设置、终端历史和通知将恢复为默认值。",
+    "reset.effectBackup": "当前的 Tuxee 配置和状态将移至 {path} 中的备份。",
+    "reset.effectFiles": "你的文件和上传内容保持不变。",
+    "reset.effectSessions": "以 {user} 身份登录的其他浏览器需要重新登录。",
+    "reset.confirm": "重置",
+    "reset.progress": "正在备份并重置…",
+    "reset.complete": "备份已保存到 {path}。正在重新加载…",
+    "reset.failed": "重置失败：{detail}",
+    "reset.statusUnavailable": "无法获取重置状态。请重新加载此页面后重试。"
   }
 }

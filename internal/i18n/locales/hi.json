@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "उपलब्ध अपडेट और अपडेट कमांड दिखाती परिचय विंडो",
     "howto.keyboardShortcutsTitle": "कीबोर्ड शॉर्टकट",
     "howto.keyboardShortcutsBody": "Tuxee मेनू में {button} बटन से आप कीबोर्ड शॉर्टकट अपनी पसंद के अनुसार बदल सकते हैं।",
+    "howto.resetTitle": "रिकवरी रीसेट",
+    "howto.resetBody": "यदि Tuxee ठीक से लोड होना बंद कर दे, उदाहरण के लिए किसी खराब सेटिंग बदलाव के बाद, तो साइन इन करें और पता बार में {path} खोलें। यह आपके Tuxee टर्मिनल और GUI ऐप्लिकेशन बंद करता है, Tuxee कॉन्फ़िगरेशन और स्थिति को {backup} में ले जाता है और डिफ़ॉल्ट बहाल करता है; आपकी फ़ाइलें अपरिवर्तित रहती हैं। आप या कोई AI एजेंट बाद में बैकअप से सेटिंग्स बहाल कर सकते हैं।",
     "settings.panelPosition": "पैनल की स्थिति",
     "settings.panelTop": "ऊपर",
     "settings.panelBottom": "नीचे",
     "settings.panelLeft": "बाएँ",
     "settings.panelRight": "दाएँ",
-    "settings.invalidPanelPosition": "पैनल की स्थिति अमान्य है"
+    "settings.invalidPanelPosition": "पैनल की स्थिति अमान्य है",
+    "reset.title": "Tuxee रीसेट करें",
+    "reset.intro": "{user} के लिए Tuxee को उसकी डिफ़ॉल्ट स्थिति में लौटाएँ:",
+    "reset.effectTerminals": "आपके Tuxee टर्मिनल और उनके GUI ऐप्लिकेशन बंद हो जाते हैं।",
+    "reset.effectDefaults": "डेस्क, लेआउट, सेटिंग्स, टर्मिनल इतिहास और सूचनाएँ डिफ़ॉल्ट पर लौट आती हैं।",
+    "reset.effectBackup": "Tuxee का मौजूदा कॉन्फ़िगरेशन और स्थिति {path} में बैकअप में ले जाए जाते हैं।",
+    "reset.effectFiles": "आपकी फ़ाइलें और अपलोड अपरिवर्तित रहते हैं।",
+    "reset.effectSessions": "{user} के रूप में साइन इन किए गए अन्य ब्राउज़रों को फिर से साइन इन करना होगा।",
+    "reset.confirm": "रीसेट करें",
+    "reset.progress": "बैकअप और रीसेट हो रहा है…",
+    "reset.complete": "बैकअप {path} में सहेजा गया। फिर से लोड हो रहा है…",
+    "reset.failed": "रीसेट विफल: {detail}",
+    "reset.statusUnavailable": "रीसेट की स्थिति उपलब्ध नहीं है। फिर से प्रयास करने के लिए यह पेज रीलोड करें।"
   }
 }

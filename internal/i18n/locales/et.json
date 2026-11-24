@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Teabeaken saadaoleva uuenduse ja uuenduskäsuga",
     "howto.keyboardShortcutsTitle": "Kiirklahvid",
     "howto.keyboardShortcutsBody": "Saad kiirklahve kohandada Tuxee menüü nupuga {button}.",
+    "howto.resetTitle": "Taastelähtestus",
+    "howto.resetBody": "Kui Tuxee lakkab korralikult laadimast, näiteks pärast vigast seadete muudatust, logi sisse ja ava aadressiribal {path}. See sulgeb sinu Tuxee terminalid ja graafilised rakendused, teisaldab Tuxee konfiguratsiooni ja oleku kausta {backup} ning taastab vaikeväärtused; sinu failid jäävad muutmata. Sina või tehisintellekti agent saate seaded hiljem varukoopiast taastada.",
     "settings.panelPosition": "Paneeli asukoht",
     "settings.panelTop": "Ülal",
     "settings.panelBottom": "All",
     "settings.panelLeft": "Vasakul",
     "settings.panelRight": "Paremal",
-    "settings.invalidPanelPosition": "Vigane paneeli asukoht"
+    "settings.invalidPanelPosition": "Vigane paneeli asukoht",
+    "reset.title": "Lähtesta Tuxee",
+    "reset.intro": "Taasta kasutaja {user} Tuxee vaikeolekusse:",
+    "reset.effectTerminals": "Sinu Tuxee terminalid ja nende graafilised rakendused suletakse.",
+    "reset.effectDefaults": "Tööruumid, paigutused, seaded, terminali ajalugu ja teavitused taastatakse vaikimisi.",
+    "reset.effectBackup": "Praegune Tuxee konfiguratsioon ja olek teisaldatakse varukoopiasse kausta {path}.",
+    "reset.effectFiles": "Sinu failid ja üleslaadimised jäävad muutmata.",
+    "reset.effectSessions": "Teised kasutajana {user} sisse logitud brauserid peavad uuesti sisse logima.",
+    "reset.confirm": "Lähtesta",
+    "reset.progress": "Varundamine ja lähtestamine…",
+    "reset.complete": "Varukoopia salvestatud kausta {path}. Laadimine…",
+    "reset.failed": "Lähtestamine ebaõnnestus: {detail}",
+    "reset.statusUnavailable": "Lähtestamise olek pole saadaval. Proovimiseks laadi leht uuesti."
   }
 }

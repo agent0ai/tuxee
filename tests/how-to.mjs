@@ -132,7 +132,11 @@ try {
         }), 'tip screenshots alternate sides on desktop, mirror for RTL and stack below copy on phones');
         const keyboard = guide.locator('.howto-tip-shortcuts');
         assert.equal(await keyboard.count(), 1);
-        assert.ok(await keyboard.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-bar-position') && !node.nextElementSibling), 'Keyboard shortcuts is the final tip');
+        assert.ok(await keyboard.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-bar-position')), 'Keyboard shortcuts follows Bar position');
+        const reset = guide.locator('.howto-tip-reset');
+        assert.ok(await reset.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-shortcuts') && !node.nextElementSibling), 'Recovery reset is the final tip');
+        assert.equal(await reset.locator('img').count(), 0);
+        assert.ok((await reset.textContent()).includes('/reset') && (await reset.textContent()).includes('~/tuxee-backups'), 'the reset tip names its path and backup folder');
         assert.equal(await keyboard.locator('img').count(), 0);
         assert.equal(await keyboard.locator('p .howto-inline-control svg').count(), 1);
         assert.equal(await keyboard.locator('.howto-inline-control').innerText(), await keyboard.locator('[data-shortcut="app.shortcuts"] th').textContent());

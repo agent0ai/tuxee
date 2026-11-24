@@ -370,6 +370,23 @@ tuxee notify --users-all --text 'Backups completed.'
 
 `--users-all` targets Linux accounts with an existing `~/.config/tuxee` folder. A named recipient can receive notices before first login. Types are `default`, `info`, `success`, `warning` and `error`. Omitting `--type` sends a `default` notice. Markdown supports emphasis, lists, code and absolute HTTP, HTTPS and mail links. Raw HTML appears as text and images show their alt text. Tuxee stores notification files privately in each recipient’s `$XDG_STATE_HOME/tuxee/notifications` (default `~/.local/state/tuxee/notifications`).
 
+## Recovery reset
+
+If Tuxee stops loading after a broken settings change, an unreadable `settings.json` or other corrupted per-user state, sign in and open `/reset` (for example `https://server.example/reset`). The page is a standalone confirmation dialog: it loads no workspace, application bundle, WebSocket or saved setting, so it keeps working when the regular interface does not. After a successful login the session cookie already admits it even if the workspace crashes; open the address directly in the same browser. Signed-out visitors get the same 404 as any other private path.
+
+**Reset Tuxee** shows progress while the server:
+
+1. Terminates every live Tuxee terminal of your Linux account, including GUI applications and the shared audio runtime that belong to them.
+2. Moves your Tuxee configuration and state into a new private backup folder, `~/tuxee-backups/<UTC date_time>/`:
+   - `config/` is the former `~/.config/tuxee` (settings, desktops, layouts, favorites, shortcuts).
+   - `state/` is the former `$XDG_STATE_HOME/tuxee` (default `~/.local/state/tuxee`: terminal history and post-mortem output, input drafts and history, editor recovery drafts, notifications).
+   - `backup.json` records the creation time and both original paths.
+3. Recreates an empty `~/.config/tuxee`, so the next load starts from default desktops and settings.
+
+Files, uploads, trash and other data outside these two Tuxee folders are untouched. Terminal folders still locked by a running guardian (for example one owned by another Tuxee installation on the same account) stay in place. The reset replaces every login of your account: other browsers must sign in again, and other tabs in this browser reload instead of saving their old layout. When the reset finishes, the page reloads into the default workspace. The reset runs under your Linux credentials and never touches other accounts or `/etc/tuxee`.
+
+To restore earlier settings, copy files back from the backup, for example `cp ~/tuxee-backups/<backup>/config/settings.json ~/.config/tuxee/settings.json`, then reload the browser. Restore only what you need; a broken file restored as-is breaks the workspace again. AI agents working in your terminal can inspect, repair and restore the backup the same way. Backups are never deleted automatically; remove old folders under `~/tuxee-backups` when no longer needed. The How to guide mentions this page at the end of Tips.
+
 ## Docker
 
 ```sh

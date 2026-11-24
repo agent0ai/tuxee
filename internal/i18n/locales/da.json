@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Om-vindue med en tilgængelig opdatering og opdateringskommandoen",
     "howto.keyboardShortcutsTitle": "Tastaturgenveje",
     "howto.keyboardShortcutsBody": "Du kan tilpasse tastaturgenveje med knappen {button} i Tuxee-menuen.",
+    "howto.resetTitle": "Gendannelsesnulstilling",
+    "howto.resetBody": "Hvis Tuxee holder op med at indlæse korrekt, for eksempel efter en fejlagtig ændring af indstillinger, så log ind og åbn {path} i adresselinjen. Det lukker dine Tuxee-terminaler og GUI-programmer, flytter din Tuxee-konfiguration og -tilstand til {backup} og gendanner standarderne; dine filer forbliver uændrede. Du eller en AI-agent kan senere gendanne indstillinger fra sikkerhedskopien.",
     "settings.panelPosition": "Panelets placering",
     "settings.panelTop": "Øverst",
     "settings.panelBottom": "Nederst",
     "settings.panelLeft": "Venstre",
     "settings.panelRight": "Højre",
-    "settings.invalidPanelPosition": "Ugyldig panelplacering"
+    "settings.invalidPanelPosition": "Ugyldig panelplacering",
+    "reset.title": "Nulstil Tuxee",
+    "reset.intro": "Gendan Tuxee for {user} til standardtilstanden:",
+    "reset.effectTerminals": "Dine Tuxee-terminaler og deres GUI-programmer lukkes.",
+    "reset.effectDefaults": "Områder, layouts, indstillinger, terminalhistorik og notifikationer nulstilles til standard.",
+    "reset.effectBackup": "Den aktuelle Tuxee-konfiguration og -tilstand flyttes til en sikkerhedskopi i {path}.",
+    "reset.effectFiles": "Dine filer og uploads forbliver uændrede.",
+    "reset.effectSessions": "Andre browsere, der er logget ind som {user}, skal logge ind igen.",
+    "reset.confirm": "Nulstil Tuxee",
+    "reset.progress": "Sikkerhedskopierer og nulstiller…",
+    "reset.complete": "Sikkerhedskopi gemt i {path}. Genindlæser…",
+    "reset.failed": "Nulstilling mislykkedes: {detail}",
+    "reset.statusUnavailable": "Nulstillingsstatus er ikke tilgængelig. Genindlæs siden for at prøve igen."
   }
 }

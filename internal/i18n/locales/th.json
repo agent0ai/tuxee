@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "หน้าต่างเกี่ยวกับที่แสดงการอัปเดตที่พร้อมใช้งานและคำสั่งอัปเดต",
     "howto.keyboardShortcutsTitle": "แป้นพิมพ์ลัด",
     "howto.keyboardShortcutsBody": "คุณปรับแต่งแป้นพิมพ์ลัดได้ด้วยปุ่ม {button} ในเมนู Tuxee",
+    "howto.resetTitle": "รีเซ็ตเพื่อกู้คืน",
+    "howto.resetBody": "หาก Tuxee โหลดไม่ถูกต้อง เช่น หลังจากเปลี่ยนการตั้งค่าผิดพลาด ให้ลงชื่อเข้าใช้แล้วเปิด {path} ในแถบที่อยู่ ระบบจะปิดเทอร์มินัล Tuxee และแอป GUI ของคุณ ย้ายการกำหนดค่าและสถานะของ Tuxee ไปยัง {backup} และคืนค่าเริ่มต้น ไฟล์ของคุณจะไม่เปลี่ยนแปลง คุณหรือเอเจนต์ AI สามารถกู้คืนการตั้งค่าจากข้อมูลสำรองได้ภายหลัง",
     "settings.panelPosition": "ตำแหน่งแผง",
     "settings.panelTop": "ด้านบน",
     "settings.panelBottom": "ด้านล่าง",
     "settings.panelLeft": "ด้านซ้าย",
     "settings.panelRight": "ด้านขวา",
-    "settings.invalidPanelPosition": "ตำแหน่งแผงไม่ถูกต้อง"
+    "settings.invalidPanelPosition": "ตำแหน่งแผงไม่ถูกต้อง",
+    "reset.title": "รีเซ็ต Tuxee",
+    "reset.intro": "คืนค่า Tuxee ของ {user} เป็นสถานะเริ่มต้น:",
+    "reset.effectTerminals": "เทอร์มินัล Tuxee ของคุณและแอป GUI ในเทอร์มินัลจะถูกปิด",
+    "reset.effectDefaults": "พื้นที่ เลย์เอาต์ การตั้งค่า ประวัติเทอร์มินัล และการแจ้งเตือนจะกลับเป็นค่าเริ่มต้น",
+    "reset.effectBackup": "การกำหนดค่าและสถานะปัจจุบันของ Tuxee จะถูกย้ายไปยังข้อมูลสำรองใน {path}",
+    "reset.effectFiles": "ไฟล์และรายการอัปโหลดของคุณจะไม่เปลี่ยนแปลง",
+    "reset.effectSessions": "เบราว์เซอร์อื่นที่ลงชื่อเข้าใช้เป็น {user} ต้องลงชื่อเข้าใช้อีกครั้ง",
+    "reset.confirm": "รีเซ็ต",
+    "reset.progress": "กำลังสำรองข้อมูลและรีเซ็ต…",
+    "reset.complete": "บันทึกข้อมูลสำรองไว้ใน {path} แล้ว กำลังโหลดใหม่…",
+    "reset.failed": "รีเซ็ตไม่สำเร็จ: {detail}",
+    "reset.statusUnavailable": "ไม่สามารถดูสถานะการรีเซ็ตได้ โหลดหน้านี้ใหม่เพื่อลองอีกครั้ง"
   }
 }

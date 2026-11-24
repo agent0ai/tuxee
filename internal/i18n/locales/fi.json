@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Tietoja-ikkuna, jossa näkyvät saatavilla oleva päivitys ja päivityskomento",
     "howto.keyboardShortcutsTitle": "Pikanäppäimet",
     "howto.keyboardShortcutsBody": "Voit mukauttaa pikanäppäimiä Tuxee-valikon {button}-painikkeella.",
+    "howto.resetTitle": "Palautus oletuksiin",
+    "howto.resetBody": "Jos Tuxee lakkaa latautumasta oikein, esimerkiksi virheellisen asetusmuutoksen jälkeen, kirjaudu sisään ja avaa {path} osoiterivillä. Se sulkee Tuxee-päätteesi ja graafiset sovellukset, siirtää Tuxee-määritykset ja -tilan kohteeseen {backup} ja palauttaa oletukset; tiedostosi pysyvät ennallaan. Sinä tai tekoälyagentti voitte myöhemmin palauttaa asetukset varmuuskopiosta.",
     "settings.panelPosition": "Paneelin sijainti",
     "settings.panelTop": "Ylhäällä",
     "settings.panelBottom": "Alhaalla",
     "settings.panelLeft": "Vasemmalla",
     "settings.panelRight": "Oikealla",
-    "settings.invalidPanelPosition": "Virheellinen paneelin sijainti"
+    "settings.invalidPanelPosition": "Virheellinen paneelin sijainti",
+    "reset.title": "Palauta Tuxee",
+    "reset.intro": "Palauta käyttäjän {user} Tuxee oletustilaan:",
+    "reset.effectTerminals": "Tuxee-päätteesi ja niiden graafiset sovellukset suljetaan.",
+    "reset.effectDefaults": "Työtilat, asettelut, asetukset, päätehistoria ja ilmoitukset palautetaan oletuksiin.",
+    "reset.effectBackup": "Nykyiset Tuxee-määritykset ja -tila siirretään varmuuskopioon kohteeseen {path}.",
+    "reset.effectFiles": "Tiedostosi ja lataukset pysyvät ennallaan.",
+    "reset.effectSessions": "Muiden selainten, joilla on kirjauduttu käyttäjänä {user}, on kirjauduttava uudelleen.",
+    "reset.confirm": "Palauta",
+    "reset.progress": "Varmuuskopioidaan ja palautetaan…",
+    "reset.complete": "Varmuuskopio tallennettu: {path}. Ladataan uudelleen…",
+    "reset.failed": "Palautus epäonnistui: {detail}",
+    "reset.statusUnavailable": "Palautuksen tila ei ole saatavilla. Yritä uudelleen lataamalla sivu uudelleen."
   }
 }

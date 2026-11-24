@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Informacijos langas su galimu atnaujinimu ir atnaujinimo komanda",
     "howto.keyboardShortcutsTitle": "Spartieji klavišai",
     "howto.keyboardShortcutsBody": "Spartiuosius klavišus galite pritaikyti Tuxee meniu mygtuku {button}.",
+    "howto.resetTitle": "Atkūrimas į numatytuosius",
+    "howto.resetBody": "Jei Tuxee nustoja tinkamai įsikelti, pavyzdžiui, po klaidingo nustatymų pakeitimo, prisijunkite ir adreso juostoje atidarykite {path}. Tai uždaro jūsų Tuxee terminalus ir grafines programas, perkelia Tuxee konfigūraciją ir būseną į {backup} ir atkuria numatytuosius nustatymus; jūsų failai lieka nepakeisti. Vėliau jūs arba DI agentas galite atkurti nustatymus iš atsarginės kopijos.",
     "settings.panelPosition": "Skydelio vieta",
     "settings.panelTop": "Viršuje",
     "settings.panelBottom": "Apačioje",
     "settings.panelLeft": "Kairėje",
     "settings.panelRight": "Dešinėje",
-    "settings.invalidPanelPosition": "Neteisinga skydelio vieta"
+    "settings.invalidPanelPosition": "Neteisinga skydelio vieta",
+    "reset.title": "Atkurti Tuxee",
+    "reset.intro": "Atkurti numatytąją Tuxee būseną naudotojui {user}:",
+    "reset.effectTerminals": "Jūsų Tuxee terminalai ir jų grafinės programos uždaromos.",
+    "reset.effectDefaults": "Erdvės, išdėstymai, nustatymai, terminalų istorija ir pranešimai grąžinami į numatytuosius.",
+    "reset.effectBackup": "Dabartinė Tuxee konfigūracija ir būsena perkeliamos į atsarginę kopiją aplanke {path}.",
+    "reset.effectFiles": "Jūsų failai ir įkėlimai lieka nepakeisti.",
+    "reset.effectSessions": "Kitos naršyklės, prisijungusios kaip {user}, turės prisijungti iš naujo.",
+    "reset.confirm": "Atkurti",
+    "reset.progress": "Kuriama kopija ir atkuriama…",
+    "reset.complete": "Kopija išsaugota: {path}. Įkeliama iš naujo…",
+    "reset.failed": "Atkurti nepavyko: {detail}",
+    "reset.statusUnavailable": "Atkūrimo būsena nepasiekiama. Norėdami bandyti dar kartą, įkelkite puslapį iš naujo."
   }
 }

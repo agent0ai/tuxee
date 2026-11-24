@@ -1,7 +1,7 @@
 import { t } from './i18n';
 import { api, el, requestHeaders } from './ui';
 
-type ConnectionState = { authenticated: false } | { authenticated: true; uid: number; csrf: string; language?: string };
+type ConnectionState = { authenticated: false } | { authenticated: true; uid: number; csrf: string; language?: string; reset?: string };
 
 export class BackendConnection {
     private events = new AbortController();
@@ -9,7 +9,7 @@ export class BackendConnection {
     private timer?: ReturnType<typeof setTimeout>;
     private dialog?: HTMLDialogElement;
 
-    constructor(private restore: (session: { uid: number; csrf: string; language?: string }, signal: AbortSignal) => Promise<void>, private expired: () => void) {
+    constructor(private restore: (session: { uid: number; csrf: string; language?: string; reset?: string }, signal: AbortSignal) => Promise<void>, private expired: () => void) {
         const signal = this.events.signal;
         window.addEventListener('tuxee-connection-check', this.check, { signal });
         window.addEventListener('tuxee-connection-lost', this.lost, { signal });

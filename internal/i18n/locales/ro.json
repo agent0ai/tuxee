@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Fereastra Despre cu o actualizare disponibilă și comanda de actualizare",
     "howto.keyboardShortcutsTitle": "Comenzi rapide",
     "howto.keyboardShortcutsBody": "Poți personaliza comenzile rapide de la tastatură folosind butonul {button} din meniul Tuxee.",
+    "howto.resetTitle": "Resetare de recuperare",
+    "howto.resetBody": "Dacă Tuxee nu se mai încarcă corect, de exemplu după o modificare greșită a setărilor, conectează-te și deschide {path} în bara de adrese. Se închid terminalele Tuxee și aplicațiile grafice, configurația și starea Tuxee sunt mutate în {backup} și se restabilesc valorile implicite; fișierele tale rămân neschimbate. Tu sau un agent AI puteți restaura ulterior setările din copia de rezervă.",
     "settings.panelPosition": "Poziția panoului",
     "settings.panelTop": "Sus",
     "settings.panelBottom": "Jos",
     "settings.panelLeft": "Stânga",
     "settings.panelRight": "Dreapta",
-    "settings.invalidPanelPosition": "Poziție nevalidă a panoului"
+    "settings.invalidPanelPosition": "Poziție nevalidă a panoului",
+    "reset.title": "Resetează Tuxee",
+    "reset.intro": "Readu Tuxee pentru {user} la starea implicită:",
+    "reset.effectTerminals": "Terminalele tale Tuxee și aplicațiile lor grafice se închid.",
+    "reset.effectDefaults": "Spațiile, aranjamentele, setările, istoricul terminalelor și notificările revin la valorile implicite.",
+    "reset.effectBackup": "Configurația și starea actuale Tuxee sunt mutate într-o copie de rezervă în {path}.",
+    "reset.effectFiles": "Fișierele și încărcările tale rămân neschimbate.",
+    "reset.effectSessions": "Celelalte browsere conectate ca {user} trebuie să se conecteze din nou.",
+    "reset.confirm": "Resetează",
+    "reset.progress": "Se face copia și se resetează…",
+    "reset.complete": "Copie salvată în {path}. Se reîncarcă…",
+    "reset.failed": "Resetarea a eșuat: {detail}",
+    "reset.statusUnavailable": "Starea resetării nu este disponibilă. Reîncarcă pagina pentru a încerca din nou."
   }
 }

@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Over-venster met een beschikbare update en de opdracht om bij te werken",
     "howto.keyboardShortcutsTitle": "Sneltoetsen",
     "howto.keyboardShortcutsBody": "Je kunt sneltoetsen aanpassen met de knop {button} in het Tuxee-menu.",
+    "howto.resetTitle": "Herstel naar standaard",
+    "howto.resetBody": "Als Tuxee niet meer goed laadt, bijvoorbeeld na een defecte wijziging van instellingen, meld je dan aan en open {path} in de adresbalk. Dit sluit je Tuxee-terminals en GUI-toepassingen, verplaatst je Tuxee-configuratie en -status naar {backup} en zet de standaardwaarden terug; je bestanden blijven ongewijzigd. Jij of een AI-agent kan later instellingen uit de back-up terugzetten.",
     "settings.panelPosition": "Paneelpositie",
     "settings.panelTop": "Boven",
     "settings.panelBottom": "Onder",
     "settings.panelLeft": "Links",
     "settings.panelRight": "Rechts",
-    "settings.invalidPanelPosition": "Ongeldige paneelpositie"
+    "settings.invalidPanelPosition": "Ongeldige paneelpositie",
+    "reset.title": "Tuxee herstellen",
+    "reset.intro": "Tuxee voor {user} terugzetten naar de standaardstatus:",
+    "reset.effectTerminals": "Je Tuxee-terminals en hun GUI-toepassingen worden gesloten.",
+    "reset.effectDefaults": "Ruimtes, indelingen, instellingen, terminalgeschiedenis en meldingen worden teruggezet naar de standaard.",
+    "reset.effectBackup": "De huidige Tuxee-configuratie en -status worden verplaatst naar een back-up in {path}.",
+    "reset.effectFiles": "Je bestanden en uploads blijven ongewijzigd.",
+    "reset.effectSessions": "Andere browsers die zijn aangemeld als {user}, moeten opnieuw aanmelden.",
+    "reset.confirm": "Herstellen",
+    "reset.progress": "Back-up maken en herstellen…",
+    "reset.complete": "Back-up opgeslagen in {path}. Opnieuw laden…",
+    "reset.failed": "Herstellen mislukt: {detail}",
+    "reset.statusUnavailable": "Herstelstatus is niet beschikbaar. Laad deze pagina opnieuw om het nogmaals te proberen."
   }
 }

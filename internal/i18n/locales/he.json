@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "חלון אודות המציג עדכון זמין ואת פקודת העדכון",
     "howto.keyboardShortcutsTitle": "קיצורי מקלדת",
     "howto.keyboardShortcutsBody": "אפשר להתאים אישית את קיצורי המקלדת באמצעות הכפתור {button} בתפריט Tuxee.",
+    "howto.resetTitle": "איפוס לשחזור",
+    "howto.resetBody": "אם Tuxee מפסיק להיטען כראוי, למשל לאחר שינוי הגדרות פגום, יש להתחבר ולפתוח את {path} בשורת הכתובת. הפעולה סוגרת את מסופי Tuxee והיישומים הגרפיים, מעבירה את התצורה והמצב של Tuxee אל {backup} ומשחזרת את ברירות המחדל; הקבצים שלך נשארים ללא שינוי. אפשר לשחזר הגדרות מהגיבוי מאוחר יותר, בעצמך או בעזרת סוכן AI.",
     "settings.panelPosition": "מיקום הלוח",
     "settings.panelTop": "למעלה",
     "settings.panelBottom": "למטה",
     "settings.panelLeft": "שמאל",
     "settings.panelRight": "ימין",
-    "settings.invalidPanelPosition": "מיקום הלוח אינו תקין"
+    "settings.invalidPanelPosition": "מיקום הלוח אינו תקין",
+    "reset.title": "איפוס Tuxee",
+    "reset.intro": "שחזור Tuxee עבור {user} למצב ברירת המחדל:",
+    "reset.effectTerminals": "המסופים שלך ב־Tuxee והיישומים הגרפיים שלהם ייסגרו.",
+    "reset.effectDefaults": "מרחבים, פריסות, הגדרות, היסטוריית מסופים והתראות יחזרו לברירת המחדל.",
+    "reset.effectBackup": "התצורה והמצב הנוכחיים של Tuxee יועברו לגיבוי ב־{path}.",
+    "reset.effectFiles": "הקבצים וההעלאות שלך יישארו ללא שינוי.",
+    "reset.effectSessions": "דפדפנים אחרים המחוברים בתור {user} יצטרכו להתחבר מחדש.",
+    "reset.confirm": "איפוס",
+    "reset.progress": "מגבה ומאפס…",
+    "reset.complete": "הגיבוי נשמר ב־{path}. טוען מחדש…",
+    "reset.failed": "האיפוס נכשל: {detail}",
+    "reset.statusUnavailable": "מצב האיפוס אינו זמין. יש לטעון מחדש את הדף כדי לנסות שוב."
   }
 }

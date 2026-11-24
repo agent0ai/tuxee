@@ -210,6 +210,10 @@ func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File
 		response, err := notificationOperation(ctx, r)
 		return response, nil, err
 	}
+	if r.Operation == "config-reset" {
+		response, err := resetConfiguration(ctx)
+		return response, nil, err
+	}
 	if r.Operation == "settings-load" || r.Operation == "settings-save" {
 		home, err := os.UserHomeDir()
 		if err != nil {

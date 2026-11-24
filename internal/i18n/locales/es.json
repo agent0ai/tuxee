@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Ventana de información con una actualización disponible y el comando para actualizar",
     "howto.keyboardShortcutsTitle": "Atajos de teclado",
     "howto.keyboardShortcutsBody": "Puedes personalizar los atajos de teclado con el botón {button} del menú de Tuxee.",
+    "howto.resetTitle": "Restablecimiento de recuperación",
+    "howto.resetBody": "Si Tuxee deja de cargarse correctamente, por ejemplo tras un cambio de ajustes defectuoso, inicia sesión y abre {path} en la barra de direcciones. Cierra tus terminales de Tuxee y aplicaciones gráficas, mueve la configuración y el estado de Tuxee a {backup} y restaura los valores predeterminados; tus archivos no cambian. Tú o un agente de IA podéis restaurar los ajustes desde la copia más adelante.",
     "settings.panelPosition": "Posición del panel",
     "settings.panelTop": "Arriba",
     "settings.panelBottom": "Abajo",
     "settings.panelLeft": "Izquierda",
     "settings.panelRight": "Derecha",
-    "settings.invalidPanelPosition": "Posición del panel no válida"
+    "settings.invalidPanelPosition": "Posición del panel no válida",
+    "reset.title": "Restablecer Tuxee",
+    "reset.intro": "Restaurar Tuxee para {user} a su estado predeterminado:",
+    "reset.effectTerminals": "Se cierran tus terminales de Tuxee y sus aplicaciones gráficas.",
+    "reset.effectDefaults": "Los espacios, diseños, ajustes, historial de terminales y notificaciones vuelven a los valores predeterminados.",
+    "reset.effectBackup": "La configuración y el estado actuales de Tuxee se mueven a una copia de seguridad en {path}.",
+    "reset.effectFiles": "Tus archivos y subidas no cambian.",
+    "reset.effectSessions": "Los demás navegadores con sesión iniciada como {user} deberán iniciar sesión de nuevo.",
+    "reset.confirm": "Restablecer",
+    "reset.progress": "Copiando y restableciendo…",
+    "reset.complete": "Copia guardada en {path}. Recargando…",
+    "reset.failed": "Error al restablecer: {detail}",
+    "reset.statusUnavailable": "El estado del restablecimiento no está disponible. Recarga esta página para intentarlo de nuevo."
   }
 }

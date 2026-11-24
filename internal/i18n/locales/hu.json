@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Névjegyablak egy elérhető frissítéssel és a frissítési paranccsal",
     "howto.keyboardShortcutsTitle": "Billentyűparancsok",
     "howto.keyboardShortcutsBody": "A billentyűparancsokat a Tuxee menü {button} gombjával szabhatod testre.",
+    "howto.resetTitle": "Helyreállító visszaállítás",
+    "howto.resetBody": "Ha a Tuxee nem töltődik be megfelelően, például egy hibás beállításmódosítás után, jelentkezzen be, és nyissa meg a(z) {path} címet a címsorban. Ez bezárja a Tuxee-terminálokat és grafikus alkalmazásokat, áthelyezi a Tuxee-konfigurációt és -állapotot ide: {backup}, és visszaállítja az alapértelmezéseket; a fájljai változatlanok maradnak. Később Ön vagy egy MI-ügynök visszaállíthatja a beállításokat a mentésből.",
     "settings.panelPosition": "Panel helye",
     "settings.panelTop": "Felül",
     "settings.panelBottom": "Alul",
     "settings.panelLeft": "Balra",
     "settings.panelRight": "Jobbra",
-    "settings.invalidPanelPosition": "Érvénytelen panelhely"
+    "settings.invalidPanelPosition": "Érvénytelen panelhely",
+    "reset.title": "Tuxee visszaállítása",
+    "reset.intro": "A Tuxee alapállapotának visszaállítása a(z) {user} felhasználónál:",
+    "reset.effectTerminals": "A Tuxee-termináljai és grafikus alkalmazásaik bezárulnak.",
+    "reset.effectDefaults": "Az asztalok, elrendezések, beállítások, terminálelőzmények és értesítések visszaállnak alapértelmezettre.",
+    "reset.effectBackup": "A jelenlegi Tuxee-konfiguráció és -állapot biztonsági mentésbe kerül ide: {path}.",
+    "reset.effectFiles": "A fájljai és feltöltései változatlanok maradnak.",
+    "reset.effectSessions": "A(z) {user} néven bejelentkezett többi böngészőnek újra be kell jelentkeznie.",
+    "reset.confirm": "Visszaállítás",
+    "reset.progress": "Mentés és visszaállítás…",
+    "reset.complete": "Mentés helye: {path}. Újratöltés…",
+    "reset.failed": "A visszaállítás sikertelen: {detail}",
+    "reset.statusUnavailable": "A visszaállítás állapota nem érhető el. Töltse újra az oldalt az újbóli próbálkozáshoz."
   }
 }

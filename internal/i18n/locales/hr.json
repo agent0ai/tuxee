@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Prozor s informacijama o aplikaciji, dostupnim ažuriranjem i naredbom za ažuriranje",
     "howto.keyboardShortcutsTitle": "Tipkovnički prečaci",
     "howto.keyboardShortcutsBody": "Tipkovničke prečace možete prilagoditi gumbom {button} u izborniku Tuxee.",
+    "howto.resetTitle": "Resetiranje za oporavak",
+    "howto.resetBody": "Ako se Tuxee prestane ispravno učitavati, primjerice nakon neispravne promjene postavki, prijavite se i otvorite {path} u adresnoj traci. Time se zatvaraju vaši Tuxee terminali i grafičke aplikacije, konfiguracija i stanje Tuxeeja premještaju se u {backup} i vraćaju se zadane vrijednosti; vaše datoteke ostaju nepromijenjene. Vi ili AI agent kasnije možete vratiti postavke iz sigurnosne kopije.",
     "settings.panelPosition": "Položaj ploče",
     "settings.panelTop": "Gore",
     "settings.panelBottom": "Dolje",
     "settings.panelLeft": "Lijevo",
     "settings.panelRight": "Desno",
-    "settings.invalidPanelPosition": "Nevaljan položaj ploče"
+    "settings.invalidPanelPosition": "Nevaljan položaj ploče",
+    "reset.title": "Resetiraj Tuxee",
+    "reset.intro": "Vrati Tuxee za korisnika {user} u zadano stanje:",
+    "reset.effectTerminals": "Vaši Tuxee terminali i njihove grafičke aplikacije se zatvaraju.",
+    "reset.effectDefaults": "Prostori, rasporedi, postavke, povijest terminala i obavijesti vraćaju se na zadane vrijednosti.",
+    "reset.effectBackup": "Trenutačna konfiguracija i stanje Tuxeeja premještaju se u sigurnosnu kopiju u {path}.",
+    "reset.effectFiles": "Vaše datoteke i prijenosi ostaju nepromijenjeni.",
+    "reset.effectSessions": "Ostali preglednici prijavljeni kao {user} moraju se ponovno prijaviti.",
+    "reset.confirm": "Resetiraj",
+    "reset.progress": "Sigurnosno kopiranje i resetiranje…",
+    "reset.complete": "Kopija spremljena u {path}. Ponovno učitavanje…",
+    "reset.failed": "Resetiranje nije uspjelo: {detail}",
+    "reset.statusUnavailable": "Status resetiranja nije dostupan. Ponovno učitajte stranicu da biste pokušali ponovno."
   }
 }

@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Window ng impormasyon na may available na update at utos para mag-update",
     "howto.keyboardShortcutsTitle": "Mga keyboard shortcut",
     "howto.keyboardShortcutsBody": "Maaari mong i-customize ang mga keyboard shortcut gamit ang button na {button} sa Tuxee menu.",
+    "howto.resetTitle": "Recovery reset",
+    "howto.resetBody": "Kung hindi na maayos na naglo-load ang Tuxee, halimbawa pagkatapos ng sirang pagbabago sa setting, mag-sign in at buksan ang {path} sa address bar. Isinasara nito ang iyong mga terminal ng Tuxee at mga GUI app, inililipat ang configuration at estado ng Tuxee sa {backup} at ibinabalik ang mga default; hindi magbabago ang iyong mga file. Ikaw o isang AI agent ay maaaring mag-restore ng mga setting mula sa backup sa ibang pagkakataon.",
     "settings.panelPosition": "Puwesto ng panel",
     "settings.panelTop": "Itaas",
     "settings.panelBottom": "Ibaba",
     "settings.panelLeft": "Kaliwa",
     "settings.panelRight": "Kanan",
-    "settings.invalidPanelPosition": "Hindi wastong puwesto ng panel"
+    "settings.invalidPanelPosition": "Hindi wastong puwesto ng panel",
+    "reset.title": "I-reset ang Tuxee",
+    "reset.intro": "Ibalik ang Tuxee para kay {user} sa default na estado nito:",
+    "reset.effectTerminals": "Isasara ang iyong mga terminal ng Tuxee at ang kanilang mga GUI app.",
+    "reset.effectDefaults": "Babalik sa default ang mga espasyo, layout, setting, kasaysayan ng terminal at mga abiso.",
+    "reset.effectBackup": "Ililipat ang kasalukuyang configuration at estado ng Tuxee sa isang backup sa {path}.",
+    "reset.effectFiles": "Hindi magbabago ang iyong mga file at upload.",
+    "reset.effectSessions": "Kailangang mag-sign in muli ang ibang browser na naka-sign in bilang {user}.",
+    "reset.confirm": "I-reset",
+    "reset.progress": "Nagba-backup at nagre-reset…",
+    "reset.complete": "Na-save ang backup sa {path}. Nire-reload…",
+    "reset.failed": "Nabigo ang pag-reset: {detail}",
+    "reset.statusUnavailable": "Hindi available ang status ng pag-reset. I-reload ang page na ito para subukang muli."
   }
 }

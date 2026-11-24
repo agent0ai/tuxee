@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "顯示可用更新與更新指令的關於視窗",
     "howto.keyboardShortcutsTitle": "鍵盤快速鍵",
     "howto.keyboardShortcutsBody": "您可以透過Tuxee 選單中的{button}按鈕自訂鍵盤快速鍵。",
+    "howto.resetTitle": "復原重設",
+    "howto.resetBody": "如果 Tuxee 無法正常載入（例如設定變更出錯後），請登入並在網址列開啟 {path}。這會關閉你的 Tuxee 終端機和圖形應用程式，將 Tuxee 設定與狀態移至 {backup}，並還原預設值；你的檔案維持不變。之後你或 AI 代理程式可以從備份還原設定。",
     "settings.panelPosition": "面板位置",
     "settings.panelTop": "頂部",
     "settings.panelBottom": "底部",
     "settings.panelLeft": "左側",
     "settings.panelRight": "右側",
-    "settings.invalidPanelPosition": "面板位置無效"
+    "settings.invalidPanelPosition": "面板位置無效",
+    "reset.title": "重設 Tuxee",
+    "reset.intro": "將 {user} 的 Tuxee 還原為預設狀態：",
+    "reset.effectTerminals": "你的 Tuxee 終端機及其圖形應用程式將會關閉。",
+    "reset.effectDefaults": "工作區、版面配置、設定、終端機記錄和通知將恢復為預設值。",
+    "reset.effectBackup": "目前的 Tuxee 設定與狀態將移至 {path} 中的備份。",
+    "reset.effectFiles": "你的檔案和上傳內容維持不變。",
+    "reset.effectSessions": "以 {user} 身分登入的其他瀏覽器必須重新登入。",
+    "reset.confirm": "重設",
+    "reset.progress": "正在備份並重設…",
+    "reset.complete": "備份已儲存至 {path}。正在重新載入…",
+    "reset.failed": "重設失敗：{detail}",
+    "reset.statusUnavailable": "無法取得重設狀態。請重新載入此頁面再試一次。"
   }
 }

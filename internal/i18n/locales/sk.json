@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Okno s informáciami o aplikácii, dostupnou aktualizáciou a príkazom na aktualizáciu",
     "howto.keyboardShortcutsTitle": "Klávesové skratky",
     "howto.keyboardShortcutsBody": "Klávesové skratky si môžete prispôsobiť tlačidlom {button} v ponuke Tuxee.",
+    "howto.resetTitle": "Obnovenie predvoleného stavu",
+    "howto.resetBody": "Ak sa Tuxee prestane správne načítavať, napríklad po chybnej zmene nastavení, prihláste sa a otvorte {path} v paneli s adresou. Zatvorí terminály Tuxee a grafické aplikácie, presunie konfiguráciu a stav Tuxee do {backup} a obnoví predvolené hodnoty; vaše súbory zostanú bez zmeny. Nastavenia môžete zo zálohy neskôr obnoviť vy alebo AI agent.",
     "settings.panelPosition": "Umiestnenie panela",
     "settings.panelTop": "Hore",
     "settings.panelBottom": "Dole",
     "settings.panelLeft": "Vľavo",
     "settings.panelRight": "Vpravo",
-    "settings.invalidPanelPosition": "Neplatné umiestnenie panela"
+    "settings.invalidPanelPosition": "Neplatné umiestnenie panela",
+    "reset.title": "Obnoviť Tuxee",
+    "reset.intro": "Obnoviť predvolený stav Tuxee pre používateľa {user}:",
+    "reset.effectTerminals": "Vaše terminály Tuxee a ich grafické aplikácie sa zatvoria.",
+    "reset.effectDefaults": "Plochy, rozloženia, nastavenia, história terminálov a oznámenia sa vrátia na predvolené.",
+    "reset.effectBackup": "Aktuálna konfigurácia a stav Tuxee sa presunú do zálohy v {path}.",
+    "reset.effectFiles": "Vaše súbory a nahrané súbory zostanú bez zmeny.",
+    "reset.effectSessions": "Ostatné prehliadače prihlásené ako {user} sa musia znova prihlásiť.",
+    "reset.confirm": "Obnoviť Tuxee",
+    "reset.progress": "Zálohovanie a obnovovanie…",
+    "reset.complete": "Záloha uložená v {path}. Načítava sa…",
+    "reset.failed": "Obnovenie zlyhalo: {detail}",
+    "reset.statusUnavailable": "Stav obnovenia nie je k dispozícii. Znova načítajte stránku a skúste to znova."
   }
 }

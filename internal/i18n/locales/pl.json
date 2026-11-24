@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Okno informacji z dostępną aktualizacją i poleceniem aktualizacji",
     "howto.keyboardShortcutsTitle": "Skróty klawiszowe",
     "howto.keyboardShortcutsBody": "Skróty klawiszowe możesz dostosować przyciskiem {button} w menu Tuxee.",
+    "howto.resetTitle": "Reset awaryjny",
+    "howto.resetBody": "Jeśli Tuxee przestanie poprawnie się ładować, na przykład po błędnej zmianie ustawień, zaloguj się i otwórz {path} w pasku adresu. Zamyka to terminale Tuxee i aplikacje graficzne, przenosi konfigurację i stan Tuxee do {backup} i przywraca ustawienia domyślne; twoje pliki pozostają bez zmian. Ty lub agent AI możecie później przywrócić ustawienia z kopii zapasowej.",
     "settings.panelPosition": "Położenie panelu",
     "settings.panelTop": "Góra",
     "settings.panelBottom": "Dół",
     "settings.panelLeft": "Lewa strona",
     "settings.panelRight": "Prawa strona",
-    "settings.invalidPanelPosition": "Nieprawidłowe położenie panelu"
+    "settings.invalidPanelPosition": "Nieprawidłowe położenie panelu",
+    "reset.title": "Resetuj Tuxee",
+    "reset.intro": "Przywróć domyślny stan Tuxee dla użytkownika {user}:",
+    "reset.effectTerminals": "Twoje terminale Tuxee i ich aplikacje graficzne zostaną zamknięte.",
+    "reset.effectDefaults": "Pulpity, układy, ustawienia, historia terminali i powiadomienia wrócą do domyślnych.",
+    "reset.effectBackup": "Bieżąca konfiguracja i stan Tuxee zostaną przeniesione do kopii zapasowej w {path}.",
+    "reset.effectFiles": "Twoje pliki i przesłane dane pozostaną bez zmian.",
+    "reset.effectSessions": "Inne przeglądarki zalogowane jako {user} będą musiały zalogować się ponownie.",
+    "reset.confirm": "Resetuj",
+    "reset.progress": "Tworzenie kopii i resetowanie…",
+    "reset.complete": "Kopia zapisana w {path}. Ponowne ładowanie…",
+    "reset.failed": "Resetowanie nie powiodło się: {detail}",
+    "reset.statusUnavailable": "Stan resetowania jest niedostępny. Odśwież stronę, aby spróbować ponownie."
   }
 }

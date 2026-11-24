@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Janela Sobre mostrando uma atualização disponível e o comando de atualização",
     "howto.keyboardShortcutsTitle": "Atalhos de teclado",
     "howto.keyboardShortcutsBody": "Você pode personalizar os atalhos de teclado com o botão {button} no menu do Tuxee.",
+    "howto.resetTitle": "Redefinição de recuperação",
+    "howto.resetBody": "Se o Tuxee parar de carregar corretamente, por exemplo após uma alteração de configurações com defeito, entre e abra {path} na barra de endereços. Isso fecha seus terminais do Tuxee e aplicativos gráficos, move a configuração e o estado do Tuxee para {backup} e restaura os padrões; seus arquivos permanecem inalterados. Você ou um agente de IA pode restaurar as configurações a partir do backup depois.",
     "settings.panelPosition": "Posição do painel",
     "settings.panelTop": "Em cima",
     "settings.panelBottom": "Embaixo",
     "settings.panelLeft": "Esquerda",
     "settings.panelRight": "Direita",
-    "settings.invalidPanelPosition": "Posição do painel inválida"
+    "settings.invalidPanelPosition": "Posição do painel inválida",
+    "reset.title": "Redefinir Tuxee",
+    "reset.intro": "Restaurar o Tuxee de {user} ao estado padrão:",
+    "reset.effectTerminals": "Seus terminais do Tuxee e os aplicativos gráficos deles são fechados.",
+    "reset.effectDefaults": "Espaços, layouts, configurações, histórico de terminais e notificações voltam ao padrão.",
+    "reset.effectBackup": "A configuração e o estado atuais do Tuxee são movidos para um backup em {path}.",
+    "reset.effectFiles": "Seus arquivos e envios permanecem inalterados.",
+    "reset.effectSessions": "Outros navegadores conectados como {user} precisarão entrar novamente.",
+    "reset.confirm": "Redefinir",
+    "reset.progress": "Fazendo backup e redefinindo…",
+    "reset.complete": "Backup salvo em {path}. Recarregando…",
+    "reset.failed": "Falha ao redefinir: {detail}",
+    "reset.statusUnavailable": "O status da redefinição não está disponível. Recarregue esta página para tentar novamente."
   }
 }

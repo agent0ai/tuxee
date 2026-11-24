@@ -944,11 +944,25 @@
     "howto.updatesScreenshot": "Finestra delle informazioni con un aggiornamento disponibile e il comando per aggiornare",
     "howto.keyboardShortcutsTitle": "Scorciatoie da tastiera",
     "howto.keyboardShortcutsBody": "Puoi personalizzare le scorciatoie da tastiera con il pulsante {button} nel menu Tuxee.",
+    "howto.resetTitle": "Ripristino di emergenza",
+    "howto.resetBody": "Se Tuxee smette di caricarsi correttamente, ad esempio dopo una modifica errata alle impostazioni, accedi e apri {path} nella barra degli indirizzi. Chiude i tuoi terminali Tuxee e le applicazioni grafiche, sposta la configurazione e lo stato di Tuxee in {backup} e ripristina i valori predefiniti; i tuoi file restano invariati. Tu o un agente IA potrete ripristinare le impostazioni dal backup in seguito.",
     "settings.panelPosition": "Posizione del pannello",
     "settings.panelTop": "In alto",
     "settings.panelBottom": "In basso",
     "settings.panelLeft": "A sinistra",
     "settings.panelRight": "A destra",
-    "settings.invalidPanelPosition": "Posizione del pannello non valida"
+    "settings.invalidPanelPosition": "Posizione del pannello non valida",
+    "reset.title": "Ripristina Tuxee",
+    "reset.intro": "Riporta Tuxee per {user} allo stato predefinito:",
+    "reset.effectTerminals": "I tuoi terminali Tuxee e le relative applicazioni grafiche vengono chiusi.",
+    "reset.effectDefaults": "Spazi, layout, impostazioni, cronologia dei terminali e notifiche tornano ai valori predefiniti.",
+    "reset.effectBackup": "La configurazione e lo stato attuali di Tuxee vengono spostati in un backup in {path}.",
+    "reset.effectFiles": "I tuoi file e caricamenti restano invariati.",
+    "reset.effectSessions": "Gli altri browser connessi come {user} dovranno accedere di nuovo.",
+    "reset.confirm": "Ripristina",
+    "reset.progress": "Backup e ripristino in corso…",
+    "reset.complete": "Backup salvato in {path}. Ricaricamento…",
+    "reset.failed": "Ripristino non riuscito: {detail}",
+    "reset.statusUnavailable": "Lo stato del ripristino non è disponibile. Ricarica questa pagina per riprovare."
   }
 }
