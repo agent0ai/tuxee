@@ -23,6 +23,7 @@ export type Workspace = {
     panels: Panel[];
     active: string;
     maximized?: string;
+    archivedAt?: string;
     layout?: { mode: 1 | 2 | 3; custom: (Rect & { id: string })[] };
 };
 export type Settings = {

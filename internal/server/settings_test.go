@@ -545,7 +545,9 @@ func TestArchivedWorkspaceSettings(t *testing.T) {
 	desk := func(id, panel string) Workspace {
 		return Workspace{ID: id, Name: id, Columns: 4, Rows: 2, DefaultDirectory: "~/project", Panels: []Panel{{ID: panel, Kind: "terminal", Path: "/tmp", W: 2, H: 2}}, Active: panel}
 	}
-	settings := Settings{Theme: "dark", Current: "a", Workspaces: []Workspace{desk("a", "a1")}, ArchivedWorkspaces: []Workspace{desk("b", "b1")}}
+	archived := desk("b", "b1")
+	archived.ArchivedAt = "2026-10-29T08:15:00.123Z"
+	settings := Settings{Theme: "dark", Current: "a", Workspaces: []Workspace{desk("a", "a1")}, ArchivedWorkspaces: []Workspace{archived}}
 	if err := migrateSettings(&settings); err != nil {
 		t.Fatal(err)
 	}
@@ -563,12 +565,20 @@ func TestArchivedWorkspaceSettings(t *testing.T) {
 		"duplicate": {desk("b", "b1"), desk("b", "b2")},
 		"grid":      {{ID: "b", Name: "b", Columns: 8, Rows: 2, Panels: []Panel{}}},
 		"directory": {{ID: "b", Name: "b", Columns: 4, Rows: 2, Panels: []Panel{}, DefaultDirectory: "relative"}},
+		"timestamp": {{ID: "b", Name: "b", Columns: 4, Rows: 2, Panels: []Panel{}, ArchivedAt: "yesterday"}},
 	} {
 		value := settings
 		value.ArchivedWorkspaces = archived
 		if validateSettings(&value) == nil {
 			t.Fatalf("accepted invalid archived desktop: %s", name)
 		}
+	}
+	active := settings
+	active.Workspaces = []Workspace{archived}
+	active.Current = "b"
+	active.ArchivedWorkspaces = nil
+	if validateSettings(&active) == nil {
+		t.Fatal("accepted an archive timestamp on an active desktop")
 	}
 	// The desktop limit applies only to active desktops.
 	settings.ArchivedWorkspaces = make([]Workspace, maxWorkspaces+8)

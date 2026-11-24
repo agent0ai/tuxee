@@ -140,11 +140,14 @@ try {
     const list = dialog('Archived desktops');
     await list.getByText('Website', { exact: true }).waitFor();
     assert.equal(await list.locator('.retained-directory').textContent(), '~/project');
+    assert.equal(await list.locator('.retained-age').textContent(), '• 0m', 'list shows the age since archiving');
+    assert.ok(Date.now() - Date.parse(archived.archivedAt) < 120000);
     await shot(page, 'list');
     await button('Restore', list).click();
     await list.waitFor({ state: 'hidden' });
     await tab(original.id).waitFor();
     await waitFor(async () => { const value = await saved(); return !value.archivedWorkspaces && value.current === original.id && terminalIDs(value.workspaces[1]).every(Boolean); }, 'restored desktop did not start terminals');
+    assert.equal((await saved()).workspaces[1].archivedAt, undefined, 'restoration clears the archive time');
     settings = await saved();
     const restored = settings.workspaces[1];
     assert.deepEqual(settings.workspaces.map(ws => ws.id), [second.id, original.id], 'restored desktop is appended');

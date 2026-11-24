@@ -1276,6 +1276,7 @@ async function archiveWorkspace(ws: Workspace) {
     // Terminals are terminated now; restoration starts fresh shells in the same panels.
     const archived = structuredClone(ws);
     for (const panel of archived.panels) delete panel.terminal;
+    archived.archivedAt = new Date().toISOString();
     settings.archivedWorkspaces = [archived, ...settings.archivedWorkspaces || []];
     removeWorkspaces([ws]);
 }
@@ -1283,6 +1284,7 @@ async function restoreWorkspace(ws: Workspace) {
     if (settings.workspaces.length >= MAX_WORKSPACES) throw new Error(t("app.workspaceLimitReached"));
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return false;
     settings.archivedWorkspaces = settings.archivedWorkspaces?.filter(item => item !== ws);
+    delete ws.archivedAt;
     settings.workspaces.push(ws); await switchWorkspace(ws.id, true);
     return true;
 }
@@ -1298,6 +1300,12 @@ function archivedWorkspaces() {
             row.dataset.workspace = ws.id;
             const directory = el('bdi', 'retained-directory', ws.defaultDirectory || settings.defaultDirectory || '~'); directory.dir = 'ltr';
             name.append(el('span', 'retained-label', ws.name), directory);
+            // Desktops archived before timestamps were recorded show no age.
+            const archivedAt = Date.parse(ws.archivedAt || '');
+            if (archivedAt) {
+                const archivedAge = el('bdi', 'retained-age', `• ${age(archivedAt)}`);
+                archivedAge.title = formatDateTime(ws.archivedAt!); name.append(archivedAge);
+            }
             text.append(name);
             const restore = button(t("app.restoreWorkspace"), undefined, async () => { if (await restoreWorkspace(ws)) close(); });
             const remove = button(t("common.delete"), 'Trash2', async () => {
@@ -1309,6 +1317,12 @@ function archivedWorkspaces() {
         }
     };
     paint();
+}
+// Compact localized age: days are the largest unit; future dates clamp to 0m.
+function age(timestamp: number) {
+    const total = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+    const days = Math.floor(total / 1440), hours = Math.floor(total / 60) % 24, minutes = total % 60;
+    return days ? t('term.ageDays', { days, hours, minutes }) : hours ? t('term.ageHours', { hours, minutes }) : t('term.ageMinutes', { minutes });
 }
 function unlistedTerminals() {
     const listed = new Set(settings.workspaces.flatMap(ws => ws.panels.filter(panel => panel.kind === 'terminal').map(panel => panel.terminal)));
@@ -1624,11 +1638,6 @@ async function retainedTerminals() {
     let closed = false, busy = false;
     let displayed: TerminalInfo[] = [];
     const latest = (info: TerminalInfo) => Date.parse(info.closedAt || info.terminatedAt || info.foundDeadAt || info.startedAt || '') || 0;
-    const age = (timestamp: number) => {
-        const total = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
-        const days = Math.floor(total / 1440), hours = Math.floor(total / 60) % 24, minutes = total % 60;
-        return days ? t('term.ageDays', { days, hours, minutes }) : hours ? t('term.ageHours', { hours, minutes }) : t('term.ageMinutes', { minutes });
-    };
     const activeTab = button('', undefined, () => select(false));
     const closedTab = button('', undefined, () => select(true));
     const all = button('', undefined, () => remove(displayed, true));

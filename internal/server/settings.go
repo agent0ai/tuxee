@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
+	"time"
 	"tuxee/internal/i18n"
 	"unicode"
 	"unicode/utf16"
@@ -43,6 +44,7 @@ type Panel struct {
 }
 type Workspace struct {
 	Maximized        string  `json:"maximized,omitempty"`
+	ArchivedAt       string  `json:"archivedAt,omitempty"`
 	DefaultDirectory string  `json:"defaultDirectory,omitempty"`
 	ID               string  `json:"id"`
 	Name             string  `json:"name"`
@@ -211,6 +213,11 @@ func validateSettingsGrids(value *Settings, legacy bool) error {
 	if value.Theme != "dark" && value.Theme != "light" {
 		return i18n.New("backend.server.themeMustBeDarkOrLight")
 	}
+	for _, ws := range value.Workspaces {
+		if ws.ArchivedAt != "" {
+			return i18n.New("backend.server.invalidOrDuplicateWorkspace")
+		}
+	}
 	if len(value.Workspaces) > maxWorkspaces {
 		return i18n.New("backend.server.workspaceCountLimit", i18n.Vars{"max": maxWorkspaces})
 	}
@@ -243,7 +250,7 @@ func validateWorkspace(ws Workspace, seen map[string]bool, legacy bool) error {
 	if ws.Panels == nil {
 		return i18n.New("backend.server.workspacePanelsMustBeAnArray")
 	}
-	if ws.ID == "" || len(ws.ID) > 80 || seen[ws.ID] || len(ws.Name) == 0 || len(ws.Name) > 60 {
+	if ws.ID == "" || len(ws.ID) > 80 || seen[ws.ID] || len(ws.Name) == 0 || len(ws.Name) > 60 || ws.ArchivedAt != "" && !validTimestamp(ws.ArchivedAt) {
 		return i18n.New("backend.server.invalidOrDuplicateWorkspace")
 	}
 	seen[ws.ID] = true
@@ -306,6 +313,11 @@ func validateWorkspace(ws Workspace, seen map[string]bool, legacy bool) error {
 		}
 	}
 	return nil
+}
+
+func validTimestamp(value string) bool {
+	_, err := time.Parse(time.RFC3339Nano, value)
+	return err == nil && len(value) <= 40
 }
 
 func validateDefaultDirectory(path string) error {
