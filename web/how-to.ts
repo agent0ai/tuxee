@@ -228,15 +228,15 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const favorites = el('section', 'howto-detail howto-tip-favorites');
             favorites.append(el('h4', '', t('commandShortcuts.favorites')),
                 el('p', '', t('howto.favoritesBody', { favorites: t('commandShortcuts.favorites') })),
-                screenshot(favoritesImage, t('howto.favoritesScreenshot'), 1194, 624));
+                screenshot(favoritesImage, t('howto.favoritesScreenshot'), 1194, 620));
             const customization = el('section', 'howto-detail howto-tip-customization');
             customization.append(el('h4', '', t('howto.customizationTitle')),
                 el('p', '', t('howto.customizationBody')),
-                screenshot(customizationImage, t('howto.customizationScreenshot'), 1086, 242), shortcuts('app.settings'));
+                screenshot(customizationImage, t('howto.customizationScreenshot'), 1086, 238), shortcuts('app.settings'));
             const processes = el('section', 'howto-tip-processes'), processesCopy = el('div', 'howto-detail');
             processesCopy.append(el('h4', '', t('howto.processManagerTitle')),
                 el('p', '', t('howto.processManagerBody', { processes: t('monitor.processes'), monitor: t('app.resourceMonitor') })), shortcuts('app.monitor'));
-            processes.append(processesCopy, screenshot(processesImage, t('howto.processManagerScreenshot'), 872, 772));
+            processes.append(processesCopy, screenshot(processesImage, t('howto.processManagerScreenshot'), 872, 770));
             const updates = el('section', 'howto-tip-updates'), updatesCopy = el('div', 'howto-detail');
             updatesCopy.append(el('h4', '', t('howto.updatesTitle')),
                 el('p', '', t('howto.updatesBody', { about: t('app.about') })), shortcuts('app.about'));
