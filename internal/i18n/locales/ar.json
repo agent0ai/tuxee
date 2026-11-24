@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "اتصال HTTPS المشفر",
     "app.encryptedWithALocalCertificate": "مشفرة بشهادة محلية",
     "app.github": "GitHub",
+    "app.website": "الموقع",
     "app.homeDirectory": "الدليل الرئيسي",
     "app.kernel": "النواة",
     "app.light": "فاتح",

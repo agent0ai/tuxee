@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Šifruotas HTTPS ryšys",
     "app.encryptedWithALocalCertificate": "Užšifruota vietiniu sertifikatu",
     "app.github": "GitHub",
+    "app.website": "Svetainė",
     "app.homeDirectory": "Pagrindinis katalogas",
     "app.kernel": "Branduolys",
     "app.light": "Šviesi",

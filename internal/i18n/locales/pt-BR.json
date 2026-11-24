@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "HTTPS criptografado",
     "app.encryptedWithALocalCertificate": "Criptografado com um certificado local",
     "app.github": "GitHub",
+    "app.website": "Site",
     "app.homeDirectory": "Diretório inicial",
     "app.kernel": "Núcleo",
     "app.light": "Claro",

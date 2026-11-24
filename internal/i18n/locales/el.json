@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Κρυπτογραφημένη σύνδεση HTTPS",
     "app.encryptedWithALocalCertificate": "Κρυπτογραφημένο με τοπικό πιστοποιητικό",
     "app.github": "GitHub",
+    "app.website": "Ιστότοπος",
     "app.homeDirectory": "Αρχική σελίδα",
     "app.kernel": "Πυρήνας",
     "app.light": "Φωτεινό",

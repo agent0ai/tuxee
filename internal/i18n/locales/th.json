@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "การเชื่อมต่อ HTTPS ที่เข้ารหัส",
     "app.encryptedWithALocalCertificate": "เข้ารหัสด้วยใบรับรองท้องถิ่น",
     "app.github": "GitHub",
+    "app.website": "เว็บไซต์",
     "app.homeDirectory": "โฮมไดเร็กตอรี่",
     "app.kernel": "เคอร์เนล",
     "app.light": "สว่าง",

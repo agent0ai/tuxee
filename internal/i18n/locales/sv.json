@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Krypterad HTTPS-anslutning",
     "app.encryptedWithALocalCertificate": "Krypterad med ett lokalt certifikat",
     "app.github": "GitHub",
+    "app.website": "Webbplats",
     "app.homeDirectory": "Hemkatalog",
     "app.kernel": "Kärna",
     "app.light": "Ljust",

@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Šifrirana povezava HTTPS",
     "app.encryptedWithALocalCertificate": "Šifrirano z lokalnim potrdilom",
     "app.github": "GitHub",
+    "app.website": "Spletna stran",
     "app.homeDirectory": "Domači imenik",
     "app.kernel": "Jedro",
     "app.light": "Svetlo",

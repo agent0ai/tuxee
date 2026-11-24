@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Koneksi HTTPS terenkripsi",
     "app.encryptedWithALocalCertificate": "Dienkripsi dengan sertifikat lokal",
     "app.github": "GitHub",
+    "app.website": "Situs web",
     "app.homeDirectory": "Direktori rumah",
     "app.kernel": "Kernel",
     "app.light": "Terang",

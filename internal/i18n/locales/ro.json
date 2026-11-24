@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Conexiune HTTPS criptată",
     "app.encryptedWithALocalCertificate": "Criptat cu un certificat local",
     "app.github": "GitHub",
+    "app.website": "Site web",
     "app.homeDirectory": "Directorul principal",
     "app.kernel": "Nucleu",
     "app.light": "Luminos",

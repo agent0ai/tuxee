@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "HTTPS xifrat",
     "app.encryptedWithALocalCertificate": "Xifrat amb un certificat local",
     "app.github": "GitHub",
+    "app.website": "Lloc web",
     "app.homeDirectory": "Directori personal",
     "app.kernel": "Nucli",
     "app.light": "Clar",

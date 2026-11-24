@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "加密 HTTPS",
     "app.encryptedWithALocalCertificate": "使用本機憑證加密",
     "app.github": "GitHub",
+    "app.website": "網站",
     "app.homeDirectory": "家目錄",
     "app.kernel": "核心",
     "app.light": "淺色",

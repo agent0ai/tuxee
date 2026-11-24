@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Kryptert HTTPS-tilkobling",
     "app.encryptedWithALocalCertificate": "Kryptert med et lokalt sertifikat",
     "app.github": "GitHub",
+    "app.website": "Nettsted",
     "app.homeDirectory": "Hjemmekatalog",
     "app.kernel": "Kjerne",
     "app.light": "Lys",

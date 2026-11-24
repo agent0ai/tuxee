@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Šifrēts HTTPS savienojums",
     "app.encryptedWithALocalCertificate": "Šifrēts ar vietējo sertifikātu",
     "app.github": "GitHub",
+    "app.website": "Tīmekļa vietne",
     "app.homeDirectory": "Mājas direktorijs",
     "app.kernel": "Kodols",
     "app.light": "Gaišs",

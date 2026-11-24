@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Зашифроване з'єднання HTTPS",
     "app.encryptedWithALocalCertificate": "Зашифровано локальним сертифікатом",
     "app.github": "GitHub",
+    "app.website": "Вебсайт",
     "app.homeDirectory": "Домашній каталог",
     "app.kernel": "Ядро",
     "app.light": "Світла",

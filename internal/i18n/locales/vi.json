@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Kết nối HTTPS được mã hóa",
     "app.encryptedWithALocalCertificate": "Được mã hóa bằng chứng chỉ cục bộ",
     "app.github": "GitHub",
+    "app.website": "Trang web",
     "app.homeDirectory": "Thư mục chính",
     "app.kernel": "Nhân",
     "app.light": "Sáng",

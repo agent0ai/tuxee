@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "اتصال HTTPS رمزگذاری شده",
     "app.encryptedWithALocalCertificate": "رمزگذاری شده با گواهی محلی",
     "app.github": "GitHub",
+    "app.website": "وب‌سایت",
     "app.homeDirectory": "دایرکتوری صفحه اصلی",
     "app.kernel": "هسته",
     "app.light": "روشن",

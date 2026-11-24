@@ -1527,6 +1527,10 @@ async function openAbout() {
     const github = el('a', '', 'agent0ai/tuxee');
     github.dir = 'ltr'; github.href = 'https://github.com/agent0ai/tuxee'; github.target = '_blank'; github.rel = 'noopener noreferrer';
     githubHeading.scope = 'row'; githubCell.append(github); githubRow.append(githubHeading, githubCell);
+    const websiteRow = el('tr'), websiteHeading = el('th', '', t("app.website")), websiteCell = el('td');
+    const website = el('a', '', 'agent-zero.ai');
+    website.dir = 'ltr'; website.href = 'https://agent-zero.ai'; website.target = '_blank'; website.rel = 'noopener noreferrer';
+    websiteHeading.scope = 'row'; websiteCell.append(website); websiteRow.append(websiteHeading, websiteCell);
     table.append(body);
     content.append(logo, el('p', 'about-tagline muted', t("app.tagline")), table, status);
     const { dialog } = modal(t("app.aboutTuxee"), content);
@@ -1535,7 +1539,7 @@ async function openAbout() {
     const controller = new AbortController();
     dialog.addEventListener('close', () => controller.abort(), { once: true });
     if (updates) body.append(updates.view(controller.signal));
-    body.prepend(githubRow);
+    body.prepend(githubRow, websiteRow);
     try {
         const info = await api<{ version: string; os: string; kernel: string; architecture: string; hostname: string; username: string; uid: number; home: string; shell: string }>('/system', 'GET', undefined, controller.signal);
         version.textContent = info.version || t("common.unavailable");
@@ -1864,6 +1868,15 @@ function viewport() {
 window.addEventListener('resize', viewport);
 visualViewport?.addEventListener('resize', viewport);
 viewport();
+// Only defined Tuxee menus, editable text, terminals, links and selected text keep a right-click menu.
+document.addEventListener('contextmenu', event => {
+    if (event.defaultPrevented) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .xterm, a[href]')) return;
+    const selection = getSelection();
+    if (selection && !selection.isCollapsed && target && selection.containsNode(target, true)) return;
+    event.preventDefault();
+});
 document.addEventListener('visibilitychange', () => { void refreshTerminals(); });
 window.addEventListener('focus', () => { void refreshTerminals(); });
 window.addEventListener('pagehide', () => { disconnectEvents?.(); disposeShortcuts(); clearFileCut(); audio.available(false); updates?.dispose(); inbox?.dispose(); connection?.dispose(); stopTerminalPolling(); monitoring?.dispose(); disposeViews(); cancelTransfers(); });

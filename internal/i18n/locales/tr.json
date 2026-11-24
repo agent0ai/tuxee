@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Şifreli HTTPS bağlantısı",
     "app.encryptedWithALocalCertificate": "Yerel bir sertifikayla şifrelendi",
     "app.github": "GitHub",
+    "app.website": "Web sitesi",
     "app.homeDirectory": "Ana dizin",
     "app.kernel": "Çekirdek",
     "app.light": "Açık",

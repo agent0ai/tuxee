@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Szyfrowany protokół HTTPS",
     "app.encryptedWithALocalCertificate": "Zaszyfrowane za pomocą lokalnego certyfikatu",
     "app.github": "GitHub",
+    "app.website": "Strona WWW",
     "app.homeDirectory": "Katalog domowy",
     "app.kernel": "Jądro",
     "app.light": "Jasny",

@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "חיבור HTTPS מוצפן",
     "app.encryptedWithALocalCertificate": "מוצפן עם אישור מקומי",
     "app.github": "GitHub",
+    "app.website": "אתר",
     "app.homeDirectory": "ספריית הבית",
     "app.kernel": "ליבה",
     "app.light": "בהיר",

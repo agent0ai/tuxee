@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Šifrované HTTPS",
     "app.encryptedWithALocalCertificate": "Šifrované lokálnym certifikátom",
     "app.github": "GitHub",
+    "app.website": "Web",
     "app.homeDirectory": "Domovský adresár",
     "app.kernel": "Jadro",
     "app.light": "Svetlé",

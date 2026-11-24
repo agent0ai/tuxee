@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Криптирана HTTPS връзка",
     "app.encryptedWithALocalCertificate": "Криптиран с локален сертификат",
     "app.github": "GitHub",
+    "app.website": "Уебсайт",
     "app.homeDirectory": "Домашна директория",
     "app.kernel": "Ядро",
     "app.light": "Светла",

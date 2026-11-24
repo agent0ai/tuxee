@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Зашифрованный HTTPS",
     "app.encryptedWithALocalCertificate": "Зашифровано локальным сертификатом",
     "app.github": "GitHub",
+    "app.website": "Сайт",
     "app.homeDirectory": "Домашний каталог",
     "app.kernel": "Ядро",
     "app.light": "Светлая",

@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Krüpteeritud HTTPS ühendus",
     "app.encryptedWithALocalCertificate": "Krüpteeritud kohaliku sertifikaadiga",
     "app.github": "GitHub",
+    "app.website": "Veebisait",
     "app.homeDirectory": "Kodukataloog",
     "app.kernel": "Tuum",
     "app.light": "Hele",

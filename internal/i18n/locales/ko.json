@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "암호화된 HTTPS",
     "app.encryptedWithALocalCertificate": "로컬 인증서로 암호화됨",
     "app.github": "GitHub",
+    "app.website": "웹사이트",
     "app.homeDirectory": "홈 디렉토리",
     "app.kernel": "핵심",
     "app.light": "밝게",

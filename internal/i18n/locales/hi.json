@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "एन्क्रिप्टेड HTTPS कनेक्शन",
     "app.encryptedWithALocalCertificate": "स्थानीय प्रमाणपत्र के साथ एन्क्रिप्ट किया गया",
     "app.github": "GitHub",
+    "app.website": "वेबसाइट",
     "app.homeDirectory": "होम निर्देशिका",
     "app.kernel": "कर्नेल",
     "app.light": "हल्का",

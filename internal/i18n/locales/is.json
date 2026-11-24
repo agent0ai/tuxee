@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Dulkóðuð HTTPS tenging",
     "app.encryptedWithALocalCertificate": "Dulkóðuð með staðbundnu vottorði",
     "app.github": "GitHub",
+    "app.website": "Vefsíða",
     "app.homeDirectory": "Heimaskrá",
     "app.kernel": "Kjarni",
     "app.light": "Ljóst",

@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "Titkosított HTTPS kapcsolat",
     "app.encryptedWithALocalCertificate": "Helyi tanúsítvánnyal titkosítva",
     "app.github": "GitHub",
+    "app.website": "Weboldal",
     "app.homeDirectory": "Főkönyvtár",
     "app.kernel": "Kernel",
     "app.light": "Világos",

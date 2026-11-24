@@ -31,6 +31,7 @@
     "app.encryptedHTTPS": "暗号化されたHTTPS",
     "app.encryptedWithALocalCertificate": "ローカル証明書で暗号化",
     "app.github": "GitHub",
+    "app.website": "ウェブサイト",
     "app.homeDirectory": "ホームディレクトリ",
     "app.kernel": "カーネル",
     "app.light": "ライト",
