@@ -44,7 +44,7 @@ let connection: BackendConnection | undefined;
 let updates: Updates | undefined;
 let inbox: Inbox | undefined;
 let disconnectEvents: (() => void) | undefined;
-let terminalSessions: TerminalInfo[] = [], terminalError = '';
+let terminalSessions: TerminalInfo[] = [], terminalError = '', terminalLoaded = false;
 let terminalRequest: AbortController | undefined, terminalTimer: ReturnType<typeof setTimeout> | undefined;
 let terminalRefresh = Promise.resolve(true);
 type Mounted = { ws: Workspace; board: HTMLElement; gridEl: HTMLElement; parked: HTMLElement; grid?: GridStack; compact: boolean; items: Map<string, { owner: Mounted; node: HTMLElement; view: View; tools: HTMLElement; title: HTMLElement }> };
@@ -139,7 +139,7 @@ function showLogin() {
     inbox?.dispose(); inbox = undefined;
     monitoring?.dispose(); monitoring = undefined;
     stopTerminalPolling();
-    terminalSessions = []; terminalError = '';
+    terminalSessions = []; terminalError = ''; terminalLoaded = false;
     loggedIn = false;
     updateTitle();
     setColorMarker();
@@ -257,9 +257,6 @@ function panelPositions(compact: boolean) {
         ['left', t('settings.panelLeft')], ['right', t('settings.panelRight')],
     ] as const;
     return compact ? choices.slice(0, 2) : choices;
-}
-function tabBarActions(tab: HTMLElement, point?: { x: number; y: number }) {
-    return point && tab.closest('.topbar, .component-controls') ? barActions() : [];
 }
 function barActions(): (TabAction | TabSubmenu)[] {
     const compact = isCompact();
@@ -1120,7 +1117,6 @@ function workspaceMenu(ws: Workspace, tab: HTMLElement, position?: { x: number; 
         [t("app.defaultDirectory"), 'Folder', () => editWorkspaceDirectory(ws)],
         [t("app.archiveWorkspace"), 'Archive', () => archiveWorkspace(ws)],
         [t("common.close"), 'X', () => closeWorkspaces(ws)],
-        ...tabBarActions(tab, position),
     ], position);
 }
 function activatePanel(panel: Panel) {
@@ -1140,7 +1136,7 @@ function windowMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y: n
     const actions: (TabAction | TabSubmenu)[] = [[t("app.restoreWindow"), 'Square', () => restoreWindow(panel)], workspaceMoves(panel)];
     if (item.view.renamePanel) actions.push([t("common.rename"), 'Pencil', () => item.view.renamePanel!()]);
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
-    tabMenu(tab, item.title.textContent || panel.kind, false, [...actions, ...tabBarActions(tab, position)], position);
+    tabMenu(tab, item.title.textContent || panel.kind, false, actions, position);
 }
 function restoreWindow(panel: Panel) {
     const item = mounted?.items.get(panel.id);
@@ -1196,7 +1192,7 @@ function componentMenu(panel: Panel, tab: HTMLElement, position?: { x: number; y
     actions.push([t("common.close"), 'X', () => closePanel(panel)]);
     const control = item.tools.querySelector<HTMLButtonElement>('[data-action="take-control"]');
     if (!header && control && !control.hidden) actions.splice(1, 0, [t("app.takeControl"), 'Hand', () => control.click()]);
-    tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, [...actions, ...tabBarActions(tab, position)], position);
+    tabMenu(tab, item.title.textContent || panel.kind, panel.id === current().active, actions, position);
 }
 type TabAction = [string, Parameters<typeof icon>[0], () => unknown, boolean?];
 type TabSubmenu = { label: string; icon?: Parameters<typeof icon>[0]; items: { label: string; icon?: Parameters<typeof icon>[0]; disabled?: boolean; description?: string; action: () => unknown }[] };
@@ -1332,7 +1328,7 @@ function refreshTerminals(): Promise<boolean> {
         try {
             const sessions = await api<TerminalInfo[]>('/terminals', 'GET', undefined, request.signal);
             if (request.signal.aborted) return false;
-            terminalSessions = sessions; terminalError = '';
+            terminalSessions = sessions; terminalError = ''; terminalLoaded = true;
         } catch (error) {
             if (request.signal.aborted) return false;
             terminalError = error instanceof Error ? errorText(error) : t("app.retainedUnavailable");
@@ -1458,11 +1454,12 @@ const disposeShortcuts = installShortcuts(() => settings.shortcuts || {}, () => 
 
 type MenuCount = { count: number; label: string };
 function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, string?, MenuCount?][] {
-    const lost = unlistedTerminals(), count = lost.filter(info => !info.exited).length, archived = settings.archivedWorkspaces?.length || 0;
+    // Retained terminals count both tabs: lost plus closed archives.
+    const count = unlistedTerminals().filter(info => !info.exited).length, retained = unlistedTerminals().length + terminalSessions.filter(info => info.closedAt).length, archived = settings.archivedWorkspaces?.length || 0;
     const actions: ReturnType<typeof accountActions> = [
         [t("app.settings"), 'Settings', openSettings],
         [t("shortcuts.title"), 'Keyboard', editShortcuts],
-        [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : ''), { count: lost.length, label: t("app.retainedTerminalsCount", { count: lost.length }) }],
+        [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : ''), terminalLoaded && !terminalError ? { count: retained, label: t("app.retainedTerminalsCount", { count: retained }) } : undefined],
         [t("app.archivedWorkspaces"), 'Archive', archivedWorkspaces, '', { count: archived, label: t("app.archivedWorkspacesCount", { count: archived }) }],
         [t("app.about"), 'Info', openAbout, updates?.warning],
         [t("app.restartTuxee"), 'RefreshCw', restartTuxee], [t("app.logOut"), 'LogOut', logout]
@@ -1481,9 +1478,8 @@ async function showHowTo() {
     try { await save(); }
     catch (error) { value.howToSeen = false; throw error; }
 }
-// Nonzero counts show a muted trailing number and name the item with its count.
+// Known counts, including zero, show a muted trailing number and name the item with its count.
 function setMenuWarning(control: HTMLElement, label: string, warning: string, counted?: MenuCount) {
-    if (!counted?.count) counted = undefined;
     control.querySelector('.menu-status')?.remove();
     control.removeAttribute('aria-description');
     control.title = counted?.label || label; control.setAttribute('aria-label', control.title);

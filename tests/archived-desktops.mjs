@@ -73,11 +73,13 @@ try {
 
     // Empty archive: the Tuxee menu item has no count and opens the explanatory message.
     await startMenu();
-    const items = await page.locator('.start-menu .start-apps [role=menuitem]').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label')));
-    assert.equal(items[items.indexOf('Retained terminals') + 1], 'Archived desktops', 'Archived desktops follows Retained terminals');
-    assert.equal(await menuCount('Archive').count(), 0);
+    const items = await page.locator('.start-menu .start-apps [role=menuitem]').evaluateAll(nodes => nodes.map(node => node.dataset.action));
+    assert.equal(items[items.indexOf('SquareTerminal') + 1], 'Archive', 'Archived desktops follows Retained terminals');
+    assert.equal(await menuCount('Archive').textContent(), '0', 'zero is shown');
+    await waitFor(async () => await menuCount('SquareTerminal').textContent().catch(() => '') === '0', 'zero retained count missing');
+    assert.equal(await page.locator('.start-menu [data-action="Archive"]').getAttribute('aria-label'), 'Archived desktops: 0');
     await shot(page, 'menu-empty');
-    await menuitem('Archived desktops').click();
+    await menuitem('Archived desktops: 0').click();
     await dialog('Archived desktops').getByText('No archived desktops yet.', { exact: false }).waitFor();
     await shot(page, 'empty');
     await button('Close dialog', dialog('Archived desktops')).click();
@@ -117,12 +119,16 @@ try {
     // A running terminal outside every desktop makes Retained terminals count and warn.
     const lost = await (await api('/terminals', 'POST', { directory: home, columns: 80, rows: 24 })).json();
     await startMenu();
-    await waitFor(async () => await menuCount('SquareTerminal').textContent().catch(() => '') === '1', 'retained terminals count missing');
+    // The count covers both Retained terminals tabs: lost and closed.
+    const listed = new Set(terminalIDs((await saved()).workspaces[0]));
+    const retainedTotal = (await (await api('/terminals')).json()).filter(info => info.closedAt || info.exited || !listed.has(info.id)).length;
+    assert.ok(retainedTotal >= 1);
+    await waitFor(async () => await menuCount('SquareTerminal').textContent().catch(() => '') === String(retainedTotal), 'retained terminals count missing');
     assert.equal(await menuCount('Archive').textContent(), '1');
     assert.equal(await page.locator('.start-menu [data-action="Archive"]').getAttribute('aria-label'), 'Archived desktops: 1');
-    assert.equal(await page.locator('.start-menu [data-action="SquareTerminal"]').getAttribute('aria-label'), 'Retained terminals: 1');
+    assert.equal(await page.locator('.start-menu [data-action="SquareTerminal"]').getAttribute('aria-label'), `Retained terminals: ${retainedTotal}`);
     await shot(page, 'menu-counts');
-    await menuitem('Retained terminals: 1').click();
+    await menuitem(`Retained terminals: ${retainedTotal}`).click();
     const retained = dialog('Retained terminals');
     await retained.waitFor();
     assert.deepEqual(await retained.getByRole('tab').evaluateAll(tabs => tabs.map(tab => [tab.firstChild.textContent, tab.querySelector('.tab-count').textContent])), [['Lost', '1'], ['Closed', String((await (await api('/terminals')).json()).filter(info => info.closedAt).length)]]);
