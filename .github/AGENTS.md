@@ -33,8 +33,9 @@ installer; internal/update owns the release-asset contract.
   release. Older releases must not move latest backwards.
 - `nightly.yml` runs daily at 03:17 UTC and on manual dispatch. Resolve GitHub's
   latest published stable release tag to one commit for both native architectures.
-  Pull fresh bases, disable build caches and append a final Debian package upgrade
-  to the released Dockerfile in the runner's temporary directory. Preserve pinned
+  Pull fresh bases and disable build caches; released Dockerfiles with the flattened
+  `runtime-base` OS layer upgrade Debian there, while older ones get a final Debian
+  package upgrade appended in the runner's temporary directory. Preserve pinned
   dependencies and the application version; dependency bumps remain manual.
   Verify version/setup marker, package consistency, GUI/audio executables, HTTP
   readiness, PAM login and PTY creation before refreshing the three existing tags.

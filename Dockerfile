@@ -52,16 +52,23 @@ RUN tar -C /output -czf /tuxee-audio.tar.gz .
 FROM scratch AS audio-runtime
 COPY --from=audio-package /tuxee-audio.tar.gz /tuxee-audio.tar.gz
 
-FROM debian:trixie-slim AS runtime
+FROM debian:trixie-slim AS runtime-base
 RUN sed -i 's/^Components: main$/Components: main contrib non-free/' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip 7zip-rar tini curl \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --with-new-pkgs --no-install-recommends -o Dpkg::Options::=--force-confold \
+    && apt-get install -y --no-install-recommends libpam0g libpam-modules libpam-runtime ca-certificates passwd bash procps 7zip 7zip-rar tini curl \
     matchbox-window-manager xterm fonts-dejavu-core x11-xkb-utils xkb-data dbus \
     libnettle8t64 libunwind8 libjpeg62-turbo libpixman-1-0 libxfont2 libstdc++6 \
-    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb \
     && mkdir -p /etc/tuxee /var/lib/tuxee \
     && chmod 0700 /var/lib/tuxee \
     && printf '\n%s\n' "bind '\"\\e[13;2u\": \"\\C-v\\C-j\"'" >> /etc/bash.bashrc \
     && rm -f /var/log/apt/* /var/log/dpkg.log /var/cache/debconf/*-old /var/lib/dpkg/status-old
+
+# One OS layer: files replaced by Debian updates must not also ship in the base layer.
+FROM scratch AS runtime
+COPY --from=runtime-base / /
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 COPY --from=backend /tuxee /usr/local/lib/tuxee/tuxee
 COPY --from=gui /output/ /
 COPY --from=audio /output/ /

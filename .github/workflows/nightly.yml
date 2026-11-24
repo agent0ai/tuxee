@@ -61,7 +61,9 @@ jobs:
       - name: Prepare Debian package refresh
         run: |
           cp Dockerfile "$RUNNER_TEMP/Dockerfile.nightly"
-          # Upgrade base packages even when the released Dockerfile only installs prerequisites.
+          # Current Dockerfiles upgrade Debian inside the flattened OS layer.
+          if grep -q '^COPY --from=runtime-base / /$' Dockerfile; then exit 0; fi
+          # Older releases need a final upgrade layer.
           cat >> "$RUNNER_TEMP/Dockerfile.nightly" <<'EOF'
 
           RUN apt-get update \
