@@ -42,7 +42,7 @@
 .howto-terminal-drawer > .howto-detail { grid-column: 2; grid-row: 1; }
 .howto-terminal-drawer > img { grid-column: 1; grid-row: 1; }
 .howto-desktop-settings { display: grid; grid-template-columns: minmax(0, 1fr) 257px; align-items: center; gap: 24px; }
-.howto-files-pair, .howto-tip-processes, .howto-tip-updates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 28px; }
+.howto-files-pair, .howto-tip-processes, .howto-tip-updates, .howto-tip-bar-position { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 28px; }
 .howto-files-editor > .howto-detail, .howto-tip-updates > .howto-detail { grid-column: 2; grid-row: 1; }
 .howto-files-editor > img, .howto-tip-updates > img { grid-column: 1; grid-row: 1; }
 .howto-files > section + section { padding-top: 28px; border-top: 1px solid var(--line); }
@@ -50,7 +50,7 @@
 @media (max-width: 600px) {
   .howto-terminal-pair { grid-template-columns: minmax(0, 1fr); }
   .howto-terminal-drawer > .howto-detail, .howto-terminal-drawer > img { grid-column: auto; grid-row: auto; }
-  .howto-files-pair, .howto-tip-processes, .howto-tip-updates { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .howto-files-pair, .howto-tip-processes, .howto-tip-updates, .howto-tip-bar-position { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .howto-files-editor > .howto-detail, .howto-files-editor > img, .howto-tip-updates > .howto-detail, .howto-tip-updates > img { grid-column: auto; grid-row: auto; }
 }
 .howto-shortcuts { display: flex; align-items: flex-start; gap: 12px; color: var(--muted); font-size: 13px; line-height: 1.65; }
@@ -74,6 +74,9 @@
 .howto-command { margin: 0; }
 .howto-command pre, pre.howto-command { margin: 6px 0 0; padding: 14px 16px; border-radius: 8px; background: var(--raised); color: var(--text); font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .howto-gui > section + section { padding-top: 28px; border-top: 1px solid var(--line); }
+.howto-gui-tabs > img { max-width: 375px; }
+.howto-tip-bar-position > img { max-width: 316px; justify-self: center; }
+.howto-tip-favorites > img { max-width: 597px; }
 @media (max-width: 600px) {
   .howto-modal .modal-head { grid-template-columns: minmax(0, 1fr); }
   .howto-modal .modal-head > button:last-child { position: absolute; grid-column: auto; inset-inline-end: 0; top: 0; }

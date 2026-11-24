@@ -66,7 +66,7 @@ try {
             if (Math.abs((dots.left + dots.right) / 2 - expected) > 1) bad.push('dots are not centered with Close clearance');
             if (Math.abs((dots.top + dots.bottom) / 2 - (close.top + close.bottom) / 2) > 1) bad.push('dots and Close are not vertically aligned');
             if (box.left < 0 || box.right > innerWidth + 1 || box.top < 0 || box.bottom > innerHeight + 1) bad.push('dialog bounds');
-            for (const node of dialog.querySelectorAll('.howto-nav, .howto-page, .howto-chapters, .howto-copy, .howto-detail, .howto-shortcuts, .howto-terminal-pair, .howto-tip-processes, .howto-tip-updates')) if (node.scrollWidth > node.clientWidth + 1) bad.push(node.className);
+            for (const node of dialog.querySelectorAll('.howto-nav, .howto-page, .howto-chapters, .howto-copy, .howto-detail, .howto-shortcuts, .howto-terminal-pair, .howto-tip-processes, .howto-tip-updates, .howto-tip-bar-position')) if (node.scrollWidth > node.clientWidth + 1) bad.push(node.className);
             for (const row of dialog.querySelectorAll('.howto-terminal-pair')) {
                 const copy = row.querySelector('.howto-detail').getBoundingClientRect(), image = row.querySelector('img').getBoundingClientRect();
                 const retained = row.classList.contains('howto-terminal-retained');
@@ -100,19 +100,30 @@ try {
         await image.scrollIntoViewIfNeeded(); await image.evaluate(node => node.decode());
         assert.deepEqual(await image.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1086, 242]);
         assert.equal(await customization.locator('[data-shortcut="app.settings"] kbd').textContent(), 'Alt+Shift+S');
+        const favorites = guide.locator('.howto-tip-favorites'), favoritesImage = favorites.locator('img');
+        assert.ok(await favorites.evaluate(node => node.previousElementSibling.classList.contains('howto-copy') && node.nextElementSibling.classList.contains('howto-tip-customization')), 'Favorites is the first Tips section');
+        await favoritesImage.scrollIntoViewIfNeeded(); await favoritesImage.evaluate(node => node.decode());
+        assert.deepEqual(await favoritesImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1194, 624]);
+        assert.ok(await favoritesImage.evaluate(node => node.getBoundingClientRect().width <= 597.5), 'the Favorites screenshot is not upscaled');
         const processes = guide.locator('.howto-tip-processes'), processImage = processes.locator('img');
         assert.equal(await processes.count(), 1);
-        assert.ok(await processes.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-customization')), 'Process Manager is the second Tips section');
+        assert.ok(await processes.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-customization')), 'Process Manager follows Customization');
         await processImage.scrollIntoViewIfNeeded(); await processImage.evaluate(node => node.decode());
-        assert.deepEqual(await processImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1834, 1624]);
+        assert.deepEqual(await processImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [872, 772]);
         assert.equal(await processes.locator('[data-shortcut="app.monitor"] kbd').textContent(), 'Alt+Shift+R');
         const updates = guide.locator('.howto-tip-updates'), updateImage = updates.locator('img');
         assert.equal(await updates.count(), 1);
-        assert.ok(await updates.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-processes')), 'Updates is the third Tips section');
+        assert.ok(await updates.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-processes')), 'Updates follows Process Manager');
         await updateImage.scrollIntoViewIfNeeded(); await updateImage.evaluate(node => node.decode());
-        assert.deepEqual(await updateImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [1036, 1128]);
+        assert.deepEqual(await updateImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [872, 949]);
         assert.equal(await updates.locator('[data-shortcut="app.about"] kbd').textContent(), 'Alt+Shift+H');
-        for (const tip of [processes, updates]) assert.ok(await tip.evaluate(node => {
+        const barPosition = guide.locator('.howto-tip-bar-position'), barPositionImage = barPosition.locator('img');
+        assert.equal(await barPosition.count(), 1);
+        assert.ok(await barPosition.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-updates')), 'Bar position follows Updates');
+        await barPositionImage.scrollIntoViewIfNeeded(); await barPositionImage.evaluate(node => node.decode());
+        assert.deepEqual(await barPositionImage.evaluate(node => [node.naturalWidth, node.naturalHeight]), [632, 970]);
+        assert.ok(await barPositionImage.evaluate(node => node.getBoundingClientRect().width <= 316.5), 'the portrait bar screenshot is not upscaled');
+        for (const tip of [processes, updates, barPosition]) assert.ok(await tip.evaluate(node => {
             const copy = node.querySelector('.howto-detail').getBoundingClientRect(), image = node.querySelector('img').getBoundingClientRect();
             if (innerWidth <= 600) return image.top >= copy.bottom + 19;
             const imageFirst = node.classList.contains('howto-tip-updates') !== (document.documentElement.dir === 'rtl');
@@ -121,7 +132,7 @@ try {
         }), 'tip screenshots alternate sides on desktop, mirror for RTL and stack below copy on phones');
         const keyboard = guide.locator('.howto-tip-shortcuts');
         assert.equal(await keyboard.count(), 1);
-        assert.ok(await keyboard.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-updates') && !node.nextElementSibling), 'Keyboard shortcuts is the final tip');
+        assert.ok(await keyboard.evaluate(node => node.previousElementSibling.classList.contains('howto-tip-bar-position') && !node.nextElementSibling), 'Keyboard shortcuts is the final tip');
         assert.equal(await keyboard.locator('img').count(), 0);
         assert.equal(await keyboard.locator('p .howto-inline-control svg').count(), 1);
         assert.equal(await keyboard.locator('.howto-inline-control').innerText(), await keyboard.locator('[data-shortcut="app.shortcuts"] th').textContent());
@@ -159,7 +170,7 @@ try {
         assert.deepEqual(sizes.map(dot => dot.width), titles.map((_, i) => i === n ? 16 : 8));
         assert.ok(sizes.every(dot => dot.outline === 'none'), `dots use one filled circle: ${JSON.stringify(sizes)}`);
         if (n >= 1 && n <= 5) {
-            const images = dialog.locator('.howto-screenshot'); assert.equal(await images.count(), [0, 3, 6, 4, 2, 3][n]);
+            const images = dialog.locator('.howto-screenshot'); assert.equal(await images.count(), [0, 3, 6, 4, 2, 5][n]);
             let bytes = 0;
             for (const image of await images.all()) {
                 await image.scrollIntoViewIfNeeded();
@@ -192,7 +203,7 @@ try {
             assert.match(await dialog.locator('.howto-terminal-retained').innerText(), /Retained terminals.*Start menu.*lost or closed/s);
             assert.ok(!(await dialog.innerText()).includes('The snapshot is read-only.'));
             assert.ok(!(await dialog.innerText()).includes('Submit the input when you are ready.'));
-            assert.deepEqual(await dialog.locator('.howto-screenshot').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[1364, 822], [1368, 836], [674, 626], [682, 822], [680, 820], [1360, 824]]);
+            assert.deepEqual(await dialog.locator('.howto-screenshot').evaluateAll(images => images.map(image => [image.naturalWidth, image.naturalHeight])), [[1584, 772], [1236, 824], [600, 589], [654, 832], [654, 832], [1300, 832]]);
             assert.match(await dialog.locator('.howto-terminal-files').innerText(), /~\/uploads/);
             assert.equal(await dialog.locator('[data-shortcut="app.retained"] kbd').innerText(), 'Alt+Shift+T');
             assert.equal(await dialog.locator('[data-shortcut="app.settings"] kbd').innerText(), 'Alt+Shift+S');
@@ -212,7 +223,7 @@ try {
             assert.match(await dialog.locator('.howto-files-transfers p').innerText(), /Cut, copy and paste.*local device.*download/s);
             assert.deepEqual(await dialog.locator('.howto-files-editor kbd').allTextContents(), ['Ctrl+F', 'Ctrl+S']);
             assert.match(await dialog.locator('.howto-files-terminal').innerText(), /another unpinned browser/);
-            assert.deepEqual(await dialog.locator('.howto-files-terminal img').evaluate(image => [image.naturalWidth, image.naturalHeight]), [1356, 820]);
+            assert.deepEqual(await dialog.locator('.howto-files-terminal img').evaluate(image => [image.naturalWidth, image.naturalHeight]), [1764, 830]);
             for (const name of ['transfers', 'pair', 'editor', 'terminal']) {
                 await dialog.locator(`.howto-files-${name}`).first().scrollIntoViewIfNeeded(); await bounds(page);
                 await page.screenshot({ path: `test-results/howto-files-${name}.png` });
@@ -246,12 +257,16 @@ try {
         if (n < 5) assert.ok(screenshotRequests.every(url => !url.includes('/howto-tips-')), 'Tips screenshot waits until its page opens');
         if (n === 5) {
             await checkTips(page);
+            assert.equal(await dialog.locator('.howto-tip-favorites h4').textContent(), 'Favorites');
+            assert.match(await dialog.locator('.howto-tip-favorites p').textContent(), /Tuxee logo.*Start menu.*\+ button next to Favorites.*commands, files and folders.*new terminal.*Right-click.*edit or delete/);
             assert.equal(await dialog.locator('.howto-tip-customization h4').textContent(), 'Customization');
             assert.match(await dialog.locator('.howto-tip-customization p').textContent(), /name and color marker.*Settings.*servers/);
             assert.equal(await dialog.locator('.howto-tip-processes h4').textContent(), 'Process Manager');
             assert.match(await dialog.locator('.howto-tip-processes p').textContent(), /Resource monitor.*resources widget.*top bar.*Start menu.*Processes.*terminate individual processes.*overloaded.*unresponsive/);
             assert.equal(await dialog.locator('.howto-tip-updates h4').textContent(), 'Updates');
             assert.match(await dialog.locator('.howto-tip-updates p').textContent(), /Tuxee logo.*Start menu.*About.*check for updates/);
+            assert.equal(await dialog.locator('.howto-tip-bar-position h4').textContent(), 'Bar position');
+            assert.equal(await dialog.locator('.howto-tip-bar-position p').textContent(), 'Right-click the top bar and choose Bar position to move it to the bottom, left or right edge. The same option is in Settings › Panel position.');
             assert.equal(await dialog.locator('.howto-tip-shortcuts h4').textContent(), 'Keyboard shortcuts');
             assert.equal(await dialog.locator('.howto-tip-shortcuts p').textContent(), 'You can customize keyboard shortcuts with the Shortcuts button in the Start menu.');
         }

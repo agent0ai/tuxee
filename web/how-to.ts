@@ -22,6 +22,8 @@ import guiTerminalImage from './howto-gui-terminal.webp';
 import customizationImage from './howto-tips-customization.webp';
 import processesImage from './howto-tips-processes.webp';
 import updatesImage from './howto-tips-updates.webp';
+import barPositionImage from './howto-tips-bar-position.webp';
+import favoritesImage from './howto-tips-favorites.webp';
 import './how-to.css';
 
 export function openHowTo(savedShortcuts?: ShortcutBindings) {
@@ -112,7 +114,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             copy.append(components);
             const settings = el('section', 'howto-desktop-settings'), settingsCopy = el('div', 'howto-detail');
             settingsCopy.append(el('h4', '', t('howto.desktopSettingsTitle')), el('p', '', t('howto.desktopSettingsBody')), shortcuts('desktop.add', 'desktop.close'));
-            settings.append(settingsCopy, screenshot(desktopMenuImage, t('howto.desktopMenuScreenshot'), 514, 438));
+            settings.append(settingsCopy, screenshot(desktopMenuImage, t('howto.desktopMenuScreenshot'), 514, 457));
             const auto = el('section', 'howto-detail howto-desktop-auto'), autoBody = el('p');
             const autoControl = el('span', 'howto-inline-control');
             autoControl.append(icon('LayoutPanelTop'), el('span', '', t('app.autoLayout')));
@@ -125,35 +127,35 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const [columns, rows] = dimensions(1, 0), [portraitColumns, portraitRows] = dimensions(0, 1);
             composition.append(el('h4', '', t('howto.desktopCompositionTitle')), el('p', '', t('howto.desktopCompositionBody', { columns, rows, portraitColumns, portraitRows, maxPanels: columns * rows })));
             composition.append(el('p', '', t('howto.desktopMoveBody')));
-            section.append(copy, screenshot(desktopImage, t('howto.desktopScreenshot'), 1556, 1022),
+            section.append(copy, screenshot(desktopImage, t('howto.desktopScreenshot'), 1800, 937),
                 shortcuts('desktop.previous', 'desktop.next', 'panel.previous', 'panel.next'), composition,
-                screenshot(desktopLayoutImage, t('howto.desktopLayoutScreenshot'), 1832, 985),
+                screenshot(desktopLayoutImage, t('howto.desktopLayoutScreenshot'), 1800, 1209),
                 shortcuts('panel.terminal', 'panel.files', 'panel.close'), auto, settings);
         } else if (target === 2) {
             section.classList.add('howto-terminals');
-            section.append(copy, screenshot(terminalImage, t('app.terminals'), 1364, 822),
+            section.append(copy, screenshot(terminalImage, t('app.terminals'), 1584, 772),
                 shortcuts('panel.terminal', 'panel.close'));
             const archive = el('section', 'howto-detail howto-terminal-archive');
             archive.append(el('h4', '', t('term.postMortem')),
                 el('p', '', t('howto.terminalArchiveBody', { state: t('term.postMortem') })),
-                screenshot(terminalArchiveImage, t('term.postMortem'), 1368, 836));
+                screenshot(terminalArchiveImage, t('term.postMortem'), 1236, 824));
             const retained = el('section', 'howto-terminal-pair howto-terminal-retained'), retainedCopy = el('div', 'howto-detail');
             retainedCopy.append(el('p', '', t('howto.terminalRetainedBody', { retained: t('app.retainedTerminals') })), shortcuts('app.retained'));
-            retained.append(retainedCopy, screenshot(terminalRetainedImage, t('app.retainedTerminals'), 674, 626));
+            retained.append(retainedCopy, screenshot(terminalRetainedImage, t('app.retainedTerminals'), 600, 589));
             const drawer = el('section', 'howto-terminal-pair howto-terminal-drawer'), drawerCopy = el('div', 'howto-detail'), drawerTitle = el('h4');
             drawerTitle.append(icon('TextCursorInput'), el('span', '', t('term.terminalInputDrawer')));
             const drawerHint = el('aside', 'howto-shortcuts');
             drawerHint.append(icon('Keyboard'), el('span', '', t('term.enterSendCtrlEnterInsertShiftEnterNewLine')));
             drawerCopy.append(drawerTitle, el('p', '', t('howto.terminalDrawerBody')), drawerHint);
-            drawer.append(drawerCopy, screenshot(terminalDrawerImage, t('term.terminalInputDrawer'), 682, 822));
+            drawer.append(drawerCopy, screenshot(terminalDrawerImage, t('term.terminalInputDrawer'), 654, 832));
             const text = el('section', 'howto-terminal-pair howto-terminal-text'), textCopy = el('div', 'howto-detail'), textTitle = el('h4');
             textTitle.append(el('span', 'howto-text-control', t('term.t')), el('span', '', t('term.terminalContentsAsText')));
             textCopy.append(textTitle, el('p', '', t('howto.terminalTextBody', { button: t('term.t') })));
-            text.append(textCopy, screenshot(terminalTextImage, t('term.terminalContentsAsText'), 680, 820));
+            text.append(textCopy, screenshot(terminalTextImage, t('term.terminalContentsAsText'), 654, 832));
             const files = el('section', 'howto-detail howto-terminal-files');
             files.append(el('h4', '', t('howto.terminalFilesTitle')),
                 el('p', '', t('howto.terminalFilesBody', { directory: '~/uploads' })),
-                screenshot(terminalFilesImage, t('howto.terminalFilesTitle'), 1360, 824), shortcuts('panel.files'));
+                screenshot(terminalFilesImage, t('howto.terminalFilesTitle'), 1300, 832), shortcuts('panel.files'));
             const settings = el('section', 'howto-detail howto-terminal-settings'), settingsTitle = el('h4');
             settingsTitle.append(icon('Settings'), el('span', '', t('app.settings')));
             settings.append(settingsTitle, el('p', '', t('howto.terminalSettingsBody')), shortcuts('app.settings'));
@@ -176,7 +178,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const transfers = el('section', 'howto-detail howto-files-transfers');
             transfers.append(el('h4', '', t('howto.filesTransfersTitle')),
                 el('p', '', t('howto.filesTransfersBody', { modifier: shortcutLabel(['Control']) })),
-                screenshot(filesTransferImage, t('howto.filesTransfersTitle'), 1100, 538),
+                screenshot(filesTransferImage, t('howto.filesTransfersTitle'), 1754, 824),
                 keyHints([t('howto.filesNavigate'), ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].map(key => shortcutLabel([key])).join(' ')],
                     [t('common.rename'), shortcutLabel(['F2'])], [t('files.open'), shortcutLabel(['Enter'])]));
             const actions = el('section', 'howto-files-pair'), actionsCopy = el('div', 'howto-detail');
@@ -185,16 +187,16 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
                 keyHints([t('howto.filesToggleSelection'), t('howto.modifiedClick', { modifier })],
                     [t('howto.filesSelectRange'), t('howto.modifiedClick', { modifier: shortcutLabel(['Shift']) })],
                     [t('files.selectAllVisibleFiles'), shortcutLabel([`${primary}+KeyA`])]));
-            actions.append(actionsCopy, screenshot(filesMenuImage, t('files.fileActions'), 545, 548));
+            actions.append(actionsCopy, screenshot(filesMenuImage, t('files.fileActions'), 878, 848));
             const editor = el('section', 'howto-files-pair howto-files-editor'), editorCopy = el('div', 'howto-detail');
             editorCopy.append(el('h4', '', t('howto.filesEditorTitle')), el('p', '', t('howto.filesEditorBody')),
                 keyHints([t('editor.searchReplace'), shortcutLabel([`${primary}+KeyF`])], [t('editor.saveFile'), shortcutLabel([`${primary}+KeyS`])]));
-            editor.append(editorCopy, screenshot(filesEditorImage, t('howto.filesEditorTitle'), 545, 538));
+            editor.append(editorCopy, screenshot(filesEditorImage, t('howto.filesEditorTitle'), 882, 830));
             const terminalFiles = el('section', 'howto-detail howto-files-terminal'), pinTitle = el('h4');
             pinTitle.append(icon('Pin'), el('span', '', t('files.pinCurrentFolder')));
             terminalFiles.append(el('h4', '', t('howto.filesTerminalTitle')),
                 el('p', '', t('howto.filesTerminalBody', { modifier })),
-                screenshot(filesTerminalImage, t('howto.filesTerminalTitle'), 1356, 820),
+                screenshot(filesTerminalImage, t('howto.filesTerminalTitle'), 1764, 830),
                 pinTitle, el('p', '', t('howto.filesPinBody')));
             section.append(copy, shortcuts('panel.files'), transfers, actions, editor, terminalFiles);
         } else if (target === 4) {
@@ -213,7 +215,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const tabs = el('section', 'howto-detail howto-gui-tabs'), commands = el('pre', 'howto-command'); commands.dir = 'ltr';
             commands.append(el('code', '', 'gimp &\nchromium --no-sandbox &'));
             tabs.append(el('h4', '', t('howto.guiTabsTitle')), el('p', '', t('howto.guiTabsBody')), commands,
-                screenshot(guiTerminalImage, t('howto.guiTerminalScreenshot'), 1350, 258));
+                screenshot(guiTerminalImage, t('howto.guiTerminalScreenshot'), 750, 154));
             const local = el('section', 'howto-detail howto-gui-local');
             local.append(el('h4', '', t('howto.guiLocalTitle')), el('p', '', t('howto.guiLocalBody')));
             const persistent = el('section', 'howto-detail howto-gui-persistent');
@@ -221,8 +223,12 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const audio = el('section', 'howto-detail howto-gui-audio'), audioTitle = el('h4');
             audioTitle.append(icon('Volume2'), el('span', '', t('audio.audio')));
             audio.append(audioTitle, el('p', '', t('howto.guiAudioBody')), shortcuts('audio.mute', 'audio.up', 'audio.down'));
-            section.append(copy, screenshot(guiBrowserImage, t('howto.guiScreenshot'), 2000, 1271), launch, tabs, local, persistent, audio);
+            section.append(copy, screenshot(guiBrowserImage, t('howto.guiScreenshot'), 1800, 1212), launch, tabs, local, persistent, audio);
         } else if (target === 5) {
+            const favorites = el('section', 'howto-detail howto-tip-favorites');
+            favorites.append(el('h4', '', t('commandShortcuts.favorites')),
+                el('p', '', t('howto.favoritesBody', { favorites: t('commandShortcuts.favorites') })),
+                screenshot(favoritesImage, t('howto.favoritesScreenshot'), 1194, 624));
             const customization = el('section', 'howto-detail howto-tip-customization');
             customization.append(el('h4', '', t('howto.customizationTitle')),
                 el('p', '', t('howto.customizationBody')),
@@ -230,11 +236,15 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
             const processes = el('section', 'howto-tip-processes'), processesCopy = el('div', 'howto-detail');
             processesCopy.append(el('h4', '', t('howto.processManagerTitle')),
                 el('p', '', t('howto.processManagerBody', { processes: t('monitor.processes'), monitor: t('app.resourceMonitor') })), shortcuts('app.monitor'));
-            processes.append(processesCopy, screenshot(processesImage, t('howto.processManagerScreenshot'), 1834, 1624));
+            processes.append(processesCopy, screenshot(processesImage, t('howto.processManagerScreenshot'), 872, 772));
             const updates = el('section', 'howto-tip-updates'), updatesCopy = el('div', 'howto-detail');
             updatesCopy.append(el('h4', '', t('howto.updatesTitle')),
                 el('p', '', t('howto.updatesBody', { about: t('app.about') })), shortcuts('app.about'));
-            updates.append(updatesCopy, screenshot(updatesImage, t('howto.updatesScreenshot'), 1036, 1128));
+            updates.append(updatesCopy, screenshot(updatesImage, t('howto.updatesScreenshot'), 872, 949));
+            const barPosition = el('section', 'howto-tip-bar-position'), barPositionCopy = el('div', 'howto-detail');
+            barPositionCopy.append(el('h4', '', t('bar.position')),
+                el('p', '', t('howto.barPositionBody', { barPosition: t('bar.position'), settings: t('app.settings'), panelPosition: t('settings.panelPosition') })));
+            barPosition.append(barPositionCopy, screenshot(barPositionImage, t('howto.barPositionScreenshot'), 632, 970));
             const keyboard = el('section', 'howto-detail howto-tip-shortcuts'), keyboardBody = el('p');
             const shortcutControl = el('span', 'howto-inline-control');
             shortcutControl.append(icon('Keyboard'), el('span', '', t('shortcuts.title')));
@@ -243,7 +253,7 @@ export function openHowTo(savedShortcuts?: ShortcutBindings) {
                 keyboardBody.append(part);
             });
             keyboard.append(el('h4', '', t('howto.keyboardShortcutsTitle')), keyboardBody, shortcuts('app.shortcuts'));
-            section.append(copy, customization, processes, updates, keyboard);
+            section.append(copy, favorites, customization, processes, updates, barPosition, keyboard);
         }
         return section;
     }

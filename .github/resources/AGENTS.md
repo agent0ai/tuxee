@@ -9,8 +9,9 @@ Optimized images for the root README.
 `tuxee-video-preview.webp` is the README hero, preserving the supplied video
 artwork at its original dimensions with subtly rounded transparent corners.
 `screenshots/` owns WebP screenshots, infographics and matching `-thumb.webp`
-previews. Keep these optimized copies only; do not retain
-duplicate screenshot or infographic originals in `../../assets/`.
+previews. Supplied full-resolution originals, where available, live in
+`../../assets/readme/` under the same base names; `.github/` is excluded from the
+Docker context and never bundled.
 
 # Local Contracts
 

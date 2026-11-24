@@ -39,7 +39,7 @@ terminals. Also available as a standalone web interface for existing Linux serve
   <tr>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/file-managers-persistent-terminals.webp" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/file-managers-persistent-terminals-thumb.webp" alt="File managers and persistent terminals running htop and Codex, alongside Chromium and Visual Studio Code GUI apps" width="100%">
+        <img src=".github/resources/screenshots/file-managers-persistent-terminals-thumb.webp" alt="A file manager, file editor and persistent terminals running htop and Codex, alongside the VCMI game running as a GUI app" width="100%">
       </a>
     </td>
     <td width="50%" valign="middle">
@@ -60,14 +60,14 @@ terminals. Also available as a standalone web interface for existing Linux serve
     </td>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/workspaces-grid-layouts.webp" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/workspaces-grid-layouts-thumb.webp" alt="Dragging a file manager into a snapped grid layout beside a terminal running Spynel" width="100%">
+        <img src=".github/resources/screenshots/workspaces-grid-layouts-thumb.webp" alt="Dragging a terminal running Midnight Commander into a snapped grid layout between a file manager and the Brave browser" width="100%">
       </a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/drag-drop-uploads.webp" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/drag-drop-uploads-thumb.webp" alt="Files dragged from a computer onto a terminal's Upload and paste target" width="100%">
+        <img src=".github/resources/screenshots/drag-drop-uploads-thumb.webp" alt="Four files dragged from a file manager onto a terminal running Codex to paste their paths" width="100%">
       </a>
     </td>
     <td width="50%" valign="middle">
@@ -85,7 +85,7 @@ terminals. Also available as a standalone web interface for existing Linux serve
     </td>
     <td width="50%" align="center" valign="middle">
       <a href=".github/resources/screenshots/editor-media-viewer.webp" target="_blank" rel="noopener noreferrer">
-        <img src=".github/resources/screenshots/editor-media-viewer-thumb.webp" alt="Markdown syntax highlighting in the file editor above an image in the media viewer" width="100%">
+        <img src=".github/resources/screenshots/editor-media-viewer-thumb.webp" alt="JSON syntax highlighting in the file editor above an image in the media viewer" width="100%">
       </a>
     </td>
   </tr>
