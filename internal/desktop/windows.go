@@ -27,6 +27,7 @@ type windowManager struct {
 	root      xproto.Window
 	atoms     map[string]xproto.Atom
 	clipboard *clipboard
+	unmanaged int
 }
 
 func newWindowManager(x *xgb.Conn, d *Display) (*windowManager, error) {
@@ -38,7 +39,7 @@ func newWindowManager(x *xgb.Conn, d *Display) (*windowManager, error) {
 		}
 		w.atoms[name] = a.Atom
 	}
-	err := xproto.ChangeWindowAttributesChecked(x, w.root, xproto.CwEventMask, []uint32{xproto.EventMaskPropertyChange}).Check()
+	err := xproto.ChangeWindowAttributesChecked(x, w.root, xproto.CwEventMask, []uint32{xproto.EventMaskPropertyChange | xproto.EventMaskSubstructureNotify}).Check()
 	if err == nil {
 		w.clipboard, err = newClipboard(x)
 	}
@@ -87,35 +88,78 @@ func (w *windowManager) refresh() {
 		return
 	}
 	changed := !reflect.DeepEqual(w.d.state.Windows, windows)
-	if len(windows) > 0 && w.d.idle != nil {
-		w.d.idle.Stop()
-		w.d.idle = nil
-	} else if len(windows) == 0 && len(w.d.state.Windows) > 0 {
-		// Window replacement can briefly leave the list empty.
-		w.d.releaseAfterLocked(2 * time.Second)
-	}
+	shown := w.shown()
 	w.d.state.Windows = windows
+	w.settle(shown)
 	w.d.mu.Unlock()
 	if changed {
 		w.d.changed()
 	}
 }
 
+// Launchers and other override-redirect windows never join the client list.
+func (w *windowManager) refreshUnmanaged() {
+	count := 0
+	if tree, err := xproto.QueryTree(w.x, w.root).Reply(); err == nil {
+		// Such windows stack on top; bound the scan like the client list.
+		for _, window := range tree.Children[max(0, len(tree.Children)-128):] {
+			if a, err := xproto.GetWindowAttributes(w.x, window).Reply(); err == nil && a.OverrideRedirect && a.MapState == xproto.MapStateViewable {
+				count++
+			}
+		}
+	}
+	w.d.mu.Lock()
+	if w.d.windows == w {
+		shown := w.shown()
+		w.unmanaged = count
+		w.settle(shown)
+	}
+	w.d.mu.Unlock()
+}
+
+// Called with mu held.
+func (w *windowManager) shown() bool {
+	return len(w.d.state.Windows) > 0 || w.unmanaged > 0
+}
+
+// Called with mu held after the shown windows change.
+func (w *windowManager) settle(shown bool) {
+	if w.shown() {
+		if w.d.idle != nil {
+			w.d.idle.Stop()
+			w.d.idle = nil
+		}
+	} else if shown {
+		// Window replacement can briefly leave the display empty.
+		w.d.releaseAfterLocked(2 * time.Second)
+	}
+}
+
 func (w *windowManager) watch() {
 	defer w.clipboard.close()
 	w.refresh()
+	w.refreshUnmanaged()
 	for {
 		event, err := w.x.WaitForEvent()
 		if event == nil && err == nil {
 			return
 		}
 		w.clipboard.event(event)
-		if p, ok := event.(xproto.PropertyNotifyEvent); ok {
+		switch e := event.(type) {
+		case xproto.PropertyNotifyEvent:
 			for _, a := range w.atoms {
-				if p.Atom == a {
+				if e.Atom == a {
 					w.refresh()
 					break
 				}
+			}
+		case xproto.MapNotifyEvent:
+			if e.Event == w.root && e.OverrideRedirect {
+				w.refreshUnmanaged()
+			}
+		case xproto.UnmapNotifyEvent:
+			if e.Event == w.root {
+				w.refreshUnmanaged()
 			}
 		}
 	}

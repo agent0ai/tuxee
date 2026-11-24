@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jezek/xgb"
+	"github.com/jezek/xgb/xproto"
 	"tuxee/internal/identity"
 )
 
@@ -266,4 +268,40 @@ func TestIdleReleaseAndRelaunch(t *testing.T) {
 			waitFor(t, func() bool { _, err := os.Stat(d.dir + "/" + name); return os.IsNotExist(err) })
 		}
 	}
+}
+
+func TestUnmanagedWindowKeepsDisplay(t *testing.T) {
+	d, err := Prepare(testUser(t))
+	if err != nil || d == nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	idle := func() bool { d.mu.Lock(); defer d.mu.Unlock(); return d.idle != nil }
+	c, err := d.connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, err := xgb.NewConnNetWithCookieHex(c, d.cookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	// Launchers such as rofi map only an override-redirect window.
+	screen := xproto.Setup(x).DefaultScreen(x)
+	id, _ := xproto.NewWindowId(x)
+	xproto.CreateWindow(x, screen.RootDepth, id, screen.Root, 0, 0, 10, 10, 0, xproto.WindowClassInputOutput, screen.RootVisual, xproto.CwOverrideRedirect, []uint32{1})
+	if err = xproto.MapWindowChecked(x, id).Check(); err != nil || !idle() {
+		t.Fatalf("map before reclamation was scheduled: %v", err)
+	}
+	waitFor(t, func() bool { return !idle() })
+	second, err := d.connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.Close()
+	if idle() || len(d.State().Windows) != 0 {
+		t.Fatal("unmanaged window did not keep the display")
+	}
+	xproto.UnmapWindow(x, id)
+	waitFor(t, func() bool { return !d.State().Ready })
 }

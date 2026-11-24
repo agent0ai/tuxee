@@ -248,7 +248,7 @@ func (d *Display) connect() (net.Conn, error) {
 		}
 	}
 	d.mu.Lock()
-	if len(d.state.Windows) == 0 {
+	if !d.windows.shown() {
 		// Give a newly connecting application time to create its first window.
 		d.releaseAfterLocked(30 * time.Second)
 	}
