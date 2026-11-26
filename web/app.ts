@@ -1283,6 +1283,8 @@ async function archiveWorkspace(ws: Workspace) {
 async function restoreWorkspace(ws: Workspace) {
     if (settings.workspaces.length >= MAX_WORKSPACES) throw new Error(t("app.workspaceLimitReached"));
     if (warmWorkspaces.size >= MAX_WARM_WORKSPACES && !await canLeave(warmWorkspaces.values().next().value)) return false;
+    const directory = defaultDirectory(ws);
+    for (const panel of ws.panels) if (panel.kind === 'terminal') panel.path = directory;
     settings.archivedWorkspaces = settings.archivedWorkspaces?.filter(item => item !== ws);
     delete ws.archivedAt;
     settings.workspaces.push(ws); await switchWorkspace(ws.id, true);

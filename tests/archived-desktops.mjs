@@ -152,7 +152,12 @@ try {
     const restored = settings.workspaces[1];
     assert.deepEqual(settings.workspaces.map(ws => ws.id), [second.id, original.id], 'restored desktop is appended');
     assert.equal(restored.defaultDirectory, '~/project');
-    assert.deepEqual(restored.panels.map(({ terminal, ...panel }) => panel), archived.panels);
+    for (const id of terminalIDs(restored)) {
+        const { pid } = await (await api(`/terminals/${id}`)).json();
+        assert.equal(run('runuser', ['-u', user, '--', 'readlink', `/proc/${pid}/cwd`]), project, 'restored shell starts in the desktop default directory');
+    }
+    assert.deepEqual(restored.panels.map(({ terminal, ...panel }) => panel), archived.panels.map(panel =>
+        panel.kind === 'terminal' ? { ...panel, path: project } : panel));
     assert.ok(terminalIDs(restored).every(id => !archivedTerminals.includes(id)), 'restoration starts fresh terminals');
     await shot(page, 'restored');
 
