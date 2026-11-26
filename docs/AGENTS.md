@@ -8,6 +8,8 @@ Detailed product, deployment and development documentation.
 
 `guide.md#languages-and-translations` owns login/session language behavior, system-wide translation overrides, JSON format, fallback and developer checks.
 
+`guide.md#security` owns authenticator enrollment/recovery, instance IP/CIDR allowlists, trusted-proxy requirements and CLI network/user unlock commands. Keep recovery usable without browser access and distinguish Tuxee restrictions from host PAM/firewall policies.
+
 `install.md` owns the installer,
 manual binary download/installation commands, and advanced Go compilation.
 `guide.md` owns deployment, interaction, verification and implementation limits, including Start and the notification CLI.

@@ -24,6 +24,8 @@ Run `go test ./internal/...`; use `go test -race ./internal/...` for lifecycle a
 
 # Child DOX Index
 
+- [security/AGENTS.md](security/AGENTS.md): TOTP, recovery-code hashing, IP/CIDR policy and trusted-proxy client identity.
+
 - [keeper/AGENTS.md](keeper/AGENTS.md): Native terminal guardians, descriptor retention, journaled recovery and stable local protocol.
 
 - [i18n/AGENTS.md](i18n/AGENTS.md): Unified language catalogs, named variables, fallback, system overrides, immutable session bundles and translation checks.

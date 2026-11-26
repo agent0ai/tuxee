@@ -14,7 +14,6 @@ import (
 	"io"
 	"io/fs"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,22 +31,30 @@ import (
 	"tuxee/internal/identity"
 	"tuxee/internal/monitor"
 	"tuxee/internal/processes"
+	"tuxee/internal/security"
 	"tuxee/internal/terminal"
 	"tuxee/internal/tlsmanager"
 	"tuxee/internal/update"
 )
 
 type login struct {
-	translations    *i18n.Bundle
-	user            identity.User
-	csrf            string
-	expires         time.Time
-	ctx             context.Context
-	cancel          context.CancelFunc
-	processMu       sync.Mutex
-	processSnapshot *processSnapshot
+	clientIP          string
+	factorMu          sync.Mutex
+	enrollment        string
+	enrollmentExpires time.Time
+	translations      *i18n.Bundle
+	user              identity.User
+	csrf              string
+	expires           time.Time
+	ctx               context.Context
+	cancel            context.CancelFunc
+	processMu         sync.Mutex
+	processSnapshot   *processSnapshot
 }
 type Server struct {
+	factorChanges  sync.Map
+	Network        *security.NetworkStore
+	pendingLogins  map[[32]byte]*pendingLogin
 	Gate           *identity.Gate
 	Terminals      *terminal.Manager
 	TLS            *tlsmanager.Manager
@@ -84,6 +91,7 @@ type Server struct {
 func New(instanceID string, gate *identity.Gate, terminals *terminal.Manager, tls *tlsmanager.Manager, origin string, assets fs.FS) *Server {
 	s := &Server{Gate: gate, Terminals: terminals, TLS: tls, Origin: strings.TrimSuffix(origin, "/"), Assets: assets, logins: map[[32]byte]*login{}, archives: map[string]*archiveDownload{}, fileSlots: make(chan struct{}, 64), clipSlots: make(chan struct{}, 2)}
 	s.inboxWatches = make(map[uint32]*inboxWatch)
+	s.pendingLogins = make(map[[32]byte]*pendingLogin)
 	s.cookieName = "tuxee_session_" + instanceID
 	s.instanceID = instanceID
 	s.languageCookie = "tuxee_language_" + instanceID
@@ -180,13 +188,14 @@ func (s *Server) Close() {
 	}
 }
 func (s *Server) Prune(ctx context.Context) {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			s.pruneSecurity()
 			s.mu.Lock()
 			for key, session := range s.logins {
 				if time.Now().After(session.expires) {
@@ -200,6 +209,9 @@ func (s *Server) Prune(ctx context.Context) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/health" && s.Network != nil && !s.networkAdmission(w, r) {
+		return
+	}
 	session := s.requestSession(r)
 	policy := "default-src 'none'; script-src" + s.loginHash + "; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 	if session != nil && !s.closed.Load() {
@@ -359,6 +371,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	r = r.WithContext(ctx)
 	switch {
+	case strings.HasPrefix(r.URL.Path, "/api/security"):
+		s.securityOperation(w, r, session)
 	case r.URL.Path == "/api/microphone" && r.Method == "GET":
 		s.userMicrophone(w, r, session)
 	case r.URL.Path == "/api/events" && r.Method == "GET":
@@ -589,20 +603,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
+	if !s.fileSlot(w) {
+		return
+	}
+	defer func() { <-s.fileSlots }()
 	if r.Header.Get("X-Tuxee-Client") != "web" {
 		failure(w, 403, i18n.New("backend.server.missingApplicationRequestHeader"))
 		return
 	}
 	var input struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Language string `json:"language"`
+		Username  string `json:"username"`
+		Password  string `json:"password"`
+		Language  string `json:"language"`
+		Challenge string `json:"challenge"`
+		Code      string `json:"code"`
 	}
-	if err := decode(w, r, &input); err != nil {
+	if err := decode(w, r, &input, 8192); err != nil {
 		failure(w, 400, err)
 		return
 	}
-	peer, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if input.Challenge != "" {
+		s.completeSecondFactor(w, r, input.Challenge, input.Code)
+		return
+	}
+	peer := s.clientIP(r)
 	password := []byte(input.Password)
 	input.Password = ""
 	user, err := s.Gate.Authenticate(r.Context(), peer, input.Username, password)
@@ -618,13 +642,33 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	unlock := s.lockFactor(user.UID)
+	defer unlock()
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	result, err := files.Run(ctx, user, files.Request{Operation: "security-status"})
+	if err != nil {
+		failure(w, 401, i18n.New("backend.identity.invalidUsernamePasswordOrAccountPolicy"))
+		return
+	}
+	if result.Security.Enabled {
+		s.beginSecondFactor(w, r, user, input.Language)
+		return
+	}
+	s.issueLogin(w, r, user, input.Language)
+}
+
+func (s *Server) issueLogin(w http.ResponseWriter, r *http.Request, user identity.User, language string) {
+	if s.Network != nil && !s.networkAdmission(w, r) {
+		return
+	}
 	s.Terminals.RegisterArchiveUser(user)
 	s.Terminals.PruneHistory(user)
 	token := randomToken()
 	ctx, cancel := context.WithCancel(context.Background())
-	session := &login{user: user, csrf: randomToken(), expires: time.Now().Add(24 * time.Hour), ctx: ctx, cancel: cancel}
+	session := &login{user: user, csrf: randomToken(), expires: time.Now().Add(24 * time.Hour), ctx: ctx, cancel: cancel, clientIP: s.clientIP(r)}
 	s.Translations.Refresh()
-	session.translations = s.Translations.Bundle(input.Language, s.languageCookie)
+	session.translations = s.Translations.Bundle(language, s.languageCookie)
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()

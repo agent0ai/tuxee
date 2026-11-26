@@ -289,17 +289,21 @@ try {
             assert.equal(await view.locator('html').getAttribute('dir'), 'rtl', 'session freezes direction too');
         }
         for (const width of [1440, 390, 320]) {
-            await view.setViewportSize({ width, height: width === 1440 ? 900 : 740 });
+            const height = width === 1440 ? 900 : 740, previousSize = view.viewportSize();
+            const previousBar = await view.locator('.topbar').elementHandle();
+            await view.setViewportSize({ width, height });
+            if (previousSize.width !== width || previousSize.height !== height) await previousBar.waitForElementState('hidden');
+            await previousBar.dispose();
             const tab = view.locator('.workspace-tab.active');
             await tab.waitFor();
             assert.equal(await tab.textContent(), tabName);
             assert.ok(await tab.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `${code}: ${tabName} must fit the ${width}px workspace tab`);
-            for (const action of ['Settings', 'Activity', 'RefreshCw']) {
+            for (const action of ['Settings', 'Activity', 'ShieldCheck', 'RefreshCw']) {
                 await view.getByRole('button', { name: texts['app.tuxeeMenu'], exact: true }).click();
                 await view.locator(`.start-menu [data-action="${action}"]`).click();
                 await view.locator('dialog[open]').waitFor(); await bounds();
                 assert.ok(!(await view.locator('dialog[open]').innerText()).includes('[!'));
-                if (action !== 'RefreshCw') {
+                if (action === 'Settings' || action === 'Activity') {
                     const toggle = view.getByRole('switch');
                     const cdp = await localized.newCDPSession(view);
                     const { root } = await cdp.send('DOM.getDocument');
@@ -319,7 +323,7 @@ try {
                     await cdp.detach();
                 }
                 if (action === 'RefreshCw' && width === 320) await view.screenshot({ path: `test-results/i18n-${code}-dialog-mobile.png` });
-                await view.getByRole('button', { name: texts['ui.closeDialog'], exact: true }).click();
+                await view.locator('dialog[open]').getByRole('button', { name: texts['ui.closeDialog'], exact: true }).click();
             }
         }
         await view.getByRole('button', { name: texts['app.tuxeeMenu'], exact: true }).click();

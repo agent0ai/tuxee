@@ -200,6 +200,12 @@ func (s *Server) resetOperation(w http.ResponseWriter, r *http.Request, session 
 		jsonResponse(w, 200, map[string]string{"state": state, "message": message})
 		return
 	}
+	unlock := s.lockFactor(session.user.UID)
+	defer unlock()
+	if session.ctx.Err() != nil {
+		failure(w, 401, i18n.New("backend.server.signInToContinue"))
+		return
+	}
 	s.resets.mu.Lock()
 	if s.resets.jobs == nil {
 		s.resets.jobs = map[uint32]*resetJob{}
@@ -212,7 +218,7 @@ func (s *Server) resetOperation(w http.ResponseWriter, r *http.Request, session 
 	}
 	s.resets.mu.Unlock()
 	// Replace every login of this account so other browsers cannot save stale layouts.
-	token, replacement := randomToken(), &login{user: session.user, translations: session.translations, csrf: randomToken(), expires: session.expires}
+	token, replacement := randomToken(), &login{user: session.user, translations: session.translations, csrf: randomToken(), expires: session.expires, clientIP: session.clientIP}
 	replacement.ctx, replacement.cancel = context.WithCancel(context.Background())
 	s.mu.Lock()
 	for key, other := range s.logins {

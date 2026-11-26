@@ -20,7 +20,7 @@ Worker failures and per-target signal results retain structured i18n `text` besi
 - Bound discovery to 100,000 visible processes and fail explicitly above that bound. Signal targets come only from the immutable snapshot, omit zombies and processes without signal permission, and are deduplicated. Kernel permissions and, unless explicitly allowed, protected ancestors are checked again when signalling; report per-target failures without replaying mutations.
 - Validate PID/start identity through an open proc directory and signal that same stable descriptor. Never fall back to a numeric kill. Refuse PID 1, the helper and its ancestors unless `allowCore` is explicitly true for that operation. The override never bypasses kernel permissions, positive-PID validation, stable identity or zombie rejection. Only SIGTERM and SIGKILL are accepted.
 
-The internal `check-parent-signal` worker operation uses signal zero against its live parent under the signed-in user's credentials. It checks permission without sending a signal, accepting a client PID or applying the monitor's core-selection restriction. The server uses it before an explicit Tuxee restart.
+The internal `check-parent-signal` worker operation uses signal zero against its live parent under the signed-in user's credentials. It checks permission without sending a signal, accepting a client PID or applying the monitor's core-selection restriction. The server uses it before an explicit Tuxee restart and for Global Security admission.
 
 # Work Guidance
 

@@ -29,6 +29,41 @@ Each state directory also stores a random `instance-id`, created on first start 
 
 Use `tuxee serve --help`, `tuxee help`, and `tuxee version` for CLI help. Defaults work both directly and behind a reverse proxy; no configuration file or public hostname is required. Terminal access is exclusively through the web UI; shells run directly on local PTYs.
 
+## Security
+
+Open **Tuxee menu → Security**. The **User** tab manages authenticator-app two-factor authentication (2FA). The **Global** tab appears only if your Linux account can signal the running Tuxee process, using the same permission check as runtime administration.
+
+To enable 2FA, enter your Linux password, scan the QR code with an authenticator app (or enter the setup key manually), then confirm its six-digit code. Save the eight recovery codes shown once. Each recovery code replaces an app code for one login; your Linux password is still required. Keep the server and phone clocks accurate. Codes expire every 30 seconds, with one step of tolerance; accepted codes cannot be reused. A short-lived password challenge grants no access until the second factor succeeds. Wrong password guesses do not consume the second-factor allowance. Disabling 2FA requires the Linux password and an app or recovery code. Enrollment/disabling signs out your other sessions on this Tuxee instance without terminating terminals. Other instances using the same Linux account share the factor file, but keep their existing sessions.
+
+2FA records live in private `~/.config/tuxee/security/two-factor.json`, separately from ordinary settings, and survive Factory reset. They contain the TOTP secret and hashes of recovery codes. Protect this folder and its backups: someone controlling the Linux account can change its files. This changes Tuxee web authentication only; it does not alter the host's PAM, SSH or account passwords.
+
+An administrator can clear a user's Tuxee 2FA from a terminal, even if that user cannot sign in:
+
+```sh
+tuxee security unlock --user alice
+```
+
+This preserves the Linux password. A running instance requires Linux permission to signal it, and changing another account's records also requires permission to launch its filesystem worker. Host PAM lockouts are independent. With multiple runtimes, use the same `--name`/`--state` selection as `tuxee restart`; offline recovery still requires the relevant filesystem/credential permissions.
+
+**Network filter** is an allowlist. Enter one IPv4/IPv6 address or CIDR network per line in Global. An empty list allows all networks. For example, `203.0.113.42` allows one address, `10.8.0.0/24` allows the VPN subnet from `10.8.0.0` through `10.8.0.255`, and `2001:db8::/64` allows an IPv6 subnet. There are no wildcard or hostname entries. The dialog shows the client IP Tuxee actually uses.
+
+Changes apply immediately to the application, APIs, assets and WebSocket admission. Excluded signed-in sessions and their transports are revoked within one second, preserving retained terminals. The public, metadata-free `/health` endpoint remains available. This is an application access policy; use the VPS firewall or VPN for network-level isolation.
+
+Behind a reverse proxy, Tuxee uses its immediate network peer by default. To filter real client addresses, list only your controlled proxy addresses/networks in **Trusted proxies** and configure those proxies to overwrite or safely append `X-Forwarded-For`. Tuxee walks the chain from the immediate peer toward the first untrusted address; headers from untrusted peers cannot change client identity. A tunnel that does not reliably convey client IPs can only be filtered by its peer address. Ordinary proxy deployments need no changes unless enabling client-IP filtering.
+
+The CLI accepts comma-separated entries and applies changes without restarting:
+
+```sh
+tuxee security network
+tuxee security network --allow '10.8.0.0/24,203.0.113.42'
+tuxee security network --trusted-proxies '127.0.0.1,::1'
+tuxee security network --clear
+```
+
+The instance policy is `security.json` in its state directory. Use `--state /path/to/state` or `--name NAME` to select an installation. The Global tab shows its specific recovery command. `--clear` removes both the allowlist and trusted proxies, including when the policy file is malformed. Keep terminal/VPS-console access before changing the filter. In Docker, run recovery inside that container, for example `docker exec tuxee tuxee security network --clear` and `docker exec tuxee tuxee security unlock --user root`. The records survive container recreation only when the corresponding instance state and user home volumes are preserved.
+
+The security UI and second-factor login are available in all built-in languages. No new Linux service or authentication package is required; QR encoding is the only added Go dependency. TOTP protects against a stolen password but remains susceptible to phishing; use HTTPS for login, enrollment and authenticated traffic.
+
 ## GUI applications in terminals
 
 Build and run from the repository root:
@@ -378,10 +413,10 @@ To start over deliberately, open **Settings** and choose **Factory reset** in th
 
 1. Terminates every live Tuxee terminal of your Linux account, including GUI applications and the shared audio runtime that belong to them.
 2. Moves your Tuxee configuration and state into a new private backup folder, `~/tuxee-backups/<UTC date_time>/`:
-   - `config/` is the former `~/.config/tuxee` (settings, desktops, layouts, favorites, shortcuts).
+   - `config/` holds the former settings, desktops, layouts, favorites and shortcuts from `~/.config/tuxee`; its `security/` folder stays in place so 2FA remains enabled.
    - `state/` is the former `$XDG_STATE_HOME/tuxee` (default `~/.local/state/tuxee`: terminal history and post-mortem output, input drafts and history, editor recovery drafts, notifications).
    - `backup.json` records the creation time and both original paths.
-3. Recreates an empty `~/.config/tuxee`, so the next load starts from default desktops and settings.
+3. Clears ordinary configuration, so the next load starts from default desktops and settings. Authentication records remain intact.
 
 Files, uploads, trash and other data outside these two Tuxee folders are untouched. Terminal folders still locked by a running guardian (for example one owned by another Tuxee installation on the same account) stay in place. The reset replaces every login of your account: other browsers must sign in again, and other tabs in this browser reload instead of saving their old layout. When the reset finishes, the page reloads into the default workspace. The reset runs under your Linux credentials and never touches other accounts or `/etc/tuxee`.
 

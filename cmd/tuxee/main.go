@@ -25,6 +25,7 @@ import (
 	"tuxee/internal/identity"
 	"tuxee/internal/keeper"
 	"tuxee/internal/processes"
+	"tuxee/internal/security"
 	"tuxee/internal/server"
 	"tuxee/internal/service"
 	"tuxee/internal/terminal"
@@ -105,6 +106,10 @@ func help() {
                                          Show runtime, health and activity
   tuxee ports [--http-port N] [--https-port N] [--config PATH]
                                          Show/save listening ports; 0 disables
+  tuxee security network [--allow IP/CIDR,... | --clear] [--trusted-proxies IP/CIDR,...] [--state DIR]
+                                         Show/save network access; no restart
+  tuxee security unlock --user NAME [--name NAME] [--state DIR]
+                                         Clear the account's Tuxee 2FA
   tuxee service install [--name tuxee] [serve options]
                                          Install and enable a systemd unit
   tuxee service uninstall [--name tuxee]  Unregister; preserve configuration/state
@@ -160,6 +165,8 @@ func run(args []string) error {
 		return runNotify(args[1:])
 	case "ports":
 		return runPorts(args[1:], os.Stdout)
+	case "security":
+		return runSecurity(args[1:], os.Stdout)
 	case "restart":
 		return runRestart(args[1:])
 	case "status":
@@ -584,6 +591,10 @@ func serve(value *config) error {
 		go tls.Run(ctx)
 	}
 	app := server.New(instanceID, gate, terminals, tls, value.Origin, web.Assets())
+	app.Network = &security.NetworkStore{Directory: value.State}
+	if _, err := app.Network.Load(); err != nil {
+		return fmt.Errorf("load security policy: %w", err)
+	}
 	defer app.Close()
 	restart := make(chan struct{}, 1)
 	app.Restart = func() { restart <- struct{}{} }

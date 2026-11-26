@@ -44,6 +44,9 @@ input:focus { border-color: var(--accent); outline: none; }
 }
 .login-form input { font-size: 16px; padding: clamp(6px, calc(var(--viewport-height, 100dvh) * .1 - 24px), 12px); }
 .login-language { align-self: center; width: auto; max-width: 100%; font-size: 16px; color: inherit; background: var(--surface); }
+.login-cancel { background: transparent; color: var(--text); }
+.login-cancel:hover { background: var(--surface); }
 .login-submit { min-height: 42px; }
 .login-error { color: var(--danger); font-size: 12px; }
 .login-error:empty { display: none; }
+[hidden] { display: none !important; }

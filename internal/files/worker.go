@@ -69,6 +69,7 @@ type Entry struct {
 }
 
 type Response struct {
+	Security  *SecurityStatus  `json:"security,omitempty"`
 	Results   []Response       `json:"results,omitempty"`
 	Editor    *EditorState     `json:"editor,omitempty"`
 	Original  *string          `json:"original,omitempty"`
@@ -155,6 +156,10 @@ func Worker() error {
 
 func execute(ctx context.Context, r Request, body io.Reader) (Response, *os.File, error) {
 	var response Response
+	if strings.HasPrefix(r.Operation, "security-") {
+		response, err := securityOperation(ctx, r)
+		return response, nil, err
+	}
 	if r.Operation == "stat" && r.names == nil {
 		r.names = &ownershipNames{users: map[uint32]string{}, groups: map[uint32]string{}}
 	}

@@ -102,8 +102,9 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--server-marker-border')), '');
     assert.equal(await (await context.request.get(base)).text(), publicHTML, 'anonymous HTML stays identical after authenticated use');
     await login(); await checkPrivate();
+    await page.goto('about:blank'); // Stop the mounted workspace's autosaves before replacing its settings.
     assert.equal((await api('/settings', 'PUT', { ...settings, serverName: '' })).status(), 200);
-    await page.reload(); await page.locator('.topbar').waitFor();
+    await page.goto(base); await page.locator('.topbar').waitFor();
     assert.equal(await page.title(), 'Tuxee ' + system.hostname);
     assert.deepEqual(errors, []);
     console.log('Anonymous isolation, stable login, desktop/mobile form, real PAM login and authenticated UI passed.');

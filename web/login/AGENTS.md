@@ -20,6 +20,8 @@ Own `index.html`, `login.js` and `login.css`. The server owns anonymous routing 
 
 # Work Guidance
 
+The public login contract includes the authenticator/recovery-code step. A password response containing only `challenge` hides the password fields, freezes the chosen language and requests a code without retaining/replaying the password. Cancel uses the shared visual convention of a transparent secondary action with a dark hover surface and returns to password login. A challenge never grants application access. Preserve this explicitly authorized security baseline across subsequent ordinary releases.
+
 Fix security and accessibility defects even if they require changing public bytes; never promise protocol-level anonymity.
 
 # Verification

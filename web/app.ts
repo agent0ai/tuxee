@@ -25,6 +25,7 @@ import { Updates } from './updates';
 import { connectEvents } from './events';
 import { Inbox } from './notifications';
 import { openHowTo } from './how-to';
+import { openSecurity } from './security';
 import { setFaviconColor } from './favicon';
 import { formatDateTime, locale, t, errorText, translations, setTranslations, type Translations } from './i18n';
 import { preventFileNavigation } from './file-drag';
@@ -1474,6 +1475,7 @@ function accountActions(): [string, Parameters<typeof icon>[0], () => unknown, s
     const count = unlistedTerminals().filter(info => !info.exited).length, retained = unlistedTerminals().length + terminalSessions.filter(info => info.closedAt).length, archived = settings.archivedWorkspaces?.length || 0;
     const actions: ReturnType<typeof accountActions> = [
         [t("app.settings"), 'Settings', openSettings],
+        [t('security.title'), 'ShieldCheck', openSecurity],
         [t("shortcuts.title"), 'Keyboard', editShortcuts],
         [t("app.retainedTerminals"), 'SquareTerminal', retainedTerminals, terminalError || (count ? t(count === 1 ? 'app.retainedOne' : 'app.retainedMany', { count }) : ''), terminalLoaded && !terminalError ? { count: retained, label: t("app.retainedTerminalsCount", { count: retained }) } : undefined],
         [t("app.archivedWorkspaces"), 'Archive', archivedWorkspaces, '', { count: archived, label: t("app.archivedWorkspacesCount", { count: archived }) }],

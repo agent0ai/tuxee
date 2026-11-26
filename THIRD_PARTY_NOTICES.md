@@ -8,6 +8,8 @@ The CodeMirror 6 vendor chunks and language/highlighting integration are rebuilt
 
 # Third-party notices
 
+Authenticator enrollment uses the Go QR encoder `github.com/skip2/go-qrcode` at `v0.0.0-20200617195104-da1b6568686e` (MIT). Its exact upstream license is preserved in `third_party/GO-QRCODE-LICENSE.txt` and served under `/licenses/`. QR generation is local; no external service receives enrollment secrets.
+
 The embedded terminal uses `@xterm/xterm` 6.0.0, `@xterm/addon-unicode11`
 0.9.0, and the matching `@xterm/headless` 6.0.0 engine. Its browser bundle and
 copied styles are distributed under the MIT license.

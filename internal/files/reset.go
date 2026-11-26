@@ -40,7 +40,7 @@ func resetConfiguration(ctx context.Context) (Response, error) {
 		return Response{}, err
 	}
 	response := Response{Path: backup}
-	if err = moveTree(ctx, config, filepath.Join(backup, "config"), false); err != nil {
+	if err = backupConfiguration(ctx, config, filepath.Join(backup, "config")); err != nil {
 		return response, err
 	}
 	if err = moveTree(ctx, state, filepath.Join(backup, "state"), true); err != nil {
@@ -52,6 +52,36 @@ func resetConfiguration(ctx context.Context) (Response, error) {
 	}
 	// Broadcast notices require an existing configuration folder.
 	return response, os.MkdirAll(config, 0700)
+}
+
+// Authentication survives a settings reset; only explicit security recovery clears it.
+func backupConfiguration(ctx context.Context, source, destination string) error {
+	entries, err := os.ReadDir(source)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(source)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return os.ErrPermission
+	}
+	if err = os.Mkdir(destination, 0700); err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.Name() == "security" {
+			continue
+		}
+		if err = movePath(ctx, filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return os.Chmod(source, 0700)
 }
 
 func createResetBackup(home string) (string, error) {

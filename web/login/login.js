@@ -47,11 +47,11 @@ language.addEventListener('pointerdown', event => {
     for (const type of ['pointerdown', 'pointercancel', 'blur', 'keydown']) window.addEventListener(type, () => press.abort(), { capture: true, once: true, signal });
 });
 form.append(logo, language);
-const username = el('input'), password = el('input');
+const username = el('input'), password = el('input'), code = el('input');
 username.name = 'username'; username.autocomplete = 'username'; username.autofocus = matchMedia('(pointer: fine)').matches;
 password.name = 'password'; password.type = 'password'; password.autocomplete = 'current-password';
 const labels = [];
-for (const [key, input] of [['login.username', username], ['login.password', password]]) {
+for (const [key, input] of [['login.username', username], ['login.password', password], ['login.verificationCode', code]]) {
     input.required = true; input.dir = 'auto';
     input.addEventListener('input', () => input.setCustomValidity(''));
     input.addEventListener('invalid', () => {
@@ -62,13 +62,26 @@ for (const [key, input] of [['login.username', username], ['login.password', pas
     labels.push({ key, text }); label.append(text, input); form.append(label);
 }
 const status = el('p', 'login-error'), submit = el('button', 'primary login-submit');
+const codeLabel = code.closest('label');
+code.name = 'code'; code.autocomplete = 'one-time-code'; code.autocapitalize = 'off'; code.spellcheck = false;
+codeLabel.hidden = true; code.required = false;
+const cancel = el('button', 'login-cancel'); cancel.type = 'button'; cancel.hidden = true;
+let challenge = '';
+form.append(cancel);
+function resetChallenge() {
+    challenge = ''; code.value = ''; code.required = false; codeLabel.hidden = cancel.hidden = true;
+    for (const input of [username, password]) { input.required = true; input.closest('label').hidden = false; }
+    language.disabled = submit.disabled = false; status.textContent = ''; translate();
+}
+cancel.onclick = resetChallenge;
 status.setAttribute('role', 'alert'); submit.type = 'submit'; form.append(status, submit);
 function translate() {
     document.documentElement.lang = catalog.language; document.documentElement.dir = catalog.direction;
     language.setAttribute('aria-label', t('login.language')); logo.alt = t('app.tuxee');
     for (const { key, text } of labels) text.textContent = t(key);
     submit.textContent = submit.title = t('login.signIn'); submit.setAttribute('aria-label', submit.title);
-    username.setCustomValidity(''); password.setCustomValidity('');
+    cancel.textContent = t('common.cancel');
+    username.setCustomValidity(''); password.setCustomValidity(''); code.setCustomValidity('');
 }
 translate();
 language.onchange = async () => {
@@ -85,9 +98,15 @@ form.onsubmit = async event => {
     event.preventDefault(); language.disabled = submit.disabled = true; status.textContent = '';
     const value = password.value; password.value = '';
     try {
-        await api('/login', { username: username.value, password: value, language: catalog.language });
-        location.replace('./');
-    } catch (error) { status.textContent = error.message; language.disabled = submit.disabled = false; }
+        const result = await api('/login', challenge ? { challenge, code: code.value } : { username: username.value, password: value, language: catalog.language });
+        code.value = '';
+        if (result.challenge) {
+            challenge = result.challenge;
+            for (const input of [username, password]) { input.required = false; input.closest('label').hidden = true; }
+            codeLabel.hidden = cancel.hidden = false; code.required = true; submit.disabled = false;
+            if (matchMedia('(pointer: fine)').matches) code.focus();
+        } else location.replace('./');
+    } catch (error) { code.value = ''; status.textContent = error.message; language.disabled = !!challenge; submit.disabled = false; }
 };
 content.append(form); page.append(content); document.querySelector('#app').append(page);
 function viewport() {

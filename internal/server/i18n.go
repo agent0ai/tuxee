@@ -41,6 +41,7 @@ func (s *Server) loginTranslations(code string) *i18n.Bundle {
 	for _, key := range []string{
 		"app.tuxee", "app.tagline", "app.previewAlt", "app.signInFailed",
 		"login.language", "login.languageFailed", "login.password", "login.signIn", "login.username",
+		"login.verificationCode", "common.cancel", "security.invalidCode", "security.challengeExpired", "security.networkDenied",
 		"validation.required", "validation.invalid", "ui.connectionLostTryAgainWhenReconnected",
 		"backend.identity.invalidUsernamePasswordOrAccountPolicy",
 		"backend.identity.authenticationIsBusyTryAgainShortly", "backend.identity.loginAttemptLimit",

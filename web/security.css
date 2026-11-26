@@ -1,0 +1,13 @@
+.security-settings { width: min(480px, 100%); }
+.security-settings .monitor-tabs { margin-bottom: 16px; }
+.security-form { display: flex; flex-direction: column; gap: 12px; }
+.security-settings h3, .security-settings p { margin: 0; }
+.security-settings p { line-height: 1.5; overflow-wrap: anywhere; }
+.security-settings .error:empty { display: none; }
+.security-settings textarea { resize: vertical; min-height: 90px; font-family: monospace; }
+.security-settings input { width: 100%; }
+.security-qr { max-width: 100%; height: auto; align-self: center; background: white; }
+.security-recovery { user-select: text; direction: ltr; text-align: left; overflow-x: auto; }
+
+.security-action { align-self: flex-start; }
+.security-instructions a { color: var(--accent); text-decoration: underline; }

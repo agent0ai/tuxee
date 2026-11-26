@@ -36,6 +36,8 @@ Build the frontend, native guardian and executable using the root instructions b
 
 ## Login, localization and application state
 
+- `node tests/security.mjs`: disposable ordinary account and UID-0 alias; real PAM, authenticator enrollment, no session before the second factor, one-use recovery codes, other-session revocation, permission-gated Global/User tabs, network exclusion, forged/trusted proxy chains and CLI recovery without restart. Desktop/phone screenshots exclude passwords, setup keys and recovery codes. `TUXEE_TEST_CONTAINER=tuxee-security-poc... TUXEE_TEST_URL=...` runs against a dedicated Docker preview; the suite clears its global network policy and removes its accounts. Never target a shared instance.
+
 - `node tests/login-security.mjs`: isolated server/account; anonymous response and asset isolation, no idle application polling, PAM, responsive login, authenticated branding, logout document replacement and re-login. Server tests pin the public response baseline.
 - `node tests/login-language.mjs`: real X11 native-picker input with Xvfb, xdotool and Chromium. No login account required. `TUXEE_TEST_BROWSER` selects Chromium, `TUXEE_TEST_BINARY` selects the executable, and `TUXEE_TEST_URL` selects a deployed login page. Cover dynamic shared selects as well as the independent login helper.
 - `npm run check:i18n` and `npm run test:i18n`: catalog/source checks, English/Czech session flows, every built-in language, RTL, terminal language inheritance and responsive controls. Review the advisory expansion report under the [i18n contract](../internal/i18n/AGENTS.md). Supply test-only fonts for CJK, Devanagari, Thai, Arabic and Hebrew; never ship them with the app.

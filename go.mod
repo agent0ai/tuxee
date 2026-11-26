@@ -9,6 +9,7 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20260918173711-b481721df8a2
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/jezek/xgb v1.3.1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/mod v0.41.0
 	golang.org/x/sys v0.49.0
 )

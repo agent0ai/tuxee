@@ -12,15 +12,20 @@ import (
 	"time"
 
 	"tuxee/internal/identity"
+	"tuxee/internal/security"
 	"tuxee/web"
 )
 
 func TestResetPageAndLoginReplacement(t *testing.T) {
 	s := New("test-instance", nil, nil, nil, "", web.Assets())
+	s.Network = &security.NetworkStore{Directory: t.TempDir()}
+	if err := s.Network.Save(security.Network{AllowedNetworks: []string{"192.0.2.0/24"}}); err != nil {
+		t.Fatal(err)
+	}
 	add := func(token string, uid uint32) *login {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
-		session := &login{ctx: ctx, cancel: cancel, csrf: "csrf-" + token, expires: time.Now().Add(time.Hour), user: identity.User{Name: "alice", UID: uid}, translations: s.Translations.Bundle("en", s.languageCookie)}
+		session := &login{ctx: ctx, cancel: cancel, csrf: "csrf-" + token, expires: time.Now().Add(time.Hour), user: identity.User{Name: "alice", UID: uid}, translations: s.Translations.Bundle("en", s.languageCookie), clientIP: "192.0.2.1"}
 		s.logins[sha256.Sum256([]byte(token))] = session
 		return session
 	}
@@ -76,6 +81,13 @@ func TestResetPageAndLoginReplacement(t *testing.T) {
 	}
 	if token == "" || token == "owner" || owner.ctx.Err() == nil || sibling.ctx.Err() == nil || other.ctx.Err() != nil {
 		t.Fatal("reset must replace every login of the account and keep other accounts")
+	}
+	s.pruneSecurity()
+	// A reset waiting behind a factor change cannot replace a revoked login.
+	stale := httptest.NewRecorder()
+	s.resetOperation(stale, httptest.NewRequest("POST", "http://tuxee.test/api/reset", nil), owner)
+	if stale.Code != 401 || stale.Header().Get("Set-Cookie") != "" {
+		t.Fatal("reset reissued a revoked session")
 	}
 	var connection map[string]any
 	if response := serve("GET", "/api/connection", token, ""); json.Unmarshal(response.Body.Bytes(), &connection) != nil || connection["reset"] != "epoch" || connection["csrf"] != status["csrf"] {
