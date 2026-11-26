@@ -19,7 +19,7 @@ import (
 	"tuxee/internal/update"
 )
 
-const networkAuthorizationWindow = 5 * time.Minute
+const securityAuthorizationWindow = 5 * time.Minute
 
 type pendingLogin struct {
 	mu       sync.Mutex
@@ -165,6 +165,20 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	defer func() { <-s.fileSlots }()
+	unlock := s.lockFactor(session.user.UID)
+	defer unlock()
+	if ctx.Err() != nil || session.ctx.Err() != nil {
+		failure(w, 401, i18n.New("backend.server.signInToContinue"))
+		return
+	}
+	if r.URL.Path == "/api/security/unlock" && r.Method == "POST" {
+		s.unlockSecurity(w, r, ctx, session)
+		return
+	}
+	if !time.Now().Before(session.securityAuthorizedUntil) {
+		failure(w, 403, i18n.New("security.challengeExpired"))
+		return
+	}
 	if r.URL.Path == "/api/security" && r.Method == "GET" {
 		result, err := files.Run(ctx, session.user, files.Request{Operation: "security-status"})
 		if err != nil {
@@ -187,14 +201,9 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 		jsonResponse(w, 200, response)
 		return
 	}
-	if r.URL.Path == "/api/security/network" && (r.Method == "PUT" || r.Method == "POST") ||
-		r.URL.Path == "/api/security/network/unlock" && r.Method == "POST" {
+	if r.URL.Path == "/api/security/network" && (r.Method == "PUT" || r.Method == "POST") {
 		if err := s.securityAdmin(ctx, session.user); err != nil {
 			failure(w, 403, i18n.Wrap("security.adminDenied", err, i18n.Vars{"detail": i18n.Describe(err)}))
-			return
-		}
-		if r.URL.Path == "/api/security/network/unlock" {
-			s.unlockNetwork(w, r, ctx, session)
 			return
 		}
 		var input struct {
@@ -232,21 +241,6 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 			jsonResponse(w, 200, map[string]bool{"saved": false})
 			return
 		}
-		unlock := s.lockFactor(session.user.UID)
-		defer unlock()
-		if ctx.Err() != nil || session.ctx.Err() != nil {
-			failure(w, 401, i18n.New("backend.server.signInToContinue"))
-			return
-		}
-		if !time.Now().Before(session.networkAuthorizedUntil) {
-			result, err := files.Run(ctx, session.user, files.Request{Operation: "security-status"})
-			if err != nil {
-				failure(w, 422, err)
-				return
-			}
-			jsonResponse(w, 200, map[string]bool{"saved": false, "needsAuthorization": true, "requiresCode": result.Security.Enabled})
-			return
-		}
 		if err := s.Network.Save(policy); err != nil {
 			failure(w, 422, err)
 			return
@@ -260,29 +254,11 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	var input struct {
-		Password string `json:"password"`
-		Code     string `json:"code"`
+		Code string `json:"code"`
 	}
 	if err := decode(w, r, &input, 8192); err != nil {
 		failure(w, 400, err)
 		return
-	}
-	session.factorMu.Lock()
-	defer session.factorMu.Unlock()
-	if r.URL.Path == "/api/security/setup" || r.URL.Path == "/api/security/disable" {
-		if _, err := s.Gate.Authenticate(ctx, s.clientIP(r), session.user.Name, []byte(input.Password)); err != nil {
-			failure(w, 401, err)
-			return
-		}
-		input.Password = ""
-	}
-	if r.URL.Path == "/api/security/enable" || r.URL.Path == "/api/security/disable" {
-		unlock := s.lockFactor(session.user.UID)
-		defer unlock()
-		if session.ctx.Err() != nil {
-			failure(w, 401, i18n.New("backend.server.signInToContinue"))
-			return
-		}
 	}
 	switch r.URL.Path {
 	case "/api/security/setup":
@@ -318,7 +294,7 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 		s.revokeOtherLogins(session)
 		jsonResponse(w, 200, result.Security)
 	case "/api/security/disable":
-		result, err := files.Run(ctx, session.user, files.Request{Operation: "security-disable", Content: strings.TrimSpace(input.Code)})
+		result, err := files.Run(ctx, session.user, files.Request{Operation: "security-clear"})
 		if err != nil {
 			failure(w, 422, err)
 			return
@@ -331,35 +307,56 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 	}
 }
 
-func (s *Server) unlockNetwork(w http.ResponseWriter, r *http.Request, ctx context.Context, session *login) {
+func (s *Server) unlockSecurity(w http.ResponseWriter, r *http.Request, ctx context.Context, session *login) {
 	var input struct {
-		Password string `json:"password"`
-		Code     string `json:"code"`
+		Password  string `json:"password"`
+		Code      string `json:"code"`
+		Challenge string `json:"challenge"`
 	}
 	if err := decode(w, r, &input, 8192); err != nil {
 		failure(w, 400, err)
 		return
 	}
-	if _, err := s.Gate.Authenticate(ctx, s.clientIP(r), session.user.Name, []byte(input.Password)); err != nil {
-		failure(w, 401, err)
-		return
+	if input.Challenge == "" {
+		if _, err := s.Gate.Authenticate(ctx, s.clientIP(r), session.user.Name, []byte(input.Password)); err != nil {
+			failure(w, 401, err)
+			return
+		}
+		session.securityAuthorizedUntil = time.Time{}
+		session.securityChallenge = ""
+		result, err := files.Run(ctx, session.user, files.Request{Operation: "security-status"})
+		if err != nil {
+			failure(w, 422, err)
+			return
+		}
+		if result.Security.Enabled {
+			session.securityChallenge = randomToken()
+			session.securityChallengeExpires = time.Now().Add(securityAuthorizationWindow)
+			jsonResponse(w, 200, map[string]string{"challenge": session.securityChallenge})
+			return
+		}
+	} else {
+		if input.Challenge != session.securityChallenge || !time.Now().Before(session.securityChallengeExpires) {
+			failure(w, 401, i18n.New("security.challengeExpired"))
+			return
+		}
+		if _, err := files.Run(ctx, session.user, files.Request{Operation: "security-verify", Content: strings.TrimSpace(input.Code), Mode: "authenticator"}); err != nil {
+			failure(w, 401, err)
+			return
+		}
 	}
-	unlock := s.lockFactor(session.user.UID)
-	defer unlock()
 	if ctx.Err() != nil || session.ctx.Err() != nil {
 		failure(w, 401, i18n.New("backend.server.signInToContinue"))
 		return
 	}
-	if _, err := files.Run(ctx, session.user, files.Request{Operation: "security-verify", Content: strings.TrimSpace(input.Code), Mode: "authenticator"}); err != nil {
-		failure(w, 401, err)
-		return
-	}
-	session.networkAuthorizedUntil = time.Now().Add(networkAuthorizationWindow)
+	session.securityChallenge = ""
+	session.securityAuthorizedUntil = time.Now().Add(securityAuthorizationWindow)
 	jsonResponse(w, 200, map[string]bool{"authorized": true})
 }
 
 func (s *Server) revokeOtherLogins(current *login) {
-	current.networkAuthorizedUntil = time.Time{}
+	current.securityAuthorizedUntil = time.Time{}
+	current.securityChallenge = ""
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for key, session := range s.logins {

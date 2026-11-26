@@ -128,9 +128,9 @@ func securityOperation(ctx context.Context, request Request) (Response, error) {
 		status.RecoveryRemaining = len(hashes)
 		status.RecoveryCodes = codes
 		return response, nil
-	case "security-verify", "security-disable":
+	case "security-verify":
 		if !status.Enabled {
-			if request.Operation == "security-verify" && request.Mode == "required" {
+			if request.Mode == "required" || request.Mode == "authenticator" {
 				return response, i18n.New("security.invalidCode")
 			}
 			return response, nil
@@ -165,14 +165,6 @@ func securityOperation(ctx context.Context, request Request) (Response, error) {
 		}
 		factor.Failures = 0
 		factor.RetryAfter = 0
-		if request.Operation == "security-disable" {
-			if err = os.Remove(path); err != nil {
-				return response, err
-			}
-			status.Enabled = false
-			status.RecoveryRemaining = 0
-			return response, directory.Sync()
-		}
 		status.RecoveryRemaining = len(factor.Recovery)
 		return response, save()
 	default:

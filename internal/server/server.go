@@ -38,19 +38,20 @@ import (
 )
 
 type login struct {
-	clientIP               string
-	factorMu               sync.Mutex
-	enrollment             string
-	enrollmentExpires      time.Time
-	networkAuthorizedUntil time.Time
-	translations           *i18n.Bundle
-	user                   identity.User
-	csrf                   string
-	expires                time.Time
-	ctx                    context.Context
-	cancel                 context.CancelFunc
-	processMu              sync.Mutex
-	processSnapshot        *processSnapshot
+	clientIP                 string
+	enrollment               string
+	enrollmentExpires        time.Time
+	securityAuthorizedUntil  time.Time
+	securityChallenge        string
+	securityChallengeExpires time.Time
+	translations             *i18n.Bundle
+	user                     identity.User
+	csrf                     string
+	expires                  time.Time
+	ctx                      context.Context
+	cancel                   context.CancelFunc
+	processMu                sync.Mutex
+	processSnapshot          *processSnapshot
 }
 type Server struct {
 	factorChanges  sync.Map

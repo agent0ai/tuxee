@@ -97,7 +97,7 @@ func TestFactorThrottlingAndDisable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err = securityOperation(ctx, Request{Operation: "security-disable", Content: result.Security.RecoveryCodes[0]})
+	result, err = securityOperation(ctx, Request{Operation: "security-clear"})
 	if err != nil || result.Security.Enabled {
 		t.Fatal("disable failed", err)
 	}

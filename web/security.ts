@@ -6,7 +6,53 @@ type Factor = { enabled: boolean; recoveryRemaining: number; recoveryCodes?: str
 type Network = { allowedNetworks: string[]; trustedProxies: string[] };
 type Status = { user: Factor; canAdmin: boolean; clientIP: string; network?: Network; networkRecoveryCommand?: string };
 
+const field = (key: string, input: HTMLInputElement | HTMLTextAreaElement) => {
+    const label = el('label', 'field'); label.append(el('span', '', t(key)), input); return label;
+};
+const password = () => { const input = el('input'); input.type = 'password'; input.autocomplete = 'current-password'; input.name = 'password'; input.required = true; return input; };
+const code = () => { const input = el('input'); input.name = 'code'; input.autocomplete = 'one-time-code'; input.required = true; input.spellcheck = false; input.autocapitalize = 'off'; return input; };
+
+function authenticateSecurity(): Promise<boolean> {
+    return new Promise(resolve => {
+        const form = el('form', 'security-settings security-form'), pass = password(), otp = code();
+        const notice = el('p', 'error'); notice.setAttribute('role', 'alert');
+        const { dialog, close, setFooter } = modal(t('security.title'), form);
+        const controller = new AbortController();
+        const next = button(t('common.continue'), undefined, undefined, 'primary');
+        next.type = 'submit';
+        const actions = el('div', 'dialog-actions'); actions.append(button(t('common.cancel'), undefined, close), next);
+        setFooter(actions, form);
+        let challenge = '';
+        dialog.addEventListener('close', () => {
+            controller.abort(); form.replaceChildren(); resolve(false);
+        }, { once: true });
+        form.append(field('login.password', pass), notice);
+        pass.focus();
+        form.onsubmit = async event => {
+            event.preventDefault();
+            if (next.disabled) return;
+            next.disabled = true;
+            notice.textContent = '';
+            const input = challenge ? { challenge, code: otp.value } : { password: pass.value };
+            pass.value = ''; otp.value = '';
+            try {
+                const result = await api<{ authorized?: boolean; challenge?: string }>('/security/unlock', 'POST', input, controller.signal);
+                if (!dialog.open) return;
+                if (result.authorized) { resolve(true); close(); return; }
+                if (!result.challenge) throw Error(t('common.failed'));
+                challenge = result.challenge;
+                otp.inputMode = 'numeric'; otp.pattern = '[0-9]{6}'; otp.maxLength = 6;
+                form.replaceChildren(field('security.authenticatorCode', otp), notice);
+                otp.focus();
+            } catch (error) {
+                if (!controller.signal.aborted) notice.textContent = errorText(error);
+            } finally { next.disabled = false; }
+        };
+    });
+}
+
 export async function openSecurity() {
+    if (!await authenticateSecurity()) return;
     const status = await api<Status>('/security');
     const content = el('div', 'security-settings'), tabs = el('div', 'monitor-tabs'), panel = el('div');
     const controller = new AbortController();
@@ -29,11 +75,6 @@ export async function openSecurity() {
             select(next.dataset.tab!); next.focus();
         }
     };
-    const field = (key: string, input: HTMLInputElement | HTMLTextAreaElement) => {
-        const label = el('label', 'field'); label.append(el('span', '', t(key)), input); return label;
-    };
-    const password = () => { const input = el('input'); input.type = 'password'; input.autocomplete = 'current-password'; input.name = 'password'; input.required = true; return input; };
-    const code = () => { const input = el('input'); input.name = 'code'; input.autocomplete = 'one-time-code'; input.required = true; input.spellcheck = false; input.autocapitalize = 'off'; return input; };
     function select(name: string) {
         if (busy) return;
         current = name;
@@ -79,34 +120,34 @@ export async function openSecurity() {
         if (enabled) section.append(el('p', 'muted', t('security.recoveryRemaining', { count: status.user.recoveryRemaining })));
         panel.replaceChildren(section);
         dialog.setFooter();
-        return action;
     }
-    function changeFactor(enabled: boolean) {
+    async function changeFactor(enabled: boolean) {
         if (busy) return;
-        const step = el('div', 'security-settings'), pass = password(), otp = code();
+        busy = true;
+        let enrollment: { secret: string; qr: string } | undefined;
+        try {
+            if (!enabled) enrollment = await api('/security/setup', 'POST', {}, controller.signal);
+        } finally { busy = false; }
+        if (!dialog.dialog.open) return;
+        const step = el('div', 'security-settings');
         const action = t(enabled ? 'security.disable' : 'security.enable');
         const flow = modal(action, step);
-        const controller = new AbortController(), signal = controller.signal;
+        const flowController = new AbortController(), signal = flowController.signal;
         let changed = false;
         flow.dialog.addEventListener('close', () => {
-            controller.abort();
+            flowController.abort();
             step.replaceChildren();
-            if (changed && dialog.dialog.open) userSettings().focus();
+            if (changed) dialog.close();
         }, { once: true });
-        const body = form(enabled ? action : t('common.continue'), async () => {
-            const value = pass.value; pass.value = '';
-            if (enabled) {
-                status.user = await api<Factor>('/security/disable', 'POST', { password: value, code: otp.value }, signal);
+        if (enrollment) enroll(enrollment);
+        else {
+            const body = form(action, async () => {
+                status.user = await api<Factor>('/security/disable', 'POST', {}, signal);
                 changed = true;
                 flow.close();
-            } else {
-                const enrollment = await api<{ secret: string; qr: string }>('/security/setup', 'POST', { password: value }, signal);
-                if (!signal.aborted) enroll(enrollment);
-            }
-        }, step, flow, signal);
-        body.prepend(field('login.password', pass));
-        if (enabled) body.append(field('login.verificationCode', otp));
-        pass.focus();
+            }, step, flow, signal);
+            body.prepend(el('p', '', t('security.enabled')));
+        }
 
         function enroll(enrollment: { secret: string; qr: string }) {
             const otp = code(); otp.inputMode = 'numeric'; otp.pattern = '[0-9]{6}'; otp.maxLength = 6;
@@ -129,7 +170,7 @@ export async function openSecurity() {
             }
             const qr = el('img', 'security-qr'); qr.src = enrollment.qr; qr.alt = t('security.setupKey'); qr.width = qr.height = 256;
             const secret = el('input'); secret.readOnly = true; secret.value = enrollment.secret; secret.dir = 'ltr';
-            body.prepend(instructions, qr, field('security.setupKey', secret), field('login.verificationCode', otp));
+            body.prepend(instructions, qr, field('security.setupKey', secret), field('security.authenticatorCode', otp));
             instructions.tabIndex = -1;
             instructions.focus();
         }
@@ -147,29 +188,6 @@ export async function openSecurity() {
             download.focus();
         }
     }
-    function authorizeNetwork(requiresCode: boolean): Promise<boolean> {
-        return new Promise(resolve => {
-            const content = el('div', 'security-settings'), pass = password(), otp = code();
-            const authorization = modal(t('security.global'), content);
-            const controller = new AbortController();
-            authorization.dialog.addEventListener('close', () => {
-                controller.abort(); content.replaceChildren(); resolve(false);
-            }, { once: true });
-            const body = form(t('common.continue'), async () => {
-                const value = { password: pass.value, code: otp.value };
-                pass.value = ''; otp.value = '';
-                await api('/security/network/unlock', 'POST', value, controller.signal);
-                resolve(true);
-                authorization.close();
-            }, content, authorization, controller.signal);
-            body.prepend(field('login.password', pass));
-            if (requiresCode) {
-                otp.inputMode = 'numeric'; otp.pattern = '[0-9]{6}'; otp.maxLength = 6;
-                body.append(field('security.authenticatorCode', otp));
-            }
-            pass.focus();
-        });
-    }
     function globalSettings() {
         const network = status.network!, allowed = el('textarea'), proxies = el('textarea');
         allowed.name = 'allowedNetworks'; proxies.name = 'trustedProxies';
@@ -180,18 +198,10 @@ export async function openSecurity() {
         const draft = () => ({ allowedNetworks: lines(allowed), trustedProxies: lines(proxies) });
         const body = form(t('common.save'), async () => {
             const value = draft();
-            type SaveResult = { saved: boolean; needsAuthorization?: boolean; requiresCode?: boolean };
-            let confirmDisconnect = false;
-            const save = () => api<SaveResult>('/security/network', 'PUT', { ...value, confirmDisconnect }, controller.signal);
-            let result = await save();
-            if (!result.saved && !result.needsAuthorization) {
+            let result = await api<{ saved: boolean }>('/security/network', 'PUT', value, controller.signal);
+            if (!result.saved) {
                 if (!await confirmAction(t('security.networkFilter'), t('security.confirmNetworkDisconnect'), t('common.save'))) return;
-                confirmDisconnect = true;
-                result = await save();
-            }
-            if (result.needsAuthorization) {
-                if (!await authorizeNetwork(!!result.requiresCode)) return;
-                result = await save();
+                result = await api<{ saved: boolean }>('/security/network', 'PUT', { ...value, confirmDisconnect: true }, controller.signal);
             }
             if (!result.saved) throw Error(t('common.failed'));
             status.network = value; dialog.close();
