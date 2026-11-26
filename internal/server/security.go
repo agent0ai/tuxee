@@ -19,6 +19,8 @@ import (
 	"tuxee/internal/update"
 )
 
+const networkAuthorizationWindow = 5 * time.Minute
+
 type pendingLogin struct {
 	mu       sync.Mutex
 	user     identity.User
@@ -185,18 +187,64 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 		jsonResponse(w, 200, response)
 		return
 	}
-	if r.URL.Path == "/api/security/network" && r.Method == "PUT" {
+	if r.URL.Path == "/api/security/network" && (r.Method == "PUT" || r.Method == "POST") ||
+		r.URL.Path == "/api/security/network/unlock" && r.Method == "POST" {
 		if err := s.securityAdmin(ctx, session.user); err != nil {
 			failure(w, 403, i18n.Wrap("security.adminDenied", err, i18n.Vars{"detail": i18n.Describe(err)}))
 			return
 		}
-		var policy security.Network
-		if err := decode(w, r, &policy, 32768); err != nil {
+		if r.URL.Path == "/api/security/network/unlock" {
+			s.unlockNetwork(w, r, ctx, session)
+			return
+		}
+		var input struct {
+			security.Network
+			IP                string `json:"ip,omitempty"`
+			ConfirmDisconnect bool   `json:"confirmDisconnect,omitempty"`
+		}
+		if err := decode(w, r, &input, 32768); err != nil {
 			failure(w, 400, err)
+			return
+		}
+		policy := input.Network
+		for _, ranges := range [][]string{policy.AllowedNetworks, policy.TrustedProxies} {
+			if _, err := security.ParseNetworks(ranges); err != nil {
+				failure(w, 422, err)
+				return
+			}
+		}
+		if r.Method == "POST" {
+			address, err := netip.ParseAddr(strings.TrimSpace(input.IP))
+			if err != nil || address.Zone() != "" {
+				failure(w, 422, i18n.New("security.invalidNetworks"))
+				return
+			}
+			jsonResponse(w, 200, map[string]bool{"allowed": policy.Allows(address)})
 			return
 		}
 		if s.Network == nil {
 			failure(w, 503, i18n.New("common.unavailable"))
+			return
+		}
+		address, err := policy.ClientIP(r)
+		loginAddress, loginErr := netip.ParseAddr(session.clientIP)
+		if !input.ConfirmDisconnect && (err != nil || !policy.Allows(address) || loginErr != nil || !policy.Allows(loginAddress)) {
+			jsonResponse(w, 200, map[string]bool{"saved": false})
+			return
+		}
+		unlock := s.lockFactor(session.user.UID)
+		defer unlock()
+		if ctx.Err() != nil || session.ctx.Err() != nil {
+			failure(w, 401, i18n.New("backend.server.signInToContinue"))
+			return
+		}
+		if !time.Now().Before(session.networkAuthorizedUntil) {
+			result, err := files.Run(ctx, session.user, files.Request{Operation: "security-status"})
+			if err != nil {
+				failure(w, 422, err)
+				return
+			}
+			jsonResponse(w, 200, map[string]bool{"saved": false, "needsAuthorization": true, "requiresCode": result.Security.Enabled})
 			return
 		}
 		if err := s.Network.Save(policy); err != nil {
@@ -283,7 +331,35 @@ func (s *Server) securityOperation(w http.ResponseWriter, r *http.Request, sessi
 	}
 }
 
+func (s *Server) unlockNetwork(w http.ResponseWriter, r *http.Request, ctx context.Context, session *login) {
+	var input struct {
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	if err := decode(w, r, &input, 8192); err != nil {
+		failure(w, 400, err)
+		return
+	}
+	if _, err := s.Gate.Authenticate(ctx, s.clientIP(r), session.user.Name, []byte(input.Password)); err != nil {
+		failure(w, 401, err)
+		return
+	}
+	unlock := s.lockFactor(session.user.UID)
+	defer unlock()
+	if ctx.Err() != nil || session.ctx.Err() != nil {
+		failure(w, 401, i18n.New("backend.server.signInToContinue"))
+		return
+	}
+	if _, err := files.Run(ctx, session.user, files.Request{Operation: "security-verify", Content: strings.TrimSpace(input.Code), Mode: "authenticator"}); err != nil {
+		failure(w, 401, err)
+		return
+	}
+	session.networkAuthorizedUntil = time.Now().Add(networkAuthorizationWindow)
+	jsonResponse(w, 200, map[string]bool{"authorized": true})
+}
+
 func (s *Server) revokeOtherLogins(current *login) {
+	current.networkAuthorizedUntil = time.Time{}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for key, session := range s.logins {

@@ -13,11 +13,11 @@ const run = (command, args = [], input) => {
     assert.equal(result.status, 0, `${command}: ${result.stderr}`);
     return result.stdout.trim();
 };
-const totp = secret => {
+const totp = (secret, seconds = Date.now() / 1000) => {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = '';
     for (const letter of secret) bits += alphabet.indexOf(letter).toString(2).padStart(5, '0');
     const bytes = Buffer.from(bits.match(/.{8}/g).map(byte => parseInt(byte, 2)));
-    const step = Buffer.alloc(8); step.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+    const step = Buffer.alloc(8); step.writeBigUInt64BE(BigInt(Math.floor(seconds / 30)));
     const mac = createHmac('sha1', bytes).update(step).digest(), offset = mac.at(-1) & 15;
     return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1000000).padStart(6, '0');
 };
@@ -79,6 +79,7 @@ try {
     await mkdir('test-results/security', { recursive: true });
     await dialog.screenshot({ path: 'test-results/security/user-disabled.png' });
     assert.equal(await dialog.locator('input').count(), 0);
+    assert.equal(await dialog.locator('.security-status-row svg').count(), 1);
     await dialog.getByRole('button', { name: 'Enable 2FA', exact: true }).click();
     const enrollment = page.getByRole('dialog', { name: 'Enable 2FA', exact: true });
     await enrollment.locator('[name=password]').fill(users[0].password);
@@ -142,7 +143,41 @@ try {
     }
     await dialog.locator('[name=allowedNetworks]').fill('invalid-network'); await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await dialog.locator('[role=alert]').filter({ hasText: 'valid IP' }).waitFor();
-    await dialog.locator('[name=allowedNetworks]').fill('198.51.100.10'); await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog.locator('[name=allowedNetworks]').fill('198.51.100.0/24\n2001:db8::/64');
+    const testIP = dialog.locator('[name=testIP]');
+    await testIP.fill('2001:db8::1');
+    await testIP.press('Enter');
+    await dialog.getByRole('status').filter({ hasText: 'This IP would be allowed.' }).waitFor();
+    await testIP.fill('203.0.113.1');
+    await dialog.getByRole('button', { name: 'Test', exact: true }).click();
+    await dialog.getByRole('status').filter({ hasText: 'This IP would be blocked.' }).waitFor();
+    assert.deepEqual((await (await api(1, '/security')).json()).network, global.network, 'tester persisted the draft');
+
+    const proxyPreview = await contexts[1].request.put(base + '/api/security/network', {
+        data: { allowedNetworks: [global.clientIP], trustedProxies: [global.clientIP] },
+        headers: { 'X-Tuxee-CSRF': csrf[1], 'X-Forwarded-For': '198.51.100.10' },
+    });
+    assert.deepEqual(await proxyPreview.json(), { saved: false }, 'save must resolve the current request using draft proxy settings');
+
+    const save = dialog.getByRole('button', { name: 'Save', exact: true });
+    const warning = adminPage.getByRole('dialog', { name: 'Network filter', exact: true });
+    await save.click();
+    await warning.getByText('These settings would disconnect you. Save anyway?').waitFor();
+    await warning.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await warning.waitFor({ state: 'hidden' });
+    assert.deepEqual((await (await api(1, '/security')).json()).network, global.network, 'cancel persisted the draft');
+    await save.click();
+    await warning.getByRole('button', { name: 'Save', exact: true }).click();
+    const authorize = adminPage.getByRole('dialog', { name: 'Global', exact: true });
+    await authorize.locator('[name=password]').waitFor();
+    assert.equal(await authorize.locator('[name=code]').count(), 0);
+    await authorize.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await authorize.waitFor({ state: 'hidden' });
+    assert.deepEqual((await (await api(1, '/security')).json()).network, global.network);
+    await save.click();
+    await warning.getByRole('button', { name: 'Save', exact: true }).click();
+    await authorize.locator('[name=password]').fill(users[1].password);
+    await authorize.getByRole('button', { name: 'Continue', exact: true }).click();
     await dialog.waitFor({ state: 'hidden' });
     assert.equal((await contexts[0].request.get(base)).status(), 403);
     assert.equal((await contexts[0].request.get(base + '/health')).status(), 200);
@@ -165,6 +200,27 @@ try {
     assert.equal(await rtlDialog.locator('.update-command').getAttribute('dir'), 'ltr');
     assert.ok((await rtlDialog.locator('.update-command').textContent()).includes('security network --clear --state'));
     await rtlDialog.screenshot({ path: 'test-results/security/global-ar-320.png' });
+    const rtlCSRF = (await rtlLogin.json()).csrf;
+    const rtlAPI = (path, method, data) => rtl.request.fetch(base + '/api/security' + path, {
+        method, data, headers: { 'X-Tuxee-CSRF': rtlCSRF },
+    });
+    const policy = { allowedNetworks: [], trustedProxies: [] };
+    const preflight = async () => (await rtlAPI('/network', 'PUT', policy)).json();
+    assert.deepEqual(await preflight(), { saved: false, needsAuthorization: true, requiresCode: false });
+    assert.equal((await rtlAPI('/network/unlock', 'POST', { password: 'wrong' })).status(), 401);
+    assert.equal((await rtlAPI('/network/unlock', 'POST', { password: users[1].password })).status(), 200);
+    for (let i = 0; i < 2; i++) assert.deepEqual(await preflight(), { saved: true });
+    const setup = await (await rtlAPI('/setup', 'POST', { password: users[1].password })).json();
+    const enrollmentTime = Date.now() / 1000;
+    const usedCode = totp(setup.secret, enrollmentTime - 30);
+    const enrolled = await rtlAPI('/enable', 'POST', { code: usedCode });
+    assert.equal(enrolled.status(), 200);
+    const backup = (await enrolled.json()).recoveryCodes[0];
+    assert.deepEqual(await preflight(), { saved: false, needsAuthorization: true, requiresCode: true });
+    for (const code of ['', usedCode, backup])
+        assert.equal((await rtlAPI('/network/unlock', 'POST', { password: users[1].password, code })).status(), 401);
+    assert.equal((await rtlAPI('/network/unlock', 'POST', { password: users[1].password, code: totp(setup.secret) })).status(), 200);
+    assert.deepEqual(await preflight(), { saved: true });
     await rtl.close();
     assert.deepEqual(errors, []);
     console.log('Security: real PAM, authenticator and recovery-code login, enrollment, single-use recovery, permission gating, CLI unlock, network lockout/recovery, trusted proxies and mobile layouts passed' + (container ? ' in Docker.' : '.'));

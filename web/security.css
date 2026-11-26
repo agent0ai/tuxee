@@ -9,5 +9,19 @@
 .security-qr { max-width: 100%; height: auto; align-self: center; background: white; }
 .security-recovery { user-select: text; direction: ltr; text-align: left; overflow-x: auto; }
 
-.security-action { align-self: flex-start; }
+.security-status-row, .security-network-test-row { display: flex; align-items: center; gap: 8px; }
+.security-status-row { justify-content: space-between; }
+.security-status-row button { white-space: normal; }
+.security-factor-state { display: flex; align-items: center; gap: 6px; }
+.security-factor-state svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.security-factor-state .lucide-circle-check { color: var(--accent); }
+.security-network-test { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 6px; background: var(--raised); }
+.security-network-test-row input { flex: 1; min-width: 0; }
+.security-network-test-row button:hover { background: var(--surface); }
+.security-network-result { display: flex; align-items: center; gap: 6px; }
+.security-network-result:empty { display: none; }
+.security-network-result svg { width: 16px; height: 16px; flex: none; }
+.security-network-result .allowed { color: #36cfa7; }
+:root[data-theme=light] .security-network-result .allowed { color: #187b66; }
+.security-network-result .blocked { color: var(--danger); }
 .security-instructions a { color: var(--accent); text-decoration: underline; }

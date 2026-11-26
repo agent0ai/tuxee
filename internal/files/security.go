@@ -142,7 +142,7 @@ func securityOperation(ctx context.Context, request Request) (Response, error) {
 		step, valid := security.Verify(factor.Secret, request.Content, factor.LastStep, now)
 		if valid {
 			factor.LastStep = step
-		} else {
+		} else if request.Mode != "authenticator" {
 			hash := security.RecoveryHash(request.Content)
 			for index, expected := range factor.Recovery {
 				if subtle.ConstantTimeCompare([]byte(hash), []byte(expected)) == 1 {

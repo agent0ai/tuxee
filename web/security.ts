@@ -1,4 +1,4 @@
-import { api, button, el, modal } from './ui';
+import { api, button, confirmAction, el, icon, modal } from './ui';
 import { t, errorText } from './i18n';
 import './security.css';
 
@@ -51,13 +51,18 @@ export async function openSecurity() {
         const save = button(action, undefined, undefined, 'primary'); save.type = 'submit';
         const actions = el('div', 'dialog-actions'); actions.append(button(t('common.cancel'), undefined, modalView.close), save);
         modalView.setFooter(actions, form);
+        const main = target === panel;
+        let submitting = false;
         form.onsubmit = async event => {
-            event.preventDefault(); if (busy) return;
-            busy = true; notice.textContent = ''; save.disabled = true;
-            for (const tab of tabButtons) tab.disabled = true;
+            event.preventDefault(); if (submitting) return;
+            submitting = true; notice.textContent = ''; save.disabled = true;
+            if (main) { busy = true; for (const tab of tabButtons) tab.disabled = true; }
             try { await submit(); }
             catch (error) { if (!signal.aborted) notice.textContent = errorText(error); }
-            finally { busy = false; save.disabled = false; for (const tab of tabButtons) tab.disabled = false; }
+            finally {
+                submitting = false; save.disabled = false;
+                if (main) { busy = false; for (const tab of tabButtons) tab.disabled = false; }
+            }
         };
         form.append(notice); target.replaceChildren(form);
         return form;
@@ -65,10 +70,13 @@ export async function openSecurity() {
     function userSettings() {
         const enabled = status.user.enabled;
         const section = el('section', 'security-form');
-        section.append(el('h3', '', t('security.twoFactor')), el('p', '', t(enabled ? 'security.enabled' : 'security.disabled')));
+        const row = el('div', 'security-status-row');
+        const state = el('p', 'security-factor-state');
+        state.append(icon(enabled ? 'CircleCheck' : 'CircleAlert'), t(enabled ? 'security.enabled' : 'security.disabled'));
+        section.append(el('h3', '', t('security.twoFactor')), row);
+        const action = button(t(enabled ? 'security.disable' : 'security.enable'), undefined, () => changeFactor(enabled), 'primary');
+        row.append(state, action);
         if (enabled) section.append(el('p', 'muted', t('security.recoveryRemaining', { count: status.user.recoveryRemaining })));
-        const action = button(t(enabled ? 'security.disable' : 'security.enable'), undefined, () => changeFactor(enabled), 'primary security-action');
-        section.append(action);
         panel.replaceChildren(section);
         dialog.setFooter();
         return action;
@@ -139,6 +147,29 @@ export async function openSecurity() {
             download.focus();
         }
     }
+    function authorizeNetwork(requiresCode: boolean): Promise<boolean> {
+        return new Promise(resolve => {
+            const content = el('div', 'security-settings'), pass = password(), otp = code();
+            const authorization = modal(t('security.global'), content);
+            const controller = new AbortController();
+            authorization.dialog.addEventListener('close', () => {
+                controller.abort(); content.replaceChildren(); resolve(false);
+            }, { once: true });
+            const body = form(t('common.continue'), async () => {
+                const value = { password: pass.value, code: otp.value };
+                pass.value = ''; otp.value = '';
+                await api('/security/network/unlock', 'POST', value, controller.signal);
+                resolve(true);
+                authorization.close();
+            }, content, authorization, controller.signal);
+            body.prepend(field('login.password', pass));
+            if (requiresCode) {
+                otp.inputMode = 'numeric'; otp.pattern = '[0-9]{6}'; otp.maxLength = 6;
+                body.append(field('security.authenticatorCode', otp));
+            }
+            pass.focus();
+        });
+    }
     function globalSettings() {
         const network = status.network!, allowed = el('textarea'), proxies = el('textarea');
         allowed.name = 'allowedNetworks'; proxies.name = 'trustedProxies';
@@ -146,11 +177,62 @@ export async function openSecurity() {
         allowed.value = network.allowedNetworks.join('\n'); proxies.value = network.trustedProxies.join('\n');
         allowed.placeholder = '10.8.0.0/24\n203.0.113.42\n2001:db8::/64';
         const lines = (input: HTMLTextAreaElement) => input.value.split('\n').map(line => line.trim()).filter(Boolean);
+        const draft = () => ({ allowedNetworks: lines(allowed), trustedProxies: lines(proxies) });
         const body = form(t('common.save'), async () => {
-            const value = { allowedNetworks: lines(allowed), trustedProxies: lines(proxies) };
-            await api('/security/network', 'PUT', value, controller.signal);
+            const value = draft();
+            type SaveResult = { saved: boolean; needsAuthorization?: boolean; requiresCode?: boolean };
+            let confirmDisconnect = false;
+            const save = () => api<SaveResult>('/security/network', 'PUT', { ...value, confirmDisconnect }, controller.signal);
+            let result = await save();
+            if (!result.saved && !result.needsAuthorization) {
+                if (!await confirmAction(t('security.networkFilter'), t('security.confirmNetworkDisconnect'), t('common.save'))) return;
+                confirmDisconnect = true;
+                result = await save();
+            }
+            if (result.needsAuthorization) {
+                if (!await authorizeNetwork(!!result.requiresCode)) return;
+                result = await save();
+            }
+            if (!result.saved) throw Error(t('common.failed'));
             status.network = value; dialog.close();
         });
+        const testIP = el('input');
+        testIP.id = 'security-test-ip'; testIP.name = 'testIP'; testIP.dir = 'ltr'; testIP.maxLength = 64;
+        testIP.autocomplete = 'off'; testIP.spellcheck = false;
+        testIP.placeholder = status.clientIP;
+        const result = el('p', 'muted security-network-result');
+        result.setAttribute('role', 'status');
+        let revision = 0;
+        const testLabel = t('security.testNetwork');
+        const test = button(testLabel, 'Search', async () => {
+            const tested = ++revision;
+            result.textContent = '';
+            test.disabled = true;
+            try {
+                const { allowed } = await api<{ allowed: boolean }>('/security/network', 'POST', { ...draft(), ip: testIP.value }, controller.signal);
+                if (tested === revision) {
+                    const indicator = icon(allowed ? 'CircleCheck' : 'CircleAlert');
+                    indicator.classList.add(allowed ? 'allowed' : 'blocked');
+                    result.replaceChildren(indicator, t(allowed ? 'security.testAllowed' : 'security.testBlocked'));
+                }
+            } catch (error) {
+                if (tested === revision && !controller.signal.aborted) result.textContent = errorText(error);
+            } finally { test.disabled = false; }
+        });
+        test.append(testLabel);
+        for (const input of [allowed, proxies, testIP]) input.addEventListener('input', () => {
+            revision++;
+            result.textContent = '';
+        });
+        testIP.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); test.click(); }
+        });
+        const tester = el('div', 'security-network-test');
+        const label = el('label', 'field', t('security.testIP'));
+        label.htmlFor = testIP.id;
+        const testRow = el('div', 'security-network-test-row');
+        testRow.append(testIP, test);
+        tester.append(label, testRow, result);
         const recovery = el('p', 'muted');
         t('security.networkWarning', { command: '\uFFFC' }).split('\uFFFC').forEach((part, index) => {
             if (index) { const command = el('code', 'update-command', status.networkRecoveryCommand || ''); command.dir = 'ltr'; recovery.append(command); }
@@ -159,7 +241,7 @@ export async function openSecurity() {
         body.prepend(el('h3', '', t('security.networkFilter')), el('p', '', t('security.currentIP', { address: status.clientIP })),
             field('security.allowedNetworks', allowed), el('p', 'muted', t('security.networkHelp')),
             field('security.trustedProxies', proxies), el('p', 'muted', t('security.proxyHelp')),
-            recovery);
+            tester, recovery);
     }
     dialog.dialog.addEventListener('close', () => { controller.abort(); content.replaceChildren(); }, { once: true });
     select('user');
