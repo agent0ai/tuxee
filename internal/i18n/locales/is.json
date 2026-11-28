@@ -683,6 +683,7 @@
     "notifications.empty": "Engar tilkynningar",
     "notifications.all": "Allar",
     "notifications.dismissAll": "Hreinsa allar tilkynningar",
+    "notifications.releaseAvailable": "Ný útgáfa af Tuxee ({version}) er í boði. {update}.",
     "notifications.title": "Tilkynningar",
     "notifications.type.default": "Sjálfgefið",
     "notifications.type.error": "Villa",

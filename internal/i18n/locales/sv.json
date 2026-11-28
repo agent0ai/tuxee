@@ -683,6 +683,7 @@
     "notifications.empty": "Inga aviseringar",
     "notifications.all": "Alla",
     "notifications.dismissAll": "Avvisa alla aviseringar",
+    "notifications.releaseAvailable": "En ny version av Tuxee ({version}) finns tillgänglig. {update}.",
     "notifications.title": "Aviseringar",
     "notifications.type.default": "Standard",
     "notifications.type.error": "Fel",

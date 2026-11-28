@@ -683,6 +683,7 @@
     "notifications.empty": "אין התראות",
     "notifications.all": "הכול",
     "notifications.dismissAll": "ניקוי כל ההתראות",
+    "notifications.releaseAvailable": "גרסה חדשה של Tuxee ‏({version}) זמינה. {update}.",
     "notifications.title": "התראות",
     "notifications.type.default": "ברירת מחדל",
     "notifications.type.error": "שגיאה",

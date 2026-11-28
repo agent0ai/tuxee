@@ -19,6 +19,7 @@ import (
 
 	"tuxee/internal/i18n"
 	"tuxee/internal/identity"
+	"tuxee/internal/update"
 )
 
 type Notification struct {
@@ -159,7 +160,7 @@ func notificationOperation(ctx context.Context, request Request) (Response, erro
 		if !validNotificationID(id) {
 			return response, i18n.New("backend.server.invalidRequestBody")
 		}
-		return response, dismissNotification(dir, fd, id)
+		return response, dismissNotification(dir, fd, id, request.Version)
 	case "notification-dismiss-all":
 		// Snapshot names before deleting entries from the directory being enumerated.
 		names, err := dir.Readdirnames(-1)
@@ -172,21 +173,21 @@ func notificationOperation(ctx context.Context, request Request) (Response, erro
 			}
 			id, ok := strings.CutSuffix(name, ".json")
 			if ok && validNotificationID(id) {
-				if err := dismissNotification(dir, fd, id); err != nil {
+				if err := dismissNotification(dir, fd, id, request.Version); err != nil {
 					return response, err
 				}
 			}
 		}
 		return response, nil
 	case "notification-list":
-		return listNotifications(ctx, dir, fd)
+		return listNotifications(ctx, dir, fd, request.Version)
 	}
 	return response, i18n.New("backend.server.invalidRequestBody")
 }
 
-func dismissNotification(dir *os.File, fd int, id string) error {
+func dismissNotification(dir *os.File, fd int, id, version string) error {
 	n, ok := readNotification(fd, id)
-	if !ok {
+	if !ok || n.supersededBy(version) {
 		return nil
 	}
 	if n.Release != "" {
@@ -206,7 +207,11 @@ func dismissNotification(dir *os.File, fd int, id string) error {
 	return err
 }
 
-func listNotifications(ctx context.Context, dir *os.File, fd int) (Response, error) {
+func (n Notification) supersededBy(version string) bool {
+	return update.ValidTag(n.Release) && update.ValidTag("v"+strings.TrimPrefix(version, "v")) && !update.Newer(n.Release, version)
+}
+
+func listNotifications(ctx context.Context, dir *os.File, fd int, version string) (Response, error) {
 	var feed NotificationFeed
 	for {
 		if err := ctx.Err(); err != nil {
@@ -218,7 +223,7 @@ func listNotifications(ctx context.Context, dir *os.File, fd int) (Response, err
 			if !ok || !validNotificationID(id) || !entry.Type().IsRegular() {
 				continue
 			}
-			if n, ok := readNotification(fd, id); ok {
+			if n, ok := readNotification(fd, id); ok && !n.supersededBy(version) {
 				feed.Items = append(feed.Items, n)
 				feed.Count++
 			}

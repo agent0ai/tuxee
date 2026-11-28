@@ -1722,7 +1722,6 @@ pre, code, .process-label small {
 .inbox-message > :last-child { margin-bottom: 0; }
 .inbox-message pre { overflow: auto; padding: 6px; background: var(--surface); }
 .inbox-message table { display: block; overflow: auto; }
-.inbox-about { padding: 1px 2px; min-height: 28px; color: var(--accent); text-align: start; white-space: normal; }
 @media (max-width: 460px) {
   .start-body { grid-template-columns: minmax(0, .75fr) minmax(0, 1fr); }
   .start-apps, .start-desktop { padding: 6px; }

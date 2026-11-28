@@ -683,6 +683,7 @@
     "notifications.empty": "Ei ilmoituksia",
     "notifications.all": "Kaikki",
     "notifications.dismissAll": "Hylkää kaikki ilmoitukset",
+    "notifications.releaseAvailable": "Tuxeen uusi versio ({version}) on saatavilla. {update}.",
     "notifications.title": "Ilmoitukset",
     "notifications.type.default": "Oletus",
     "notifications.type.error": "Virhe",

@@ -683,6 +683,7 @@
     "notifications.empty": "Geen meldingen",
     "notifications.all": "Alle",
     "notifications.dismissAll": "Alle meldingen wissen",
+    "notifications.releaseAvailable": "Er is een nieuwe versie van Tuxee ({version}) beschikbaar. {update}.",
     "notifications.title": "Meldingen",
     "notifications.type.default": "Standaard",
     "notifications.type.error": "Fout",

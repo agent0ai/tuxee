@@ -683,6 +683,7 @@
     "notifications.empty": "ไม่มีการแจ้งเตือน",
     "notifications.all": "ทั้งหมด",
     "notifications.dismissAll": "ล้างการแจ้งเตือนทั้งหมด",
+    "notifications.releaseAvailable": "Tuxee เวอร์ชันใหม่ ({version}) พร้อมให้อัปเดตแล้ว {update}",
     "notifications.title": "การแจ้งเตือน",
     "notifications.type.default": "ค่าเริ่มต้น",
     "notifications.type.error": "ข้อผิดพลาด",

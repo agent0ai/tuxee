@@ -683,6 +683,7 @@
     "notifications.empty": "通知はありません",
     "notifications.all": "すべて",
     "notifications.dismissAll": "すべての通知を消去",
+    "notifications.releaseAvailable": "Tuxee の新しいバージョン（{version}）が利用できます。{update}。",
     "notifications.title": "通知",
     "notifications.type.default": "既定",
     "notifications.type.error": "エラー",

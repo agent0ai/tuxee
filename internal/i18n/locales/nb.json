@@ -683,6 +683,7 @@
     "notifications.empty": "Ingen varsler",
     "notifications.all": "Alle",
     "notifications.dismissAll": "Fjern alle varsler",
+    "notifications.releaseAvailable": "En ny versjon av Tuxee ({version}) er tilgjengelig. {update}.",
     "notifications.title": "Varsler",
     "notifications.type.default": "Standard",
     "notifications.type.error": "Feil",

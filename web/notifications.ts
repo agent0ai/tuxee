@@ -3,7 +3,7 @@ import { formatDateTime, locale, t } from './i18n';
 import { api, button, el, icon, popover } from './ui';
 
 const noticeIcons = { default: 'Bell', info: 'Info', success: 'CircleCheck', warning: 'TriangleAlert', error: 'CircleAlert' } as const;
-type Notice = { id: string; type: keyof typeof noticeIcons; text?: string; release?: string; resolved?: boolean; created: string };
+type Notice = { id: string; type: keyof typeof noticeIcons; text?: string; release?: string; created: string };
 type Feed = { items: Notice[]; count: number };
 
 const escaped = (text: string) => el('span', '', text).innerHTML;
@@ -34,7 +34,7 @@ export class Inbox {
     private ready = false;
     private repaint = () => {};
 
-    constructor(private about: () => void) {
+    constructor(private openUpdates: () => void) {
         document.addEventListener('visibilitychange', () => void this.refresh(), { signal: this.events.signal });
         window.addEventListener('focus', () => void this.refresh(), { signal: this.events.signal });
         void this.refresh();
@@ -134,9 +134,21 @@ export class Inbox {
                 const message = el('div', 'inbox-message');
                 message.dir = 'auto';
                 if (item.release) {
-                    const about = button(t('app.aboutTuxee'), undefined, () => { close(); this.about(); }, 'inbox-about');
-                    const status = item.resolved ? t('updates.upToDate') : t('updates.available', { version: item.release });
-                    message.append(el('p', '', status), about);
+                    const line = el('p');
+                    t('notifications.releaseAvailable', { version: item.release, update: '\uFFFC' }).split('\uFFFC').forEach((part, index) => {
+                        if (index) {
+                            const link = el('a', 'inbox-update', t('updates.install'));
+                            link.href = '#about-update';
+                            link.onclick = event => {
+                                event.preventDefault();
+                                close();
+                                this.openUpdates();
+                            };
+                            line.append(link);
+                        }
+                        line.append(part);
+                    });
+                    message.append(line);
                 } else {
                     try { message.innerHTML = markdown.parse(item.text || '', { async: false }); }
                     catch { message.textContent = item.text || ''; }

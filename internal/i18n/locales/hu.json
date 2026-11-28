@@ -683,6 +683,7 @@
     "notifications.empty": "Nincsenek értesítések",
     "notifications.all": "Összes",
     "notifications.dismissAll": "Összes értesítés törlése",
+    "notifications.releaseAvailable": "Elérhető a Tuxee új verziója ({version}). {update}.",
     "notifications.title": "Értesítések",
     "notifications.type.default": "Alapértelmezett",
     "notifications.type.error": "Hiba",

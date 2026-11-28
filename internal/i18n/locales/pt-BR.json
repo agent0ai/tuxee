@@ -683,6 +683,7 @@
     "notifications.empty": "Nenhuma notificação",
     "notifications.all": "Todas",
     "notifications.dismissAll": "Dispensar todas as notificações",
+    "notifications.releaseAvailable": "Uma nova versão do Tuxee ({version}) está disponível. {update}.",
     "notifications.title": "Notificações",
     "notifications.type.default": "Padrão",
     "notifications.type.error": "Erro",

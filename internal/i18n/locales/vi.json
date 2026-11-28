@@ -683,6 +683,7 @@
     "notifications.empty": "Không có thông báo",
     "notifications.all": "Tất cả",
     "notifications.dismissAll": "Xóa tất cả thông báo",
+    "notifications.releaseAvailable": "Đã có phiên bản mới của Tuxee ({version}). {update}.",
     "notifications.title": "Thông báo",
     "notifications.type.default": "Mặc định",
     "notifications.type.error": "Lỗi",

@@ -422,30 +422,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/notifications" && r.Method == "GET":
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		result, err := files.Run(ctx, session.user, files.Request{Operation: "notification-list"})
+		result, err := files.Run(ctx, session.user, files.Request{Operation: "notification-list", Version: s.Version})
 		if err != nil {
 			failure(w, 422, err)
 			return
-		}
-		type notice struct {
-			files.Notification
-			Resolved bool `json:"resolved,omitempty"`
 		}
 		inbox := result.Inbox
 		if inbox == nil {
 			inbox = &files.NotificationFeed{}
 		}
-		items := make([]notice, 0, len(inbox.Items))
-		for _, item := range inbox.Items {
-			items = append(items, notice{item, update.ValidTag(item.Release) && !update.Newer(item.Release, s.Version)})
+		if inbox.Items == nil {
+			inbox.Items = []files.Notification{}
 		}
-		jsonResponse(w, 200, map[string]any{"items": items, "count": inbox.Count})
+		jsonResponse(w, 200, inbox)
 	case (r.URL.Path == "/api/notifications" || strings.HasPrefix(r.URL.Path, "/api/notifications/")) && r.Method == "DELETE":
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		req := files.Request{Operation: "notification-dismiss-all"}
+		req := files.Request{Operation: "notification-dismiss-all", Version: s.Version}
 		if r.URL.Path != "/api/notifications" {
-			req = files.Request{Operation: "notification-dismiss", Path: strings.TrimPrefix(r.URL.Path, "/api/notifications/")}
+			req.Operation = "notification-dismiss"
+			req.Path = strings.TrimPrefix(r.URL.Path, "/api/notifications/")
 		}
 		if _, err := files.Run(ctx, session.user, req); err != nil {
 			failure(w, 422, err)

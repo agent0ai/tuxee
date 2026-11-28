@@ -57,6 +57,7 @@ export class Updates {
     }
     view(signal: AbortSignal) {
         const content = el('tr', 'about-update'), cell = el('td'), summary = el('div', 'update-summary');
+        content.id = 'about-update';
         content.setAttribute('aria-label', t("updates.updates")); cell.colSpan = 2;
         const message = el('span', 'update-status'), checked = el('span', 'update-checked muted'), detail = el('p', 'update-error');
         const subtitle = el('p', 'update-subtitle muted'), actions = el('span', 'update-actions');

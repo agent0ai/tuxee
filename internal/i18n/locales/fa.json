@@ -683,6 +683,7 @@
     "notifications.empty": "اعلانی نیست",
     "notifications.all": "همه",
     "notifications.dismissAll": "رد کردن همهٔ اعلان‌ها",
+    "notifications.releaseAvailable": "نسخهٔ جدید Tuxee ‏({version}) در دسترس است. {update}.",
     "notifications.title": "اعلان‌ها",
     "notifications.type.default": "پیش‌فرض",
     "notifications.type.error": "خطا",

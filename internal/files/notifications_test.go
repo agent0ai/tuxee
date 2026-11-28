@@ -10,10 +10,11 @@ import (
 func TestNotificationDeliveryAndDismissal(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	var version string
 	run := func(operation, id string, notice *Notification) Response {
 		t.Helper()
 		result, err := notificationOperation(t.Context(), Request{
-			Operation: "notification-" + operation, Path: id, Notice: notice,
+			Operation: "notification-" + operation, Path: id, Notice: notice, Version: version,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -69,14 +70,25 @@ func TestNotificationDeliveryAndDismissal(t *testing.T) {
 		t.Fatal("dismiss accepted a path")
 	}
 	update.Release = "v99.2.0"
-	run("post", "", &update)
 	for range 65 {
 		run("post", "", &warning)
 	}
+	run("post", "", &update)
 	if list := run("list", "", nil).Inbox; list.Count <= len(list.Items) {
 		t.Fatal("expected overflow")
 	}
+	version = "v99.2.0"
+	if list := run("list", "", nil).Inbox; list.Count != 66 || len(list.Items) != 64 || list.Items[0].Release != "" {
+		t.Fatal("installed release should be excluded before counting and limiting the page")
+	}
 	run("dismiss-all", "", nil)
+	if list := run("list", "", nil).Inbox; list.Count != 0 {
+		t.Fatal("all visible notices should be dismissed", list)
+	}
+	version = "99.1.0"
+	if list := run("list", "", nil).Inbox; list.Count != 1 || list.Items[0].Release != update.Release {
+		t.Fatal("an older instance sharing the account should still see the release", list)
+	}
 	run("dismiss-all", "", nil)
 	run("post", "", &update)
 	if list := run("list", "", nil).Inbox; list.Count != 0 {

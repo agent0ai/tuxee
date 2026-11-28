@@ -683,6 +683,7 @@
     "notifications.empty": "Žádná oznámení",
     "notifications.all": "Vše",
     "notifications.dismissAll": "Zavřít všechna oznámení",
+    "notifications.releaseAvailable": "Je dostupná nová verze Tuxee ({version}). {update}.",
     "notifications.title": "Oznámení",
     "notifications.type.default": "Výchozí",
     "notifications.type.error": "Chyba",

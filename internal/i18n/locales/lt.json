@@ -683,6 +683,7 @@
     "notifications.empty": "Pranešimų nėra",
     "notifications.all": "Visi",
     "notifications.dismissAll": "Atmesti visus pranešimus",
+    "notifications.releaseAvailable": "Išleista nauja „Tuxee“ versija ({version}). {update}.",
     "notifications.title": "Pranešimai",
     "notifications.type.default": "Numatytasis",
     "notifications.type.error": "Klaida",

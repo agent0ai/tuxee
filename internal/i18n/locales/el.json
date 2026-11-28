@@ -683,6 +683,7 @@
     "notifications.empty": "Δεν υπάρχουν ειδοποιήσεις",
     "notifications.all": "Όλες",
     "notifications.dismissAll": "Απόρριψη όλων των ειδοποιήσεων",
+    "notifications.releaseAvailable": "Μια νέα έκδοση του Tuxee ({version}) είναι διαθέσιμη. {update}.",
     "notifications.title": "Ειδοποιήσεις",
     "notifications.type.default": "Προεπιλογή",
     "notifications.type.error": "Σφάλμα",

@@ -683,6 +683,7 @@
     "notifications.empty": "Nav paziņojumu",
     "notifications.all": "Visi",
     "notifications.dismissAll": "Noraidīt visus paziņojumus",
+    "notifications.releaseAvailable": "Ir pieejama jauna Tuxee versija ({version}). {update}.",
     "notifications.title": "Paziņojumi",
     "notifications.type.default": "Noklusējums",
     "notifications.type.error": "Kļūda",

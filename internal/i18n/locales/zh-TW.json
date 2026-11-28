@@ -683,6 +683,7 @@
     "notifications.empty": "沒有通知",
     "notifications.all": "全部",
     "notifications.dismissAll": "清除所有通知",
+    "notifications.releaseAvailable": "Tuxee 有新版本（{version}）可用。{update}。",
     "notifications.title": "通知",
     "notifications.type.default": "預設",
     "notifications.type.error": "錯誤",

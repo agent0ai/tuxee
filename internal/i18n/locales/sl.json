@@ -683,6 +683,7 @@
     "notifications.empty": "Ni obvestil",
     "notifications.all": "Vsa",
     "notifications.dismissAll": "Opusti vsa obvestila",
+    "notifications.releaseAvailable": "Na voljo je nova različica Tuxeeja ({version}). {update}.",
     "notifications.title": "Obvestila",
     "notifications.type.default": "Privzeto",
     "notifications.type.error": "Napaka",

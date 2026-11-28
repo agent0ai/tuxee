@@ -130,7 +130,7 @@ Terminal WebSockets accept an optional `viewer` query parameter containing exact
 
 ## Notification inbox
 
-Authenticated GET `/api/notifications` returns only the session account’s records and count through the file worker. CSRF-protected DELETE `/api/notifications/{id}` dismisses an opaque record ID in that same account. CSRF-protected DELETE `/api/notifications` dismisses the full inbox for the same account. The API marks already-installed release announcements resolved; browser clients cannot publish notices. Authenticated same-origin /api/events sends typed notifications.changed invalidations to every connected tab for the UID, including after watch registration. Share one event-driven directory watch per connected UID and release it with the final subscriber. Terminal, GUI and audio keep their dedicated transports.
+Authenticated GET `/api/notifications` returns only the session account’s records and count through the file worker. CSRF-protected DELETE `/api/notifications/{id}` dismisses an opaque record ID in that same account. CSRF-protected DELETE `/api/notifications` dismisses the full inbox for the same account. Pass the running instance version to the file worker for listing and dismissal; browser clients cannot publish notices. Authenticated same-origin /api/events sends typed notifications.changed invalidations to every connected tab for the UID, including after watch registration. Share one event-driven directory watch per connected UID and release it with the final subscriber. Terminal, GUI and audio keep their dedicated transports.
 
 # Work Guidance
 

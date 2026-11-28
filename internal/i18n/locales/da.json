@@ -683,6 +683,7 @@
     "notifications.empty": "Ingen notifikationer",
     "notifications.all": "Alle",
     "notifications.dismissAll": "Afvis alle notifikationer",
+    "notifications.releaseAvailable": "En ny version af Tuxee ({version}) er tilgængelig. {update}.",
     "notifications.title": "Notifikationer",
     "notifications.type.default": "Standard",
     "notifications.type.error": "Fejl",

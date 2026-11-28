@@ -683,6 +683,7 @@
     "notifications.empty": "Teavitusi pole",
     "notifications.all": "Kõik",
     "notifications.dismissAll": "Eemalda kõik teavitused",
+    "notifications.releaseAvailable": "Tuxee uus versioon ({version}) on saadaval. {update}.",
     "notifications.title": "Teavitused",
     "notifications.type.default": "Vaikimisi",
     "notifications.type.error": "Viga",

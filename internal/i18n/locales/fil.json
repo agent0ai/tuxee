@@ -683,6 +683,7 @@
     "notifications.empty": "Walang abiso",
     "notifications.all": "Lahat",
     "notifications.dismissAll": "Alisin ang lahat ng abiso",
+    "notifications.releaseAvailable": "May bagong bersyon ng Tuxee ({version}). {update}.",
     "notifications.title": "Mga abiso",
     "notifications.type.default": "Default",
     "notifications.type.error": "Error",

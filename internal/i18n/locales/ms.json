@@ -683,6 +683,7 @@
     "notifications.empty": "Tiada pemberitahuan",
     "notifications.all": "Semua",
     "notifications.dismissAll": "Kosongkan semua pemberitahuan",
+    "notifications.releaseAvailable": "Versi baharu Tuxee ({version}) tersedia. {update}.",
     "notifications.title": "Pemberitahuan",
     "notifications.type.default": "Lalai",
     "notifications.type.error": "Ralat",

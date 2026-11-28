@@ -683,6 +683,7 @@
     "notifications.empty": "Nema obavijesti",
     "notifications.all": "Sve",
     "notifications.dismissAll": "Odbaci sve obavijesti",
+    "notifications.releaseAvailable": "Dostupna je nova verzija Tuxeeja ({version}). {update}.",
     "notifications.title": "Obavijesti",
     "notifications.type.default": "Zadano",
     "notifications.type.error": "Pogreška",

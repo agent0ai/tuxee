@@ -683,6 +683,7 @@
     "notifications.empty": "Nicio notificare",
     "notifications.all": "Toate",
     "notifications.dismissAll": "Șterge toate notificările",
+    "notifications.releaseAvailable": "Este disponibilă o versiune nouă de Tuxee ({version}). {update}.",
     "notifications.title": "Notificări",
     "notifications.type.default": "Implicit",
     "notifications.type.error": "Eroare",

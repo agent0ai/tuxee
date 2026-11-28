@@ -121,7 +121,11 @@ try {
     console.log('PASS inbox survives resize during first desktop save');
 
     const release = { id: '7'.repeat(32), type: 'info', release: 'v99.2.0', created: new Date().toISOString() };
-    docker(['runuser', '-u', a.name, '--', 'bash', '-c', 'umask 077; cat > "$1"', 'fixture', aPath + release.id + '.json'], JSON.stringify(release));
+    const installed = { ...release, id: '8'.repeat(32), release: 'v0.0.0' };
+    for (const notice of [release, installed]) {
+        docker(['runuser', '-u', a.name, '--', 'bash', '-c', 'umask 077; cat > "$1"', 'fixture', aPath + notice.id + '.json'], JSON.stringify(notice));
+    }
+    assert.equal((await feed(a)).count, 3, 'installed releases do not count as notifications');
     const page = await a.context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const start = page.locator('.brand-button'), launcher = page.locator('.start-menu');
@@ -164,25 +168,27 @@ try {
     await restart.getByRole('button', { name: 'Cancel' }).click();
     await restart.waitFor({ state: 'detached' });
     await bell.click();
-    await page.getByText('Tuxee v99.2.0 is available', { exact: true }).waitFor();
+    const releaseMessage = inbox.locator(`[data-notice="${release.id}"] .inbox-message p`);
+    await releaseMessage.waitFor();
+    assert.equal(await releaseMessage.textContent(), 'A new version of Tuxee (v99.2.0) is available. Update.');
     await settle(inbox);
     assert.equal(await inbox.locator('strong').first().textContent(), 'Maintenance');
-    assert.equal(await inbox.locator('a').getAttribute('href'), 'https://example.org/maintenance');
+    const details = inbox.getByRole('link', { name: 'Details', exact: true });
+    assert.equal(await details.getAttribute('href'), 'https://example.org/maintenance');
     assert.deepEqual(await inbox.locator('li').allTextContents(), ['Save drafts', 'Details']);
     assert.equal(await inbox.locator('code').textContent(), 'maintenance.log');
     assert.equal(await bell.locator('.inbox-badge').textContent(), '3');
     assert.equal(await inbox.locator('[data-type=success] .inbox-type').getAttribute('aria-label'), 'Success');
     await screenshot('desktop-inbox');
-    await inbox.locator('.inbox-about').click();
+    await releaseMessage.getByRole('link', { name: 'Update', exact: true }).click();
     await about.waitFor(); assert.equal(await inbox.count(), 0);
     await page.keyboard.press('Escape');
     await bell.click(); await bell.click(); assert.equal(await inbox.count(), 0);
 
     await a.context.route('https://example.org/maintenance', route => route.fulfill({ body: 'Maintenance details' }));
     await bell.click();
-    const link = inbox.locator('a');
     const external = a.context.waitForEvent('page');
-    await link.click();
+    await details.click();
     const linked = await external;
     await linked.waitForURL('https://example.org/maintenance');
     await linked.close();
@@ -260,10 +266,10 @@ try {
     docker(["mv", aPath.slice(0, -1), aPath.slice(0, -1) + ".reconnected"]);
     docker(["mv", aPath.slice(0, -1) + ".old", aPath.slice(0, -1)]);
     await bell.click();
-    await inbox.getByText('Tuxee v99.2.0 is available', { exact: true }).waitFor();
+    await releaseMessage.waitFor();
     await bell.click();
     console.log('PASS fallback, immediate delivery, background tabs, isolation, dismissal and reconnect');
-    console.log('PASS Start keyboard and click dismissal, system actions, safe Markdown, About link and persistent dismissal');
+    console.log('PASS Start keyboard and click dismissal, system actions, safe Markdown, inline Update link and persistent dismissal');
 
     async function launchFavorite(menu, row, marker) {
         const old = await live();

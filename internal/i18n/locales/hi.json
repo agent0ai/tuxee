@@ -683,6 +683,7 @@
     "notifications.empty": "कोई सूचना नहीं",
     "notifications.all": "सभी",
     "notifications.dismissAll": "सभी सूचनाएँ हटाएँ",
+    "notifications.releaseAvailable": "Tuxee का नया संस्करण ({version}) उपलब्ध है। {update}।",
     "notifications.title": "सूचनाएँ",
     "notifications.type.default": "डिफ़ॉल्ट",
     "notifications.type.error": "त्रुटि",

@@ -683,6 +683,7 @@
     "notifications.empty": "Bildirim yok",
     "notifications.all": "Tümü",
     "notifications.dismissAll": "Tüm bildirimleri temizle",
+    "notifications.releaseAvailable": "Tuxee’nin yeni bir sürümü ({version}) mevcut. {update}.",
     "notifications.title": "Bildirimler",
     "notifications.type.default": "Varsayılan",
     "notifications.type.error": "Hata",
